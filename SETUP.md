@@ -6,11 +6,12 @@ Create a `.env.local` file in the project root with the following variables:
 
 ```bash
 # Supabase Project URL
-NEXT_PUBLIC_SUPABASE_URL=https://cuwscwunrusiauvndggt.supabase.co
+# Get this from Supabase Dashboard > Project Settings > API
+NEXT_PUBLIC_SUPABASE_URL=your-supabase-project-url
 
 # Supabase Anon Key (public key for anonymous access)
 # Get this from Supabase Dashboard > Project Settings > API
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN1d3Njd3VucnVzaWF1dm5kZ2d0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg1OTI4NzEsImV4cCI6MjA4NDE2ODg3MX0.HNG3cNPir7x9VjpuvPlGriXI9jv-ruY816MIPwIsnOg
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
 ```
 
 ## Run the Application
