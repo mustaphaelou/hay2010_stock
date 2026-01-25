@@ -93,11 +93,12 @@ const createColumns = (onViewDetails: (partner: FComptet) => void): ColumnDef<FC
 interface PartnersViewProps {
     type: 0 | 1 // 0=Client, 1=Supplier
     title: string
+    initialData?: FComptet[]
 }
 
-export function PartnersView({ type, title }: PartnersViewProps) {
-    const [data, setData] = React.useState<FComptet[]>([])
-    const [loading, setLoading] = React.useState(true)
+export function PartnersView({ type, title, initialData = [] }: PartnersViewProps) {
+    const [data, setData] = React.useState<FComptet[]>(initialData)
+    const [loading, setLoading] = React.useState(initialData.length === 0)
     const [selectedPartner, setSelectedPartner] = React.useState<FComptet | null>(null)
     const [isDetailsOpen, setIsDetailsOpen] = React.useState(false)
 
@@ -112,6 +113,11 @@ export function PartnersView({ type, title }: PartnersViewProps) {
 
     React.useEffect(() => {
         async function fetchData() {
+            if (initialData.length > 0 && data === initialData) {
+                setLoading(false)
+                return
+            }
+            
             setLoading(true)
             try {
                 const { data: partners, error } = await supabase
@@ -130,7 +136,7 @@ export function PartnersView({ type, title }: PartnersViewProps) {
         }
 
         fetchData()
-    }, [type])
+    }, [type, initialData])
 
     return (
         <div className="space-y-4 animate-fade-in-up">
