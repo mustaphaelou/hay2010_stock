@@ -18,6 +18,10 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "HAY2010 - Gestion Commerciale",
   description: "Tableau de bord de gestion commerciale et de stock",
+  icons: {
+    icon: "/hay2010-logo.png",
+    apple: "/hay2010-logo.png",
+  },
 };
 
 export default function RootLayout({

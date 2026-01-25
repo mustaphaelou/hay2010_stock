@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/breadcrumb"
 import { ModeToggle } from "@/components/mode-toggle"
 import { LanguageToggle } from "@/components/language-toggle"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 export function SiteHeader() {
     return (
@@ -29,9 +30,15 @@ export function SiteHeader() {
                     </BreadcrumbItem>
                 </BreadcrumbList>
             </Breadcrumb>
-            <div className="ml-auto flex items-center gap-2">
-                <ModeToggle />
-                <LanguageToggle />
+            <div className="ml-auto flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                    <ModeToggle />
+                    <LanguageToggle />
+                </div>
+                <Avatar size="sm">
+                    <AvatarImage src="/hay2010-logo.png" alt="User" />
+                    <AvatarFallback>ML</AvatarFallback>
+                </Avatar>
             </div>
         </header>
     )
