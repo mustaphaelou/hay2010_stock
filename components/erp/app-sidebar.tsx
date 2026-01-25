@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { usePathname } from "next/navigation"
 import {
     Sidebar,
@@ -33,7 +34,6 @@ import {
     TruckDeliveryIcon,
     Settings01Icon,
     Logout01Icon,
-    LayersIcon,
     MoreVerticalIcon,
     File01Icon,
     ProductLoadingIcon,
@@ -45,7 +45,7 @@ const companies = [
     {
         name: "HAY2010",
         plan: "Gestion Commerciale",
-        logo: LayersIcon,
+        logo: "/hay2010-logo.png",
     },
 ]
 
@@ -66,8 +66,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                                 className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
                                 render={<DropdownMenuTrigger />}
                             >
-                                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                                    <HugeiconsIcon icon={activeCompany.logo} className="size-4" />
+                                <div className="flex aspect-square size-8 items-center justify-center rounded-lg overflow-hidden bg-white">
+                                    <Image
+                                        src={activeCompany.logo}
+                                        alt={activeCompany.name}
+                                        width={32}
+                                        height={32}
+                                        className="object-contain"
+                                    />
                                 </div>
                                 <div className="grid flex-1 text-left text-sm leading-tight">
                                     <span className="truncate font-semibold">{activeCompany.name}</span>
@@ -87,8 +93,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                                         onClick={() => setActiveCompany(company)}
                                         className="gap-2 p-2"
                                     >
-                                        <div className="flex size-6 items-center justify-center rounded-sm border">
-                                            <HugeiconsIcon icon={company.logo} className="size-4 shrink-0" />
+                                        <div className="flex size-6 items-center justify-center rounded-sm border overflow-hidden bg-white">
+                                            <Image
+                                                src={company.logo}
+                                                alt={company.name}
+                                                width={24}
+                                                height={24}
+                                                className="object-contain"
+                                            />
                                         </div>
                                         {company.name}
                                     </DropdownMenuItem>
