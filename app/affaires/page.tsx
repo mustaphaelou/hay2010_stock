@@ -201,11 +201,11 @@ export default function AffairesPage() {
                         <CardContent>
                             <Select
                                 value={selectedAffaire}
-                                onValueChange={setSelectedAffaire}
+                                onValueChange={(val) => setSelectedAffaire(val || '')}
                                 disabled={loading}
                             >
                                 <SelectTrigger className="w-full max-w-md">
-                                    <SelectValue placeholder={loading ? "Chargement..." : "Sélectionner une affaire"} />
+                                    <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {affaires.map((affaire) => (
