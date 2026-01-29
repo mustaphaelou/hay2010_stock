@@ -6,7 +6,7 @@ import { PostgrestFilterBuilder } from '@supabase/postgrest-js'
  * @param pageSize Number of rows per page (default 1000)
  */
 export async function fetchAllRows<T>(
-    query: PostgrestFilterBuilder<any, any, T[]>,
+    query: PostgrestFilterBuilder<any, any, any, any>,
     pageSize: number = 1000
 ): Promise<T[]> {
     let allData: T[] = []
