@@ -5,7 +5,8 @@ import { FArticle } from "@/lib/supabase/types"
 import { DataTable } from "@/components/erp/data-table"
 import { ColumnDef } from "@tanstack/react-table"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -20,6 +21,9 @@ import {
     AlertCircleIcon,
 } from "@hugeicons/core-free-icons"
 import { formatPrice } from "@/lib/utils/format"
+import { Switch } from "@/components/ui/switch"
+import { createClient } from "@/lib/supabase/client"
+import { Label } from "@/components/ui/label"
 
 import {
     Sheet,
@@ -35,7 +39,6 @@ import {
     Money01Icon,
     BarCode02Icon,
     Calendar01Icon,
-    Settings03Icon,
 } from "@hugeicons/core-free-icons"
 import { Separator } from "@/components/ui/separator"
 import {
@@ -107,6 +110,18 @@ const createColumns = (onViewDetails: (article: ArticleWithStock) => void): Colu
         }
     },
     {
+        accessorKey: "ar_sommeil",
+        header: "Statut",
+        cell: ({ row }) => {
+            const isSommeil = row.getValue("ar_sommeil") as boolean
+            return (
+                <Badge variant={isSommeil ? "secondary" : "default"} className={isSommeil ? "bg-slate-100 text-slate-500" : "bg-green-100 text-green-700 hover:bg-green-100"}>
+                    {isSommeil ? "En sommeil" : "Actif"}
+                </Badge>
+            )
+        }
+    },
+    {
         id: "actions",
         cell: ({ row }) => {
             const article = row.original
@@ -143,28 +158,39 @@ export function ArticlesView({ initialData }: ArticlesViewProps) {
     const [selectedArticle, setSelectedArticle] = React.useState<ArticleWithStock | null>(null)
     const [isDetailsOpen, setIsDetailsOpen] = React.useState(false)
     const [selectedFamille, setSelectedFamille] = React.useState<string>("all")
+    const [selectedStatus, setSelectedStatus] = React.useState<"all" | "active" | "sommeil">("all")
     const [isFilterOpen, setIsFilterOpen] = React.useState(false)
+    const [localData, setLocalData] = React.useState<ArticleWithStock[]>(initialData)
+    const [isUpdating, setIsUpdating] = React.useState(false)
+
+    // Sync local data with initialData when it changes
+    React.useEffect(() => {
+        setLocalData(initialData)
+    }, [initialData])
 
     // Extract unique familles for filter dropdown
     const familles = React.useMemo(() => {
         const familleSet = new Set<string>()
-        initialData.forEach(article => {
+        localData.forEach(article => {
             if (article.f_famille?.fa_intitule) {
                 familleSet.add(article.f_famille.fa_intitule)
             }
         })
         return Array.from(familleSet).sort()
-    }, [initialData])
+    }, [localData])
 
-    // Filter articles by selected famille
+    // Filter articles by selected famille and status
     const filteredData = React.useMemo(() => {
-        if (selectedFamille === "all") {
-            return initialData
-        }
-        return initialData.filter(article =>
-            article.f_famille?.fa_intitule === selectedFamille
-        )
-    }, [initialData, selectedFamille])
+        return localData.filter(article => {
+            const matchesFamille = selectedFamille === "all" || article.f_famille?.fa_intitule === selectedFamille
+            const matchesStatus =
+                selectedStatus === "all" ||
+                (selectedStatus === "active" && !article.ar_sommeil) ||
+                (selectedStatus === "sommeil" && article.ar_sommeil)
+
+            return matchesFamille && matchesStatus
+        })
+    }, [localData, selectedFamille, selectedStatus])
 
     const handleViewDetails = (article: ArticleWithStock) => {
         setSelectedArticle(article)
@@ -183,16 +209,63 @@ export function ArticlesView({ initialData }: ArticlesViewProps) {
         })
     }
 
+    const toggleStatus = async (article: ArticleWithStock) => {
+        const supabase = createClient()
+        setIsUpdating(true)
+
+        try {
+            const newStatus = !article.ar_sommeil
+            const { error } = await supabase
+                .from('f_article')
+                .update({ ar_sommeil: newStatus })
+                .eq('ar_ref', article.ar_ref)
+
+            if (error) throw error
+
+            // Update local state
+            const updatedData = localData.map(a =>
+                a.ar_ref === article.ar_ref ? { ...a, ar_sommeil: newStatus } : a
+            )
+            setLocalData(updatedData)
+
+            if (selectedArticle?.ar_ref === article.ar_ref) {
+                setSelectedArticle({ ...selectedArticle, ar_sommeil: newStatus })
+            }
+        } catch (error) {
+            console.error("Error updating article status:", error)
+        } finally {
+            setIsUpdating(false)
+        }
+    }
+
     return (
         <div className="space-y-4 animate-fade-in-up">
             <div className="flex items-center justify-between">
                 <div>
                     <h2 className="text-2xl font-bold tracking-tight">Articles</h2>
                     <p className="text-muted-foreground">
-                        Gérez votre catalogue produits ({filteredData.length}{selectedFamille !== "all" ? ` sur ${initialData.length}` : ""} articles)
+                        Gérez votre catalogue produits ({filteredData.length}{selectedFamille !== "all" ? ` sur ${localData.length}` : ""} articles)
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
+                    {/* Status Filter */}
+                    <DropdownMenu>
+                        <DropdownMenuTrigger
+                            className={cn(buttonVariants({ variant: "outline" }), "gap-2")}
+                        >
+                            <div className={`h-2 w-2 rounded-full ${selectedStatus === "active" ? "bg-green-500" :
+                                selectedStatus === "sommeil" ? "bg-slate-400" : "bg-primary"
+                                }`} />
+                            {selectedStatus === "all" ? "Tous les statuts" :
+                                selectedStatus === "active" ? "Actifs uniquement" : "En sommeil"}
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => setSelectedStatus("all")}>Tous les statuts</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setSelectedStatus("active")}>Articles Actifs</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setSelectedStatus("sommeil")}>Articles en sommeil</DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+
                     {/* Searchable Famille Filter */}
                     <div className="relative">
                         <Button
@@ -225,10 +298,10 @@ export function ArticlesView({ initialData }: ArticlesViewProps) {
                                                     className={selectedFamille === "all" ? "bg-accent" : ""}
                                                 >
                                                     <span className="flex-1">Toutes les familles</span>
-                                                    <span className="text-muted-foreground text-xs">({initialData.length})</span>
+                                                    <span className="text-muted-foreground text-xs">({localData.length})</span>
                                                 </CommandItem>
                                                 {familles.map((famille) => {
-                                                    const count = initialData.filter(a => a.f_famille?.fa_intitule === famille).length
+                                                    const count = localData.filter(a => a.f_famille?.fa_intitule === famille).length
                                                     return (
                                                         <CommandItem
                                                             key={famille}
@@ -284,8 +357,21 @@ export function ArticlesView({ initialData }: ArticlesViewProps) {
                             {selectedArticle?.ar_design}
                         </SheetTitle>
                         <SheetDescription>
-                            Détails complets de l'article et informations de stock.
+                            Détails complets de l&apos;article et informations de stock.
                         </SheetDescription>
+                        <div className="flex items-center justify-between pt-4 border-t mt-4">
+                            <div className="space-y-0.5">
+                                <Label className="text-sm font-medium">Statut de l&apos;article</Label>
+                                <p className="text-xs text-muted-foreground">
+                                    {selectedArticle?.ar_sommeil ? "Désactivé (En sommeil)" : "Activé (En vente)"}
+                                </p>
+                            </div>
+                            <Switch
+                                checked={!selectedArticle?.ar_sommeil}
+                                onCheckedChange={() => selectedArticle && toggleStatus(selectedArticle)}
+                                disabled={isUpdating}
+                            />
+                        </div>
                     </SheetHeader>
 
                     <Separator />
