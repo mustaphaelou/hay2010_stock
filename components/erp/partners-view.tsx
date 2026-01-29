@@ -3,6 +3,7 @@
 import * as React from "react"
 import { createClient } from "@/lib/supabase/client"
 import { fetchAllRows } from "@/lib/supabase/utils"
+import { PostgrestFilterBuilder } from "@supabase/postgrest-js"
 import { FComptet } from "@/lib/supabase/types"
 import { DataTable } from "@/components/erp/data-table"
 import { ColumnDef } from "@tanstack/react-table"
@@ -98,7 +99,6 @@ interface PartnersViewProps {
 
 export function PartnersView({ type, title }: PartnersViewProps) {
     const [data, setData] = React.useState<FComptet[]>([])
-    const [loading, setLoading] = React.useState(true)
     const [selectedPartner, setSelectedPartner] = React.useState<FComptet | null>(null)
     const [isDetailsOpen, setIsDetailsOpen] = React.useState(false)
 
@@ -113,7 +113,6 @@ export function PartnersView({ type, title }: PartnersViewProps) {
 
     React.useEffect(() => {
         async function fetchData() {
-            setLoading(true)
             try {
                 const partnersQuery = supabase
                     .from("f_comptet")
@@ -121,12 +120,10 @@ export function PartnersView({ type, title }: PartnersViewProps) {
                     .eq("ct_type", type)
                     .order("ct_intitule")
 
-                const partners = await fetchAllRows<FComptet>(partnersQuery as any)
+                const partners = await fetchAllRows<FComptet>(partnersQuery)
                 setData(partners || [])
             } catch (error) {
                 console.error("Error fetching partners:", error)
-            } finally {
-                setLoading(false)
             }
         }
 
