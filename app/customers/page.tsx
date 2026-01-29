@@ -3,8 +3,8 @@
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/erp/app-sidebar"
 import { SiteHeader } from "@/components/erp/site-header"
+import { BottomNav } from "@/components/erp/bottom-nav"
 import { PartnersView } from "@/components/erp/partners-view"
-
 import { Suspense } from "react"
 
 export default function CustomersPage() {
@@ -17,14 +17,15 @@ export default function CustomersPage() {
                 } as React.CSSProperties
             }
         >
-            <Suspense>
+            <Suspense fallback={<div className="hidden md:block w-[--sidebar-width] bg-sidebar border-r h-svh" />}>
                 <AppSidebar />
             </Suspense>
             <SidebarInset>
                 <SiteHeader />
-                <div className="flex flex-1 flex-col gap-4 p-4 pt-0 md:gap-8 md:p-8">
+                <div className="flex flex-1 flex-col gap-4 p-4 pt-0 pb-20 md:gap-8 md:p-8 md:pb-8">
                     <PartnersView type={0} title="Clients" />
                 </div>
+                <BottomNav />
             </SidebarInset>
         </SidebarProvider>
     )

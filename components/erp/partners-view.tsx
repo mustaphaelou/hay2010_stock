@@ -131,22 +131,24 @@ export function PartnersView({ type, title }: PartnersViewProps) {
     }, [type, supabase])
 
     return (
-        <div className="space-y-4 animate-fade-in-up">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h2 className="text-2xl font-bold tracking-tight">{title}</h2>
-                    <p className="text-muted-foreground">
+        <div className="space-y-4 animate-fade-in-up px-1 sm:px-0">
+            {/* Responsive header - stacked on mobile */}
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="text-center sm:text-left">
+                    <h2 className="text-xl sm:text-2xl font-bold tracking-tight">{title}</h2>
+                    <p className="text-sm text-muted-foreground">
                         {data.length} {type === 0 ? "clients" : "fournisseurs"} référencés
                     </p>
                 </div>
-                <div className="flex items-center gap-2">
-                    <Button>
-                        Nouveau {type === 0 ? "Client" : "Fournisseur"}
+                <div className="flex items-center justify-center sm:justify-end gap-2">
+                    <Button className="w-full sm:w-auto h-11 sm:h-9 text-base sm:text-sm">
+                        <span className="sm:hidden">+ </span>Nouveau {type === 0 ? "Client" : "Fournisseur"}
                     </Button>
                 </div>
             </div>
 
-            <div className="rounded-md border bg-card text-card-foreground shadow-sm p-1">
+            {/* Table card with responsive padding */}
+            <div className="rounded-md border bg-card text-card-foreground shadow-sm p-2 sm:p-3">
                 <DataTable
                     columns={columns}
                     data={data}
@@ -156,8 +158,9 @@ export function PartnersView({ type, title }: PartnersViewProps) {
             </div>
 
             {/* Partner Details Sheet */}
+            {/* Partner Details Sheet - Full screen on mobile */}
             <Sheet open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
-                <SheetContent className="sm:max-w-md overflow-y-auto">
+                <SheetContent className="w-full sm:max-w-md overflow-y-auto p-4 sm:p-6">
                     <SheetHeader className="pb-4">
                         <div className="flex items-center gap-2 mb-1">
                             <Badge variant="outline" className="text-primary border-primary/20 bg-primary/5 uppercase">
@@ -177,7 +180,7 @@ export function PartnersView({ type, title }: PartnersViewProps) {
 
                     <Separator />
 
-                    <div className="grid gap-6 py-6 px-1">
+                    <div className="grid gap-5 py-4 sm:py-6 px-0 sm:px-1">
                         {/* Section: Informations Générales */}
                         <div className="space-y-4">
                             <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground/70 uppercase tracking-wider">
