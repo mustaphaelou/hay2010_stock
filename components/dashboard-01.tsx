@@ -653,8 +653,8 @@ function AppSidebar({ currentView, onNavigate, onTabChange, ...props }: React.Co
   // Sage 100 Structure
   const structureItems = [
     { title: "Produits", url: "/articles", icon: PackageIcon },
-    { title: "Clients", url: "/partners", icon: UserGroupIcon },
-    { title: "Fournisseurs", url: "/partners", icon: TruckDeliveryIcon },
+    { title: "Clients", url: "/partners?tab=clients", icon: UserGroupIcon },
+    { title: "Fournisseurs", url: "/partners?tab=suppliers", icon: TruckDeliveryIcon },
     { title: "Dépôts de stockage", url: "#", icon: Store01Icon, action: () => { onNavigate?.("dashboard"); onTabChange?.("stock") } },
   ]
 

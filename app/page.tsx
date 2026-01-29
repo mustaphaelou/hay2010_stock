@@ -5,6 +5,8 @@ import { DashboardView } from "@/components/erp/dashboard-view"
 import { createClient } from "@/lib/supabase/server"
 import { FDocentete } from "@/lib/supabase/types"
 
+import { Suspense } from "react"
+
 export default async function Page() {
     const supabase = await createClient()
 
@@ -46,7 +48,9 @@ export default async function Page() {
                 } as React.CSSProperties
             }
         >
-            <AppSidebar />
+            <Suspense>
+                <AppSidebar />
+            </Suspense>
             <SidebarInset>
                 <SiteHeader />
                 <div className="flex flex-1 flex-col gap-4 p-4 pt-0 md:gap-8 md:p-8">

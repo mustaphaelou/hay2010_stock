@@ -70,6 +70,8 @@ interface AppLayoutProps {
     breadcrumb?: string
 }
 
+import { Suspense } from "react"
+
 export function AppLayout({ children, title = "Tableau de bord", breadcrumb }: AppLayoutProps) {
     const [commandOpen, setCommandOpen] = useState(false)
 
@@ -82,7 +84,9 @@ export function AppLayout({ children, title = "Tableau de bord", breadcrumb }: A
                 } as React.CSSProperties
             }
         >
-            <AppSidebar variant="sidebar" collapsible="icon" />
+            <Suspense>
+                <AppSidebar variant="sidebar" collapsible="icon" />
+            </Suspense>
             <SidebarInset>
                 <SiteHeader
                     title={title}

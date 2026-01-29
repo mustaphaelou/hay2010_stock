@@ -7,6 +7,8 @@ import { createClient } from "@/lib/supabase/server"
 
 import { fetchAllRows } from "@/lib/supabase/utils"
 
+import { Suspense } from "react"
+
 export default async function ArticlesPage() {
     const supabase = await createClient()
 
@@ -39,7 +41,9 @@ export default async function ArticlesPage() {
                 } as React.CSSProperties
             }
         >
-            <AppSidebar />
+            <Suspense>
+                <AppSidebar />
+            </Suspense>
             <SidebarInset>
                 <SiteHeader />
                 <div className="flex flex-1 flex-col gap-4 p-4 pt-0 md:gap-8 md:p-8">

@@ -93,6 +93,8 @@ const getDomaineBadge = (domaine: number) => {
     return <Badge className="bg-blue-500/10 text-blue-600 border-blue-500/30">ACHAT</Badge>
 }
 
+import { Suspense } from 'react'
+
 export default function AffairesPage() {
     const [affaires, setAffaires] = useState<string[]>([])
     const [selectedAffaire, setSelectedAffaire] = useState<string>('')
@@ -176,7 +178,9 @@ export default function AffairesPage() {
         <SidebarProvider
             style={{ "--sidebar-width": "280px", "--header-height": "3.5rem" } as React.CSSProperties}
         >
-            <AppSidebar />
+            <Suspense>
+                <AppSidebar />
+            </Suspense>
             <SidebarInset>
                 <SiteHeader />
                 <div className="flex flex-1 flex-col gap-6 p-4 md:p-8">

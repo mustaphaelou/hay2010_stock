@@ -3,7 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { usePathname } from "next/navigation"
+import { usePathname, useSearchParams } from "next/navigation"
 import {
     Sidebar,
     SidebarContent,
@@ -51,6 +51,7 @@ const companies = [
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     const pathname = usePathname()
+    const searchParams = useSearchParams()
     const { state } = useSidebar()
 
     const [activeCompany, setActiveCompany] = React.useState(companies[0])
@@ -200,8 +201,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                         <SidebarMenuItem>
                             <SidebarMenuButton
                                 tooltip="Clients"
-                                isActive={pathname === "/customers"}
-                                render={<Link href="/customers" />}
+                                isActive={pathname === "/partners" && searchParams.get("tab") !== "suppliers"}
+                                render={<Link href="/partners?tab=clients" />}
                             >
                                 <HugeiconsIcon icon={UserGroupIcon} strokeWidth={2} />
                                 <span>Clients</span>
@@ -210,8 +211,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                         <SidebarMenuItem>
                             <SidebarMenuButton
                                 tooltip="Fournisseurs"
-                                isActive={pathname === "/suppliers"}
-                                render={<Link href="/suppliers" />}
+                                isActive={pathname === "/partners" && searchParams.get("tab") === "suppliers"}
+                                render={<Link href="/partners?tab=suppliers" />}
                             >
                                 <HugeiconsIcon icon={TruckDeliveryIcon} strokeWidth={2} />
                                 <span>Fournisseurs</span>

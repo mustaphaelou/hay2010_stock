@@ -81,7 +81,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
                         onSelect={() => runCommand(() => router.push("/partners"))}
                     >
                         <HugeiconsIcon icon={UserGroupIcon} className="mr-2 h-4 w-4" />
-                        <span>Partenaires</span>
+                        <span>Clients & Fournisseurs</span>
                     </CommandItem>
                     <CommandItem
                         onSelect={() => runCommand(() => router.push("/stock"))}
