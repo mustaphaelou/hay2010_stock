@@ -5,30 +5,27 @@ import { SiteHeader } from "@/components/erp/site-header"
 import { ArticlesView, ArticleWithStock } from "@/components/erp/articles-view"
 import { createClient } from "@/lib/supabase/server"
 
+import { fetchAllRows } from "@/lib/supabase/utils"
+
 export default async function ArticlesPage() {
     const supabase = await createClient()
 
-    // Server-side parallel data fetching (eliminates client waterfall)
-    const [articlesResult, stockResult] = await Promise.all([
-        supabase
-            .from("f_article")
-            .select("*, f_famille(fa_intitule)")
-            .order("ar_design"),
-        supabase
-            .from("f_artstock")
-            .select("ar_ref, as_qtesto")
+    // Server-side parallel data fetching with pagination to get ALL rows
+    const [articlesData, stockData] = await Promise.all([
+        fetchAllRows<any>(supabase.from("f_article").select("*, f_famille(fa_intitule)").order("ar_design") as any),
+        fetchAllRows<{ ar_ref: string; as_qtesto: number }>(supabase.from("f_artstock").select("ar_ref, as_qtesto") as any)
     ])
 
     // Aggregate stock per article in single pass
     const stockByArticle: Record<string, number> = {}
-    stockResult.data?.forEach((s) => {
+    stockData.forEach((s) => {
         if (s.ar_ref) {
             stockByArticle[s.ar_ref] = (stockByArticle[s.ar_ref] || 0) + (s.as_qtesto || 0)
         }
     })
 
     // Merge articles with stock data
-    const articlesWithStock: ArticleWithStock[] = (articlesResult.data || []).map((article: any) => ({
+    const articlesWithStock: ArticleWithStock[] = articlesData.map((article: any) => ({
         ...article,
         stock_global: stockByArticle[article.ar_ref] || 0
     }))

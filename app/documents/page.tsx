@@ -39,6 +39,8 @@ import {
     Cancel01Icon,
 } from "@hugeicons/core-free-icons"
 
+import { fetchAllRows } from '@/lib/supabase/utils'
+
 type DocumentWithPartner = FDocentete & { f_comptet: Pick<FComptet, 'ct_intitule'> | null }
 
 const formatPrice = (price: number | null | undefined) => {
@@ -96,7 +98,7 @@ export default function DocumentsPage() {
         setError(null)
 
         try {
-            const { data, error } = await supabase
+            const query = supabase
                 .from('f_docentete')
                 .select(`
                     *,
@@ -104,8 +106,8 @@ export default function DocumentsPage() {
                 `)
                 .order('do_date', { ascending: false })
 
-            if (error) throw error
-            setDocuments(data as DocumentWithPartner[] || [])
+            const data = await fetchAllRows<DocumentWithPartner>(query as any)
+            setDocuments(data || [])
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Erreur lors du chargement des documents')
         } finally {
@@ -293,7 +295,7 @@ export default function DocumentsPage() {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {filteredDocuments.slice(0, 50).map((doc) => (
+                                        {filteredDocuments.map((doc) => (
                                             <TableRow key={doc.cbmarq} className="hover:bg-muted/50 transition-colors">
                                                 <TableCell className="font-medium">
                                                     <Badge variant="outline">{doc.do_piece}</Badge>
@@ -322,11 +324,6 @@ export default function DocumentsPage() {
                                         ))}
                                     </TableBody>
                                 </Table>
-                                {filteredDocuments.length > 50 && (
-                                    <p className="text-center text-sm text-muted-foreground mt-4">
-                                        Affichage des 50 premiers résultats sur {filteredDocuments.length}
-                                    </p>
-                                )}
                             </div>
                         )}
                     </CardContent>

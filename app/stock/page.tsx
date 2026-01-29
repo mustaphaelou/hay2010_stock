@@ -38,6 +38,8 @@ import {
     AlertCircleIcon,
 } from "@hugeicons/core-free-icons"
 
+import { fetchAllRows } from '@/lib/supabase/utils'
+
 type EnhancedArtstock = FArtstock & {
     f_article: Pick<FArticle, 'ar_design' | 'ar_ref' | 'ar_prixach'> | null
     f_depot: Pick<FDepot, 'de_intitule' | 'de_no'> | null
@@ -67,8 +69,8 @@ export default function StockPage() {
         setError(null)
 
         try {
-            // Fetch stock levels with product and warehouse info
-            const { data: stockData, error: stockError } = await supabase
+            // Fetch stock levels with product and warehouse info using pagination utility
+            const stockQuery = supabase
                 .from('f_artstock')
                 .select(`
                     *,
@@ -77,7 +79,7 @@ export default function StockPage() {
                 `)
                 .order('as_qtesto', { ascending: true })
 
-            if (stockError) throw stockError
+            const stockData = await fetchAllRows<EnhancedArtstock>(stockQuery as any)
 
             // Fetch warehouses for filter
             const { data: depotsData, error: depotError } = await supabase
@@ -88,7 +90,7 @@ export default function StockPage() {
 
             if (depotError) throw depotError
 
-            setStockLevels(stockData as EnhancedArtstock[] || [])
+            setStockLevels(stockData || [])
             setDepots(depotsData || [])
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Erreur lors du chargement des niveaux de stock')
@@ -99,6 +101,7 @@ export default function StockPage() {
 
     useEffect(() => {
         fetchData()
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
     const filteredStock = stockLevels.filter(stock => {
@@ -245,7 +248,7 @@ export default function StockPage() {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {filteredStock.slice(0, 50).map((stock, index) => {
+                                        {filteredStock.map((stock, index) => {
                                             const value = (stock.as_qtesto || 0) * (stock.as_cmup || stock.f_article?.ar_prixach || 0)
                                             const isLowStock = (stock.as_qtesto || 0) <= 5
                                             return (
@@ -282,11 +285,6 @@ export default function StockPage() {
                                         })}
                                     </TableBody>
                                 </Table>
-                                {filteredStock.length > 50 && (
-                                    <p className="text-center text-sm text-muted-foreground mt-4">
-                                        Affichage des 50 premiers résultats sur {filteredStock.length}
-                                    </p>
-                                )}
                             </div>
                         )}
                     </CardContent>

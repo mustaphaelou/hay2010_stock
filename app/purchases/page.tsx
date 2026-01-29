@@ -32,6 +32,8 @@ import {
     CheckmarkCircle01Icon,
 } from "@hugeicons/core-free-icons"
 
+import { fetchAllRows } from '@/lib/supabase/utils'
+
 type PurchaseDocument = FDocentete & { f_comptet: Pick<FComptet, 'ct_intitule'> | null }
 
 const formatPrice = (price: number | null | undefined) => {
@@ -76,14 +78,14 @@ export default function PurchasesPage() {
         setError(null)
 
         try {
-            const { data, error } = await supabase
+            const query = supabase
                 .from('f_docentete')
                 .select(`*, f_comptet (ct_intitule)`)
                 .eq('do_domaine', 1) // Purchases domain
                 .order('do_date', { ascending: false })
 
-            if (error) throw error
-            setDocuments(data as PurchaseDocument[] || [])
+            const data = await fetchAllRows<PurchaseDocument>(query as any)
+            setDocuments(data || [])
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Erreur lors du chargement')
         } finally {

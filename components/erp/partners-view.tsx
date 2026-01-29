@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { createClient } from "@/lib/supabase/client"
+import { fetchAllRows } from "@/lib/supabase/utils"
 import { FComptet } from "@/lib/supabase/types"
 import { DataTable } from "@/components/erp/data-table"
 import { ColumnDef } from "@tanstack/react-table"
@@ -108,20 +109,20 @@ export function PartnersView({ type, title }: PartnersViewProps) {
 
     const columns = React.useMemo(() => createColumns(handleViewDetails), [])
 
-    const supabase = createClient()
+    const supabase = React.useMemo(() => createClient(), [])
 
     React.useEffect(() => {
         async function fetchData() {
             setLoading(true)
             try {
-                const { data: partners, error } = await supabase
+                const partnersQuery = supabase
                     .from("f_comptet")
                     .select("*")
                     .eq("ct_type", type)
                     .order("ct_intitule")
 
-                if (error) throw error
-                setData(partners as any[])
+                const partners = await fetchAllRows<FComptet>(partnersQuery as any)
+                setData(partners || [])
             } catch (error) {
                 console.error("Error fetching partners:", error)
             } finally {
@@ -130,7 +131,7 @@ export function PartnersView({ type, title }: PartnersViewProps) {
         }
 
         fetchData()
-    }, [type])
+    }, [type, supabase])
 
     return (
         <div className="space-y-4 animate-fade-in-up">

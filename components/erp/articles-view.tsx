@@ -38,6 +38,14 @@ import {
     Settings03Icon,
 } from "@hugeicons/core-free-icons"
 import { Separator } from "@/components/ui/separator"
+import {
+    Command,
+    CommandInput,
+    CommandList,
+    CommandEmpty,
+    CommandGroup,
+    CommandItem,
+} from "@/components/ui/command"
 
 // Extended type with stock data
 export type ArticleWithStock = FArticle & {
@@ -134,6 +142,29 @@ const createColumns = (onViewDetails: (article: ArticleWithStock) => void): Colu
 export function ArticlesView({ initialData }: ArticlesViewProps) {
     const [selectedArticle, setSelectedArticle] = React.useState<ArticleWithStock | null>(null)
     const [isDetailsOpen, setIsDetailsOpen] = React.useState(false)
+    const [selectedFamille, setSelectedFamille] = React.useState<string>("all")
+    const [isFilterOpen, setIsFilterOpen] = React.useState(false)
+
+    // Extract unique familles for filter dropdown
+    const familles = React.useMemo(() => {
+        const familleSet = new Set<string>()
+        initialData.forEach(article => {
+            if (article.f_famille?.fa_intitule) {
+                familleSet.add(article.f_famille.fa_intitule)
+            }
+        })
+        return Array.from(familleSet).sort()
+    }, [initialData])
+
+    // Filter articles by selected famille
+    const filteredData = React.useMemo(() => {
+        if (selectedFamille === "all") {
+            return initialData
+        }
+        return initialData.filter(article =>
+            article.f_famille?.fa_intitule === selectedFamille
+        )
+    }, [initialData, selectedFamille])
 
     const handleViewDetails = (article: ArticleWithStock) => {
         setSelectedArticle(article)
@@ -158,10 +189,67 @@ export function ArticlesView({ initialData }: ArticlesViewProps) {
                 <div>
                     <h2 className="text-2xl font-bold tracking-tight">Articles</h2>
                     <p className="text-muted-foreground">
-                        Gérez votre catalogue produits ({initialData.length} articles)
+                        Gérez votre catalogue produits ({filteredData.length}{selectedFamille !== "all" ? ` sur ${initialData.length}` : ""} articles)
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
+                    {/* Searchable Famille Filter */}
+                    <div className="relative">
+                        <Button
+                            variant="outline"
+                            className="min-w-[180px] justify-between"
+                            onClick={() => setIsFilterOpen(!isFilterOpen)}
+                        >
+                            <span className="flex items-center gap-2">
+                                <HugeiconsIcon icon={TagsIcon} className="h-4 w-4" />
+                                {selectedFamille === "all" ? "Toutes les familles" : selectedFamille}
+                            </span>
+                        </Button>
+                        {isFilterOpen && (
+                            <>
+                                <div
+                                    className="fixed inset-0 z-40"
+                                    onClick={() => setIsFilterOpen(false)}
+                                />
+                                <div className="absolute right-0 top-full mt-1 z-50 w-[280px] rounded-md border bg-popover shadow-md">
+                                    <Command>
+                                        <CommandInput placeholder="Rechercher une famille..." />
+                                        <CommandList>
+                                            <CommandEmpty>Aucune famille trouvée.</CommandEmpty>
+                                            <CommandGroup>
+                                                <CommandItem
+                                                    onSelect={() => {
+                                                        setSelectedFamille("all")
+                                                        setIsFilterOpen(false)
+                                                    }}
+                                                    className={selectedFamille === "all" ? "bg-accent" : ""}
+                                                >
+                                                    <span className="flex-1">Toutes les familles</span>
+                                                    <span className="text-muted-foreground text-xs">({initialData.length})</span>
+                                                </CommandItem>
+                                                {familles.map((famille) => {
+                                                    const count = initialData.filter(a => a.f_famille?.fa_intitule === famille).length
+                                                    return (
+                                                        <CommandItem
+                                                            key={famille}
+                                                            onSelect={() => {
+                                                                setSelectedFamille(famille)
+                                                                setIsFilterOpen(false)
+                                                            }}
+                                                            className={selectedFamille === famille ? "bg-accent" : ""}
+                                                        >
+                                                            <span className="flex-1 truncate">{famille}</span>
+                                                            <span className="text-muted-foreground text-xs">({count})</span>
+                                                        </CommandItem>
+                                                    )
+                                                })}
+                                            </CommandGroup>
+                                        </CommandList>
+                                    </Command>
+                                </div>
+                            </>
+                        )}
+                    </div>
                     <Button>
                         Nouveau Produit
                     </Button>
@@ -171,7 +259,7 @@ export function ArticlesView({ initialData }: ArticlesViewProps) {
             <div className="rounded-md border bg-card text-card-foreground shadow-sm p-1">
                 <DataTable
                     columns={columns}
-                    data={initialData}
+                    data={filteredData}
                     searchKey="ar_design"
                     placeholder="Rechercher un article…"
                     loading={false}

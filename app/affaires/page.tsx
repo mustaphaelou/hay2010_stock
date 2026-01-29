@@ -39,6 +39,8 @@ import {
     File01Icon,
 } from "@hugeicons/core-free-icons"
 
+import { fetchAllRows } from '@/lib/supabase/utils'
+
 type AffaireDocument = FDocentete & { f_comptet: Pick<FComptet, 'ct_intitule'> | null }
 
 const formatPrice = (price: number | null | undefined) => {
@@ -107,13 +109,13 @@ export default function AffairesPage() {
         setError(null)
 
         try {
-            const { data, error } = await supabase
+            const query = supabase
                 .from('f_docentete')
                 .select('af_affaire')
                 .not('af_affaire', 'is', null)
                 .order('af_affaire')
 
-            if (error) throw error
+            const data = await fetchAllRows<any>(query as any)
 
             // Get unique affaires
             const uniqueAffaires = [...new Set(data?.map(d => d.af_affaire) || [])] as string[]
@@ -138,14 +140,14 @@ export default function AffairesPage() {
         setError(null)
 
         try {
-            const { data, error } = await supabase
+            const query = supabase
                 .from('f_docentete')
                 .select(`*, f_comptet (ct_intitule)`)
                 .eq('af_affaire', selectedAffaire)
                 .order('do_date', { ascending: false })
 
-            if (error) throw error
-            setDocuments(data as AffaireDocument[] || [])
+            const data = await fetchAllRows<AffaireDocument>(query as any)
+            setDocuments(data || [])
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Erreur lors du chargement')
         } finally {
