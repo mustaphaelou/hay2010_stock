@@ -53,7 +53,9 @@ export default function PartnersPage() {
                 } as React.CSSProperties
             }
         >
-            <AppSidebar />
+            <Suspense>
+                <AppSidebar />
+            </Suspense>
             <SidebarInset>
                 <SiteHeader />
                 <Suspense fallback={<div className="p-8">Chargement...</div>}>

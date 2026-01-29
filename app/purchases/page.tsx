@@ -65,6 +65,8 @@ const getDocumentTypeName = (type: number) => {
     }
 }
 
+import { Suspense } from "react"
+
 export default function PurchasesPage() {
     const [documents, setDocuments] = useState<PurchaseDocument[]>([])
     const [loading, setLoading] = useState(true)
@@ -132,7 +134,9 @@ export default function PurchasesPage() {
         <SidebarProvider
             style={{ "--sidebar-width": "280px", "--header-height": "3.5rem" } as React.CSSProperties}
         >
-            <AppSidebar />
+            <Suspense>
+                <AppSidebar />
+            </Suspense>
             <SidebarInset>
                 <SiteHeader />
                 <div className="flex flex-1 flex-col gap-6 p-4 md:p-8">

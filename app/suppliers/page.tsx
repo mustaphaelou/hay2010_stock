@@ -5,6 +5,8 @@ import { AppSidebar } from "@/components/erp/app-sidebar"
 import { SiteHeader } from "@/components/erp/site-header"
 import { PartnersView } from "@/components/erp/partners-view"
 
+import { Suspense } from "react"
+
 export default function SuppliersPage() {
     return (
         <SidebarProvider
@@ -15,7 +17,9 @@ export default function SuppliersPage() {
                 } as React.CSSProperties
             }
         >
-            <AppSidebar />
+            <Suspense>
+                <AppSidebar />
+            </Suspense>
             <SidebarInset>
                 <SiteHeader />
                 <div className="flex flex-1 flex-col gap-4 p-4 pt-0 md:gap-8 md:p-8">
