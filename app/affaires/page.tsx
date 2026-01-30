@@ -6,6 +6,7 @@ import type { FDocentete, FComptet } from '@/lib/supabase/types'
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/erp/app-sidebar"
 import { SiteHeader } from "@/components/erp/site-header"
+import { BottomNav } from "@/components/erp/bottom-nav"
 import {
     Card,
     CardContent,
@@ -92,8 +93,7 @@ const getDomaineBadge = (domaine: number) => {
     }
     return <Badge className="bg-blue-500/10 text-blue-600 border-blue-500/30">ACHAT</Badge>
 }
-
-import { Suspense } from 'react'
+import { Suspense } from "react"
 
 export default function AffairesPage() {
     const [affaires, setAffaires] = useState<string[]>([])
@@ -178,12 +178,12 @@ export default function AffairesPage() {
         <SidebarProvider
             style={{ "--sidebar-width": "280px", "--header-height": "3.5rem" } as React.CSSProperties}
         >
-            <Suspense>
+            <Suspense fallback={<div className="hidden md:block w-[--sidebar-width] bg-sidebar border-r h-svh" />}>
                 <AppSidebar />
             </Suspense>
             <SidebarInset>
                 <SiteHeader />
-                <div className="flex flex-1 flex-col gap-6 p-4 md:p-8">
+                <div className="flex flex-1 flex-col gap-6 p-4 pb-20 md:p-8 md:pb-8">
                     {/* Header */}
                     <div className="flex items-center justify-between">
                         <div>
@@ -342,6 +342,7 @@ export default function AffairesPage() {
                         </Card>
                     )}
                 </div>
+                <BottomNav />
             </SidebarInset>
         </SidebarProvider>
     )

@@ -4,6 +4,7 @@ import * as React from "react"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/erp/app-sidebar"
 import { SiteHeader } from "@/components/erp/site-header"
+import { BottomNav } from "@/components/erp/bottom-nav"
 import { PartnersView } from "@/components/erp/partners-view"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { HugeiconsIcon } from "@hugeicons/react"
@@ -53,7 +54,7 @@ export default function PartnersPage() {
                 } as React.CSSProperties
             }
         >
-            <Suspense>
+            <Suspense fallback={<div className="hidden md:block w-[--sidebar-width] bg-sidebar border-r h-svh" />}>
                 <AppSidebar />
             </Suspense>
             <SidebarInset>
@@ -61,6 +62,7 @@ export default function PartnersPage() {
                 <Suspense fallback={<div className="p-8">Chargement...</div>}>
                     <PartnersContent />
                 </Suspense>
+                <BottomNav />
             </SidebarInset>
         </SidebarProvider>
     )

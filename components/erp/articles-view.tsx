@@ -239,25 +239,34 @@ export function ArticlesView({ initialData }: ArticlesViewProps) {
     }
 
     return (
-        <div className="space-y-4 animate-fade-in-up">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h2 className="text-2xl font-bold tracking-tight">Articles</h2>
-                    <p className="text-muted-foreground">
-                        Gérez votre catalogue produits ({filteredData.length}{selectedFamille !== "all" ? ` sur ${localData.length}` : ""} articles)
+        <div className="space-y-4 animate-fade-in-up px-1 sm:px-0">
+            {/* Responsive header - stacked on mobile */}
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="text-center sm:text-left">
+                    <h2 className="text-xl sm:text-2xl font-bold tracking-tight">Articles</h2>
+                    <p className="text-sm text-muted-foreground">
+                        {filteredData.length}{selectedFamille !== "all" ? ` / ${localData.length}` : ""} articles
                     </p>
                 </div>
-                <div className="flex items-center gap-2">
+
+                {/* Filters row - horizontal scroll on mobile */}
+                <div className="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0 sm:overflow-visible -mx-1 px-1 sm:mx-0 sm:px-0">
                     {/* Status Filter */}
                     <DropdownMenu>
                         <DropdownMenuTrigger
-                            className={cn(buttonVariants({ variant: "outline" }), "gap-2")}
+                            className={cn(buttonVariants({ variant: "outline" }), "gap-2 h-10 sm:h-9 flex-shrink-0")}
                         >
                             <div className={`h-2 w-2 rounded-full ${selectedStatus === "active" ? "bg-green-500" :
                                 selectedStatus === "sommeil" ? "bg-slate-400" : "bg-primary"
                                 }`} />
-                            {selectedStatus === "all" ? "Tous les statuts" :
-                                selectedStatus === "active" ? "Actifs uniquement" : "En sommeil"}
+                            <span className="hidden sm:inline">
+                                {selectedStatus === "all" ? "Tous les statuts" :
+                                    selectedStatus === "active" ? "Actifs uniquement" : "En sommeil"}
+                            </span>
+                            <span className="sm:hidden">
+                                {selectedStatus === "all" ? "Tous" :
+                                    selectedStatus === "active" ? "Actifs" : "Sommeil"}
+                            </span>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={() => setSelectedStatus("all")}>Tous les statuts</DropdownMenuItem>
@@ -267,15 +276,17 @@ export function ArticlesView({ initialData }: ArticlesViewProps) {
                     </DropdownMenu>
 
                     {/* Searchable Famille Filter */}
-                    <div className="relative">
+                    <div className="relative flex-shrink-0">
                         <Button
                             variant="outline"
-                            className="min-w-[180px] justify-between"
+                            className="min-w-[140px] sm:min-w-[180px] justify-between h-10 sm:h-9"
                             onClick={() => setIsFilterOpen(!isFilterOpen)}
                         >
                             <span className="flex items-center gap-2">
                                 <HugeiconsIcon icon={TagsIcon} className="h-4 w-4" />
-                                {selectedFamille === "all" ? "Toutes les familles" : selectedFamille}
+                                <span className="truncate max-w-[80px] sm:max-w-[120px]">
+                                    {selectedFamille === "all" ? "Familles" : selectedFamille}
+                                </span>
                             </span>
                         </Button>
                         {isFilterOpen && (
@@ -284,10 +295,10 @@ export function ArticlesView({ initialData }: ArticlesViewProps) {
                                     className="fixed inset-0 z-40"
                                     onClick={() => setIsFilterOpen(false)}
                                 />
-                                <div className="absolute right-0 top-full mt-1 z-50 w-[280px] rounded-md border bg-popover shadow-md">
+                                <div className="absolute right-0 sm:right-0 top-full mt-1 z-50 w-[280px] max-w-[calc(100vw-2rem)] rounded-md border bg-popover shadow-md">
                                     <Command>
-                                        <CommandInput placeholder="Rechercher une famille..." />
-                                        <CommandList>
+                                        <CommandInput placeholder="Rechercher une famille..." className="h-11 sm:h-9" />
+                                        <CommandList className="max-h-[50vh]">
                                             <CommandEmpty>Aucune famille trouvée.</CommandEmpty>
                                             <CommandGroup>
                                                 <CommandItem
@@ -295,7 +306,7 @@ export function ArticlesView({ initialData }: ArticlesViewProps) {
                                                         setSelectedFamille("all")
                                                         setIsFilterOpen(false)
                                                     }}
-                                                    className={selectedFamille === "all" ? "bg-accent" : ""}
+                                                    className={cn("py-3 sm:py-2", selectedFamille === "all" ? "bg-accent" : "")}
                                                 >
                                                     <span className="flex-1">Toutes les familles</span>
                                                     <span className="text-muted-foreground text-xs">({localData.length})</span>
@@ -309,7 +320,7 @@ export function ArticlesView({ initialData }: ArticlesViewProps) {
                                                                 setSelectedFamille(famille)
                                                                 setIsFilterOpen(false)
                                                             }}
-                                                            className={selectedFamille === famille ? "bg-accent" : ""}
+                                                            className={cn("py-3 sm:py-2", selectedFamille === famille ? "bg-accent" : "")}
                                                         >
                                                             <span className="flex-1 truncate">{famille}</span>
                                                             <span className="text-muted-foreground text-xs">({count})</span>
@@ -323,13 +334,15 @@ export function ArticlesView({ initialData }: ArticlesViewProps) {
                             </>
                         )}
                     </div>
-                    <Button>
-                        Nouveau Produit
+                    <Button className="h-10 sm:h-9 flex-shrink-0 whitespace-nowrap">
+                        <span className="sm:hidden">+ Article</span>
+                        <span className="hidden sm:inline">Nouveau Produit</span>
                     </Button>
                 </div>
             </div>
 
-            <div className="rounded-md border bg-card text-card-foreground shadow-sm p-1">
+            {/* Table card with responsive padding */}
+            <div className="rounded-md border bg-card text-card-foreground shadow-sm p-2 sm:p-3">
                 <DataTable
                     columns={columns}
                     data={filteredData}
@@ -340,8 +353,9 @@ export function ArticlesView({ initialData }: ArticlesViewProps) {
             </div>
 
             {/* Article Details Sheet */}
+            {/* Article Details Sheet - Full screen on mobile */}
             <Sheet open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
-                <SheetContent className="sm:max-w-md overflow-y-auto">
+                <SheetContent className="w-full sm:max-w-md overflow-y-auto p-4 sm:p-6">
                     <SheetHeader className="pb-4">
                         <div className="flex items-center gap-2 mb-1">
                             <Badge variant="outline" className="text-primary border-primary/20 bg-primary/5">
@@ -376,7 +390,7 @@ export function ArticlesView({ initialData }: ArticlesViewProps) {
 
                     <Separator />
 
-                    <div className="grid gap-6 py-6 px-1">
+                    <div className="grid gap-5 py-4 sm:py-6 px-0 sm:px-1">
                         {/* Section: Informations Générales */}
                         <div className="space-y-4">
                             <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground/70 uppercase tracking-wider">

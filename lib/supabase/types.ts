@@ -375,7 +375,7 @@ export interface TarifExceptionnel {
 // =====================================================
 
 // F_COMPTET: Clients/Fournisseurs (Accounts)
-export type FComptetType = 0 | 1 | 2 // 0=Client, 1=Fournisseur, 2=Les deux
+export type FComptetType = 0 | 1 | 2 | 3 | 5 // 0=Client, 1=Fournisseur, 2=Les deux, 3=Autre, 5=Divers
 
 export interface FComptet {
     ct_num: string

@@ -2,11 +2,11 @@ import * as React from "react"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/erp/app-sidebar"
 import { SiteHeader } from "@/components/erp/site-header"
+import { BottomNav } from "@/components/erp/bottom-nav"
 import { ArticlesView, ArticleWithStock } from "@/components/erp/articles-view"
 import { createClient } from "@/lib/supabase/server"
 
 import { fetchAllRows } from "@/lib/supabase/utils"
-
 import { Suspense } from "react"
 
 export default async function ArticlesPage() {
@@ -41,14 +41,15 @@ export default async function ArticlesPage() {
                 } as React.CSSProperties
             }
         >
-            <Suspense>
+            <Suspense fallback={<div className="hidden md:block w-[--sidebar-width] bg-sidebar border-r h-svh" />}>
                 <AppSidebar />
             </Suspense>
             <SidebarInset>
                 <SiteHeader />
-                <div className="flex flex-1 flex-col gap-4 p-4 pt-0 md:gap-8 md:p-8">
+                <div className="flex flex-1 flex-col gap-4 p-4 pt-0 pb-20 md:gap-8 md:p-8 md:pb-8">
                     <ArticlesView initialData={articlesWithStock} />
                 </div>
+                <BottomNav />
             </SidebarInset>
         </SidebarProvider>
     )
