@@ -110,36 +110,34 @@ export function DashboardView({ initialStats, initialRecentDocs }: DashboardView
                             Vos 5 derniers documents créés.
                         </CardDescription>
                     </CardHeader>
-                    <CardContent className="p-2 sm:p-6 pt-0 sm:pt-0">
-                        {/* Horizontal scroll for table on mobile */}
-                        <div className="overflow-x-auto -mx-2 sm:mx-0">
-                            <Table>
-                                <TableHeader>
+                    <CardContent className="p-0 sm:p-6 pt-0 sm:pt-0">
+                        {/* Compact table that fits on mobile without scrolling */}
+                        <Table className="w-full table-fixed">
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead className="text-[10px] sm:text-sm w-[22%] sm:w-auto px-2 sm:px-4">N° Pièce</TableHead>
+                                    <TableHead className="text-[10px] sm:text-sm w-[38%] sm:w-auto px-1 sm:px-4">Tiers</TableHead>
+                                    <TableHead className="text-[10px] sm:text-sm w-[20%] sm:w-auto px-1 sm:px-4">Date</TableHead>
+                                    <TableHead className="text-[10px] sm:text-sm w-[20%] sm:w-auto px-1 sm:px-4 text-right">Montant</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {initialRecentDocs.length === 0 ? (
                                     <TableRow>
-                                        <TableHead className="text-xs sm:text-sm whitespace-nowrap">N° Pièce</TableHead>
-                                        <TableHead className="text-xs sm:text-sm">Tiers</TableHead>
-                                        <TableHead className="text-xs sm:text-sm hidden sm:table-cell">Date</TableHead>
-                                        <TableHead className="text-xs sm:text-sm text-right whitespace-nowrap">Montant</TableHead>
+                                        <TableCell colSpan={4} className="text-center py-4 text-muted-foreground text-sm">Aucun document trouvé</TableCell>
                                     </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {initialRecentDocs.length === 0 ? (
-                                        <TableRow>
-                                            <TableCell colSpan={4} className="text-center py-4 text-muted-foreground text-sm">Aucun document trouvé</TableCell>
+                                ) : (
+                                    initialRecentDocs.map((doc) => (
+                                        <TableRow key={doc.cbmarq}>
+                                            <TableCell className="font-medium text-[10px] sm:text-sm py-2 sm:py-3 px-2 sm:px-4 truncate">{doc.do_piece}</TableCell>
+                                            <TableCell className="text-[10px] sm:text-sm py-2 sm:py-3 px-1 sm:px-4 truncate">{(doc as any).f_comptet?.ct_intitule || doc.do_tiers}</TableCell>
+                                            <TableCell className="text-[10px] sm:text-sm py-2 sm:py-3 px-1 sm:px-4">{doc.do_date?.split('T')[0]}</TableCell>
+                                            <TableCell className="text-right text-[10px] sm:text-sm py-2 sm:py-3 px-1 sm:px-4 font-medium">{formatPrice(doc.do_totalttc)}</TableCell>
                                         </TableRow>
-                                    ) : (
-                                        initialRecentDocs.map((doc) => (
-                                            <TableRow key={doc.cbmarq}>
-                                                <TableCell className="font-medium text-xs sm:text-sm py-3">{doc.do_piece}</TableCell>
-                                                <TableCell className="text-xs sm:text-sm py-3 max-w-[120px] sm:max-w-none truncate">{(doc as any).f_comptet?.ct_intitule || doc.do_tiers}</TableCell>
-                                                <TableCell className="text-xs sm:text-sm py-3 hidden sm:table-cell">{doc.do_date}</TableCell>
-                                                <TableCell className="text-right text-xs sm:text-sm py-3 font-medium whitespace-nowrap">{formatPrice(doc.do_totalttc)}</TableCell>
-                                            </TableRow>
-                                        ))
-                                    )}
-                                </TableBody>
-                            </Table>
-                        </div>
+                                    ))
+                                )}
+                            </TableBody>
+                        </Table>
                     </CardContent>
                 </Card>
             </div>
