@@ -32,8 +32,16 @@ import {
     ShoppingBag01Icon,
     CheckmarkCircle01Icon,
 } from "@hugeicons/core-free-icons"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
 
 import { fetchAllRows } from '@/lib/supabase/utils'
+import { DocumentDetailSheet } from '@/components/erp/document-detail-sheet'
 
 type PurchaseDocument = FDocentete & { f_comptet: Pick<FComptet, 'ct_intitule'> | null }
 
@@ -72,6 +80,11 @@ export default function PurchasesPage() {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [searchTerm, setSearchTerm] = useState('')
+    const [selectedDocument, setSelectedDocument] = useState<PurchaseDocument | null>(null)
+    const [sheetOpen, setSheetOpen] = useState(false)
+    const [selectedMonth, setSelectedMonth] = useState<string>('all')
+    const [selectedSupplier, setSelectedSupplier] = useState<string>('all')
+    const [mounted, setMounted] = useState(false)
 
     const supabase = createClient()
 
@@ -96,21 +109,40 @@ export default function PurchasesPage() {
     }
 
     useEffect(() => {
+        setMounted(true)
         fetchDocuments()
     }, [])
 
+    const uniqueMonths = Array.from(new Set(documents.map(doc => {
+        if (!doc.do_date) return null
+        const date = new Date(doc.do_date)
+        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+    }).filter(Boolean))).sort().reverse() as string[]
+
+    const uniqueSuppliers = Array.from(new Set(documents.map(doc =>
+        doc.f_comptet?.ct_intitule || doc.do_tiers
+    ).filter(Boolean))).sort() as string[]
+
     const filteredDocuments = documents.filter(doc => {
-        return searchTerm === '' ||
+        const matchesSearch = searchTerm === '' ||
             doc.do_piece?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             doc.do_tiers?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             doc.f_comptet?.ct_intitule?.toLowerCase().includes(searchTerm.toLowerCase())
+
+        const docMonth = doc.do_date ? `${new Date(doc.do_date).getFullYear()}-${String(new Date(doc.do_date).getMonth() + 1).padStart(2, '0')}` : null
+        const matchesMonth = selectedMonth === 'all' || docMonth === selectedMonth
+
+        const supplierName = doc.f_comptet?.ct_intitule || doc.do_tiers
+        const matchesSupplier = selectedSupplier === 'all' || supplierName === selectedSupplier
+
+        return matchesSearch && matchesMonth && matchesSupplier
     })
 
-    const totalAchats = documents
+    const totalAchats = filteredDocuments
         .filter(d => d.do_type === 6)
         .reduce((acc, d) => acc + (d.do_totalttc || 0), 0)
 
-    const totalRegle = documents
+    const totalRegle = filteredDocuments
         .filter(d => d.do_type === 6)
         .reduce((acc, d) => acc + (d.do_montregl || 0), 0)
 
@@ -168,7 +200,7 @@ export default function PurchasesPage() {
                                 <CardTitle className="text-sm font-medium">Total Achats</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <div className="text-2xl font-bold">{formatPrice(totalAchats)}</div>
+                                <div className="text-2xl font-bold">{mounted ? formatPrice(totalAchats) : '...'}</div>
                             </CardContent>
                         </Card>
                         <Card className="bg-gradient-to-br from-green-500/10 to-green-500/5 border-green-500/20">
@@ -176,7 +208,7 @@ export default function PurchasesPage() {
                                 <CardTitle className="text-sm font-medium">Décaissé</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <div className="text-2xl font-bold">{formatPrice(totalRegle)}</div>
+                                <div className="text-2xl font-bold">{mounted ? formatPrice(totalRegle) : '...'}</div>
                             </CardContent>
                         </Card>
                         <Card className="bg-gradient-to-br from-red-500/10 to-red-500/5 border-red-500/20">
@@ -184,20 +216,48 @@ export default function PurchasesPage() {
                                 <CardTitle className="text-sm font-medium">À Payer</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <div className="text-2xl font-bold">{formatPrice(totalAchats - totalRegle)}</div>
+                                <div className="text-2xl font-bold">{mounted ? formatPrice(totalAchats - totalRegle) : '...'}</div>
                             </CardContent>
                         </Card>
                     </div>
 
                     {/* Search */}
-                    <div className="relative">
-                        <HugeiconsIcon icon={Search01Icon} className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                        <Input
-                            placeholder="Rechercher par numéro ou fournisseur..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="pl-10 max-w-md"
-                        />
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div className="relative">
+                            <HugeiconsIcon icon={Search01Icon} className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                            <Input
+                                placeholder="Rechercher par numéro..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="pl-10 h-10"
+                            />
+                        </div>
+                        <Select value={selectedMonth} onValueChange={(value) => setSelectedMonth(value ?? 'all')}>
+                            <SelectTrigger className="h-10">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Tous les mois</SelectItem>
+                                {uniqueMonths.map(month => (
+                                    <SelectItem key={month} value={month}>
+                                        {new Date(month + '-01').toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <Select value={selectedSupplier} onValueChange={(value) => setSelectedSupplier(value ?? 'all')}>
+                            <SelectTrigger className="h-10">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Tous les fournisseurs</SelectItem>
+                                {uniqueSuppliers.map(supplier => (
+                                    <SelectItem key={supplier} value={supplier ?? ''}>
+                                        {supplier}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
 
                     {/* Table */}
@@ -233,11 +293,18 @@ export default function PurchasesPage() {
                                     </TableHeader>
                                     <TableBody>
                                         {filteredDocuments.map((doc) => (
-                                            <TableRow key={doc.cbmarq} className="hover:bg-muted/50">
+                                            <TableRow
+                                                key={doc.cbmarq}
+                                                className="hover:bg-muted/50 cursor-pointer"
+                                                onClick={() => {
+                                                    setSelectedDocument(doc)
+                                                    setSheetOpen(true)
+                                                }}
+                                            >
                                                 <TableCell>
                                                     <Badge variant="outline">{doc.do_piece}</Badge>
                                                 </TableCell>
-                                                <TableCell>{formatDate(doc.do_date)}</TableCell>
+                                                <TableCell>{mounted ? formatDate(doc.do_date) : '-'}</TableCell>
                                                 <TableCell className="font-medium">
                                                     {doc.f_comptet?.ct_intitule || doc.do_tiers || '-'}
                                                 </TableCell>
@@ -245,10 +312,10 @@ export default function PurchasesPage() {
                                                     <Badge variant="secondary">{getDocumentTypeName(doc.do_type)}</Badge>
                                                 </TableCell>
                                                 <TableCell className="text-right font-semibold">
-                                                    {formatPrice(doc.do_totalttc)}
+                                                    {mounted ? formatPrice(doc.do_totalttc) : '-'}
                                                 </TableCell>
                                                 <TableCell className="text-right">
-                                                    {formatPrice(doc.do_montregl)}
+                                                    {mounted ? formatPrice(doc.do_montregl) : '-'}
                                                 </TableCell>
                                                 <TableCell className="text-right">
                                                     {getStatusBadge(doc)}
@@ -263,6 +330,11 @@ export default function PurchasesPage() {
                 </div>
                 <BottomNav />
             </SidebarInset>
+            <DocumentDetailSheet
+                document={selectedDocument}
+                open={sheetOpen}
+                onOpenChange={setSheetOpen}
+            />
         </SidebarProvider>
     )
 }

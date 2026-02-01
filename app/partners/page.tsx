@@ -16,11 +16,12 @@ import { Suspense } from "react"
 function PartnersContent() {
     const searchParams = useSearchParams()
     const tabParam = searchParams.get("tab")
-    const defaultTab = tabParam === "suppliers" ? "suppliers" : "clients"
+    const initialTab = tabParam === "suppliers" ? "suppliers" : "clients"
+    const [activeTab, setActiveTab] = React.useState(initialTab)
 
     return (
         <div className="flex flex-1 flex-col gap-4 p-4 pt-0 md:gap-8 md:p-8">
-            <Tabs defaultValue={defaultTab} className="w-full">
+            <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as string)} className="w-full">
                 <div className="flex items-center justify-between mb-4">
                     <TabsList className="grid w-full max-w-[400px] grid-cols-2">
                         <TabsTrigger value="clients" className="flex items-center gap-2">

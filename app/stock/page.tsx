@@ -11,17 +11,8 @@ import {
     CardHeader,
     CardTitle,
 } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table"
 import {
     Select,
     SelectContent,
@@ -31,7 +22,6 @@ import {
 } from "@/components/ui/select"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
-    Search01Icon,
     RefreshIcon,
     Store01Icon,
     PackageIcon,
@@ -39,27 +29,87 @@ import {
 } from "@hugeicons/core-free-icons"
 
 import { fetchAllRows } from '@/lib/supabase/utils'
+import { DataTable } from "@/components/erp/data-table"
+import { ColumnDef } from "@tanstack/react-table"
+import { formatPrice } from "@/lib/utils/format"
 
 type EnhancedArtstock = FArtstock & {
     f_article: Pick<FArticle, 'ar_design' | 'ar_ref' | 'ar_prixach'> | null
     f_depot: Pick<FDepot, 'de_intitule' | 'de_no'> | null
 }
 
-const formatPrice = (price: number | null | undefined) => {
-    if (price === null || price === undefined) return '-'
-    return new Intl.NumberFormat('fr-MA', {
-        style: 'currency',
-        currency: 'MAD',
-        minimumFractionDigits: 2
-    }).format(price).replace('MAD', 'Dhs')
-}
+const columns: ColumnDef<EnhancedArtstock>[] = [
+    {
+        accessorKey: "ar_ref",
+        header: "Référence",
+        cell: ({ row }) => <Badge variant="outline">{row.getValue("ar_ref")}</Badge>,
+    },
+    {
+        accessorKey: "f_article.ar_design",
+        id: "designation",
+        header: "Désignation",
+        cell: ({ row }) => {
+            const design = row.original.f_article?.ar_design
+            return <div className="max-w-[250px] truncate">{design || '-'}</div>
+        },
+    },
+    {
+        accessorKey: "f_depot.de_intitule",
+        header: "Dépôt",
+        cell: ({ row }) => {
+            const depot = row.original.f_depot?.de_intitule
+            return depot ? <Badge variant="secondary">{depot}</Badge> : '-'
+        },
+    },
+    {
+        accessorKey: "as_qtesto",
+        header: () => <div className="text-right">Qté Disponible</div>,
+        cell: ({ row }) => {
+            const qty = row.getValue("as_qtesto") as number || 0
+            const isLowStock = qty <= 5
+            return (
+                <div className={`text-right font-semibold flex items-center justify-end gap-1 ${isLowStock ? 'text-red-500' : ''}`}>
+                    {qty}
+                    {isLowStock && (
+                        <HugeiconsIcon icon={AlertCircleIcon} className="h-4 w-4 text-red-500" />
+                    )}
+                </div>
+            )
+        },
+    },
+    {
+        accessorKey: "as_qteres",
+        header: () => <div className="text-right">Qté Réservée</div>,
+        cell: ({ row }) => {
+            const qty = row.getValue("as_qteres") as number || 0
+            return <div className="text-right text-muted-foreground">{qty}</div>
+        },
+    },
+    {
+        accessorKey: "as_cmup",
+        header: () => <div className="text-right">CMUP</div>,
+        cell: ({ row }) => {
+            const cmup = row.getValue("as_cmup") as number
+            return <div className="text-right">{formatPrice(cmup)}</div>
+        },
+    },
+    {
+        id: "value",
+        header: () => <div className="text-right">Valeur</div>,
+        cell: ({ row }) => {
+            const qty = row.original.as_qtesto || 0
+            const cmup = row.original.as_cmup || row.original.f_article?.ar_prixach || 0
+            const value = qty * cmup
+            return <div className="text-right font-semibold text-primary">{formatPrice(value)}</div>
+        },
+    },
+]
 
 export default function StockPage() {
     const [stockLevels, setStockLevels] = useState<EnhancedArtstock[]>([])
     const [depots, setDepots] = useState<FDepot[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
-    const [searchTerm, setSearchTerm] = useState('')
     const [selectedDepot, setSelectedDepot] = useState<string>('all')
 
     const supabase = createClient()
@@ -105,14 +155,10 @@ export default function StockPage() {
     }, [])
 
     const filteredStock = stockLevels.filter(stock => {
-        const matchesSearch = searchTerm === '' ||
-            stock.f_article?.ar_design?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            stock.f_article?.ar_ref?.toLowerCase().includes(searchTerm.toLowerCase())
-
         const matchesDepot = selectedDepot === 'all' ||
             stock.de_no.toString() === selectedDepot
 
-        return matchesSearch && matchesDepot
+        return matchesDepot
     })
 
     const totalStockValue = stockLevels.reduce((acc, s) =>
@@ -180,37 +226,26 @@ export default function StockPage() {
                 <Card>
                     <CardHeader>
                         <CardTitle>Filtres</CardTitle>
-                        <CardDescription>Rechercher par produit ou dépôt</CardDescription>
+                        <CardDescription>Filtrer par dépôt</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <div className="flex flex-col gap-4 md:flex-row">
-                            <div className="relative flex-1">
-                                <HugeiconsIcon icon={Search01Icon} className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                                <Input
-                                    placeholder="Rechercher par nom ou code produit..."
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="pl-10"
-                                />
-                            </div>
-                            <Select value={selectedDepot} onValueChange={(value) => setSelectedDepot(value ?? 'all')}>
-                                <SelectTrigger className="w-[200px]">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">Tous les dépôts</SelectItem>
-                                    {depots.map(d => (
-                                        <SelectItem key={d.de_no} value={d.de_no.toString()}>
-                                            {d.de_intitule}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
+                        <Select value={selectedDepot} onValueChange={(value) => setSelectedDepot(value ?? 'all')}>
+                            <SelectTrigger className="w-[200px]">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Tous les dépôts</SelectItem>
+                                {depots.map(d => (
+                                    <SelectItem key={d.de_no} value={d.de_no.toString()}>
+                                        {d.de_intitule}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </CardContent>
                 </Card>
 
-                {/* Data Table */}
+                {/* Data Table with Pagination */}
                 <Card>
                     <CardHeader>
                         <CardTitle>Etat du Stock</CardTitle>
@@ -224,68 +259,15 @@ export default function StockPage() {
                                 <p className="text-red-500 mb-4">{error}</p>
                                 <Button onClick={fetchData} variant="outline">Réessayer</Button>
                             </div>
-                        ) : loading ? (
-                            <div className="flex items-center justify-center py-10">
-                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                            </div>
-                        ) : filteredStock.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center py-10 text-center">
-                                <HugeiconsIcon icon={PackageIcon} className="h-12 w-12 text-muted-foreground mb-4" />
-                                <p className="text-muted-foreground">Aucun stock trouvé</p>
-                            </div>
                         ) : (
-                            <div className="overflow-x-auto">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Référence</TableHead>
-                                            <TableHead>Désignation</TableHead>
-                                            <TableHead>Dépôt</TableHead>
-                                            <TableHead className="text-right">Qté Disponible</TableHead>
-                                            <TableHead className="text-right">Qté Réservée</TableHead>
-                                            <TableHead className="text-right">CMUP</TableHead>
-                                            <TableHead className="text-right">Valeur</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {filteredStock.map((stock, index) => {
-                                            const value = (stock.as_qtesto || 0) * (stock.as_cmup || stock.f_article?.ar_prixach || 0)
-                                            const isLowStock = (stock.as_qtesto || 0) <= 5
-                                            return (
-                                                <TableRow
-                                                    key={`${stock.ar_ref}-${stock.de_no}-${index}`}
-                                                    className={`hover:bg-muted/50 transition-colors ${isLowStock ? 'bg-red-500/5' : ''}`}
-                                                >
-                                                    <TableCell className="font-medium">
-                                                        <Badge variant="outline">{stock.ar_ref}</Badge>
-                                                    </TableCell>
-                                                    <TableCell className="max-w-[250px] truncate">
-                                                        {stock.f_article?.ar_design || '-'}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Badge variant="secondary">{stock.f_depot?.de_intitule}</Badge>
-                                                    </TableCell>
-                                                    <TableCell className={`text-right font-semibold ${isLowStock ? 'text-red-500' : ''}`}>
-                                                        {stock.as_qtesto || 0}
-                                                        {isLowStock && (
-                                                            <HugeiconsIcon icon={AlertCircleIcon} className="inline-block ml-1 h-4 w-4 text-red-500" />
-                                                        )}
-                                                    </TableCell>
-                                                    <TableCell className="text-right text-muted-foreground">
-                                                        {stock.as_qteres || 0}
-                                                    </TableCell>
-                                                    <TableCell className="text-right">
-                                                        {formatPrice(stock.as_cmup)}
-                                                    </TableCell>
-                                                    <TableCell className="text-right font-semibold text-primary">
-                                                        {formatPrice(value)}
-                                                    </TableCell>
-                                                </TableRow>
-                                            )
-                                        })}
-                                    </TableBody>
-                                </Table>
-                            </div>
+                            <DataTable
+                                columns={columns}
+                                data={filteredStock}
+                                searchKey="designation"
+                                placeholder="Rechercher par nom ou code produit..."
+                                loading={loading}
+                                pageSize={10}
+                            />
                         )}
                     </CardContent>
                 </Card>

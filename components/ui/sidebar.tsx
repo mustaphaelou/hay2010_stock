@@ -142,6 +142,7 @@ function SidebarProvider({
           "group/sidebar-wrapper has-data-[variant=inset]:bg-sidebar flex min-h-svh w-full",
           className
         )}
+        suppressHydrationWarning
         {...props}
       >
         {children}
@@ -212,6 +213,7 @@ function Sidebar({
       data-variant={variant}
       data-side={side}
       data-slot="sidebar"
+      suppressHydrationWarning
     >
       {/* This is what handles the sidebar gap on desktop */}
       <div

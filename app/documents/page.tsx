@@ -90,6 +90,8 @@ export default function DocumentsPage() {
     const [error, setError] = useState<string | null>(null)
     const [searchTerm, setSearchTerm] = useState('')
     const [selectedDomaine, setSelectedDomaine] = useState<string>('all')
+    const [selectedMonth, setSelectedMonth] = useState<string>('all')
+    const [selectedPartner, setSelectedPartner] = useState<string>('all')
 
     const supabase = createClient()
 
@@ -119,6 +121,16 @@ export default function DocumentsPage() {
         fetchDocuments()
     }, [])
 
+    const uniqueMonths = Array.from(new Set(documents.map(doc => {
+        if (!doc.do_date) return null
+        const date = new Date(doc.do_date)
+        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+    }).filter(Boolean))).sort().reverse() as string[]
+
+    const uniquePartners = Array.from(new Set(documents.map(doc =>
+        doc.f_comptet?.ct_intitule || doc.do_tiers
+    ).filter(Boolean))).sort() as string[]
+
     const filteredDocuments = documents.filter(doc => {
         const matchesSearch = searchTerm === '' ||
             doc.do_piece?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -127,7 +139,13 @@ export default function DocumentsPage() {
 
         const matchesDomaine = selectedDomaine === 'all' || doc.do_domaine.toString() === selectedDomaine
 
-        return matchesSearch && matchesDomaine
+        const docMonth = doc.do_date ? `${new Date(doc.do_date).getFullYear()}-${String(new Date(doc.do_date).getMonth() + 1).padStart(2, '0')}` : null
+        const matchesMonth = selectedMonth === 'all' || docMonth === selectedMonth
+
+        const partnerName = doc.f_comptet?.ct_intitule || doc.do_tiers
+        const matchesPartner = selectedPartner === 'all' || partnerName === selectedPartner
+
+        return matchesSearch && matchesDomaine && matchesMonth && matchesPartner
     })
 
     const getTypeBadgeVariant = (type: number) => {
@@ -162,11 +180,11 @@ export default function DocumentsPage() {
         return <Badge variant="secondary">EN COURS</Badge>
     }
 
-    const totalCA = documents
+    const totalCA = filteredDocuments
         .filter(d => d.do_domaine === 0 && d.do_type === 6) // Sales invoices
         .reduce((acc, d) => acc + (d.do_totalttc || 0), 0)
 
-    const totalAchats = documents
+    const totalAchats = filteredDocuments
         .filter(d => d.do_domaine === 1 && d.do_type === 6) // Purchase invoices
         .reduce((acc, d) => acc + (d.do_totalttc || 0), 0)
 
@@ -233,24 +251,50 @@ export default function DocumentsPage() {
                         <CardDescription>Rechercher par numéro ou partenaire</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <div className="flex flex-col gap-4 md:flex-row">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                             <div className="relative flex-1">
                                 <HugeiconsIcon icon={Search01Icon} className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                                 <Input
-                                    placeholder="Rechercher par numéro ou partenaire..."
+                                    placeholder="Rechercher par numéro..."
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                     className="pl-10"
                                 />
                             </div>
                             <Select value={selectedDomaine} onValueChange={(value) => setSelectedDomaine(value ?? 'all')}>
-                                <SelectTrigger className="w-[200px]">
+                                <SelectTrigger>
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="all">Tous les domaines</SelectItem>
                                     <SelectItem value="0">Ventes</SelectItem>
                                     <SelectItem value="1">Achats</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <Select value={selectedMonth} onValueChange={(value) => setSelectedMonth(value ?? 'all')}>
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Tous les mois</SelectItem>
+                                    {uniqueMonths.map(month => (
+                                        <SelectItem key={month} value={month}>
+                                            {new Date(month + '-01').toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <Select value={selectedPartner} onValueChange={(value) => setSelectedPartner(value ?? 'all')}>
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Tous les partenaires</SelectItem>
+                                    {uniquePartners.map(partner => (
+                                        <SelectItem key={partner} value={partner ?? ''}>
+                                            {partner}
+                                        </SelectItem>
+                                    ))}
                                 </SelectContent>
                             </Select>
                         </div>

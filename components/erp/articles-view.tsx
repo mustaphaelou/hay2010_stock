@@ -158,13 +158,15 @@ export function ArticlesView({ initialData }: ArticlesViewProps) {
     const [selectedArticle, setSelectedArticle] = React.useState<ArticleWithStock | null>(null)
     const [isDetailsOpen, setIsDetailsOpen] = React.useState(false)
     const [selectedFamille, setSelectedFamille] = React.useState<string>("all")
-    const [selectedStatus, setSelectedStatus] = React.useState<"all" | "active" | "sommeil">("all")
+    const [selectedStatus, setSelectedStatus] = React.useState<"all" | "active" | "sommeil">("active")
     const [isFilterOpen, setIsFilterOpen] = React.useState(false)
     const [localData, setLocalData] = React.useState<ArticleWithStock[]>(initialData)
     const [isUpdating, setIsUpdating] = React.useState(false)
+    const [mounted, setMounted] = React.useState(false)
 
     // Sync local data with initialData when it changes
     React.useEffect(() => {
+        setMounted(true)
         setLocalData(initialData)
     }, [initialData])
 

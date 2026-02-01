@@ -32,8 +32,16 @@ import {
     Invoice01Icon,
     CheckmarkCircle01Icon,
 } from "@hugeicons/core-free-icons"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
 
 import { fetchAllRows } from '@/lib/supabase/utils'
+import { DocumentDetailSheet } from '@/components/erp/document-detail-sheet'
 
 type SalesDocument = FDocentete & { f_comptet: Pick<FComptet, 'ct_intitule'> | null }
 
@@ -72,6 +80,10 @@ export default function SalesPage() {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [searchTerm, setSearchTerm] = useState('')
+    const [selectedDocument, setSelectedDocument] = useState<SalesDocument | null>(null)
+    const [sheetOpen, setSheetOpen] = useState(false)
+    const [selectedMonth, setSelectedMonth] = useState<string>('all')
+    const [selectedClient, setSelectedClient] = useState<string>('all')
 
     const supabase = createClient()
 
@@ -99,18 +111,36 @@ export default function SalesPage() {
         fetchDocuments()
     }, [])
 
+    const uniqueMonths = Array.from(new Set(documents.map(doc => {
+        if (!doc.do_date) return null
+        const date = new Date(doc.do_date)
+        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+    }).filter(Boolean))).sort().reverse() as string[]
+
+    const uniqueClients = Array.from(new Set(documents.map(doc =>
+        doc.f_comptet?.ct_intitule || doc.do_tiers
+    ).filter(Boolean))).sort() as string[]
+
     const filteredDocuments = documents.filter(doc => {
-        return searchTerm === '' ||
+        const matchesSearch = searchTerm === '' ||
             doc.do_piece?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             doc.do_tiers?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             doc.f_comptet?.ct_intitule?.toLowerCase().includes(searchTerm.toLowerCase())
+
+        const docMonth = doc.do_date ? `${new Date(doc.do_date).getFullYear()}-${String(new Date(doc.do_date).getMonth() + 1).padStart(2, '0')}` : null
+        const matchesMonth = selectedMonth === 'all' || docMonth === selectedMonth
+
+        const clientName = doc.f_comptet?.ct_intitule || doc.do_tiers
+        const matchesClient = selectedClient === 'all' || clientName === selectedClient
+
+        return matchesSearch && matchesMonth && matchesClient
     })
 
-    const totalCA = documents
+    const totalCA = filteredDocuments
         .filter(d => d.do_type === 6)
         .reduce((acc, d) => acc + (d.do_totalttc || 0), 0)
 
-    const totalRegle = documents
+    const totalRegle = filteredDocuments
         .filter(d => d.do_type === 6)
         .reduce((acc, d) => acc + (d.do_montregl || 0), 0)
 
@@ -190,14 +220,42 @@ export default function SalesPage() {
                     </div>
 
                     {/* Search */}
-                    <div className="relative">
-                        <HugeiconsIcon icon={Search01Icon} className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                        <Input
-                            placeholder="Rechercher par numéro ou client..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="pl-10 max-w-md"
-                        />
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div className="relative">
+                            <HugeiconsIcon icon={Search01Icon} className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                            <Input
+                                placeholder="Rechercher par numéro..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="pl-10 h-10"
+                            />
+                        </div>
+                        <Select value={selectedMonth} onValueChange={(value) => setSelectedMonth(value ?? 'all')}>
+                            <SelectTrigger className="h-10">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Tous les mois</SelectItem>
+                                {uniqueMonths.map(month => (
+                                    <SelectItem key={month} value={month}>
+                                        {new Date(month + '-01').toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <Select value={selectedClient} onValueChange={(value) => setSelectedClient(value ?? 'all')}>
+                            <SelectTrigger className="h-10">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Tous les clients</SelectItem>
+                                {uniqueClients.map(client => (
+                                    <SelectItem key={client} value={client ?? ''}>
+                                        {client}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
 
                     {/* Table */}
@@ -233,7 +291,14 @@ export default function SalesPage() {
                                     </TableHeader>
                                     <TableBody>
                                         {filteredDocuments.map((doc) => (
-                                            <TableRow key={doc.cbmarq} className="hover:bg-muted/50">
+                                            <TableRow
+                                                key={doc.cbmarq}
+                                                className="hover:bg-muted/50 cursor-pointer"
+                                                onClick={() => {
+                                                    setSelectedDocument(doc)
+                                                    setSheetOpen(true)
+                                                }}
+                                            >
                                                 <TableCell>
                                                     <Badge variant="outline">{doc.do_piece}</Badge>
                                                 </TableCell>
@@ -263,6 +328,11 @@ export default function SalesPage() {
                 </div>
                 <BottomNav />
             </SidebarInset>
+            <DocumentDetailSheet
+                document={selectedDocument}
+                open={sheetOpen}
+                onOpenChange={setSheetOpen}
+            />
         </SidebarProvider>
     )
 }

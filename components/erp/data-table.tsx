@@ -166,7 +166,6 @@ export function DataTable<TData, TValue>({
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="10">10 lignes</SelectItem>
-                            <SelectItem value="25">25 lignes</SelectItem>
                             <SelectItem value="50">50 lignes</SelectItem>
                             <SelectItem value="100">100 lignes</SelectItem>
                         </SelectContent>
