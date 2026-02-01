@@ -1,27 +1,46 @@
-# Rule Categories Summary
+# Sections
 
-This document provides a high-level overview of the performance optimization categories used in the Vercel React Best Practices guide.
+This file defines all sections, their ordering, impact levels, and descriptions.
+The section ID (in parentheses) is the filename prefix used to group rules.
 
-## 1. Eliminating Waterfalls (CRITICAL)
-Waterfalls occur when asynchronous operations are awaited sequentially when they could be performed in parallel. This is the single largest source of latency in modern web applications.
+---
 
-## 2. Bundle Size Optimization (CRITICAL)
-Reducing the amount of JavaScript sent to the browser directly improves Time to Interactive (TTI) and Largest Contentful Paint (LCP).
+## 1. Eliminating Waterfalls (async)
 
-## 3. Server-Side Performance (HIGH)
-Optimizing how data is fetched and rendered on the server reduces the time it takes for the browser to receive the first byte of HTML.
+**Impact:** CRITICAL  
+**Description:** Waterfalls are the #1 performance killer. Each sequential await adds full network latency. Eliminating them yields the largest gains.
 
-## 4. Client-Side Data Fetching (MEDIUM-HIGH)
-Efficient patterns for fetching data in the browser, including deduplication and optimistic updates.
+## 2. Bundle Size Optimization (bundle)
 
-## 5. Re-render Optimization (MEDIUM)
-Minimizing unnecessary component re-renders to maintain a responsive UI even during complex state changes.
+**Impact:** CRITICAL  
+**Description:** Reducing initial bundle size improves Time to Interactive and Largest Contentful Paint.
 
-## 6. Rendering Performance (MEDIUM)
-Optimizing the browser's rendering process, including DOM updates and SVG animations.
+## 3. Server-Side Performance (server)
 
-## 7. JavaScript Performance (LOW-MEDIUM)
-Fine-tuning the execution speed of JavaScript logic, particularly in performance-critical loops or deep object lookups.
+**Impact:** HIGH  
+**Description:** Optimizing server-side rendering and data fetching eliminates server-side waterfalls and reduces response times.
 
-## 8. Advanced Patterns (LOW)
-Specific React-internal optimizations for highly specialized use cases.
+## 4. Client-Side Data Fetching (client)
+
+**Impact:** MEDIUM-HIGH  
+**Description:** Automatic deduplication and efficient data fetching patterns reduce redundant network requests.
+
+## 5. Re-render Optimization (rerender)
+
+**Impact:** MEDIUM  
+**Description:** Reducing unnecessary re-renders minimizes wasted computation and improves UI responsiveness.
+
+## 6. Rendering Performance (rendering)
+
+**Impact:** MEDIUM  
+**Description:** Optimizing the rendering process reduces the work the browser needs to do.
+
+## 7. JavaScript Performance (js)
+
+**Impact:** LOW-MEDIUM  
+**Description:** Micro-optimizations for hot paths can add up to meaningful improvements.
+
+## 8. Advanced Patterns (advanced)
+
+**Impact:** LOW  
+**Description:** Advanced patterns for specific cases that require careful implementation.

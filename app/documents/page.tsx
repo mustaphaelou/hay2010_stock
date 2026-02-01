@@ -40,6 +40,7 @@ import {
 } from "@hugeicons/core-free-icons"
 
 import { fetchAllRows } from '@/lib/supabase/utils'
+import { DownloadInvoiceButton } from '@/components/erp/download-invoice-button'
 
 type DocumentWithPartner = FDocentete & { f_comptet: Pick<FComptet, 'ct_intitule'> | null }
 
@@ -336,6 +337,7 @@ export default function DocumentsPage() {
                                             <TableHead>Type</TableHead>
                                             <TableHead className="text-right">Montant TTC</TableHead>
                                             <TableHead className="text-right">Statut</TableHead>
+                                            <TableHead className="text-center">Actions</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -363,6 +365,12 @@ export default function DocumentsPage() {
                                                 </TableCell>
                                                 <TableCell className="text-right">
                                                     {getStatusBadge(doc.do_statut, doc.do_montregl, doc.do_totalttc)}
+                                                </TableCell>
+                                                <TableCell className="text-center">
+                                                    <DownloadInvoiceButton
+                                                        document={doc}
+                                                        partner={doc.f_comptet as any}
+                                                    />
                                                 </TableCell>
                                             </TableRow>
                                         ))}
