@@ -113,14 +113,15 @@ export default function AffairesPage() {
         try {
             const query = supabase
                 .from('f_docentete')
-                .select('af_affaire')
-                .not('af_affaire', 'is', null)
-                .order('af_affaire')
+                .select('ca_num')
+                .not('ca_num', 'is', null)
+                .neq('ca_num', '')
+                .order('ca_num')
 
             const data = await fetchAllRows<any>(query as any)
 
-            // Get unique affaires
-            const uniqueAffaires = [...new Set(data?.map(d => d.af_affaire) || [])] as string[]
+            // Get unique affaires (also filter out empty strings on client side as a safeguard)
+            const uniqueAffaires = [...new Set(data?.map(d => d.ca_num).filter(a => a && a.trim() !== '') || [])] as string[]
             setAffaires(uniqueAffaires)
 
             // Auto-select first affaire if available
@@ -145,7 +146,7 @@ export default function AffairesPage() {
             const query = supabase
                 .from('f_docentete')
                 .select(`*, f_comptet (ct_intitule)`)
-                .eq('af_affaire', selectedAffaire)
+                .eq('ca_num', selectedAffaire)
                 .order('do_date', { ascending: false })
 
             const data = await fetchAllRows<AffaireDocument>(query as any)
