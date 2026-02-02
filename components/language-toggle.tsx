@@ -14,6 +14,20 @@ import {
 
 export function LanguageToggle() {
     const [language, setLanguage] = React.useState("EN")
+    const [mounted, setMounted] = React.useState(false)
+
+    React.useEffect(() => {
+        setMounted(true)
+    }, [])
+
+    if (!mounted) {
+        return (
+            <Button variant="outline" size="icon">
+                <HugeiconsIcon icon={Globe02Icon} className="h-[1.2rem] w-[1.2rem]" />
+                <span className="sr-only">Toggle language</span>
+            </Button>
+        )
+    }
 
     return (
         <DropdownMenu>

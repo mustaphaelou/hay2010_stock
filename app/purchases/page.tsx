@@ -42,8 +42,12 @@ import {
 
 import { fetchAllRows } from '@/lib/supabase/utils'
 import { DocumentDetailSheet } from '@/components/erp/document-detail-sheet'
+import { DateRangePicker } from '@/components/ui/date-range-picker'
+import { PartnerFilter } from '@/components/erp/partner-filter'
+import { DateRange } from 'react-day-picker'
+import { isWithinInterval, startOfDay, endOfDay } from 'date-fns'
 
-type PurchaseDocument = FDocentete & { f_comptet: Pick<FComptet, 'ct_intitule'> | null }
+type PurchaseDocument = FDocentete & { f_comptet: Pick<FComptet, 'ct_intitule' | 'ct_type'> | null }
 
 const formatPrice = (price: number | null | undefined) => {
     if (price === null || price === undefined) return '-'
@@ -82,8 +86,9 @@ export default function PurchasesPage() {
     const [searchTerm, setSearchTerm] = useState('')
     const [selectedDocument, setSelectedDocument] = useState<PurchaseDocument | null>(null)
     const [sheetOpen, setSheetOpen] = useState(false)
-    const [selectedMonth, setSelectedMonth] = useState<string>('all')
+    const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined)
     const [selectedSupplier, setSelectedSupplier] = useState<string>('all')
+    const [selectedPartnerType, setSelectedPartnerType] = useState<string>('all')
     const [mounted, setMounted] = useState(false)
 
     const supabase = createClient()
@@ -95,7 +100,7 @@ export default function PurchasesPage() {
         try {
             const query = supabase
                 .from('f_docentete')
-                .select(`*, f_comptet (ct_intitule)`)
+                .select(`*, f_comptet (ct_intitule, ct_type)`)
                 .eq('do_domaine', 1) // Purchases domain
                 .order('do_date', { ascending: false })
 
@@ -113,12 +118,6 @@ export default function PurchasesPage() {
         fetchDocuments()
     }, [])
 
-    const uniqueMonths = Array.from(new Set(documents.map(doc => {
-        if (!doc.do_date) return null
-        const date = new Date(doc.do_date)
-        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
-    }).filter(Boolean))).sort().reverse() as string[]
-
     const uniqueSuppliers = Array.from(new Set(documents.map(doc =>
         doc.f_comptet?.ct_intitule || doc.do_tiers
     ).filter(Boolean))).sort() as string[]
@@ -129,13 +128,21 @@ export default function PurchasesPage() {
             doc.do_tiers?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             doc.f_comptet?.ct_intitule?.toLowerCase().includes(searchTerm.toLowerCase())
 
-        const docMonth = doc.do_date ? `${new Date(doc.do_date).getFullYear()}-${String(new Date(doc.do_date).getMonth() + 1).padStart(2, '0')}` : null
-        const matchesMonth = selectedMonth === 'all' || docMonth === selectedMonth
+        let matchesDate = true
+        if (dateRange?.from) {
+            const docDate = new Date(doc.do_date)
+            const start = startOfDay(dateRange.from)
+            const end = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from)
+            matchesDate = isWithinInterval(docDate, { start, end })
+        }
 
         const supplierName = doc.f_comptet?.ct_intitule || doc.do_tiers
         const matchesSupplier = selectedSupplier === 'all' || supplierName === selectedSupplier
 
-        return matchesSearch && matchesMonth && matchesSupplier
+        const matchesPartnerType = selectedPartnerType === 'all' ||
+            (doc.f_comptet && doc.f_comptet.ct_type.toString() === selectedPartnerType)
+
+        return matchesSearch && matchesDate && matchesSupplier && matchesPartnerType
     })
 
     const totalAchats = filteredDocuments
@@ -232,32 +239,17 @@ export default function PurchasesPage() {
                                 className="pl-10 h-10"
                             />
                         </div>
-                        <Select value={selectedMonth} onValueChange={(value) => setSelectedMonth(value ?? 'all')}>
-                            <SelectTrigger className="h-10">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">Tous les mois</SelectItem>
-                                {uniqueMonths.map(month => (
-                                    <SelectItem key={month} value={month}>
-                                        {new Date(month + '-01').toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                        <Select value={selectedSupplier} onValueChange={(value) => setSelectedSupplier(value ?? 'all')}>
-                            <SelectTrigger className="h-10">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">Tous les fournisseurs</SelectItem>
-                                {uniqueSuppliers.map(supplier => (
-                                    <SelectItem key={supplier} value={supplier ?? ''}>
-                                        {supplier}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <DateRangePicker
+                            date={dateRange}
+                            onDateChange={setDateRange}
+                        />
+                        <PartnerFilter
+                            partners={uniqueSuppliers}
+                            selectedPartner={selectedSupplier}
+                            onPartnerChange={setSelectedSupplier}
+                            selectedType={selectedPartnerType}
+                            onTypeChange={setSelectedPartnerType}
+                        />
                     </div>
 
                     {/* Table */}

@@ -42,8 +42,12 @@ import {
 
 import { fetchAllRows } from '@/lib/supabase/utils'
 import { DocumentDetailSheet } from '@/components/erp/document-detail-sheet'
+import { DateRangePicker } from '@/components/ui/date-range-picker'
+import { PartnerFilter } from '@/components/erp/partner-filter'
+import { DateRange } from 'react-day-picker'
+import { isWithinInterval, startOfDay, endOfDay } from 'date-fns'
 
-type SalesDocument = FDocentete & { f_comptet: Pick<FComptet, 'ct_intitule'> | null }
+type SalesDocument = FDocentete & { f_comptet: Pick<FComptet, 'ct_intitule' | 'ct_type'> | null }
 
 const formatPrice = (price: number | null | undefined) => {
     if (price === null || price === undefined) return '-'
@@ -82,8 +86,10 @@ export default function SalesPage() {
     const [searchTerm, setSearchTerm] = useState('')
     const [selectedDocument, setSelectedDocument] = useState<SalesDocument | null>(null)
     const [sheetOpen, setSheetOpen] = useState(false)
-    const [selectedMonth, setSelectedMonth] = useState<string>('all')
+    const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined)
     const [selectedClient, setSelectedClient] = useState<string>('all')
+    const [selectedPartnerType, setSelectedPartnerType] = useState<string>('all')
+    const [mounted, setMounted] = useState(false)
 
     const supabase = createClient()
 
@@ -94,7 +100,7 @@ export default function SalesPage() {
         try {
             const query = supabase
                 .from('f_docentete')
-                .select(`*, f_comptet (ct_intitule)`)
+                .select(`*, f_comptet (ct_intitule, ct_type)`)
                 .eq('do_domaine', 0) // Sales domain
                 .order('do_date', { ascending: false })
 
@@ -108,14 +114,9 @@ export default function SalesPage() {
     }
 
     useEffect(() => {
+        setMounted(true)
         fetchDocuments()
     }, [])
-
-    const uniqueMonths = Array.from(new Set(documents.map(doc => {
-        if (!doc.do_date) return null
-        const date = new Date(doc.do_date)
-        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
-    }).filter(Boolean))).sort().reverse() as string[]
 
     const uniqueClients = Array.from(new Set(documents.map(doc =>
         doc.f_comptet?.ct_intitule || doc.do_tiers
@@ -127,13 +128,21 @@ export default function SalesPage() {
             doc.do_tiers?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             doc.f_comptet?.ct_intitule?.toLowerCase().includes(searchTerm.toLowerCase())
 
-        const docMonth = doc.do_date ? `${new Date(doc.do_date).getFullYear()}-${String(new Date(doc.do_date).getMonth() + 1).padStart(2, '0')}` : null
-        const matchesMonth = selectedMonth === 'all' || docMonth === selectedMonth
+        let matchesDate = true
+        if (dateRange?.from) {
+            const docDate = new Date(doc.do_date)
+            const start = startOfDay(dateRange.from)
+            const end = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from)
+            matchesDate = isWithinInterval(docDate, { start, end })
+        }
 
         const clientName = doc.f_comptet?.ct_intitule || doc.do_tiers
         const matchesClient = selectedClient === 'all' || clientName === selectedClient
 
-        return matchesSearch && matchesMonth && matchesClient
+        const matchesPartnerType = selectedPartnerType === 'all' ||
+            (doc.f_comptet && doc.f_comptet.ct_type.toString() === selectedPartnerType)
+
+        return matchesSearch && matchesDate && matchesClient && matchesPartnerType
     })
 
     const totalCA = filteredDocuments
@@ -198,7 +207,7 @@ export default function SalesPage() {
                                 <CardTitle className="text-sm font-medium">CA Total</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <div className="text-2xl font-bold">{formatPrice(totalCA)}</div>
+                                <div className="text-2xl font-bold">{mounted ? formatPrice(totalCA) : '...'}</div>
                             </CardContent>
                         </Card>
                         <Card className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 border-blue-500/20">
@@ -206,7 +215,7 @@ export default function SalesPage() {
                                 <CardTitle className="text-sm font-medium">Encaissé</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <div className="text-2xl font-bold">{formatPrice(totalRegle)}</div>
+                                <div className="text-2xl font-bold">{mounted ? formatPrice(totalRegle) : '...'}</div>
                             </CardContent>
                         </Card>
                         <Card className="bg-gradient-to-br from-orange-500/10 to-orange-500/5 border-orange-500/20">
@@ -214,7 +223,7 @@ export default function SalesPage() {
                                 <CardTitle className="text-sm font-medium">Restant Dû</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <div className="text-2xl font-bold">{formatPrice(totalCA - totalRegle)}</div>
+                                <div className="text-2xl font-bold">{mounted ? formatPrice(totalCA - totalRegle) : '...'}</div>
                             </CardContent>
                         </Card>
                     </div>
@@ -230,32 +239,17 @@ export default function SalesPage() {
                                 className="pl-10 h-10"
                             />
                         </div>
-                        <Select value={selectedMonth} onValueChange={(value) => setSelectedMonth(value ?? 'all')}>
-                            <SelectTrigger className="h-10">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">Tous les mois</SelectItem>
-                                {uniqueMonths.map(month => (
-                                    <SelectItem key={month} value={month}>
-                                        {new Date(month + '-01').toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                        <Select value={selectedClient} onValueChange={(value) => setSelectedClient(value ?? 'all')}>
-                            <SelectTrigger className="h-10">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">Tous les clients</SelectItem>
-                                {uniqueClients.map(client => (
-                                    <SelectItem key={client} value={client ?? ''}>
-                                        {client}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <DateRangePicker
+                            date={dateRange}
+                            onDateChange={setDateRange}
+                        />
+                        <PartnerFilter
+                            partners={uniqueClients}
+                            selectedPartner={selectedClient}
+                            onPartnerChange={setSelectedClient}
+                            selectedType={selectedPartnerType}
+                            onTypeChange={setSelectedPartnerType}
+                        />
                     </div>
 
                     {/* Table */}
@@ -302,7 +296,7 @@ export default function SalesPage() {
                                                 <TableCell>
                                                     <Badge variant="outline">{doc.do_piece}</Badge>
                                                 </TableCell>
-                                                <TableCell>{formatDate(doc.do_date)}</TableCell>
+                                                <TableCell>{mounted ? formatDate(doc.do_date) : '-'}</TableCell>
                                                 <TableCell className="font-medium">
                                                     {doc.f_comptet?.ct_intitule || doc.do_tiers || '-'}
                                                 </TableCell>
@@ -310,10 +304,10 @@ export default function SalesPage() {
                                                     <Badge variant="secondary">{getDocumentTypeName(doc.do_type)}</Badge>
                                                 </TableCell>
                                                 <TableCell className="text-right font-semibold">
-                                                    {formatPrice(doc.do_totalttc)}
+                                                    {mounted ? formatPrice(doc.do_totalttc) : '-'}
                                                 </TableCell>
                                                 <TableCell className="text-right">
-                                                    {formatPrice(doc.do_montregl)}
+                                                    {mounted ? formatPrice(doc.do_montregl) : '-'}
                                                 </TableCell>
                                                 <TableCell className="text-right">
                                                     {getStatusBadge(doc)}

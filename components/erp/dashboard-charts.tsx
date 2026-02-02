@@ -65,7 +65,13 @@ const paymentChartConfig = {
 } satisfies ChartConfig
 
 export function SalesVsPurchasesChart({ data }: { data: MonthlyData[] }) {
-    if (!data || data.length === 0) {
+    const [mounted, setMounted] = React.useState(false)
+
+    React.useEffect(() => {
+        setMounted(true)
+    }, [])
+
+    if (!mounted || !data || data.length === 0) {
         return (
             <Card>
                 <CardHeader>
@@ -115,7 +121,13 @@ export function SalesVsPurchasesChart({ data }: { data: MonthlyData[] }) {
 }
 
 export function PaymentStatusChart({ data }: { data: PaymentStatusData[] }) {
-    if (!data || data.length === 0 || data.every(d => d.value === 0)) {
+    const [mounted, setMounted] = React.useState(false)
+
+    React.useEffect(() => {
+        setMounted(true)
+    }, [])
+
+    if (!mounted || !data || data.length === 0 || data.every(d => d.value === 0)) {
         return (
             <Card>
                 <CardHeader>

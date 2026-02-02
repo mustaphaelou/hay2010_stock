@@ -41,8 +41,12 @@ import {
 
 import { fetchAllRows } from '@/lib/supabase/utils'
 import { DownloadInvoiceButton } from '@/components/erp/download-invoice-button'
+import { DateRangePicker } from '@/components/ui/date-range-picker'
+import { PartnerFilter } from '@/components/erp/partner-filter'
+import { DateRange } from 'react-day-picker'
+import { isWithinInterval, startOfDay, endOfDay } from 'date-fns'
 
-type DocumentWithPartner = FDocentete & { f_comptet: Pick<FComptet, 'ct_intitule'> | null }
+type DocumentWithPartner = FDocentete & { f_comptet: Pick<FComptet, 'ct_intitule' | 'ct_type'> | null }
 
 const formatPrice = (price: number | null | undefined) => {
     if (price === null || price === undefined) return '-'
@@ -91,8 +95,9 @@ export default function DocumentsPage() {
     const [error, setError] = useState<string | null>(null)
     const [searchTerm, setSearchTerm] = useState('')
     const [selectedDomaine, setSelectedDomaine] = useState<string>('all')
-    const [selectedMonth, setSelectedMonth] = useState<string>('all')
+    const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined)
     const [selectedPartner, setSelectedPartner] = useState<string>('all')
+    const [selectedPartnerType, setSelectedPartnerType] = useState<string>('all')
 
     const supabase = createClient()
 
@@ -105,7 +110,7 @@ export default function DocumentsPage() {
                 .from('f_docentete')
                 .select(`
                     *,
-                    f_comptet (ct_intitule)
+                    f_comptet (ct_intitule, ct_type)
                 `)
                 .order('do_date', { ascending: false })
 
@@ -122,12 +127,6 @@ export default function DocumentsPage() {
         fetchDocuments()
     }, [])
 
-    const uniqueMonths = Array.from(new Set(documents.map(doc => {
-        if (!doc.do_date) return null
-        const date = new Date(doc.do_date)
-        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
-    }).filter(Boolean))).sort().reverse() as string[]
-
     const uniquePartners = Array.from(new Set(documents.map(doc =>
         doc.f_comptet?.ct_intitule || doc.do_tiers
     ).filter(Boolean))).sort() as string[]
@@ -140,13 +139,21 @@ export default function DocumentsPage() {
 
         const matchesDomaine = selectedDomaine === 'all' || doc.do_domaine.toString() === selectedDomaine
 
-        const docMonth = doc.do_date ? `${new Date(doc.do_date).getFullYear()}-${String(new Date(doc.do_date).getMonth() + 1).padStart(2, '0')}` : null
-        const matchesMonth = selectedMonth === 'all' || docMonth === selectedMonth
+        let matchesDate = true
+        if (dateRange?.from) {
+            const docDate = new Date(doc.do_date)
+            const start = startOfDay(dateRange.from)
+            const end = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from)
+            matchesDate = isWithinInterval(docDate, { start, end })
+        }
 
         const partnerName = doc.f_comptet?.ct_intitule || doc.do_tiers
         const matchesPartner = selectedPartner === 'all' || partnerName === selectedPartner
 
-        return matchesSearch && matchesDomaine && matchesMonth && matchesPartner
+        const matchesPartnerType = selectedPartnerType === 'all' ||
+            (doc.f_comptet && doc.f_comptet.ct_type.toString() === selectedPartnerType)
+
+        return matchesSearch && matchesDomaine && matchesDate && matchesPartner && matchesPartnerType
     })
 
     const getTypeBadgeVariant = (type: number) => {
@@ -272,32 +279,20 @@ export default function DocumentsPage() {
                                     <SelectItem value="1">Achats</SelectItem>
                                 </SelectContent>
                             </Select>
-                            <Select value={selectedMonth} onValueChange={(value) => setSelectedMonth(value ?? 'all')}>
-                                <SelectTrigger>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">Tous les mois</SelectItem>
-                                    {uniqueMonths.map(month => (
-                                        <SelectItem key={month} value={month}>
-                                            {new Date(month + '-01').toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            <Select value={selectedPartner} onValueChange={(value) => setSelectedPartner(value ?? 'all')}>
-                                <SelectTrigger>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">Tous les partenaires</SelectItem>
-                                    {uniquePartners.map(partner => (
-                                        <SelectItem key={partner} value={partner ?? ''}>
-                                            {partner}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            <DateRangePicker
+                                date={dateRange}
+                                onDateChange={setDateRange}
+                                className="w-full"
+                            />
+                            <div className="lg:col-span-2">
+                                <PartnerFilter
+                                    partners={uniquePartners}
+                                    selectedPartner={selectedPartner}
+                                    onPartnerChange={setSelectedPartner}
+                                    selectedType={selectedPartnerType}
+                                    onTypeChange={setSelectedPartnerType}
+                                />
+                            </div>
                         </div>
                     </CardContent>
                 </Card>
