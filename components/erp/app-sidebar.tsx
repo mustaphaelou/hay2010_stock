@@ -53,8 +53,43 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     const pathname = usePathname()
     const searchParams = useSearchParams()
     const { state } = useSidebar()
+    const [mounted, setMounted] = React.useState(false)
+
+    React.useEffect(() => {
+        setMounted(true)
+    }, [])
 
     const [activeCompany, setActiveCompany] = React.useState(companies[0])
+
+    if (!mounted) {
+        return (
+            <Sidebar collapsible="icon" {...props}>
+                <SidebarHeader>
+                    <SidebarMenu>
+                        <SidebarMenuItem>
+                            <SidebarMenuButton size="lg" disabled>
+                                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-muted animate-pulse" />
+                                <div className="grid flex-1 text-left text-sm leading-tight">
+                                    <div className="h-4 w-24 bg-muted animate-pulse rounded" />
+                                    <div className="h-3 w-32 bg-muted animate-pulse rounded mt-1" />
+                                </div>
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
+                    </SidebarMenu>
+                </SidebarHeader>
+                <SidebarContent>
+                    <div className="p-4 space-y-4">
+                        <div className="h-4 w-20 bg-muted animate-pulse rounded" />
+                        <div className="space-y-2">
+                            <div className="h-8 w-full bg-muted animate-pulse rounded" />
+                            <div className="h-8 w-full bg-muted animate-pulse rounded" />
+                            <div className="h-8 w-full bg-muted animate-pulse rounded" />
+                        </div>
+                    </div>
+                </SidebarContent>
+            </Sidebar>
+        )
+    }
 
     return (
         <Sidebar collapsible="icon" {...props}>

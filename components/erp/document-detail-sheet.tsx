@@ -61,23 +61,26 @@ const getDocumentTypeName = (domaine: number, type: number) => {
         switch (type) {
             case 0: return 'DEVIS'
             case 1: return 'BON COMMANDE'
-            case 2: return 'PRÉPARATION'
+            case 2: return 'PRÉPARATION LIVRAISON'
             case 3: return 'BON LIVRAISON'
             case 4: return 'BON RETOUR'
+            case 5: return 'BON D\'AVOIR'
             case 6: return 'FACTURE'
-            case 7: return 'AVOIR'
+            case 7: return 'FACTURE COMPTABILISÉE'
+            case 8: return 'ARCHIVE'
             default: return `VENTE ${type}`
         }
     } else if (domaine === 1) {
         switch (type) {
-            case 10: return 'DEMANDE PRIX'
+            case 10: return 'DEMANDE ACHAT'
             case 11: return 'PRÉPARATION CMD'
             case 12: return 'BON COMMANDE'
             case 13: return 'BON RÉCEPTION'
             case 14: return 'BON RETOUR'
-            case 15: return 'AVOIR'
+            case 15: return 'BON D\'AVOIR'
             case 16: return 'FACTURE'
-            case 17: return 'FACTURE COMPTAB.'
+            case 17: return 'FACTURE COMPTABILISÉE'
+            case 18: return 'ARCHIVE'
             default: return `ACHAT ${type}`
         }
     } else if (domaine === 2) {

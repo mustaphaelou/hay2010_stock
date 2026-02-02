@@ -72,18 +72,26 @@ const getDocumentTypeName = (domaine: number, type: number) => {
         switch (type) {
             case 0: return 'DEVIS'
             case 1: return 'BON COMMANDE'
+            case 2: return 'PRÉPARATION LIVRAISON'
             case 3: return 'BON LIVRAISON'
+            case 4: return 'BON RETOUR'
+            case 5: return 'BON D\'AVOIR'
             case 6: return 'FACTURE'
-            case 7: return 'AVOIR'
+            case 7: return 'FACTURE COMPTABILISÉE'
+            case 8: return 'ARCHIVE'
             default: return `TYPE ${type}`
         }
     } else { // Achats
         switch (type) {
-            case 0: return 'DEMANDE ACHAT'
-            case 1: return 'BON COMMANDE'
-            case 3: return 'BON RECEPTION'
-            case 6: return 'FACTURE'
-            case 7: return 'AVOIR'
+            case 10: return 'DEMANDE ACHAT'
+            case 11: return 'PRÉPARATION CMD'
+            case 12: return 'BON COMMANDE'
+            case 13: return 'BON RÉCEPTION'
+            case 14: return 'BON RETOUR'
+            case 15: return 'BON D\'AVOIR'
+            case 16: return 'FACTURE'
+            case 17: return 'FACTURE COMPTABILISÉE'
+            case 18: return 'ARCHIVE'
             default: return `TYPE ${type}`
         }
     }
@@ -158,11 +166,19 @@ export default function DocumentsPage() {
 
     const getTypeBadgeVariant = (type: number) => {
         switch (type) {
-            case 6: return 'default' // Facture
-            case 0: return 'secondary' // Devis
-            case 1: return 'outline' // Commande
-            case 3: return 'outline' // Livraison
-            case 7: return 'destructive' // Avoir
+            case 6:
+            case 7:
+            case 16:
+            case 17: return 'default' // Factures
+            case 0:
+            case 10: return 'secondary' // Devis / Demande achat
+            case 1:
+            case 12: return 'outline' // Commande
+            case 3:
+            case 13: return 'outline' // Livraison / Réception
+            case 7:
+            case 15:
+            case 5: return 'destructive' // Avoir
             default: return 'outline'
         }
     }
@@ -189,11 +205,11 @@ export default function DocumentsPage() {
     }
 
     const totalCA = filteredDocuments
-        .filter(d => d.do_domaine === 0 && d.do_type === 6) // Sales invoices
+        .filter(d => d.do_domaine === 0 && (d.do_type === 6 || d.do_type === 7)) // Sales invoices
         .reduce((acc, d) => acc + (d.do_totalttc || 0), 0)
 
     const totalAchats = filteredDocuments
-        .filter(d => d.do_domaine === 1 && d.do_type === 6) // Purchase invoices
+        .filter(d => d.do_domaine === 1 && (d.do_type === 16 || d.do_type === 17)) // Purchase invoices
         .reduce((acc, d) => acc + (d.do_totalttc || 0), 0)
 
     return (

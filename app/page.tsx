@@ -1,11 +1,11 @@
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
-import { AppSidebar } from "@/components/erp/app-sidebar"
 import { SiteHeader } from "@/components/erp/site-header"
 import { DashboardView } from "@/components/erp/dashboard-view"
 import { BottomNav } from "@/components/erp/bottom-nav"
 import { createClient } from "@/lib/supabase/server"
 import { FDocentete } from "@/lib/supabase/types"
 import { Suspense } from "react"
+import { ClientSidebar as AppSidebar } from "@/components/erp/client-sidebar"
 
 export default async function Page() {
     const supabase = await createClient()
@@ -34,7 +34,7 @@ export default async function Page() {
         supabase.from("f_docentete")
             .select("do_totalttc, do_montregl, do_date")
             .eq("do_domaine", 0)
-            .eq("do_type", 6) // Invoices only
+            .in("do_type", [6, 7]) // Factures et Factures comptabilisées
             .limit(500)
     ])
 
