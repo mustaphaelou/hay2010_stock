@@ -42,6 +42,13 @@ import {
 } from "@hugeicons/core-free-icons"
 import { Separator } from "@/components/ui/separator"
 import {
+    Card,
+    CardHeader,
+    CardTitle,
+    CardDescription,
+    CardContent,
+} from "@/components/ui/card"
+import {
     Command,
     CommandInput,
     CommandList,
@@ -241,36 +248,33 @@ export function ArticlesView({ initialData }: ArticlesViewProps) {
     }
 
     return (
-        <div className="space-y-4 animate-fade-in-up px-1 sm:px-0">
-            {/* Responsive header - stacked on mobile */}
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="text-center sm:text-left">
-                    <h2 className="text-xl sm:text-2xl font-bold tracking-tight">Articles</h2>
-                    <p className="text-sm text-muted-foreground">
-                        {filteredData.length}{selectedFamille !== "all" ? ` / ${localData.length}` : ""} articles
+        <div className="space-y-6 sm:space-y-8 animate-fade-in-up">
+            {/* Responsive header - Stacked with more impact */}
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between px-1">
+                <div className="flex flex-col gap-1">
+                    <h2 className="text-2xl sm:text-4xl font-extrabold tracking-tight gradient-text">Gestion des Articles</h2>
+                    <p className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                        <span className="flex h-2 w-2 rounded-full bg-primary" />
+                        {filteredData.length} articles trouvés sur {localData.length} au total
                     </p>
                 </div>
 
-                {/* Filters row - horizontal scroll on mobile */}
-                <div className="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0 sm:overflow-visible -mx-1 px-1 sm:mx-0 sm:px-0">
+                {/* Filters row - Multi-component flex on large, grid on mobile */}
+                <div className="grid grid-cols-2 lg:flex items-center gap-2 lg:gap-3">
                     {/* Status Filter */}
                     <DropdownMenu>
                         <DropdownMenuTrigger
-                            className={cn(buttonVariants({ variant: "outline" }), "gap-2 h-10 sm:h-9 flex-shrink-0")}
+                            className={cn(buttonVariants({ variant: "outline" }), "w-full lg:w-auto gap-2 lg:h-11 rounded-xl shadow-sm border-muted/60")}
                         >
                             <div className={`h-2 w-2 rounded-full ${selectedStatus === "active" ? "bg-green-500" :
                                 selectedStatus === "sommeil" ? "bg-slate-400" : "bg-primary"
                                 }`} />
-                            <span className="hidden sm:inline">
+                            <span className="truncate">
                                 {selectedStatus === "all" ? "Tous les statuts" :
-                                    selectedStatus === "active" ? "Actifs uniquement" : "En sommeil"}
-                            </span>
-                            <span className="sm:hidden">
-                                {selectedStatus === "all" ? "Tous" :
                                     selectedStatus === "active" ? "Actifs" : "Sommeil"}
                             </span>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
+                        <DropdownMenuContent align="end" className="rounded-xl">
                             <DropdownMenuItem onClick={() => setSelectedStatus("all")}>Tous les statuts</DropdownMenuItem>
                             <DropdownMenuItem onClick={() => setSelectedStatus("active")}>Articles Actifs</DropdownMenuItem>
                             <DropdownMenuItem onClick={() => setSelectedStatus("sommeil")}>Articles en sommeil</DropdownMenuItem>
@@ -278,15 +282,15 @@ export function ArticlesView({ initialData }: ArticlesViewProps) {
                     </DropdownMenu>
 
                     {/* Searchable Famille Filter */}
-                    <div className="relative flex-shrink-0">
+                    <div className="relative w-full lg:w-auto">
                         <Button
                             variant="outline"
-                            className="min-w-[140px] sm:min-w-[180px] justify-between h-10 sm:h-9"
+                            className="w-full lg:min-w-[180px] justify-between lg:h-11 rounded-xl shadow-sm border-muted/60"
                             onClick={() => setIsFilterOpen(!isFilterOpen)}
                         >
-                            <span className="flex items-center gap-2">
+                            <span className="flex items-center gap-2 truncate">
                                 <HugeiconsIcon icon={TagsIcon} className="h-4 w-4" />
-                                <span className="truncate max-w-[80px] sm:max-w-[120px]">
+                                <span className="truncate">
                                     {selectedFamille === "all" ? "Familles" : selectedFamille}
                                 </span>
                             </span>
@@ -297,10 +301,10 @@ export function ArticlesView({ initialData }: ArticlesViewProps) {
                                     className="fixed inset-0 z-40"
                                     onClick={() => setIsFilterOpen(false)}
                                 />
-                                <div className="absolute right-0 sm:right-0 top-full mt-1 z-50 w-[280px] max-w-[calc(100vw-2rem)] rounded-md border bg-popover shadow-md">
+                                <div className="absolute right-0 top-full mt-2 z-50 w-[280px] max-w-[calc(100vw-2rem)] rounded-xl border bg-popover shadow-lg animate-in fade-in-0 zoom-in-95 overflow-hidden">
                                     <Command>
-                                        <CommandInput placeholder="Rechercher une famille..." className="h-11 sm:h-9" />
-                                        <CommandList className="max-h-[50vh]">
+                                        <CommandInput placeholder="Rechercher une famille..." className="h-10" />
+                                        <CommandList className="max-h-[40vh]">
                                             <CommandEmpty>Aucune famille trouvée.</CommandEmpty>
                                             <CommandGroup>
                                                 <CommandItem
@@ -308,10 +312,10 @@ export function ArticlesView({ initialData }: ArticlesViewProps) {
                                                         setSelectedFamille("all")
                                                         setIsFilterOpen(false)
                                                     }}
-                                                    className={cn("py-3 sm:py-2", selectedFamille === "all" ? "bg-accent" : "")}
+                                                    className={cn("py-2.5 px-4 cursor-pointer", selectedFamille === "all" ? "bg-accent" : "")}
                                                 >
-                                                    <span className="flex-1">Toutes les familles</span>
-                                                    <span className="text-muted-foreground text-xs">({localData.length})</span>
+                                                    <span className="flex-1 font-medium">Toutes les familles</span>
+                                                    <Badge variant="secondary" className="text-[10px]">{localData.length}</Badge>
                                                 </CommandItem>
                                                 {familles.map((famille) => {
                                                     const count = localData.filter(a => a.f_famille?.fa_intitule === famille).length
@@ -322,10 +326,10 @@ export function ArticlesView({ initialData }: ArticlesViewProps) {
                                                                 setSelectedFamille(famille)
                                                                 setIsFilterOpen(false)
                                                             }}
-                                                            className={cn("py-3 sm:py-2", selectedFamille === famille ? "bg-accent" : "")}
+                                                            className={cn("py-2.5 px-4 cursor-pointer", selectedFamille === famille ? "bg-accent" : "")}
                                                         >
                                                             <span className="flex-1 truncate">{famille}</span>
-                                                            <span className="text-muted-foreground text-xs">({count})</span>
+                                                            <Badge variant="secondary" className="text-[10px]">{count}</Badge>
                                                         </CommandItem>
                                                     )
                                                 })}
@@ -336,23 +340,37 @@ export function ArticlesView({ initialData }: ArticlesViewProps) {
                             </>
                         )}
                     </div>
-                    <Button className="h-10 sm:h-9 flex-shrink-0 whitespace-nowrap">
-                        <span className="sm:hidden">+ Article</span>
-                        <span className="hidden sm:inline">Nouveau Produit</span>
+
+                    {/* New Article Button - full width on mobile grid column */}
+                    <Button className="col-span-2 lg:col-auto lg:h-11 lg:px-6 hover-lift shadow-md rounded-xl font-bold">
+                        <span className="mr-2 text-xl">+</span> Nouveau Produit
                     </Button>
                 </div>
             </div>
 
-            {/* Table card with responsive padding */}
-            <div className="rounded-md border bg-card text-card-foreground shadow-sm p-2 sm:p-3">
-                <DataTable
-                    columns={columns}
-                    data={filteredData}
-                    searchKey="ar_design"
-                    placeholder="Rechercher un article…"
-                    loading={false}
-                />
-            </div>
+            {/* Table card - Premium implementation */}
+            <Card className="overflow-hidden border-muted/40 shadow-sm transition-all hover:shadow-md">
+                <CardHeader className="pb-4 bg-muted/20 border-b">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <CardTitle className="text-lg font-bold flex items-center gap-2">
+                                <HugeiconsIcon icon={PackageIcon} className="h-5 w-5 text-primary" />
+                                Catalogue Articles
+                            </CardTitle>
+                            <CardDescription>Gérez votre inventaire et vos références produits.</CardDescription>
+                        </div>
+                    </div>
+                </CardHeader>
+                <CardContent className="p-0 sm:p-2">
+                    <DataTable
+                        columns={columns}
+                        data={filteredData}
+                        searchKey="ar_design"
+                        placeholder="Chercher par nom, référence..."
+                        loading={false}
+                    />
+                </CardContent>
+            </Card>
 
             {/* Article Details Sheet */}
             {/* Article Details Sheet - Full screen on mobile */}

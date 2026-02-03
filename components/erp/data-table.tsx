@@ -237,111 +237,115 @@ export function DataTable<TData, TValue>({
                 </div>
             ) : (
                 /* Table View */
-                <div className="rounded-md border overflow-x-auto">
-                    <Table>
-                        <TableHeader>
-                            {table.getHeaderGroups().map((headerGroup) => (
-                                <TableRow key={headerGroup.id}>
-                                    {headerGroup.headers.map((header) => {
-                                        return (
-                                            <TableHead key={header.id}>
-                                                {header.isPlaceholder
-                                                    ? null
-                                                    : flexRender(
-                                                        header.column.columnDef.header,
-                                                        header.getContext()
-                                                    )}
-                                            </TableHead>
-                                        )
-                                    })}
-                                </TableRow>
-                            ))}
-                        </TableHeader>
-                        <TableBody>
-                            {loading ? (
-                                // Loading skeleton
-                                Array.from({ length: 5 }).map((_, i) => (
-                                    <TableRow key={`skeleton-${i}`}>
-                                        {columns.map((_, j) => (
-                                            <TableCell key={`skeleton-cell-${i}-${j}`}>
-                                                <Skeleton className="h-5 w-full" />
-                                            </TableCell>
-                                        ))}
+                /* Table View */
+                <div className="rounded-xl border shadow-sm overflow-hidden bg-card">
+                    <div className="overflow-x-auto">
+                        <Table className="table-zebra table-sticky-header">
+                            <TableHeader className="bg-muted/40">
+                                {table.getHeaderGroups().map((headerGroup) => (
+                                    <TableRow key={headerGroup.id} className="hover:bg-transparent border-b">
+                                        {headerGroup.headers.map((header) => {
+                                            return (
+                                                <TableHead key={header.id} className="h-12 px-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                                                    {header.isPlaceholder
+                                                        ? null
+                                                        : flexRender(
+                                                            header.column.columnDef.header,
+                                                            header.getContext()
+                                                        )}
+                                                </TableHead>
+                                            )
+                                        })}
                                     </TableRow>
-                                ))
-                            ) : table.getRowModel().rows?.length ? (
-                                table.getRowModel().rows.map((row) => (
-                                    <TableRow
-                                        key={row.id}
-                                        data-state={row.getIsSelected() && "selected"}
-                                        className="hover:bg-muted/50 transition-colors"
-                                    >
-                                        {row.getVisibleCells().map((cell) => (
-                                            <TableCell key={cell.id}>
-                                                {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                            </TableCell>
-                                        ))}
+                                ))}
+                            </TableHeader>
+                            <TableBody>
+                                {loading ? (
+                                    // Loading skeleton
+                                    Array.from({ length: 5 }).map((_, i) => (
+                                        <TableRow key={`skeleton-${i}`}>
+                                            {columns.map((_, j) => (
+                                                <TableCell key={`skeleton-cell-${i}-${j}`}>
+                                                    <Skeleton className="h-5 w-full" />
+                                                </TableCell>
+                                            ))}
+                                        </TableRow>
+                                    ))
+                                ) : table.getRowModel().rows?.length ? (
+                                    table.getRowModel().rows.map((row) => (
+                                        <TableRow
+                                            key={row.id}
+                                            data-state={row.getIsSelected() && "selected"}
+                                            className="table-row-accent group"
+                                        >
+                                            {row.getVisibleCells().map((cell) => (
+                                                <TableCell key={cell.id} className="px-4 py-3 text-sm">
+                                                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                                </TableCell>
+                                            ))}
+                                        </TableRow>
+                                    ))
+                                ) : (
+                                    <TableRow>
+                                        <TableCell
+                                            colSpan={columns.length}
+                                            className="h-32 text-center text-muted-foreground italic"
+                                        >
+                                            Aucun résultat pour cette recherche.
+                                        </TableCell>
                                     </TableRow>
-                                ))
-                            ) : (
-                                <TableRow>
-                                    <TableCell
-                                        colSpan={columns.length}
-                                        className="h-24 text-center"
-                                    >
-                                        Aucun résultat.
-                                    </TableCell>
-                                </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </div>
                 </div>
             )}
-            {/* Responsive pagination */}
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            {/* Responsive pagination - Premium Style */}
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between py-2">
                 {/* Results count - centered on mobile */}
-                <div className="text-sm text-muted-foreground text-center sm:text-left">
+                <div className="text-sm text-muted-foreground text-center sm:text-left font-medium">
                     {totalRows > 0 ? (
-                        <>
+                        <div className="bg-muted/30 px-3 py-1.5 rounded-full inline-block">
                             <span className="hidden sm:inline">Affichage de </span>
-                            <span className="font-medium">{startRow}</span>
-                            <span className="sm:hidden">-</span>
-                            <span className="hidden sm:inline"> à </span>
-                            <span className="font-medium">{endRow}</span>
+                            <span className="text-primary font-bold">{startRow}</span>
+                            <span className="mx-1 sm:mx-0"> - </span>
+                            <span className="text-primary font-bold">{endRow}</span>
                             <span className="hidden sm:inline"> sur </span>
                             <span className="sm:hidden"> / </span>
-                            <span className="font-medium">{totalRows}</span>
+                            <span className="text-primary font-bold">{totalRows}</span>
                             <span className="hidden sm:inline"> résultat(s)</span>
-                        </>
+                        </div>
                     ) : (
                         "Aucun résultat"
                     )}
                 </div>
                 {/* Pagination controls - larger on mobile for touch */}
-                <div className="flex items-center justify-center sm:justify-end gap-2 sm:space-x-2">
-                    <span className="text-sm text-muted-foreground">
-                        <span className="hidden sm:inline">Page </span>{currentPage}<span className="sm:hidden">/</span><span className="hidden sm:inline"> sur </span>{totalPages || 1}
+                <div className="flex items-center justify-center sm:justify-end gap-3">
+                    <span className="text-xs sm:text-sm font-semibold text-muted-foreground">
+                        Page <span className="text-foreground">{currentPage}</span> sur <span className="text-foreground">{totalPages || 1}</span>
                     </span>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-10 w-10 sm:h-8 sm:w-8 p-0"
-                        onClick={() => table.previousPage()}
-                        disabled={!table.getCanPreviousPage()}
-                        aria-label="Page précédente"
-                    >
-                        <HugeiconsIcon icon={ArrowLeft01Icon} className="h-5 w-5 sm:h-4 sm:w-4" aria-hidden="true" />
-                    </Button>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-10 w-10 sm:h-8 sm:w-8 p-0"
-                        onClick={() => table.nextPage()}
-                        disabled={!table.getCanNextPage()}
-                        aria-label="Page suivante"
-                    >
-                        <HugeiconsIcon icon={ArrowRight01Icon} className="h-5 w-5 sm:h-4 sm:w-4" aria-hidden="true" />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-10 w-10 sm:h-9 sm:w-9 p-0 rounded-lg hover:bg-primary/5 hover:text-primary transition-all active:scale-95"
+                            onClick={() => table.previousPage()}
+                            disabled={!table.getCanPreviousPage()}
+                            aria-label="Page précédente"
+                        >
+                            <HugeiconsIcon icon={ArrowLeft01Icon} className="h-5 w-5 sm:h-4 sm:w-4" aria-hidden="true" />
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-10 w-10 sm:h-9 sm:w-9 p-0 rounded-lg hover:bg-primary/5 hover:text-primary transition-all active:scale-95"
+                            onClick={() => table.nextPage()}
+                            disabled={!table.getCanNextPage()}
+                            aria-label="Page suivante"
+                        >
+                            <HugeiconsIcon icon={ArrowRight01Icon} className="h-5 w-5 sm:h-4 sm:w-4" aria-hidden="true" />
+                        </Button>
+                    </div>
                 </div>
             </div>
         </div>

@@ -681,11 +681,13 @@
    * ============================================ */
 
   /* Active nav item with gradient border */
-  .nav-item-active {
-    @apply relative bg-primary/5;
+  .nav-item-active,
+  [data-active="true"] {
+    @apply relative bg-primary/5! text-primary!;
   }
 
-  .nav-item-active::before {
+  .nav-item-active::before,
+  [data-active="true"]::before {
     content: '';
     position: absolute;
     left: 0;

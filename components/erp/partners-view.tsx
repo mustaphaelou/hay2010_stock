@@ -29,7 +29,8 @@ import {
     Cash01Icon,
     Calendar01Icon,
     Building01Icon,
-    UserIcon
+    UserIcon,
+    UserGroupIcon
 } from "@hugeicons/core-free-icons"
 import {
     Sheet,
@@ -40,6 +41,13 @@ import {
 } from "@/components/ui/sheet"
 import { Separator } from "@/components/ui/separator"
 import { formatDate } from "@/lib/utils/format"
+import {
+    Card,
+    CardHeader,
+    CardTitle,
+    CardDescription,
+    CardContent,
+} from "@/components/ui/card"
 
 const createColumns = (onViewDetails: (partner: FComptet) => void): ColumnDef<FComptet>[] => [
     {
@@ -131,31 +139,45 @@ export function PartnersView({ type, title }: PartnersViewProps) {
     }, [type, supabase])
 
     return (
-        <div className="space-y-4 animate-fade-in-up px-1 sm:px-0">
-            {/* Responsive header - stacked on mobile */}
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="text-center sm:text-left">
-                    <h2 className="text-xl sm:text-2xl font-bold tracking-tight">{title}</h2>
-                    <p className="text-sm text-muted-foreground">
-                        {data.length} {type === 0 ? "clients" : "fournisseurs"} référencés
+        <div className="space-y-6 sm:space-y-8 animate-fade-in-up">
+            {/* Responsive header - Stacked with more impact */}
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between px-1">
+                <div className="flex flex-col gap-1">
+                    <h2 className="text-2xl sm:text-4xl font-extrabold tracking-tight gradient-text">{title}</h2>
+                    <p className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                        <span className="flex h-2 w-2 rounded-full bg-primary" />
+                        {data.length} {type === 0 ? "clients" : "fournisseurs"} référencés au total
                     </p>
                 </div>
-                <div className="flex items-center justify-center sm:justify-end gap-2">
-                    <Button className="w-full sm:w-auto h-11 sm:h-9 text-base sm:text-sm">
-                        <span className="sm:hidden">+ </span>Nouveau {type === 0 ? "Client" : "Fournisseur"}
+                <div className="flex items-center gap-3">
+                    <Button size="lg" className="w-full sm:w-auto hover-lift shadow-md rounded-xl font-bold">
+                        <span className="mr-2 text-xl">+</span> Nouveau {type === 0 ? "Client" : "Fournisseur"}
                     </Button>
                 </div>
             </div>
 
-            {/* Table card with responsive padding */}
-            <div className="rounded-md border bg-card text-card-foreground shadow-sm p-2 sm:p-3">
-                <DataTable
-                    columns={columns}
-                    data={data}
-                    searchKey="ct_intitule"
-                    placeholder="Rechercher par nom..."
-                />
-            </div>
+            {/* Table card - Premium implementation */}
+            <Card className="overflow-hidden border-muted/40 shadow-sm transition-all hover:shadow-md">
+                <CardHeader className="pb-4 bg-muted/20 border-b">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <CardTitle className="text-lg font-bold flex items-center gap-2">
+                                <HugeiconsIcon icon={UserGroupIcon} className="h-5 w-5 text-primary" />
+                                Liste des Tiers
+                            </CardTitle>
+                            <CardDescription>Consultez et gérez vos partenaires commerciaux.</CardDescription>
+                        </div>
+                    </div>
+                </CardHeader>
+                <CardContent className="p-0 sm:p-2">
+                    <DataTable
+                        columns={columns}
+                        data={data}
+                        searchKey="ct_intitule"
+                        placeholder="Rechercher par nom ou intitulé..."
+                    />
+                </CardContent>
+            </Card>
 
             {/* Partner Details Sheet */}
             {/* Partner Details Sheet - Full screen on mobile */}
