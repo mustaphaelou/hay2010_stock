@@ -174,15 +174,15 @@ export default function PurchasesPage() {
         const isPaid = doc.montant_regle && doc.montant_ttc && doc.montant_regle >= doc.montant_ttc
         const isPartial = doc.montant_regle && doc.montant_ttc && doc.montant_regle > 0 && doc.montant_regle < doc.montant_ttc
 
-        if (isPaid) {
-            return <Badge className="bg-green-500/10 text-green-600 border-green-500/30">
-                <HugeiconsIcon icon={CheckmarkCircle01Icon} className="h-3 w-3 mr-1" />
-                RÉGLÉ
-            </Badge>
-        }
-        if (isPartial) {
-            return <Badge className="bg-orange-500/10 text-orange-600 border-orange-500/30">PARTIEL</Badge>
-        }
+  if (isPaid) {
+    return <Badge variant="success">
+      <HugeiconsIcon icon={CheckmarkCircle01Icon} />
+      RÉGLÉ
+    </Badge>
+  }
+  if (isPartial) {
+    return <Badge variant="warning">PARTIEL</Badge>
+  }
         return <Badge variant="secondary">EN COURS</Badge>
     }
 

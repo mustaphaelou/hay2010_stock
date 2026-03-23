@@ -63,10 +63,10 @@ const formatDate = (date: Date | string | null) => {
 }
 
 const getDomaineBadge = (domaine: string) => {
-    if (domaine === 'VENTE') {
-        return <Badge className="bg-green-500/10 text-green-600 border-green-500/30">Vente</Badge>
-    }
-    return <Badge className="bg-blue-500/10 text-blue-600 border-blue-500/30">Achat</Badge>
+  if (domaine === 'VENTE') {
+    return <Badge variant="success">Vente</Badge>
+  }
+  return <Badge variant="info">Achat</Badge>
 }
 
 export default function DocumentsPage() {
@@ -138,20 +138,20 @@ export default function DocumentsPage() {
                         <div className="flex gap-4 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
                             <Card className="min-w-[200px] bg-gradient-to-br from-green-500/10 to-green-500/5 border-green-500/20">
                                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                    <CardTitle className="text-xs font-medium text-green-600 uppercase tracking-wider">Total Ventes</CardTitle>
-                                    <HugeiconsIcon icon={Invoice01Icon} className="h-4 w-4 text-green-500" />
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="text-2xl font-bold text-green-700">{formatPrice(totalVentes)}</div>
-                                </CardContent>
-                            </Card>
-                            <Card className="min-w-[200px] bg-gradient-to-br from-blue-500/10 to-blue-500/5 border-blue-500/20">
-                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                    <CardTitle className="text-xs font-medium text-blue-600 uppercase tracking-wider">Total Achats</CardTitle>
-                                    <HugeiconsIcon icon={ShoppingBag01Icon} className="h-4 w-4 text-blue-500" />
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="text-2xl font-bold text-blue-700">{formatPrice(totalAchats)}</div>
+              <CardTitle className="text-xs font-medium text-emerald-600 uppercase tracking-wider">Total Ventes</CardTitle>
+              <HugeiconsIcon icon={Invoice01Icon} className="text-emerald-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-emerald-700">{formatPrice(totalVentes)}</div>
+            </CardContent>
+          </Card>
+          <Card className="min-w-[200px] bg-gradient-to-br from-blue-500/10 to-blue-500/5 border-blue-500/20">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-xs font-medium text-info uppercase tracking-wider">Total Achats</CardTitle>
+              <HugeiconsIcon icon={ShoppingBag01Icon} className="text-info" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-info">{formatPrice(totalAchats)}</div>
                                 </CardContent>
                             </Card>
                         </div>

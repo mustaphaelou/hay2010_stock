@@ -3,30 +3,31 @@
 import * as React from "react"
 import { formatPrice } from "@/lib/utils/format"
 import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
 } from "@/components/ui/card"
 import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
-    PackageIcon,
-    UserGroupIcon,
-    ShoppingBag01Icon,
-    Invoice01Icon,
-    TruckDeliveryIcon,
-    FolderOpenIcon,
+  PackageIcon,
+  UserGroupIcon,
+  ShoppingBag01Icon,
+  Invoice01Icon,
+  TruckDeliveryIcon,
+  FolderOpenIcon,
 } from "@hugeicons/core-free-icons"
 import { Badge } from "@/components/ui/badge"
+import { Empty } from "@/components/ui/empty"
 
 import { PaymentStatusChart } from "@/components/erp/dashboard-charts"
 
@@ -70,9 +71,9 @@ export function DashboardView({ initialStats, initialRecentDocs, paymentData, mo
                 <Card variant="kpi" className="hover-lift glow">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 sm:pb-2 p-0">
                         <CardTitle className="text-xs sm:text-sm font-semibold text-muted-foreground uppercase tracking-wider">Clients</CardTitle>
-                        <div className="icon-container w-8 h-8 sm:w-11 sm:h-11 shadow-sm">
-                            <HugeiconsIcon icon={UserGroupIcon} strokeWidth={2.5} className="h-4 w-4 sm:h-5 sm:w-5 text-primary icon-bounce" />
-                        </div>
+            <div className="icon-container">
+              <HugeiconsIcon icon={UserGroupIcon} strokeWidth={2.5} className="text-primary icon-bounce" />
+            </div>
                     </CardHeader>
                     <CardContent className="p-0 pt-3">
                         <div className="text-2xl sm:text-3xl font-extrabold animate-count-up">{initialStats.clients}</div>
@@ -86,9 +87,9 @@ export function DashboardView({ initialStats, initialRecentDocs, paymentData, mo
                 <Card variant="kpi" className="hover-lift glow">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 sm:pb-2 p-0">
                         <CardTitle className="text-xs sm:text-sm font-semibold text-muted-foreground uppercase tracking-wider">Fournisseurs</CardTitle>
-                        <div className="icon-container w-8 h-8 sm:w-11 sm:h-11 shadow-sm opacity-90">
-                            <HugeiconsIcon icon={TruckDeliveryIcon} strokeWidth={2.5} className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500 icon-bounce" />
-                        </div>
+            <div className="icon-container opacity-90">
+              <HugeiconsIcon icon={TruckDeliveryIcon} strokeWidth={2.5} className="text-blue-500 icon-bounce" />
+            </div>
                     </CardHeader>
                     <CardContent className="p-0 pt-3">
                         <div className="text-2xl sm:text-3xl font-extrabold animate-count-up">{initialStats.suppliers}</div>
@@ -102,9 +103,9 @@ export function DashboardView({ initialStats, initialRecentDocs, paymentData, mo
                 <Card variant="kpi" className="hover-lift glow">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 sm:pb-2 p-0">
                         <CardTitle className="text-xs sm:text-sm font-semibold text-muted-foreground uppercase tracking-wider">Articles</CardTitle>
-                        <div className="icon-container w-8 h-8 sm:w-11 sm:h-11 shadow-sm">
-                            <HugeiconsIcon icon={PackageIcon} strokeWidth={2.5} className="h-4 w-4 sm:h-5 sm:w-5 text-violet-500 icon-bounce" />
-                        </div>
+            <div className="icon-container">
+              <HugeiconsIcon icon={PackageIcon} strokeWidth={2.5} className="text-violet-500 icon-bounce" />
+            </div>
                     </CardHeader>
                     <CardContent className="p-0 pt-3">
                         <div className="text-2xl sm:text-3xl font-extrabold animate-count-up">{initialStats.products}</div>
@@ -118,9 +119,9 @@ export function DashboardView({ initialStats, initialRecentDocs, paymentData, mo
                 <Card variant="kpi" className="hover-lift glow">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 sm:pb-2 p-0">
                         <CardTitle className="text-xs sm:text-sm font-semibold text-muted-foreground uppercase tracking-wider">Familles</CardTitle>
-                        <div className="icon-container w-8 h-8 sm:w-11 sm:h-11 shadow-sm">
-                            <HugeiconsIcon icon={FolderOpenIcon} strokeWidth={2.5} className="h-4 w-4 sm:h-5 sm:w-5 text-orange-500 icon-bounce" />
-                        </div>
+            <div className="icon-container">
+              <HugeiconsIcon icon={FolderOpenIcon} strokeWidth={2.5} className="text-orange-500 icon-bounce" />
+            </div>
                     </CardHeader>
                     <CardContent className="p-0 pt-3">
                         <div className="text-2xl sm:text-3xl font-extrabold animate-count-up">{initialStats.families || 0}</div>
@@ -134,9 +135,9 @@ export function DashboardView({ initialStats, initialRecentDocs, paymentData, mo
                 <Card variant="kpi" className="hover-lift glow">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 sm:pb-2 p-0">
                         <CardTitle className="text-xs sm:text-sm font-semibold text-muted-foreground uppercase tracking-wider">Ventes</CardTitle>
-                        <div className="icon-container w-8 h-8 sm:w-11 sm:h-11 shadow-sm">
-                            <HugeiconsIcon icon={Invoice01Icon} strokeWidth={2.5} className="h-4 w-4 sm:h-5 sm:w-5 text-green-500 icon-bounce" />
-                        </div>
+            <div className="icon-container">
+              <HugeiconsIcon icon={Invoice01Icon} strokeWidth={2.5} className="text-emerald-500 icon-bounce" />
+            </div>
                     </CardHeader>
                     <CardContent className="p-0 pt-3">
                         <div className="text-2xl sm:text-3xl font-extrabold animate-count-up">{initialStats.salesCount}</div>
@@ -198,11 +199,17 @@ export function DashboardView({ initialStats, initialRecentDocs, paymentData, mo
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {initialRecentDocs.length === 0 ? (
-                                        <TableRow>
-                                            <TableCell colSpan={4} className="text-center py-12 text-muted-foreground italic">Aucun document récent à afficher</TableCell>
-                                        </TableRow>
-                                    ) : (
+            {initialRecentDocs.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={4}>
+                  <Empty
+                    title="Aucun document récent"
+                    description="Les documents récents apparaîtront ici une fois créés."
+                    icon={Invoice01Icon}
+                  />
+                </TableCell>
+              </TableRow>
+            ) : (
                                         initialRecentDocs.map((doc) => (
                                             <TableRow key={doc.id_document} className="group transition-all duration-200 hover:bg-primary/5 cursor-pointer">
                                                 <TableCell className="py-4 px-4 sm:px-6">

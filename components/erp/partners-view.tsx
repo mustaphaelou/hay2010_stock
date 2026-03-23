@@ -80,7 +80,7 @@ const createColumns = (onViewDetails: (partner: Partner) => void): ColumnDef<Par
                 <DropdownMenu>
                     <DropdownMenuTrigger className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0">
                         <span className="sr-only">Menu</span>
-                        <HugeiconsIcon icon={MoreVerticalIcon} className="h-4 w-4" />
+                        <HugeiconsIcon icon={MoreVerticalIcon}  />
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
@@ -154,7 +154,7 @@ export function PartnersView({ type, title }: PartnersViewProps) {
                     <div className="flex items-center justify-between">
                         <div>
                             <CardTitle className="text-lg font-bold flex items-center gap-2">
-                                <HugeiconsIcon icon={UserGroupIcon} className="h-5 w-5 text-primary" />
+                                <HugeiconsIcon icon={UserGroupIcon} className="text-primary" />
                                 Liste des Tiers
                             </CardTitle>
                             <CardDescription>Consultez et gérez vos partenaires commerciaux.</CardDescription>
@@ -197,7 +197,7 @@ export function PartnersView({ type, title }: PartnersViewProps) {
                         {/* Section: Informations Générales */}
                         <div className="space-y-4">
                             <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground/70 uppercase tracking-wider">
-                                <HugeiconsIcon icon={InformationCircleIcon} className="h-4 w-4" />
+                                <HugeiconsIcon icon={InformationCircleIcon}  />
                                 Identification
                             </h3>
                             <div className="grid grid-cols-2 gap-4">
@@ -229,38 +229,38 @@ export function PartnersView({ type, title }: PartnersViewProps) {
                         {/* Section: Contact & Communication */}
                         <div className="space-y-4">
                             <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground/70 uppercase tracking-wider">
-                                <HugeiconsIcon icon={ContactIcon} className="h-4 w-4" />
+                                <HugeiconsIcon icon={ContactIcon}  />
                                 Contact & Communication
                             </h3>
                             <div className="space-y-3">
                                 <div className="flex items-center gap-3">
                                     <div className="bg-muted p-2 rounded-full">
-                                        <HugeiconsIcon icon={SmartPhone01Icon} className="h-4 w-4 text-muted-foreground" />
-                                    </div>
-                                    <div>
-                                        <p className="text-xs text-muted-foreground uppercase">Téléphone</p>
-                                        <p className="font-medium">{selectedPartner?.numero_telephone || "Non renseigné"}</p>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                    <div className="bg-muted p-2 rounded-full">
-                                        <HugeiconsIcon icon={Mail01Icon} className="h-4 w-4 text-muted-foreground" />
-                                    </div>
-                                    <div>
-                                        <p className="text-xs text-muted-foreground uppercase">Email</p>
-                                        {selectedPartner?.adresse_email ? (
-                                            <a href={`mailto:${selectedPartner.adresse_email}`} className="font-medium text-primary hover:underline">
-                                                {selectedPartner.adresse_email}
-                                            </a>
-                                        ) : (
-                                            <p className="font-medium">Non renseigné</p>
-                                        )}
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                    <div className="bg-muted p-2 rounded-full">
-                                        <HugeiconsIcon icon={GlobalIcon} className="h-4 w-4 text-muted-foreground" />
-                                    </div>
+              <HugeiconsIcon icon={SmartPhone01Icon} className="text-muted-foreground" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground uppercase">Téléphone</p>
+                <p className="font-medium">{selectedPartner?.numero_telephone || "Non renseigné"}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="bg-muted p-2 rounded-full">
+                <HugeiconsIcon icon={Mail01Icon} className="text-muted-foreground" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground uppercase">Email</p>
+                {selectedPartner?.adresse_email ? (
+                  <a href={`mailto:${selectedPartner.adresse_email}`} className="font-medium text-primary hover:underline">
+                    {selectedPartner.adresse_email}
+                  </a>
+                ) : (
+                  <p className="font-medium">Non renseigné</p>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="bg-muted p-2 rounded-full">
+                <HugeiconsIcon icon={GlobalIcon} className="text-muted-foreground" />
+              </div>
                                     <div>
                                         <p className="text-xs text-muted-foreground uppercase">Site Web</p>
                                         {selectedPartner?.url_site_web ? (
@@ -280,7 +280,7 @@ export function PartnersView({ type, title }: PartnersViewProps) {
                         {/* Section: Localisation */}
                         <div className="space-y-4">
                             <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground/70 uppercase tracking-wider">
-                                <HugeiconsIcon icon={Location01Icon} className="h-4 w-4" />
+                                <HugeiconsIcon icon={Location01Icon}  />
                                 Localisation
                             </h3>
                             <div className="bg-muted/30 p-4 rounded-lg space-y-2">
@@ -302,7 +302,7 @@ export function PartnersView({ type, title }: PartnersViewProps) {
                         {/* Section: Comptabilité / Conditions */}
                         <div className="space-y-4">
                             <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground/70 uppercase tracking-wider">
-                                <HugeiconsIcon icon={Cash01Icon} className="h-4 w-4" />
+                                <HugeiconsIcon icon={Cash01Icon}  />
                                 Conditions & Comptabilité
                             </h3>
                             <div className="grid grid-cols-2 gap-4">
@@ -330,7 +330,7 @@ export function PartnersView({ type, title }: PartnersViewProps) {
                         {/* Section: Audit */}
                         <div className="space-y-4">
                             <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground/70 uppercase tracking-wider">
-                                <HugeiconsIcon icon={Calendar01Icon} className="h-4 w-4" />
+                                <HugeiconsIcon icon={Calendar01Icon}  />
                                 Historique
                             </h3>
                             <div className="space-y-3 bg-muted/20 p-3 rounded-md text-xs">

@@ -37,6 +37,7 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Empty } from "@/components/ui/empty"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Settings01Icon, ArrowLeft01Icon, ArrowRight01Icon, Menu01Icon, GridIcon } from "@hugeicons/core-free-icons"
 import { useIsMobile } from "@/hooks/use-mobile"
@@ -141,7 +142,7 @@ export function DataTable<TData, TValue>({
                                 aria-label="Vue tableau"
                                 aria-pressed={viewMode === "table"}
                             >
-                                <HugeiconsIcon icon={Menu01Icon} className="h-4 w-4" aria-hidden="true" />
+                                <HugeiconsIcon icon={Menu01Icon} aria-hidden="true" />
                             </Button>
                             <Button
                                 variant={viewMode === "cards" ? "secondary" : "ghost"}
@@ -151,7 +152,7 @@ export function DataTable<TData, TValue>({
                                 aria-label="Vue cartes"
                                 aria-pressed={viewMode === "cards"}
                             >
-                                <HugeiconsIcon icon={GridIcon} className="h-4 w-4" aria-hidden="true" />
+                                <HugeiconsIcon icon={GridIcon} aria-hidden="true" />
                             </Button>
                         </div>
                     )}
@@ -285,16 +286,16 @@ export function DataTable<TData, TValue>({
                                             ))}
                                         </TableRow>
                                     ))
-                                ) : (
-                                    <TableRow>
-                                        <TableCell
-                                            colSpan={columns.length}
-                                            className="h-32 text-center text-muted-foreground italic"
-                                        >
-                                            Aucun résultat pour cette recherche.
-                                        </TableCell>
-                                    </TableRow>
-                                )}
+            ) : (
+              <TableRow>
+                <TableCell colSpan={columns.length}>
+                  <Empty
+                    title="Aucun résultat"
+                    description="Aucune donnée ne correspond à vos critères de recherche."
+                  />
+                </TableCell>
+              </TableRow>
+            )}
                             </TableBody>
                         </Table>
                     </div>

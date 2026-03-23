@@ -124,10 +124,10 @@ const createColumns = (onViewDetails: (article: ArticleWithStock) => void): Colu
                 <div className={`text-right font-semibold flex items-center justify-end gap-1 ${isOutOfStock ? 'text-red-500' : isLowStock ? 'text-orange-500' : ''}`}>
                     {stock}
                     {isLowStock && (
-                        <HugeiconsIcon icon={AlertCircleIcon} className="h-4 w-4 text-orange-500" aria-hidden="true" />
-                    )}
-                    {isOutOfStock && (
-                        <HugeiconsIcon icon={AlertCircleIcon} className="h-4 w-4 text-red-500" aria-hidden="true" />
+              <HugeiconsIcon icon={AlertCircleIcon} className="text-warning" aria-hidden="true" />
+              )}
+              {isOutOfStock && (
+              <HugeiconsIcon icon={AlertCircleIcon} className="text-destructive" aria-hidden="true" />
                     )}
                 </div>
             )
@@ -139,7 +139,7 @@ const createColumns = (onViewDetails: (article: ArticleWithStock) => void): Colu
         cell: ({ row }) => {
             const isSommeil = row.getValue("en_sommeil") as boolean
             return (
-                <Badge variant={isSommeil ? "secondary" : "default"} className={isSommeil ? "bg-slate-100 text-slate-500" : "bg-green-100 text-green-700 hover:bg-green-100"}>
+                <Badge variant={isSommeil ? "secondary" : "success"}>
                     {isSommeil ? "En sommeil" : "Actif"}
                 </Badge>
             )
@@ -355,7 +355,7 @@ export function ArticlesView({ initialData }: ArticlesViewProps) {
                     <div className="flex items-center justify-between">
                         <div>
                             <CardTitle className="text-lg font-bold flex items-center gap-2">
-                                <HugeiconsIcon icon={PackageIcon} className="h-5 w-5 text-primary" />
+                                <HugeiconsIcon icon={PackageIcon} className="text-primary" />
                                 Catalogue Articles
                             </CardTitle>
                             <CardDescription>Gérez votre inventaire et vos références produits.</CardDescription>
@@ -412,7 +412,7 @@ export function ArticlesView({ initialData }: ArticlesViewProps) {
                     <div className="grid gap-5 py-4 sm:py-6 px-0 sm:px-1">
                         <div className="space-y-4">
                             <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground/70 uppercase tracking-wider">
-                                <HugeiconsIcon icon={InformationCircleIcon} className="h-4 w-4" />
+                                <HugeiconsIcon icon={InformationCircleIcon} />
                                 Informations Générales
                             </h3>
                             <div className="grid grid-cols-2 gap-4">
@@ -446,17 +446,17 @@ export function ArticlesView({ initialData }: ArticlesViewProps) {
 
                         <div className="space-y-4">
                             <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground/70 uppercase tracking-wider">
-                                <HugeiconsIcon icon={Money01Icon} className="h-4 w-4" />
+                                <HugeiconsIcon icon={Money01Icon} />
                                 Tarification
                             </h3>
                             <div className="grid grid-cols-2 gap-x-4 gap-y-4 bg-muted/30 p-4 rounded-lg">
                                 <div className="space-y-1">
                                     <p className="text-xs text-muted-foreground uppercase">Prix Achat HT</p>
-                                    <p className="text-lg font-bold text-blue-600">{formatPrice(selectedArticle?.prix_achat || 0)}</p>
+                                    <p className="text-lg font-bold text-info">{formatPrice(selectedArticle?.prix_achat || 0)}</p>
                                 </div>
                                 <div className="space-y-1">
                                     <p className="text-xs text-muted-foreground uppercase">Prix Vente HT</p>
-                                    <p className="text-lg font-bold text-green-600">{formatPrice(selectedArticle?.prix_vente || 0)}</p>
+                                    <p className="text-lg font-bold text-emerald-600">{formatPrice(selectedArticle?.prix_vente || 0)}</p>
                                 </div>
                                 <div className="space-y-1">
                                     <p className="text-xs text-muted-foreground uppercase">Coefficient</p>
@@ -479,14 +479,14 @@ export function ArticlesView({ initialData }: ArticlesViewProps) {
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-1">
                                     <p className="text-xs text-muted-foreground uppercase">Stock Actuel</p>
-                                    <p className={`text-2xl font-bold ${selectedArticle?.stock_global === 0 ? 'text-red-500' : 'text-primary'}`}>
+                                    <p className={cn("text-2xl font-bold", selectedArticle?.stock_global === 0 ? "text-destructive" : "text-primary")}>
                                         {selectedArticle?.stock_global}
                                     </p>
                                 </div>
                                 <div className="space-y-1">
                                     <p className="text-xs text-muted-foreground uppercase">Suivi Stock</p>
                                     <div className="flex items-center gap-2 mt-1">
-                                        <div className={`h-2 w-2 rounded-full ${selectedArticle?.activer_suivi_stock ? 'bg-green-500' : 'bg-red-500'}`} />
+                                        <div className={cn("size-2 rounded-full", selectedArticle?.activer_suivi_stock ? "bg-emerald-500" : "bg-destructive")} />
                                         <p className="text-sm font-medium">{selectedArticle?.activer_suivi_stock ? 'Activé' : 'Désactivé'}</p>
                                     </div>
                                 </div>
