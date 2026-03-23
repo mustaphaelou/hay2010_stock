@@ -40,7 +40,8 @@ import {
 
 import { getAffaires, getDocumentsByAffaire } from '@/app/actions/affaires'
 
-type AffaireDocument = any // Placeholder for the Prisma return type
+import type { DocumentBase } from '@/lib/types'
+type AffaireDocument = DocumentBase
 
 const formatPrice = (price: number | null | undefined) => {
     if (price === null || price === undefined) return '-'

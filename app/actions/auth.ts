@@ -5,18 +5,24 @@ import { prisma } from '@/lib/db/prisma'
 import { hashPassword, verifyPassword } from '@/lib/auth/password'
 import { generateToken, verifyToken } from '@/lib/auth/jwt'
 import { createSession, getSession, deleteSession } from '@/lib/auth/session'
+import { loginSchema, registerSchema } from '@/lib/validation'
 import { redirect } from 'next/navigation'
 
 const COOKIE_NAME = 'auth_token'
 
 export async function login(email: string, password: string): Promise<{ error?: string; success?: boolean }> {
   try {
+    const validationResult = loginSchema.safeParse({ email, password })
+    if (!validationResult.success) {
+      return { error: 'Invalid input: ' + validationResult.error.errors.map(e => e.message).join(', ') }
+    }
+
     console.log('Login attempt for:', email)
-    
+
     const user = await prisma.user.findUnique({
       where: { email }
     })
-    
+
     console.log('User found:', user ? 'yes' : 'no')
     
     if (!user) {
@@ -77,6 +83,11 @@ export async function logout(): Promise<void> {
 
 export async function register(email: string, password: string, name: string): Promise<{ error?: string; success?: boolean }> {
   try {
+    const validationResult = registerSchema.safeParse({ email, password, name })
+    if (!validationResult.success) {
+      return { error: 'Invalid input: ' + validationResult.error.errors.map(e => e.message).join(', ') }
+    }
+
     const existingUser = await prisma.user.findUnique({
       where: { email }
     })

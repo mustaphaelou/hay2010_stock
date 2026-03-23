@@ -69,7 +69,7 @@ export type ArticleWithStock = {
     prix_achat: number
     prix_vente: number
     coefficient: number
-    taux_tva: any
+    taux_tva: number | string | null
     stock_minimum: number | null
     stock_maximum: number | null
     activer_suivi_stock: boolean

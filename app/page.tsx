@@ -18,7 +18,7 @@ export default async function Page() {
 
     // Calculate payment status data
     let regle = 0, partiel = 0, encours = 0
-    salesInvoices.forEach((inv: any) => {
+    salesInvoices.forEach((inv) => {
         const montant_regle = Number(inv.montant_regle || 0)
         const montant_ttc = Number(inv.montant_ttc || 0)
 

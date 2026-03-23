@@ -41,7 +41,8 @@ import { Button } from "@/components/ui/button"
 
 import { getDocuments } from '@/app/actions/documents'
 
-type DocumentItem = any // Prisma return type placeholder
+import type { DocumentWithComputed } from '@/lib/types'
+type DocumentItem = DocumentWithComputed
 
 const formatPrice = (price: number | null | undefined) => {
     if (price === null || price === undefined) return '-'

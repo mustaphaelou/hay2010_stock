@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import type { DocumentWithComputed } from '@/lib/types'
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/erp/app-sidebar"
 import { SiteHeader } from "@/components/erp/site-header"
@@ -347,7 +348,7 @@ export default function PurchasesPage() {
                 <BottomNav />
             </SidebarInset>
             <DocumentDetailSheet
-                document={selectedDocument as any}
+                document={selectedDocument as DocumentWithComputed | null}
                 open={sheetOpen}
                 onOpenChange={setSheetOpen}
             />
