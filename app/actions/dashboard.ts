@@ -1,9 +1,12 @@
 'use server'
 
 import { prisma } from '@/lib/db/prisma'
+import { requireAuth } from './auth'
 
 export async function getDashboardStats() {
-    try {
+  await requireAuth()
+  
+  try {
         const [
             clientsCount,
             suppliersCount,

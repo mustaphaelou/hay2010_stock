@@ -1,9 +1,11 @@
 'use server'
 
 import { prisma } from '@/lib/db/prisma'
+import { requireAuth } from './auth'
 
 export async function getAffaires() {
-    try {
+  await requireAuth()
+  try {
         const affaires = await prisma.affaire.findMany({
             select: {
                 code_affaire: true,
@@ -24,7 +26,8 @@ export async function getAffaires() {
 }
 
 export async function getDocumentsByAffaire(code_affaire: string) {
-    try {
+  await requireAuth()
+  try {
         const documents = await prisma.docVente.findMany({
             where: {
                 numero_affaire: code_affaire

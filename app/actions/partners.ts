@@ -1,9 +1,11 @@
 'use server'
 
 import { prisma } from '@/lib/db/prisma'
+import { requireAuth } from './auth'
 
 export async function getPartners(type?: string) {
-    try {
+  await requireAuth()
+  try {
         const whereClause = type && type !== 'all' ? { type_partenaire: type } : {}
         const partners = await prisma.partenaire.findMany({
             where: whereClause,

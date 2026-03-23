@@ -1,9 +1,11 @@
 'use server'
 
 import { prisma } from '@/lib/db/prisma'
+import { requireAuth } from './auth'
 
 export async function getStockLevels() {
-    try {
+  await requireAuth()
+  try {
         const stockQuery = await prisma.niveauStock.findMany({
             include: {
                 produit: {
@@ -48,7 +50,8 @@ export async function getStockLevels() {
 }
 
 export async function getDepots() {
-    try {
+  await requireAuth()
+  try {
         // de_cloture = false -> est_actif = true
         const depots = await prisma.entrepot.findMany({
             where: { est_actif: true },

@@ -1,12 +1,15 @@
 'use server'
 
 import { prisma } from '@/lib/db/prisma'
+import { requireAuth } from './auth'
 
 export type DocumentWithPartner = NonNullable<Awaited<ReturnType<typeof getDocuments>>>[0]
 export type DocumentLine = NonNullable<Awaited<ReturnType<typeof getDocLines>>>[0]
 
 export async function getDocuments() {
-    try {
+  await requireAuth()
+  
+  try {
         const documents = await prisma.docVente.findMany({
             include: {
                 partenaire: {
@@ -43,7 +46,8 @@ export async function getDocuments() {
 }
 
 export async function getSalesDocuments() {
-    try {
+  await requireAuth()
+  try {
         const documents = await prisma.docVente.findMany({
             where: {
                 domaine_document: 'VENTE'
@@ -83,7 +87,8 @@ export async function getSalesDocuments() {
 }
 
 export async function getPurchasesDocuments() {
-    try {
+  await requireAuth()
+  try {
         const documents = await prisma.docVente.findMany({
             where: {
                 domaine_document: 'ACHAT'
@@ -123,7 +128,8 @@ export async function getPurchasesDocuments() {
 }
 
 export async function getDocLines(docId: number) {
-    try {
+  await requireAuth()
+  try {
         const lines = await prisma.ligneDocument.findMany({
             where: {
                 id_document: docId

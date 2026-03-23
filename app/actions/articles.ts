@@ -2,9 +2,11 @@
 
 import { prisma } from '@/lib/db/prisma'
 import { revalidatePath } from 'next/cache'
+import { requireAuth } from './auth'
 
 export async function getArticlesWithStock() {
-    try {
+  await requireAuth()
+  try {
         const result = await prisma.produit.findMany({
             include: {
                 categorie: true,
@@ -35,7 +37,8 @@ export async function getArticlesWithStock() {
 }
 
 export async function toggleArticleStatus(id_produit: number, newStatus: boolean) {
-    try {
+  await requireAuth()
+  try {
         await prisma.produit.update({
             where: { id_produit },
             data: { en_sommeil: newStatus }
