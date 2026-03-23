@@ -1,12 +1,15 @@
 # Stage 1: Install dependencies
 FROM node:20-slim AS deps
 WORKDIR /app
-COPY package*.json ./
 
 # Install OpenSSL for Prisma
 RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
-RUN npm ci
+COPY package*.json ./
+
+# Use npm install instead of npm ci to ensure devDependencies are installed
+# regardless of NODE_ENV setting from Coolify
+RUN npm install
 
 # Stage 2: Build the application
 FROM node:20-slim AS builder
@@ -21,9 +24,8 @@ COPY . .
 # Generate Prisma Client
 RUN npx prisma generate
 
-# Set build-time env variables
+# Build the application
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV NODE_ENV=development
 RUN npm run build
 
 # Stage 3: Runner
