@@ -1,8 +1,6 @@
 "use client"
 
 import * as React from "react"
-import { createClient } from "@/lib/supabase/client"
-import type { FDocentete, FDocligne, FComptet } from "@/lib/supabase/types"
 import {
     Sheet,
     SheetContent,
@@ -28,9 +26,10 @@ import {
     Calendar03Icon,
     CheckmarkCircle01Icon,
 } from "@hugeicons/core-free-icons"
+import { getDocuments, getDocLines } from "@/app/actions/documents"
 
-type DocumentWithPartner = FDocentete & { f_comptet?: Pick<FComptet, 'ct_intitule' | 'ct_telephone' | 'ct_email'> | null }
-type DocumentLine = FDocligne & { f_article?: { ar_design: string } | null }
+type DocumentWithPartner = Awaited<ReturnType<typeof getDocuments>>[0]
+type DocumentLine = Awaited<ReturnType<typeof getDocLines>>[0]
 
 interface DocumentDetailSheetProps {
     document: DocumentWithPartner | null
@@ -47,7 +46,7 @@ const formatPrice = (price: number | null | undefined) => {
     }).format(price).replace('MAD', 'Dhs')
 }
 
-const formatDate = (date: string | null) => {
+const formatDate = (date: Date | null) => {
     if (!date) return '-'
     return new Date(date).toLocaleDateString('fr-FR', {
         day: '2-digit',
@@ -56,8 +55,8 @@ const formatDate = (date: string | null) => {
     })
 }
 
-const getDocumentTypeName = (domaine: number, type: number) => {
-    if (domaine === 0) {
+const getDocumentTypeName = (domaine: string | null, type: number | null) => {
+    if (domaine === 'VENTE') {
         switch (type) {
             case 0: return 'DEVIS'
             case 1: return 'BON COMMANDE'
@@ -70,7 +69,7 @@ const getDocumentTypeName = (domaine: number, type: number) => {
             case 8: return 'ARCHIVE'
             default: return `VENTE ${type}`
         }
-    } else if (domaine === 1) {
+    } else if (domaine === 'ACHAT') {
         switch (type) {
             case 10: return 'DEMANDE ACHAT'
             case 11: return 'PRÉPARATION CMD'
@@ -83,7 +82,7 @@ const getDocumentTypeName = (domaine: number, type: number) => {
             case 18: return 'ARCHIVE'
             default: return `ACHAT ${type}`
         }
-    } else if (domaine === 2) {
+    } else if (domaine === 'STOCK') {
         switch (type) {
             case 20: return 'MVT ENTRÉE'
             case 21: return 'MVT SORTIE'
@@ -98,7 +97,6 @@ const getDocumentTypeName = (domaine: number, type: number) => {
 export function DocumentDetailSheet({ document, open, onOpenChange }: DocumentDetailSheetProps) {
     const [lines, setLines] = React.useState<DocumentLine[]>([])
     const [loading, setLoading] = React.useState(false)
-    const supabase = createClient()
 
     React.useEffect(() => {
         if (!document || !open) {
@@ -109,16 +107,9 @@ export function DocumentDetailSheet({ document, open, onOpenChange }: DocumentDe
         const fetchLines = async () => {
             setLoading(true)
             try {
-                const { data, error } = await supabase
-                    .from('f_docligne')
-                    .select(`*, f_article (ar_design)`)
-                    .eq('do_domaine', document.do_domaine)
-                    .eq('do_type', document.do_type)
-                    .eq('do_piece', document.do_piece)
-                    .order('dl_ligne', { ascending: true })
-
-                if (!error && data) {
-                    setLines(data as DocumentLine[])
+                const data = await getDocLines(document.id_document)
+                if (data) {
+                    setLines(data)
                 }
             } catch (err) {
                 console.error('Error fetching document lines:', err)
@@ -128,12 +119,16 @@ export function DocumentDetailSheet({ document, open, onOpenChange }: DocumentDe
         }
 
         fetchLines()
-    }, [document, open, supabase])
+    }, [document, open])
 
     if (!document) return null
 
-    const isPaid = document.do_montregl && document.do_totalttc && document.do_montregl >= document.do_totalttc
-    const isPartial = document.do_montregl && document.do_totalttc && document.do_montregl > 0 && document.do_montregl < document.do_totalttc
+    const isPaid = document.montant_regle && document.montant_ttc && document.montant_regle >= document.montant_ttc
+    const isPartial = document.montant_regle && document.montant_ttc && document.montant_regle > 0 && document.montant_regle < document.montant_ttc
+
+    const totalHT = Number(document.montant_ht || 0)
+    const totalTTC = Number(document.montant_ttc || 0)
+    const tva = totalTTC - totalHT
 
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
@@ -144,9 +139,9 @@ export function DocumentDetailSheet({ document, open, onOpenChange }: DocumentDe
                             <HugeiconsIcon icon={Invoice01Icon} className="h-5 w-5 text-primary" />
                         </div>
                         <div>
-                            <SheetTitle className="text-xl">{document.do_piece}</SheetTitle>
+                            <SheetTitle className="text-xl">{document.numero_piece}</SheetTitle>
                             <SheetDescription>
-                                {getDocumentTypeName(document.do_domaine, document.do_type)}
+                                {getDocumentTypeName(document.domaine_document, document.type_document)}
                             </SheetDescription>
                         </div>
                     </div>
@@ -160,14 +155,14 @@ export function DocumentDetailSheet({ document, open, onOpenChange }: DocumentDe
                                 <HugeiconsIcon icon={Calendar03Icon} className="h-3 w-3" />
                                 Date
                             </p>
-                            <p className="font-medium">{formatDate(document.do_date)}</p>
+                            <p className="font-medium">{formatDate(document.date_document)}</p>
                         </div>
                         <div className="space-y-1">
                             <p className="text-xs text-muted-foreground flex items-center gap-1">
                                 <HugeiconsIcon icon={UserIcon} className="h-3 w-3" />
                                 Tiers
                             </p>
-                            <p className="font-medium">{document.f_comptet?.ct_intitule || document.do_tiers || '-'}</p>
+                            <p className="font-medium">{document.partenaire?.nom_partenaire || document.nom_tiers || '-'}</p>
                         </div>
                     </div>
 
@@ -178,26 +173,26 @@ export function DocumentDetailSheet({ document, open, onOpenChange }: DocumentDe
                         <div className="space-y-2">
                             <div className="flex justify-between text-sm">
                                 <span className="text-muted-foreground">Total HT</span>
-                                <span>{formatPrice(document.do_totalht)}</span>
+                                <span>{formatPrice(totalHT)}</span>
                             </div>
                             <div className="flex justify-between text-sm">
                                 <span className="text-muted-foreground">TVA</span>
-                                <span>{formatPrice(document.do_tva)}</span>
+                                <span>{formatPrice(tva)}</span>
                             </div>
                             <div className="flex justify-between font-semibold">
                                 <span>Total TTC</span>
-                                <span className="text-primary">{formatPrice(document.do_totalttc)}</span>
+                                <span className="text-primary">{formatPrice(totalTTC)}</span>
                             </div>
                         </div>
                         <div className="space-y-2">
                             <div className="flex justify-between text-sm">
                                 <span className="text-muted-foreground">Réglé</span>
-                                <span className="text-green-600">{formatPrice(document.do_montregl)}</span>
+                                <span className="text-green-600">{formatPrice(document.montant_regle)}</span>
                             </div>
                             <div className="flex justify-between text-sm">
                                 <span className="text-muted-foreground">Reste</span>
                                 <span className="text-orange-600">
-                                    {formatPrice((document.do_totalttc || 0) - (document.do_montregl || 0))}
+                                    {formatPrice(totalTTC - (document.montant_regle || 0))}
                                 </span>
                             </div>
                             <div className="flex justify-between items-center">
@@ -245,21 +240,21 @@ export function DocumentDetailSheet({ document, open, onOpenChange }: DocumentDe
                                     </TableHeader>
                                     <TableBody>
                                         {lines.map((line) => (
-                                            <TableRow key={line.cbmarq}>
+                                            <TableRow key={line.id_ligne}>
                                                 <TableCell className="text-xs font-mono">
-                                                    {line.ar_ref || '-'}
+                                                    {line.reference_article || '-'}
                                                 </TableCell>
                                                 <TableCell className="text-xs max-w-[150px] truncate">
-                                                    {line.f_article?.ar_design || line.dl_design || '-'}
+                                                    {line.produit?.designation || line.designation || '-'}
                                                 </TableCell>
                                                 <TableCell className="text-xs text-right">
-                                                    {line.dl_qte || 0}
+                                                    {line.quantite || 0}
                                                 </TableCell>
                                                 <TableCell className="text-xs text-right">
-                                                    {formatPrice(line.dl_prixunitaire)}
+                                                    {formatPrice(line.prix_unitaire)}
                                                 </TableCell>
                                                 <TableCell className="text-xs text-right font-medium">
-                                                    {formatPrice(line.dl_montantttc)}
+                                                    {formatPrice(line.montant_ttc)}
                                                 </TableCell>
                                             </TableRow>
                                         ))}
@@ -270,12 +265,12 @@ export function DocumentDetailSheet({ document, open, onOpenChange }: DocumentDe
                     </div>
 
                     {/* Additional Info */}
-                    {document.do_ref && (
+                    {document.reference && (
                         <>
                             <Separator />
                             <div className="py-4">
                                 <p className="text-xs text-muted-foreground">Référence externe</p>
-                                <p className="text-sm">{document.do_ref}</p>
+                                <p className="text-sm">{document.reference}</p>
                             </div>
                         </>
                     )}

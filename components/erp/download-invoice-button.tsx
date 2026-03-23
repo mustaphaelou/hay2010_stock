@@ -5,12 +5,13 @@ import { Button } from '@/components/ui/button'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { FileDownloadIcon, Loading01Icon } from '@hugeicons/core-free-icons'
 import { downloadInvoicePDF } from '@/lib/pdf'
-import { createClient } from '@/lib/supabase/client'
-import type { FDocentete, FDocligne, FComptet } from '@/lib/supabase/types'
+import type { DocumentWithPartner } from '@/app/actions/documents'
+import { getDocLines } from '@/app/actions/documents'
+import type { Partenaire } from '@prisma/client'
 
 interface DownloadInvoiceButtonProps {
-    document: FDocentete
-    partner?: FComptet | null
+    document: DocumentWithPartner
+    partner?: Partenaire | null
     variant?: 'default' | 'ghost' | 'outline' | 'secondary'
     size?: 'default' | 'sm' | 'lg' | 'icon'
     className?: string
@@ -24,22 +25,13 @@ export function DownloadInvoiceButton({
     className,
 }: DownloadInvoiceButtonProps) {
     const [loading, setLoading] = useState(false)
-    const supabase = createClient()
 
     const handleDownload = async () => {
         try {
             setLoading(true)
 
-            // Fetch document lines
-            const { data: lines, error } = await supabase
-                .from('f_docligne')
-                .select('*')
-                .eq('do_piece', document.do_piece)
-                .eq('do_domaine', document.do_domaine)
-                .eq('do_type', document.do_type)
-                .order('dl_ligne', { ascending: true })
-
-            if (error) throw error
+            // Fetch document lines using Server Action
+            const lines = await getDocLines(document.id_document)
 
             // Generate and download PDF
             await downloadInvoicePDF(document, lines || [], partner)

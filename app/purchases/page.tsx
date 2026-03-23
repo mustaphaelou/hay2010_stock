@@ -1,8 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createClient } from '@/lib/supabase/client'
-import type { FDocentete, FComptet } from '@/lib/supabase/types'
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/erp/app-sidebar"
 import { SiteHeader } from "@/components/erp/site-header"
@@ -32,15 +30,7 @@ import {
     ShoppingBag01Icon,
     CheckmarkCircle01Icon,
 } from "@hugeicons/core-free-icons"
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select"
 
-import { fetchAllRows } from '@/lib/supabase/utils'
 import { DocumentDetailSheet } from '@/components/erp/document-detail-sheet'
 import { DateRangePicker } from '@/components/ui/date-range-picker'
 import { PartnerFilter } from '@/components/erp/partner-filter'
@@ -48,7 +38,9 @@ import { DateRange } from 'react-day-picker'
 import { isWithinInterval, startOfDay, endOfDay } from 'date-fns'
 import { DocumentTypeSelector } from '@/components/erp/document-type-selector'
 
-type PurchaseDocument = FDocentete & { f_comptet: Pick<FComptet, 'ct_intitule' | 'ct_type'> | null }
+import { getPurchasesDocuments } from '@/app/actions/documents'
+
+type PurchaseDocument = Awaited<ReturnType<typeof getPurchasesDocuments>>[0]
 
 const formatPrice = (price: number | null | undefined) => {
     if (price === null || price === undefined) return '-'
@@ -59,7 +51,7 @@ const formatPrice = (price: number | null | undefined) => {
     }).format(price).replace('MAD', 'Dhs')
 }
 
-const formatDate = (date: string | null) => {
+const formatDate = (date: Date | string | null) => {
     if (!date) return '-'
     return new Date(date).toLocaleDateString('fr-FR', {
         day: '2-digit',
@@ -97,20 +89,12 @@ export default function PurchasesPage() {
     const [selectedType, setSelectedType] = useState<string | number>('all')
     const [mounted, setMounted] = useState(false)
 
-    const supabase = createClient()
-
     const fetchDocuments = async () => {
         setLoading(true)
         setError(null)
 
         try {
-            const query = supabase
-                .from('f_docentete')
-                .select(`*, f_comptet (ct_intitule, ct_type)`)
-                .eq('do_domaine', 1) // Purchases domain
-                .order('do_date', { ascending: false })
-
-            const data = await fetchAllRows<PurchaseDocument>(query as any)
+            const data = await getPurchasesDocuments()
             setDocuments(data || [])
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Erreur lors du chargement')
@@ -125,47 +109,47 @@ export default function PurchasesPage() {
     }, [])
 
     const uniqueSuppliers = Array.from(new Set(documents.map(doc =>
-        doc.f_comptet?.ct_intitule || doc.do_tiers
+        doc.partenaire?.nom_partenaire || doc.nom_tiers
     ).filter(Boolean))).sort() as string[]
 
     const filteredDocuments = documents.filter(doc => {
         const matchesSearch = searchTerm === '' ||
-            doc.do_piece?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            doc.do_tiers?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            doc.f_comptet?.ct_intitule?.toLowerCase().includes(searchTerm.toLowerCase())
+            doc.numero_piece?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            doc.nom_tiers?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            doc.partenaire?.nom_partenaire?.toLowerCase().includes(searchTerm.toLowerCase())
 
         let matchesDate = true
-        if (dateRange?.from) {
-            const docDate = new Date(doc.do_date)
+        if (dateRange?.from && doc.date_document) {
+            const docDate = new Date(doc.date_document)
             const start = startOfDay(dateRange.from)
             const end = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from)
             matchesDate = isWithinInterval(docDate, { start, end })
         }
 
-        const supplierName = doc.f_comptet?.ct_intitule || doc.do_tiers
+        const supplierName = doc.partenaire?.nom_partenaire || doc.nom_tiers
         const matchesSupplier = selectedSupplier === 'all' || supplierName === selectedSupplier
 
         const matchesPartnerType = selectedPartnerType === 'all' ||
-            (doc.f_comptet && doc.f_comptet.ct_type.toString() === selectedPartnerType)
+            (doc.partenaire && doc.partenaire.type_partenaire?.toString() === selectedPartnerType)
 
         let matchesType = true
         if (selectedType === 'en_cours') {
-            matchesType = doc.do_statut !== 2
+            matchesType = doc.statut_document !== 2
         } else if (selectedType !== 'all') {
-            matchesType = doc.do_type === selectedType
+            matchesType = doc.type_document === selectedType
         }
 
         return matchesSearch && matchesDate && matchesSupplier && matchesPartnerType && matchesType
     })
 
     const documentTypeCounts = documents.reduce((acc, doc) => {
-        const type = doc.do_type
+        const type = doc.type_document || 0
         acc[type] = (acc[type] || 0) + 1
         return acc
     }, {} as Record<number, number>)
 
     const purchaseTypes = [
-        { id: 'en_cours', label: 'Documents en cours', count: documents.filter(d => d.do_statut !== 2).length },
+        { id: 'en_cours', label: 'Documents en cours', count: documents.filter(d => d.statut_document !== 2).length },
         { id: 10, label: 'Demande d\'achat', count: documentTypeCounts[10] || 0 },
         { id: 11, label: 'Préparation de commande', count: documentTypeCounts[11] || 0 },
         { id: 12, label: 'Bon de commande', count: documentTypeCounts[12] || 0 },
@@ -178,16 +162,16 @@ export default function PurchasesPage() {
     ]
 
     const totalAchats = filteredDocuments
-        .filter(d => d.do_type === 16 || d.do_type === 17)
-        .reduce((acc, d) => acc + (d.do_totalttc || 0), 0)
+        .filter(d => d.type_document === 16 || d.type_document === 17)
+        .reduce((acc, d) => acc + (d.montant_ttc || 0), 0)
 
     const totalRegle = filteredDocuments
-        .filter(d => d.do_type === 16 || d.do_type === 17)
-        .reduce((acc, d) => acc + (d.do_montregl || 0), 0)
+        .filter(d => d.type_document === 16 || d.type_document === 17)
+        .reduce((acc, d) => acc + (d.montant_regle || 0), 0)
 
     const getStatusBadge = (doc: PurchaseDocument) => {
-        const isPaid = doc.do_montregl && doc.do_totalttc && doc.do_montregl >= doc.do_totalttc
-        const isPartial = doc.do_montregl && doc.do_totalttc && doc.do_montregl > 0 && doc.do_montregl < doc.do_totalttc
+        const isPaid = doc.montant_regle && doc.montant_ttc && doc.montant_regle >= doc.montant_ttc
+        const isPartial = doc.montant_regle && doc.montant_ttc && doc.montant_regle > 0 && doc.montant_regle < doc.montant_ttc
 
         if (isPaid) {
             return <Badge className="bg-green-500/10 text-green-600 border-green-500/30">
@@ -325,7 +309,7 @@ export default function PurchasesPage() {
                                         <TableBody>
                                             {filteredDocuments.map((doc) => (
                                                 <TableRow
-                                                    key={doc.cbmarq}
+                                                    key={doc.id_document}
                                                     className="hover:bg-muted/50 cursor-pointer"
                                                     onClick={() => {
                                                         setSelectedDocument(doc)
@@ -333,20 +317,20 @@ export default function PurchasesPage() {
                                                     }}
                                                 >
                                                     <TableCell>
-                                                        <Badge variant="outline">{doc.do_piece}</Badge>
+                                                        <Badge variant="outline">{doc.numero_piece}</Badge>
                                                     </TableCell>
-                                                    <TableCell>{mounted ? formatDate(doc.do_date) : '-'}</TableCell>
+                                                    <TableCell>{mounted ? formatDate(doc.date_document) : '-'}</TableCell>
                                                     <TableCell className="font-medium">
-                                                        {doc.f_comptet?.ct_intitule || doc.do_tiers || '-'}
+                                                        {doc.partenaire?.nom_partenaire || doc.nom_tiers || '-'}
                                                     </TableCell>
                                                     <TableCell>
-                                                        <Badge variant="secondary">{getDocumentTypeName(doc.do_type)}</Badge>
+                                                        <Badge variant="secondary">{getDocumentTypeName(doc.type_document || 0)}</Badge>
                                                     </TableCell>
                                                     <TableCell className="text-right font-semibold">
-                                                        {mounted ? formatPrice(doc.do_totalttc) : '-'}
+                                                        {mounted ? formatPrice(doc.montant_ttc) : '-'}
                                                     </TableCell>
                                                     <TableCell className="text-right">
-                                                        {mounted ? formatPrice(doc.do_montregl) : '-'}
+                                                        {mounted ? formatPrice(doc.montant_regle) : '-'}
                                                     </TableCell>
                                                     <TableCell className="text-right">
                                                         {getStatusBadge(doc)}
@@ -363,7 +347,7 @@ export default function PurchasesPage() {
                 <BottomNav />
             </SidebarInset>
             <DocumentDetailSheet
-                document={selectedDocument}
+                document={selectedDocument as any}
                 open={sheetOpen}
                 onOpenChange={setSheetOpen}
             />

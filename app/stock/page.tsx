@@ -1,8 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createClient } from '@/lib/supabase/client'
-import type { FArtstock, FArticle, FDepot } from '@/lib/supabase/types'
 import { AppLayout } from "@/components/app-layout"
 import {
     Card,
@@ -28,45 +26,44 @@ import {
     AlertCircleIcon,
 } from "@hugeicons/core-free-icons"
 
-import { fetchAllRows } from '@/lib/supabase/utils'
 import { DataTable } from "@/components/erp/data-table"
 import { ColumnDef } from "@tanstack/react-table"
 import { formatPrice } from "@/lib/utils/format"
 import { cn } from "@/lib/utils"
+// Server actions
+import { getStockLevels, getDepots } from '@/app/actions/stock'
 
-type EnhancedArtstock = FArtstock & {
-    f_article: Pick<FArticle, 'ar_design' | 'ar_ref' | 'ar_prixach'> | null
-    f_depot: Pick<FDepot, 'de_intitule' | 'de_no'> | null
-}
+type StockLevel = Awaited<ReturnType<typeof getStockLevels>>[0]
+type Depot = Awaited<ReturnType<typeof getDepots>>[0]
 
-const columns: ColumnDef<EnhancedArtstock>[] = [
+const columns: ColumnDef<StockLevel>[] = [
     {
-        accessorKey: "ar_ref",
+        accessorKey: "produit.code_produit",
         header: "Référence",
-        cell: ({ row }) => <Badge variant="outline">{row.getValue("ar_ref")}</Badge>,
+        cell: ({ row }) => <Badge variant="outline">{row.original.produit?.code_produit || '-'}</Badge>,
     },
     {
-        accessorKey: "f_article.ar_design",
+        accessorKey: "produit.nom_produit",
         id: "designation",
         header: "Désignation",
         cell: ({ row }) => {
-            const design = row.original.f_article?.ar_design
+            const design = row.original.produit?.nom_produit
             return <div className="max-w-[250px] truncate">{design || '-'}</div>
         },
     },
     {
-        accessorKey: "f_depot.de_intitule",
+        accessorKey: "depot.nom_depot",
         header: "Dépôt",
         cell: ({ row }) => {
-            const depot = row.original.f_depot?.de_intitule
+            const depot = row.original.depot?.nom_depot
             return depot ? <Badge variant="secondary">{depot}</Badge> : '-'
         },
     },
     {
-        accessorKey: "as_qtesto",
+        accessorKey: "quantite_en_stock",
         header: () => <div className="text-right">Qté Disponible</div>,
         cell: ({ row }) => {
-            const qty = row.getValue("as_qtesto") as number || 0
+            const qty = row.getValue("quantite_en_stock") as number || 0
             const isLowStock = qty <= 5
             return (
                 <div className={`text-right font-semibold flex items-center justify-end gap-1 ${isLowStock ? 'text-red-500' : ''}`}>
@@ -79,18 +76,18 @@ const columns: ColumnDef<EnhancedArtstock>[] = [
         },
     },
     {
-        accessorKey: "as_qteres",
+        accessorKey: "quantite_reservee",
         header: () => <div className="text-right">Qté Réservée</div>,
         cell: ({ row }) => {
-            const qty = row.getValue("as_qteres") as number || 0
+            const qty = row.getValue("quantite_reservee") as number || 0
             return <div className="text-right text-muted-foreground">{qty}</div>
         },
     },
     {
-        accessorKey: "as_cmup",
+        accessorKey: "cout_moyen_pondere",
         header: () => <div className="text-right">CMUP</div>,
         cell: ({ row }) => {
-            const cmup = row.getValue("as_cmup") as number
+            const cmup = row.getValue("cout_moyen_pondere") as number
             return <div className="text-right">{formatPrice(cmup)}</div>
         },
     },
@@ -98,8 +95,9 @@ const columns: ColumnDef<EnhancedArtstock>[] = [
         id: "value",
         header: () => <div className="text-right">Valeur</div>,
         cell: ({ row }) => {
-            const qty = row.original.as_qtesto || 0
-            const cmup = row.original.as_cmup || row.original.f_article?.ar_prixach || 0
+            // value = Qte * CMUP or Prix Achat
+            const qty = row.original.quantite_en_stock || 0
+            const cmup = row.original.cout_moyen_pondere || row.original.produit?.prix_achat || 0
             const value = qty * cmup
             return <div className="text-right font-semibold text-primary">{formatPrice(value)}</div>
         },
@@ -107,39 +105,21 @@ const columns: ColumnDef<EnhancedArtstock>[] = [
 ]
 
 export default function StockPage() {
-    const [stockLevels, setStockLevels] = useState<EnhancedArtstock[]>([])
-    const [depots, setDepots] = useState<FDepot[]>([])
+    const [stockLevels, setStockLevels] = useState<StockLevel[]>([])
+    const [depots, setDepots] = useState<Depot[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [selectedDepot, setSelectedDepot] = useState<string>('all')
-
-    const supabase = createClient()
 
     const fetchData = async () => {
         setLoading(true)
         setError(null)
 
         try {
-            // Fetch stock levels with product and warehouse info using pagination utility
-            const stockQuery = supabase
-                .from('f_artstock')
-                .select(`
-                    *,
-                    f_article (ar_design, ar_ref, ar_prixach),
-                    f_depot (de_intitule, de_no)
-                `)
-                .order('as_qtesto', { ascending: true })
-
-            const stockData = await fetchAllRows<EnhancedArtstock>(stockQuery as any)
-
-            // Fetch warehouses for filter
-            const { data: depotsData, error: depotError } = await supabase
-                .from('f_depot')
-                .select('*')
-                .eq('de_cloture', false)
-                .order('de_intitule')
-
-            if (depotError) throw depotError
+            const [stockData, depotsData] = await Promise.all([
+                getStockLevels(),
+                getDepots()
+            ])
 
             setStockLevels(stockData || [])
             setDepots(depotsData || [])
@@ -152,20 +132,19 @@ export default function StockPage() {
 
     useEffect(() => {
         fetchData()
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
     const filteredStock = stockLevels.filter(stock => {
         const matchesDepot = selectedDepot === 'all' ||
-            stock.de_no.toString() === selectedDepot
+            (stock.id_depot && stock.id_depot.toString() === selectedDepot)
 
         return matchesDepot
     })
 
     const totalStockValue = stockLevels.reduce((acc, s) =>
-        acc + ((s.as_qtesto || 0) * (s.f_article?.ar_prixach || s.as_cmup || 0)), 0)
+        acc + ((s.quantite_en_stock || 0) * (s.cout_moyen_pondere || s.produit?.prix_achat || 0)), 0)
 
-    const lowStockCount = stockLevels.filter(s => (s.as_qtesto || 0) <= 5).length
+    const lowStockCount = stockLevels.filter(s => (s.quantite_en_stock || 0) <= 5).length
 
     return (
         <AppLayout title="Stock" breadcrumb="Niveaux de stock">
@@ -193,7 +172,7 @@ export default function StockPage() {
                         </CardHeader>
                         <CardContent className="p-0 pt-3">
                             <div className="text-2xl sm:text-3xl font-extrabold animate-count-up">{stockLevels.length}</div>
-                            <p className="text-[10px] sm:text-xs text-muted-foreground font-medium mt-1">Nombre d'emplacements</p>
+                            <p className="text-[10px] sm:text-xs text-muted-foreground font-medium mt-1">Nombre d&apos;emplacements</p>
                         </CardContent>
                     </Card>
 
@@ -253,8 +232,8 @@ export default function StockPage() {
                                 <SelectContent className="rounded-xl">
                                     <SelectItem value="all">Tous les dépôts</SelectItem>
                                     {depots.map(d => (
-                                        <SelectItem key={d.de_no} value={d.de_no.toString()}>
-                                            {d.de_intitule}
+                                        <SelectItem key={d.id_depot} value={d.id_depot.toString()}>
+                                            {d.nom_depot}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>

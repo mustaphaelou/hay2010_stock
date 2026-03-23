@@ -1,8 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { createClient } from '@/lib/supabase/client'
-import type { FDocentete, FComptet } from '@/lib/supabase/types'
+import { useState, useEffect, Suspense } from 'react'
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/erp/app-sidebar"
 import { SiteHeader } from "@/components/erp/site-header"
@@ -40,9 +38,9 @@ import {
     File01Icon,
 } from "@hugeicons/core-free-icons"
 
-import { fetchAllRows } from '@/lib/supabase/utils'
+import { getAffaires, getDocumentsByAffaire } from '@/app/actions/affaires'
 
-type AffaireDocument = FDocentete & { f_comptet: Pick<FComptet, 'ct_intitule'> | null }
+type AffaireDocument = any // Placeholder for the Prisma return type
 
 const formatPrice = (price: number | null | undefined) => {
     if (price === null || price === undefined) return '-'
@@ -53,7 +51,7 @@ const formatPrice = (price: number | null | undefined) => {
     }).format(price).replace('MAD', 'Dhs')
 }
 
-const formatDate = (date: string | null) => {
+const formatDate = (date: Date | string | null) => {
     if (!date) return '-'
     return new Date(date).toLocaleDateString('fr-FR', {
         day: '2-digit',
@@ -62,38 +60,12 @@ const formatDate = (date: string | null) => {
     })
 }
 
-const getDocumentTypeName = (domaine: number, type: number) => {
-    if (domaine === 0) {
-        // Ventes
-        switch (type) {
-            case 0: return 'DEVIS'
-            case 1: return 'BON COMMANDE'
-            case 3: return 'BON LIVRAISON'
-            case 6: return 'FACTURE'
-            case 7: return 'AVOIR'
-            default: return `VENTE ${type}`
-        }
-    } else if (domaine === 1) {
-        // Achats
-        switch (type) {
-            case 0: return 'DEMANDE PRIX'
-            case 1: return 'BON COMMANDE'
-            case 2: return 'BON RECEPTION'
-            case 6: return 'FACTURE ACHAT'
-            case 7: return 'AVOIR ACHAT'
-            default: return `ACHAT ${type}`
-        }
-    }
-    return `TYPE ${type}`
-}
-
-const getDomaineBadge = (domaine: number) => {
-    if (domaine === 0) {
+const getDomaineBadge = (domaine: string) => {
+    if (domaine === 'VENTE') {
         return <Badge className="bg-green-500/10 text-green-600 border-green-500/30">VENTE</Badge>
     }
     return <Badge className="bg-blue-500/10 text-blue-600 border-blue-500/30">ACHAT</Badge>
 }
-import { Suspense } from "react"
 
 export default function AffairesPage() {
     const [affaires, setAffaires] = useState<string[]>([])
@@ -103,30 +75,15 @@ export default function AffairesPage() {
     const [loadingDocs, setLoadingDocs] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
-    const supabase = createClient()
-
     // Load all distinct affaires
-    const fetchAffaires = async () => {
+    const fetchAffairesData = async () => {
         setLoading(true)
         setError(null)
-
         try {
-            const query = supabase
-                .from('f_docentete')
-                .select('ca_num')
-                .not('ca_num', 'is', null)
-                .neq('ca_num', '')
-                .order('ca_num')
-
-            const data = await fetchAllRows<any>(query as any)
-
-            // Get unique affaires (also filter out empty strings on client side as a safeguard)
-            const uniqueAffaires = [...new Set(data?.map(d => d.ca_num).filter(a => a && a.trim() !== '') || [])] as string[]
-            setAffaires(uniqueAffaires)
-
-            // Auto-select first affaire if available
-            if (uniqueAffaires.length > 0 && !selectedAffaire) {
-                setSelectedAffaire(uniqueAffaires[0])
+            const data = await getAffaires()
+            setAffaires(data)
+            if (data.length > 0 && !selectedAffaire) {
+                setSelectedAffaire(data[0])
             }
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Erreur lors du chargement')
@@ -138,18 +95,10 @@ export default function AffairesPage() {
     // Load documents for selected affaire
     const fetchDocuments = async () => {
         if (!selectedAffaire) return
-
         setLoadingDocs(true)
         setError(null)
-
         try {
-            const query = supabase
-                .from('f_docentete')
-                .select(`*, f_comptet (ct_intitule)`)
-                .eq('ca_num', selectedAffaire)
-                .order('do_date', { ascending: false })
-
-            const data = await fetchAllRows<AffaireDocument>(query as any)
+            const data = await getDocumentsByAffaire(selectedAffaire)
             setDocuments(data || [])
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Erreur lors du chargement')
@@ -159,7 +108,7 @@ export default function AffairesPage() {
     }
 
     useEffect(() => {
-        fetchAffaires()
+        fetchAffairesData()
     }, [])
 
     useEffect(() => {
@@ -169,10 +118,10 @@ export default function AffairesPage() {
     }, [selectedAffaire])
 
     // Calculate stats
-    const ventesDocuments = documents.filter(d => d.do_domaine === 0)
-    const achatsDocuments = documents.filter(d => d.do_domaine === 1)
-    const totalVentes = ventesDocuments.reduce((acc, d) => acc + (d.do_totalttc || 0), 0)
-    const totalAchats = achatsDocuments.reduce((acc, d) => acc + (d.do_totalttc || 0), 0)
+    const ventesDocuments = documents.filter(d => d.domaine_document === 'VENTE')
+    const achatsDocuments = documents.filter(d => d.domaine_document === 'ACHAT')
+    const totalVentes = ventesDocuments.reduce((acc, d) => acc + (Number(d.montant_ttc) || 0), 0)
+    const totalAchats = achatsDocuments.reduce((acc, d) => acc + (Number(d.montant_ttc) || 0), 0)
     const marge = totalVentes - totalAchats
 
     return (
@@ -314,25 +263,25 @@ export default function AffairesPage() {
                                         </TableHeader>
                                         <TableBody>
                                             {documents.map((doc) => (
-                                                <TableRow key={doc.cbmarq} className="hover:bg-muted/50">
+                                                <TableRow key={doc.id_document} className="hover:bg-muted/50">
                                                     <TableCell>
-                                                        <Badge variant="outline">{doc.do_piece}</Badge>
+                                                        <Badge variant="outline">{doc.numero_document}</Badge>
                                                     </TableCell>
-                                                    <TableCell>{formatDate(doc.do_date)}</TableCell>
-                                                    <TableCell>{getDomaineBadge(doc.do_domaine)}</TableCell>
+                                                    <TableCell>{formatDate(doc.date_document)}</TableCell>
+                                                    <TableCell>{getDomaineBadge(doc.domaine_document)}</TableCell>
                                                     <TableCell>
                                                         <Badge variant="secondary">
-                                                            {getDocumentTypeName(doc.do_domaine, doc.do_type)}
+                                                            {doc.type_document}
                                                         </Badge>
                                                     </TableCell>
                                                     <TableCell className="font-medium">
-                                                        {doc.f_comptet?.ct_intitule || doc.do_tiers || '-'}
+                                                        {doc.partenaire?.nom_partenaire || doc.nom_partenaire_snapshot || '-'}
                                                     </TableCell>
                                                     <TableCell className="text-right">
-                                                        {formatPrice(doc.do_totalht)}
+                                                        {formatPrice(doc.montant_ht)}
                                                     </TableCell>
                                                     <TableCell className="text-right font-semibold">
-                                                        {formatPrice(doc.do_totalttc)}
+                                                        {formatPrice(doc.montant_ttc)}
                                                     </TableCell>
                                                 </TableRow>
                                             ))}

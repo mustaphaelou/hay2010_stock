@@ -1,6 +1,7 @@
 import { pdf } from '@react-pdf/renderer'
 import { InvoiceDocument, InvoiceData, InvoiceLineItem } from './invoice-template'
-import type { FDocentete, FDocligne, FComptet } from '@/lib/supabase/types'
+import type { DocumentWithPartner, DocumentLine } from '@/app/actions/documents'
+import type { Partenaire } from '@prisma/client'
 
 // Company info - can be customized or fetched from settings
 const COMPANY_INFO = {
@@ -18,7 +19,7 @@ const COMPANY_INFO = {
 
 // Document type mapping
 const DOCUMENT_TYPE_NAMES: Record<string, Record<number, string>> = {
-    '0': { // Ventes
+    'VENTE': {
         0: 'Devis',
         1: 'Bon de Commande',
         2: 'Préparation Livraison',
@@ -28,22 +29,22 @@ const DOCUMENT_TYPE_NAMES: Record<string, Record<number, string>> = {
         6: 'Facture',
         7: 'Avoir Financier',
     },
-    '1': { // Achats
-        0: 'Demande Achat',
-        1: 'Bon de Commande',
-        2: 'Préparation Commande',
-        3: 'Bon de Réception',
-        4: 'Retour',
-        5: 'Avoir',
-        6: 'Facture Achat',
-        7: 'Avoir Financier',
+    'ACHAT': {
+        10: 'Demande Achat',
+        11: 'Préparation Commande',
+        12: 'Bon de Commande',
+        13: 'Bon de Réception',
+        14: 'Retour',
+        15: 'Avoir',
+        16: 'Facture Achat',
+        17: 'Avoir Financier',
     },
 }
 
 /**
  * Format a date string to French locale
  */
-function formatDateFR(dateStr: string | null): string {
+function formatDateFR(dateStr: Date | string | null): string {
     if (!dateStr) return '-'
     return new Date(dateStr).toLocaleDateString('fr-FR', {
         day: '2-digit',
@@ -55,9 +56,9 @@ function formatDateFR(dateStr: string | null): string {
 /**
  * Determine payment status from document data
  */
-function getPaymentStatus(doc: FDocentete): 'paid' | 'partial' | 'pending' {
-    const paid = doc.do_montregl || 0
-    const total = doc.do_totalttc || 0
+function getPaymentStatus(doc: DocumentWithPartner): 'paid' | 'partial' | 'pending' {
+    const paid = Number(doc.montant_regle || 0)
+    const total = Number(doc.montant_ttc || 0)
 
     if (paid >= total && total > 0) return 'paid'
     if (paid > 0 && paid < total) return 'partial'
@@ -65,12 +66,12 @@ function getPaymentStatus(doc: FDocentete): 'paid' | 'partial' | 'pending' {
 }
 
 /**
- * Transform Sage document + lines into InvoiceData format
+ * Transform Prisma document + lines into InvoiceData format
  */
 export function transformToInvoiceData(
-    document: FDocentete,
-    lines: FDocligne[],
-    partner?: FComptet | null,
+    document: DocumentWithPartner,
+    lines: DocumentLine[],
+    partner?: Partenaire | null,
     options?: {
         showWatermark?: boolean
         watermarkText?: string
@@ -78,64 +79,64 @@ export function transformToInvoiceData(
 ): InvoiceData {
     // Map lines to invoice items
     const invoiceLines: InvoiceLineItem[] = lines.map(line => ({
-        reference: line.ar_ref || '-',
-        designation: line.dl_design || '-',
-        quantity: line.dl_qte || 0,
-        unitPrice: line.dl_prixunitaire || 0,
-        discount: line.dl_remise01_montant || 0,
-        total: line.dl_montantht || 0,
-        taxCode: line.ta_code || 'D20',
+        reference: line.reference_article || '-',
+        designation: line.designation || line.produit?.designation || '-',
+        quantity: Number(line.quantite || 0),
+        unitPrice: Number(line.prix_unitaire || 0),
+        discount: Number(line.montant_remise || 0),
+        total: Number(line.montant_ht || 0),
+        taxCode: line.code_taxe || 'D20',
     }))
 
     // Get document type name
-    const domaine = document.do_domaine.toString()
-    const typeName = DOCUMENT_TYPE_NAMES[domaine]?.[document.do_type] || `Document ${document.do_type}`
+    const domaine = document.domaine_document || 'VENTE'
+    const typeName = DOCUMENT_TYPE_NAMES[domaine]?.[document.type_document || 0] || `Document ${document.type_document}`
 
     // Calculate totals
-    const totalTTC = document.do_totalttc || 0
-    const totalHT = document.do_totalht || (totalTTC / 1.20)
-    const totalTVA = document.do_tva || (totalTTC - totalHT)
+    const totalTTC = Number(document.montant_ttc || 0)
+    const totalHT = Number(document.montant_ht || (totalTTC / 1.20))
+    const totalTVA = Number(document.montant_tva || (totalTTC - totalHT))
 
     return {
         // Document info
-        documentNumber: document.do_piece,
+        documentNumber: document.numero_piece,
         documentType: typeName,
-        date: formatDateFR(document.do_date),
-        devisNumber: document.do_ref || undefined,
+        date: formatDateFR(document.date_document),
+        devisNumber: document.reference || undefined,
 
         // Company
         company: COMPANY_INFO,
 
         // Client
         client: {
-            name: partner?.ct_intitule || document.do_tiers || 'Client',
-            address: partner?.ct_adresse || undefined,
-            city: partner?.ct_ville || undefined,
-            postalCode: partner?.ct_codepostal || undefined,
-            country: partner?.ct_pays || 'Maroc',
-            ice: partner?.ct_identifiant || undefined,
-            phone: partner?.ct_telephone || undefined,
-            fax: partner?.ct_telecopie || undefined,
-            email: partner?.ct_email || undefined,
+            name: partner?.nom_partenaire || document.nom_tiers || 'Client',
+            address: partner?.adresse_rue || undefined,
+            city: partner?.ville || undefined,
+            postalCode: partner?.code_postal || undefined,
+            country: partner?.pays || 'Maroc',
+            ice: partner?.numero_ice || undefined,
+            phone: partner?.numero_telephone || undefined,
+            fax: partner?.numero_fax || undefined,
+            email: partner?.adresse_email || undefined,
         },
 
         // Contact
-        contactName: partner?.ct_contact || undefined,
-        contactRole: partner?.ct_qualite || undefined,
+        contactName: undefined, // Add if you store this specifically
+        contactRole: undefined,
 
         // Lines
         lines: invoiceLines,
 
         // Totals
         subtotal: totalHT,
-        discount: document.do_escompte || 0,
+        discount: Number(document.montant_remise || 0),
         taxAmount: totalTVA,
         total: totalTTC,
-        amountPaid: document.do_montregl || 0,
+        amountPaid: Number(document.montant_regle || 0),
 
         // Payment
         paymentStatus: getPaymentStatus(document),
-        paymentTerms: 'Paiement à 30 jours',
+        paymentTerms: 'Paiement à 30 jours', // Could be dynamic from partner details
 
         // Watermark - always show DUPLICATA for generated copies
         showWatermark: options?.showWatermark ?? true,
@@ -156,9 +157,9 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Blob> {
  * Generate and download PDF for a document
  */
 export async function downloadInvoicePDF(
-    document: FDocentete,
-    lines: FDocligne[],
-    partner?: FComptet | null,
+    document: DocumentWithPartner,
+    lines: DocumentLine[],
+    partner?: Partenaire | null,
     options?: {
         showWatermark?: boolean
         watermarkText?: string

@@ -28,8 +28,17 @@ import {
 } from "@hugeicons/core-free-icons"
 import { Badge } from "@/components/ui/badge"
 
-import { FDocentete } from "@/lib/supabase/types"
 import { PaymentStatusChart } from "@/components/erp/dashboard-charts"
+
+interface RecentDocType {
+    id_document: number
+    numero_piece: string
+    date_document: Date
+    partenaire?: { nom_partenaire: string } | null
+    nom_tiers?: string | null
+    montant_regle?: number | null
+    montant_ttc?: number | null
+}
 
 interface DashboardViewProps {
     initialStats: {
@@ -40,7 +49,7 @@ interface DashboardViewProps {
         salesCount: number
         purchasesCount: number
     }
-    initialRecentDocs: FDocentete[]
+    initialRecentDocs: RecentDocType[]
     paymentData?: { name: string; value: number; fill: string }[]
     monthlyData?: { month: string; ventes: number; achats: number }[]
 }
@@ -195,23 +204,23 @@ export function DashboardView({ initialStats, initialRecentDocs, paymentData, mo
                                         </TableRow>
                                     ) : (
                                         initialRecentDocs.map((doc) => (
-                                            <TableRow key={doc.cbmarq} className="group transition-all duration-200 hover:bg-primary/5 cursor-pointer">
+                                            <TableRow key={doc.id_document} className="group transition-all duration-200 hover:bg-primary/5 cursor-pointer">
                                                 <TableCell className="py-4 px-4 sm:px-6">
                                                     <div className="flex flex-col">
-                                                        <span className="font-bold text-sm text-foreground/90">{doc.do_piece}</span>
-                                                        <span className="text-[10px] text-muted-foreground">{new Date(doc.do_date || "").toLocaleDateString()}</span>
+                                                        <span className="font-bold text-sm text-foreground/90">{doc.numero_piece}</span>
+                                                        <span className="text-[10px] text-muted-foreground">{doc.date_document ? new Date(doc.date_document).toLocaleDateString() : ""}</span>
                                                     </div>
                                                 </TableCell>
                                                 <TableCell className="py-4 px-2 sm:px-4">
-                                                    <span className="text-sm font-medium">{(doc as any).f_comptet?.ct_intitule || doc.do_tiers || "-"}</span>
+                                                    <span className="text-sm font-medium">{doc.partenaire?.nom_partenaire || doc.nom_tiers || "-"}</span>
                                                 </TableCell>
                                                 <TableCell className="py-4 px-2 sm:px-4 text-center">
-                                                    <Badge variant={(doc as any).do_montregl >= (doc as any).do_totalttc ? "success" : "warning"} className="text-[10px] px-2 py-0">
-                                                        {(doc as any).do_montregl >= (doc as any).do_totalttc ? "Réglé" : "En cours"}
+                                                    <Badge variant={Number(doc.montant_regle || 0) >= Number(doc.montant_ttc || 0) ? "success" : "warning"} className="text-[10px] px-2 py-0">
+                                                        {Number(doc.montant_regle || 0) >= Number(doc.montant_ttc || 0) ? "Réglé" : "En cours"}
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell className="py-4 px-4 sm:px-6 text-right">
-                                                    <span className="text-sm font-extrabold text-primary">{formatPrice(doc.do_totalttc)}</span>
+                                                    <span className="text-sm font-extrabold text-primary">{formatPrice(Number(doc.montant_ttc || 0))}</span>
                                                 </TableCell>
                                             </TableRow>
                                         ))
@@ -225,4 +234,3 @@ export function DashboardView({ initialStats, initialRecentDocs, paymentData, mo
         </div>
     )
 }
-

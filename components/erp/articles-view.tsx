@@ -1,7 +1,6 @@
 "use client"
 
 import * as React from "react"
-import { FArticle } from "@/lib/supabase/types"
 import { DataTable } from "@/components/erp/data-table"
 import { ColumnDef } from "@tanstack/react-table"
 import { Badge } from "@/components/ui/badge"
@@ -22,7 +21,6 @@ import {
 } from "@hugeicons/core-free-icons"
 import { formatPrice } from "@/lib/utils/format"
 import { Switch } from "@/components/ui/switch"
-import { createClient } from "@/lib/supabase/client"
 import { Label } from "@/components/ui/label"
 
 import {
@@ -57,10 +55,29 @@ import {
     CommandItem,
 } from "@/components/ui/command"
 
-// Extended type with stock data
-export type ArticleWithStock = FArticle & {
+import { toggleArticleStatus } from "@/app/actions/articles"
+
+// Extended type with stock and parsed numbers
+export type ArticleWithStock = {
+    id_produit: number
+    code_produit: string
+    nom_produit: string
+    famille: string | null
+    description_produit: string | null
+    code_barre_ean: string | null
+    unite_mesure: string
+    prix_achat: number
+    prix_vente: number
+    coefficient: number
+    taux_tva: any
+    stock_minimum: number | null
+    stock_maximum: number | null
+    activer_suivi_stock: boolean
+    en_sommeil: boolean
+    est_actif: boolean
+    date_creation: Date
+    date_modification: Date
     stock_global: number
-    f_famille?: { fa_intitule: string } | null
 }
 
 interface ArticlesViewProps {
@@ -70,28 +87,28 @@ interface ArticlesViewProps {
 // Define columns
 const createColumns = (onViewDetails: (article: ArticleWithStock) => void): ColumnDef<ArticleWithStock>[] => [
     {
-        accessorKey: "ar_ref",
+        accessorKey: "code_produit",
         header: "Référence",
-        cell: ({ row }) => <div className="font-medium text-primary">{row.getValue("ar_ref")}</div>,
+        cell: ({ row }) => <div className="font-medium text-primary">{row.getValue("code_produit")}</div>,
     },
     {
-        accessorKey: "ar_design",
+        accessorKey: "nom_produit",
         header: "Désignation",
     },
     {
-        accessorKey: "f_famille.fa_intitule",
+        accessorKey: "famille",
         id: "famille",
         header: "Famille",
         cell: ({ row }) => {
-            const famille = row.original.f_famille?.fa_intitule
+            const famille = row.original.famille
             return famille ? <Badge variant="outline">{famille}</Badge> : "-"
         },
     },
     {
-        accessorKey: "ar_prixven",
+        accessorKey: "prix_vente",
         header: () => <div className="text-right">Prix Vente HT</div>,
         cell: ({ row }) => {
-            const price = parseFloat(row.getValue("ar_prixven") || "0")
+            const price = parseFloat(row.getValue("prix_vente") || "0")
             return <div className="text-right font-medium">{formatPrice(price)}</div>
         },
     },
@@ -117,10 +134,10 @@ const createColumns = (onViewDetails: (article: ArticleWithStock) => void): Colu
         }
     },
     {
-        accessorKey: "ar_sommeil",
+        accessorKey: "en_sommeil",
         header: "Statut",
         cell: ({ row }) => {
-            const isSommeil = row.getValue("ar_sommeil") as boolean
+            const isSommeil = row.getValue("en_sommeil") as boolean
             return (
                 <Badge variant={isSommeil ? "secondary" : "default"} className={isSommeil ? "bg-slate-100 text-slate-500" : "bg-green-100 text-green-700 hover:bg-green-100"}>
                     {isSommeil ? "En sommeil" : "Actif"}
@@ -145,7 +162,7 @@ const createColumns = (onViewDetails: (article: ArticleWithStock) => void): Colu
                     <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
                         <DropdownMenuItem
-                            onClick={() => navigator.clipboard.writeText(article.ar_ref)}
+                            onClick={() => navigator.clipboard.writeText(article.code_produit)}
                         >
                             Copier référence
                         </DropdownMenuItem>
@@ -169,33 +186,28 @@ export function ArticlesView({ initialData }: ArticlesViewProps) {
     const [isFilterOpen, setIsFilterOpen] = React.useState(false)
     const [localData, setLocalData] = React.useState<ArticleWithStock[]>(initialData)
     const [isUpdating, setIsUpdating] = React.useState(false)
-    const [mounted, setMounted] = React.useState(false)
 
-    // Sync local data with initialData when it changes
     React.useEffect(() => {
-        setMounted(true)
         setLocalData(initialData)
     }, [initialData])
 
-    // Extract unique familles for filter dropdown
     const familles = React.useMemo(() => {
         const familleSet = new Set<string>()
         localData.forEach(article => {
-            if (article.f_famille?.fa_intitule) {
-                familleSet.add(article.f_famille.fa_intitule)
+            if (article.famille) {
+                familleSet.add(article.famille)
             }
         })
         return Array.from(familleSet).sort()
     }, [localData])
 
-    // Filter articles by selected famille and status
     const filteredData = React.useMemo(() => {
         return localData.filter(article => {
-            const matchesFamille = selectedFamille === "all" || article.f_famille?.fa_intitule === selectedFamille
+            const matchesFamille = selectedFamille === "all" || article.famille === selectedFamille
             const matchesStatus =
                 selectedStatus === "all" ||
-                (selectedStatus === "active" && !article.ar_sommeil) ||
-                (selectedStatus === "sommeil" && article.ar_sommeil)
+                (selectedStatus === "active" && !article.en_sommeil) ||
+                (selectedStatus === "sommeil" && article.en_sommeil)
 
             return matchesFamille && matchesStatus
         })
@@ -208,8 +220,9 @@ export function ArticlesView({ initialData }: ArticlesViewProps) {
 
     const columns = React.useMemo(() => createColumns(handleViewDetails), [])
 
-    const formatDate = (dateString: string) => {
-        return new Date(dateString).toLocaleDateString('fr-FR', {
+    const formatDate = (dateValue: Date | string) => {
+        if (!dateValue) return "-"
+        return new Date(dateValue).toLocaleDateString('fr-FR', {
             day: '2-digit',
             month: 'long',
             year: 'numeric',
@@ -218,27 +231,21 @@ export function ArticlesView({ initialData }: ArticlesViewProps) {
         })
     }
 
-    const toggleStatus = async (article: ArticleWithStock) => {
-        const supabase = createClient()
+    const handleToggleStatus = async (article: ArticleWithStock) => {
         setIsUpdating(true)
-
         try {
-            const newStatus = !article.ar_sommeil
-            const { error } = await supabase
-                .from('f_article')
-                .update({ ar_sommeil: newStatus })
-                .eq('ar_ref', article.ar_ref)
+            const newStatus = !article.en_sommeil
+            const res = await toggleArticleStatus(article.id_produit, newStatus)
 
-            if (error) throw error
+            if (res.error) throw new Error(res.error)
 
-            // Update local state
             const updatedData = localData.map(a =>
-                a.ar_ref === article.ar_ref ? { ...a, ar_sommeil: newStatus } : a
+                a.id_produit === article.id_produit ? { ...a, en_sommeil: newStatus } : a
             )
             setLocalData(updatedData)
 
-            if (selectedArticle?.ar_ref === article.ar_ref) {
-                setSelectedArticle({ ...selectedArticle, ar_sommeil: newStatus })
+            if (selectedArticle?.id_produit === article.id_produit) {
+                setSelectedArticle({ ...selectedArticle, en_sommeil: newStatus })
             }
         } catch (error) {
             console.error("Error updating article status:", error)
@@ -249,7 +256,6 @@ export function ArticlesView({ initialData }: ArticlesViewProps) {
 
     return (
         <div className="space-y-6 sm:space-y-8 animate-fade-in-up">
-            {/* Responsive header - Stacked with more impact */}
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between px-1">
                 <div className="flex flex-col gap-1">
                     <h2 className="text-2xl sm:text-4xl font-extrabold tracking-tight gradient-text">Gestion des Articles</h2>
@@ -259,9 +265,7 @@ export function ArticlesView({ initialData }: ArticlesViewProps) {
                     </p>
                 </div>
 
-                {/* Filters row - Multi-component flex on large, grid on mobile */}
                 <div className="grid grid-cols-2 lg:flex items-center gap-2 lg:gap-3">
-                    {/* Status Filter */}
                     <DropdownMenu>
                         <DropdownMenuTrigger
                             className={cn(buttonVariants({ variant: "outline" }), "w-full lg:w-auto gap-2 lg:h-11 rounded-xl shadow-sm border-muted/60")}
@@ -281,7 +285,6 @@ export function ArticlesView({ initialData }: ArticlesViewProps) {
                         </DropdownMenuContent>
                     </DropdownMenu>
 
-                    {/* Searchable Famille Filter */}
                     <div className="relative w-full lg:w-auto">
                         <Button
                             variant="outline"
@@ -318,7 +321,7 @@ export function ArticlesView({ initialData }: ArticlesViewProps) {
                                                     <Badge variant="secondary" className="text-[10px]">{localData.length}</Badge>
                                                 </CommandItem>
                                                 {familles.map((famille) => {
-                                                    const count = localData.filter(a => a.f_famille?.fa_intitule === famille).length
+                                                    const count = localData.filter(a => a.famille === famille).length
                                                     return (
                                                         <CommandItem
                                                             key={famille}
@@ -341,14 +344,12 @@ export function ArticlesView({ initialData }: ArticlesViewProps) {
                         )}
                     </div>
 
-                    {/* New Article Button - full width on mobile grid column */}
                     <Button className="col-span-2 lg:col-auto lg:h-11 lg:px-6 hover-lift shadow-md rounded-xl font-bold">
                         <span className="mr-2 text-xl">+</span> Nouveau Produit
                     </Button>
                 </div>
             </div>
 
-            {/* Table card - Premium implementation */}
             <Card className="overflow-hidden border-muted/40 shadow-sm transition-all hover:shadow-md">
                 <CardHeader className="pb-4 bg-muted/20 border-b">
                     <div className="flex items-center justify-between">
@@ -365,30 +366,28 @@ export function ArticlesView({ initialData }: ArticlesViewProps) {
                     <DataTable
                         columns={columns}
                         data={filteredData}
-                        searchKey="ar_design"
+                        searchKey="nom_produit"
                         placeholder="Chercher par nom, référence..."
                         loading={false}
                     />
                 </CardContent>
             </Card>
 
-            {/* Article Details Sheet */}
-            {/* Article Details Sheet - Full screen on mobile */}
             <Sheet open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
                 <SheetContent className="w-full sm:max-w-md overflow-y-auto p-4 sm:p-6">
                     <SheetHeader className="pb-4">
                         <div className="flex items-center gap-2 mb-1">
                             <Badge variant="outline" className="text-primary border-primary/20 bg-primary/5">
-                                {selectedArticle?.ar_ref}
+                                {selectedArticle?.code_produit}
                             </Badge>
-                            {selectedArticle?.f_famille?.fa_intitule && (
+                            {selectedArticle?.famille && (
                                 <Badge variant="secondary">
-                                    {selectedArticle.f_famille.fa_intitule}
+                                    {selectedArticle.famille}
                                 </Badge>
                             )}
                         </div>
                         <SheetTitle className="text-xl font-bold leading-tight">
-                            {selectedArticle?.ar_design}
+                            {selectedArticle?.nom_produit}
                         </SheetTitle>
                         <SheetDescription>
                             Détails complets de l&apos;article et informations de stock.
@@ -397,12 +396,12 @@ export function ArticlesView({ initialData }: ArticlesViewProps) {
                             <div className="space-y-0.5">
                                 <Label className="text-sm font-medium">Statut de l&apos;article</Label>
                                 <p className="text-xs text-muted-foreground">
-                                    {selectedArticle?.ar_sommeil ? "Désactivé (En sommeil)" : "Activé (En vente)"}
+                                    {selectedArticle?.en_sommeil ? "Désactivé (En sommeil)" : "Activé (En vente)"}
                                 </p>
                             </div>
                             <Switch
-                                checked={!selectedArticle?.ar_sommeil}
-                                onCheckedChange={() => selectedArticle && toggleStatus(selectedArticle)}
+                                checked={!selectedArticle?.en_sommeil}
+                                onCheckedChange={() => selectedArticle && handleToggleStatus(selectedArticle)}
                                 disabled={isUpdating}
                             />
                         </div>
@@ -411,7 +410,6 @@ export function ArticlesView({ initialData }: ArticlesViewProps) {
                     <Separator />
 
                     <div className="grid gap-5 py-4 sm:py-6 px-0 sm:px-1">
-                        {/* Section: Informations Générales */}
                         <div className="space-y-4">
                             <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground/70 uppercase tracking-wider">
                                 <HugeiconsIcon icon={InformationCircleIcon} className="h-4 w-4" />
@@ -420,33 +418,32 @@ export function ArticlesView({ initialData }: ArticlesViewProps) {
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-1">
                                     <p className="text-xs text-muted-foreground uppercase">Référence</p>
-                                    <p className="font-medium">{selectedArticle?.ar_ref}</p>
+                                    <p className="font-medium">{selectedArticle?.code_produit}</p>
                                 </div>
                                 <div className="space-y-1">
                                     <p className="text-xs text-muted-foreground uppercase">Famille</p>
-                                    <p className="font-medium">{selectedArticle?.f_famille?.fa_intitule || "-"}</p>
+                                    <p className="font-medium">{selectedArticle?.famille || "-"}</p>
                                 </div>
                                 <div className="col-span-2 space-y-1">
                                     <p className="text-xs text-muted-foreground uppercase">Désignation Complémentaire</p>
-                                    <p className="font-medium">{selectedArticle?.ar_descompl || "-"}</p>
+                                    <p className="font-medium">{selectedArticle?.description_produit || "-"}</p>
                                 </div>
                                 <div className="space-y-1">
                                     <p className="text-xs text-muted-foreground uppercase">Code Barre</p>
                                     <div className="flex items-center gap-2">
                                         <HugeiconsIcon icon={BarCode02Icon} className="h-4 w-4 text-muted-foreground" />
-                                        <p className="font-medium font-mono">{selectedArticle?.ar_codebarre || "-"}</p>
+                                        <p className="font-medium font-mono">{selectedArticle?.code_barre_ean || "-"}</p>
                                     </div>
                                 </div>
                                 <div className="space-y-1">
-                                    <p className="text-xs text-muted-foreground uppercase">Unité de vente</p>
-                                    <p className="font-medium">{selectedArticle?.ar_unitevente || "Unité"}</p>
+                                    <p className="text-xs text-muted-foreground uppercase">Unité de mesure</p>
+                                    <p className="font-medium">{selectedArticle?.unite_mesure || "Unité"}</p>
                                 </div>
                             </div>
                         </div>
 
                         <Separator className="bg-muted/50" />
 
-                        {/* Section: Tarification */}
                         <div className="space-y-4">
                             <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground/70 uppercase tracking-wider">
                                 <HugeiconsIcon icon={Money01Icon} className="h-4 w-4" />
@@ -455,26 +452,25 @@ export function ArticlesView({ initialData }: ArticlesViewProps) {
                             <div className="grid grid-cols-2 gap-x-4 gap-y-4 bg-muted/30 p-4 rounded-lg">
                                 <div className="space-y-1">
                                     <p className="text-xs text-muted-foreground uppercase">Prix Achat HT</p>
-                                    <p className="text-lg font-bold text-blue-600">{formatPrice(selectedArticle?.ar_prixach || 0)}</p>
+                                    <p className="text-lg font-bold text-blue-600">{formatPrice(selectedArticle?.prix_achat || 0)}</p>
                                 </div>
                                 <div className="space-y-1">
                                     <p className="text-xs text-muted-foreground uppercase">Prix Vente HT</p>
-                                    <p className="text-lg font-bold text-green-600">{formatPrice(selectedArticle?.ar_prixven || 0)}</p>
+                                    <p className="text-lg font-bold text-green-600">{formatPrice(selectedArticle?.prix_vente || 0)}</p>
                                 </div>
                                 <div className="space-y-1">
                                     <p className="text-xs text-muted-foreground uppercase">Coefficient</p>
-                                    <Badge variant="outline" className="font-mono">{selectedArticle?.ar_coef || "1.00"}</Badge>
+                                    <Badge variant="outline" className="font-mono">{selectedArticle?.coefficient || "1.00"}</Badge>
                                 </div>
                                 <div className="space-y-1">
-                                    <p className="text-xs text-muted-foreground uppercase">Prix TTC</p>
-                                    <p className="text-sm font-medium">{formatPrice(selectedArticle?.ar_prixttc || 0)}</p>
+                                    <p className="text-xs text-muted-foreground uppercase">TVA %</p>
+                                    <p className="text-sm font-medium">{String(selectedArticle?.taux_tva) || "20.0"}</p>
                                 </div>
                             </div>
                         </div>
 
                         <Separator className="bg-muted/50" />
 
-                        {/* Section: Stock */}
                         <div className="space-y-4">
                             <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground/70 uppercase tracking-wider">
                                 <HugeiconsIcon icon={PackageIcon} className="h-4 w-4" />
@@ -490,24 +486,23 @@ export function ArticlesView({ initialData }: ArticlesViewProps) {
                                 <div className="space-y-1">
                                     <p className="text-xs text-muted-foreground uppercase">Suivi Stock</p>
                                     <div className="flex items-center gap-2 mt-1">
-                                        <div className={`h-2 w-2 rounded-full ${selectedArticle?.ar_suivistock ? 'bg-green-500' : 'bg-red-500'}`} />
-                                        <p className="text-sm font-medium">{selectedArticle?.ar_suivistock ? 'Activé' : 'Désactivé'}</p>
+                                        <div className={`h-2 w-2 rounded-full ${selectedArticle?.activer_suivi_stock ? 'bg-green-500' : 'bg-red-500'}`} />
+                                        <p className="text-sm font-medium">{selectedArticle?.activer_suivi_stock ? 'Activé' : 'Désactivé'}</p>
                                     </div>
                                 </div>
                                 <div className="space-y-1">
                                     <p className="text-xs text-muted-foreground uppercase">Stock Mini</p>
-                                    <p className="font-medium">{selectedArticle?.ar_stockmini || 0}</p>
+                                    <p className="font-medium">{selectedArticle?.stock_minimum || 0}</p>
                                 </div>
                                 <div className="space-y-1">
                                     <p className="text-xs text-muted-foreground uppercase">Stock Maxi</p>
-                                    <p className="font-medium">{selectedArticle?.ar_stockmaxi || 0}</p>
+                                    <p className="font-medium">{selectedArticle?.stock_maximum || 0}</p>
                                 </div>
                             </div>
                         </div>
 
                         <Separator className="bg-muted/50" />
 
-                        {/* Section: Audit */}
                         <div className="space-y-4">
                             <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground/70 uppercase tracking-wider">
                                 <HugeiconsIcon icon={Calendar01Icon} className="h-4 w-4" />
@@ -516,11 +511,11 @@ export function ArticlesView({ initialData }: ArticlesViewProps) {
                             <div className="space-y-3 bg-muted/20 p-3 rounded-md text-xs">
                                 <div className="flex justify-between items-center">
                                     <span className="text-muted-foreground">Date Création</span>
-                                    <span className="font-medium">{selectedArticle?.ar_date_create ? formatDate(selectedArticle.ar_date_create) : "-"}</span>
+                                    <span className="font-medium">{selectedArticle?.date_creation ? formatDate(selectedArticle.date_creation) : "-"}</span>
                                 </div>
                                 <div className="flex justify-between items-center">
                                     <span className="text-muted-foreground">Dernière Modification</span>
-                                    <span className="font-medium">{selectedArticle?.ar_date_modif ? formatDate(selectedArticle.ar_date_modif) : "-"}</span>
+                                    <span className="font-medium">{selectedArticle?.date_modification ? formatDate(selectedArticle.date_modification) : "-"}</span>
                                 </div>
                             </div>
                         </div>

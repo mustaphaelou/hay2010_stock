@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { createClient } from '@/lib/supabase/client'
-import type { FDocentete, FComptet } from '@/lib/supabase/types'
-import { AppLayout } from "@/components/app-layout"
+import { useState, useEffect, Suspense, useMemo } from 'react'
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
+import { AppSidebar } from "@/components/erp/app-sidebar"
+import { SiteHeader } from "@/components/erp/site-header"
+import { BottomNav } from "@/components/erp/bottom-nav"
 import {
     Card,
     CardContent,
@@ -11,9 +12,8 @@ import {
     CardHeader,
     CardTitle,
 } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
 import {
     Table,
     TableBody,
@@ -32,21 +32,16 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
     Search01Icon,
-    RefreshIcon,
+    FilterIcon,
     Invoice01Icon,
-    File01Icon,
-    CheckmarkCircle01Icon,
-    Cancel01Icon,
+    ShoppingBag01Icon,
+    RefreshIcon,
 } from "@hugeicons/core-free-icons"
+import { Button } from "@/components/ui/button"
 
-import { fetchAllRows } from '@/lib/supabase/utils'
-import { DownloadInvoiceButton } from '@/components/erp/download-invoice-button'
-import { DateRangePicker } from '@/components/ui/date-range-picker'
-import { PartnerFilter } from '@/components/erp/partner-filter'
-import { DateRange } from 'react-day-picker'
-import { isWithinInterval, startOfDay, endOfDay } from 'date-fns'
+import { getDocuments } from '@/app/actions/documents'
 
-type DocumentWithPartner = FDocentete & { f_comptet: Pick<FComptet, 'ct_intitule' | 'ct_type'> | null }
+type DocumentItem = any // Prisma return type placeholder
 
 const formatPrice = (price: number | null | undefined) => {
     if (price === null || price === undefined) return '-'
@@ -57,7 +52,7 @@ const formatPrice = (price: number | null | undefined) => {
     }).format(price).replace('MAD', 'Dhs')
 }
 
-const formatDate = (date: string | null) => {
+const formatDate = (date: Date | string | null) => {
     if (!date) return '-'
     return new Date(date).toLocaleDateString('fr-FR', {
         day: '2-digit',
@@ -66,332 +61,207 @@ const formatDate = (date: string | null) => {
     })
 }
 
-// Map do_type to document type names
-const getDocumentTypeName = (domaine: number, type: number) => {
-    if (domaine === 0) { // Ventes
-        switch (type) {
-            case 0: return 'DEVIS'
-            case 1: return 'BON COMMANDE'
-            case 2: return 'PRÉPARATION LIVRAISON'
-            case 3: return 'BON LIVRAISON'
-            case 4: return 'BON RETOUR'
-            case 5: return 'BON D\'AVOIR'
-            case 6: return 'FACTURE'
-            case 7: return 'FACTURE COMPTABILISÉE'
-            case 8: return 'ARCHIVE'
-            default: return `TYPE ${type}`
-        }
-    } else { // Achats
-        switch (type) {
-            case 10: return 'DEMANDE ACHAT'
-            case 11: return 'PRÉPARATION CMD'
-            case 12: return 'BON COMMANDE'
-            case 13: return 'BON RÉCEPTION'
-            case 14: return 'BON RETOUR'
-            case 15: return 'BON D\'AVOIR'
-            case 16: return 'FACTURE'
-            case 17: return 'FACTURE COMPTABILISÉE'
-            case 18: return 'ARCHIVE'
-            default: return `TYPE ${type}`
-        }
+const getDomaineBadge = (domaine: string) => {
+    if (domaine === 'VENTE') {
+        return <Badge className="bg-green-500/10 text-green-600 border-green-500/30">Vente</Badge>
     }
+    return <Badge className="bg-blue-500/10 text-blue-600 border-blue-500/30">Achat</Badge>
 }
 
 export default function DocumentsPage() {
-    const [documents, setDocuments] = useState<DocumentWithPartner[]>([])
+    const [documents, setDocuments] = useState<DocumentItem[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [searchTerm, setSearchTerm] = useState('')
-    const [selectedDomaine, setSelectedDomaine] = useState<string>('all')
-    const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined)
-    const [selectedPartner, setSelectedPartner] = useState<string>('all')
-    const [selectedPartnerType, setSelectedPartnerType] = useState<string>('all')
+    const [domaineFilter, setDomaineFilter] = useState<string>('all')
+    const [typeFilter, setTypeFilter] = useState<string>('all')
 
-    const supabase = createClient()
-
-    const fetchDocuments = async () => {
+    const fetchData = async () => {
         setLoading(true)
         setError(null)
-
         try {
-            const query = supabase
-                .from('f_docentete')
-                .select(`
-                    *,
-                    f_comptet (ct_intitule, ct_type)
-                `)
-                .order('do_date', { ascending: false })
-
-            const data = await fetchAllRows<DocumentWithPartner>(query as any)
+            const data = await getDocuments()
             setDocuments(data || [])
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Erreur lors du chargement des documents')
+            setError(err instanceof Error ? err.message : 'Erreur réseau')
         } finally {
             setLoading(false)
         }
     }
 
     useEffect(() => {
-        fetchDocuments()
+        fetchData()
     }, [])
 
-    const uniquePartners = Array.from(new Set(documents.map(doc =>
-        doc.f_comptet?.ct_intitule || doc.do_tiers
-    ).filter(Boolean))).sort() as string[]
+    // Get unique types from documents
+    const uniqueTypes = useMemo(() => {
+        const types = new Set(documents.map(d => d.type_document))
+        return Array.from(types).sort()
+    }, [documents])
 
-    const filteredDocuments = documents.filter(doc => {
-        const matchesSearch = searchTerm === '' ||
-            doc.do_piece?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            doc.do_tiers?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            doc.f_comptet?.ct_intitule?.toLowerCase().includes(searchTerm.toLowerCase())
+    // Filter documents
+    const filteredDocuments = useMemo(() => {
+        return documents.filter(doc => {
+            const matchesSearch = (
+                doc.numero_document?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (doc.partenaire?.nom_partenaire || doc.nom_partenaire_snapshot || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (doc.numero_affaire || '').toLowerCase().includes(searchTerm.toLowerCase())
+            )
+            const matchesDomaine = domaineFilter === 'all' || doc.domaine_document === domaineFilter
+            const matchesType = typeFilter === 'all' || doc.type_document === typeFilter
 
-        const matchesDomaine = selectedDomaine === 'all' || doc.do_domaine.toString() === selectedDomaine
+            return matchesSearch && matchesDomaine && matchesType
+        })
+    }, [documents, searchTerm, domaineFilter, typeFilter])
 
-        let matchesDate = true
-        if (dateRange?.from) {
-            const docDate = new Date(doc.do_date)
-            const start = startOfDay(dateRange.from)
-            const end = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from)
-            matchesDate = isWithinInterval(docDate, { start, end })
-        }
-
-        const partnerName = doc.f_comptet?.ct_intitule || doc.do_tiers
-        const matchesPartner = selectedPartner === 'all' || partnerName === selectedPartner
-
-        const matchesPartnerType = selectedPartnerType === 'all' ||
-            (doc.f_comptet && doc.f_comptet.ct_type.toString() === selectedPartnerType)
-
-        return matchesSearch && matchesDomaine && matchesDate && matchesPartner && matchesPartnerType
-    })
-
-    const getTypeBadgeVariant = (type: number) => {
-        switch (type) {
-            case 6:
-            case 7:
-            case 16:
-            case 17: return 'default' // Factures
-            case 0:
-            case 10: return 'secondary' // Devis / Demande achat
-            case 1:
-            case 12: return 'outline' // Commande
-            case 3:
-            case 13: return 'outline' // Livraison / Réception
-            case 7:
-            case 15:
-            case 5: return 'destructive' // Avoir
-            default: return 'outline'
-        }
-    }
-
-    const getStatusBadge = (statut: number, montRegl: number | null, totalTTC: number | null) => {
-        const isPaid = montRegl && totalTTC && montRegl >= totalTTC
-        const isPartial = montRegl && totalTTC && montRegl > 0 && montRegl < totalTTC
-
-        if (statut === 2 || isPaid) {
-            return <Badge className="bg-green-500/10 text-green-600 border-green-500/30">
-                <HugeiconsIcon icon={CheckmarkCircle01Icon} className="h-3 w-3 mr-1" />
-                RÉGLÉ
-            </Badge>
-        }
-        if (isPartial) {
-            return <Badge className="bg-orange-500/10 text-orange-600 border-orange-500/30">
-                PARTIEL
-            </Badge>
-        }
-        if (statut === 0) {
-            return <Badge variant="outline">BROUILLON</Badge>
-        }
-        return <Badge variant="secondary">EN COURS</Badge>
-    }
-
-    const totalCA = filteredDocuments
-        .filter(d => d.do_domaine === 0 && (d.do_type === 6 || d.do_type === 7)) // Sales invoices
-        .reduce((acc, d) => acc + (d.do_totalttc || 0), 0)
-
-    const totalAchats = filteredDocuments
-        .filter(d => d.do_domaine === 1 && (d.do_type === 16 || d.do_type === 17)) // Purchase invoices
-        .reduce((acc, d) => acc + (d.do_totalttc || 0), 0)
+    // Stats
+    const totalVentes = documents.filter(d => d.domaine_document === 'VENTE').reduce((acc, d) => acc + (Number(d.montant_ttc) || 0), 0)
+    const totalAchats = documents.filter(d => d.domaine_document === 'ACHAT').reduce((acc, d) => acc + (Number(d.montant_ttc) || 0), 0)
 
     return (
-        <AppLayout title="Documents" breadcrumb="Documents commerciaux">
-            <div className="flex flex-1 flex-col gap-6">
-                {/* Header */}
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h1 className="text-3xl font-bold tracking-tight">Documents</h1>
-                        <p className="text-muted-foreground">Gestion des documents commerciaux</p>
-                    </div>
-                    <Button onClick={fetchDocuments} disabled={loading}>
-                        <HugeiconsIcon icon={RefreshIcon} className="mr-2 h-4 w-4" />
-                        Actualiser
-                    </Button>
-                </div>
-
-                {/* Stats Cards */}
-                <div className="grid gap-4 md:grid-cols-4">
-                    <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Total Documents</CardTitle>
-                            <HugeiconsIcon icon={File01Icon} className="h-4 w-4 text-primary" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">{documents.length}</div>
-                        </CardContent>
-                    </Card>
-                    <Card className="bg-gradient-to-br from-green-500/10 to-green-500/5 border-green-500/20">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">CA Ventes</CardTitle>
-                            <HugeiconsIcon icon={Invoice01Icon} className="h-4 w-4 text-green-500" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">{formatPrice(totalCA)}</div>
-                            <p className="text-xs text-muted-foreground">Total factures ventes</p>
-                        </CardContent>
-                    </Card>
-                    <Card className="bg-gradient-to-br from-orange-500/10 to-orange-500/5 border-orange-500/20">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Total Achats</CardTitle>
-                            <HugeiconsIcon icon={Invoice01Icon} className="h-4 w-4 text-orange-500" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">{formatPrice(totalAchats)}</div>
-                            <p className="text-xs text-muted-foreground">Total factures achats</p>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Filtrés</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">{filteredDocuments.length}</div>
-                        </CardContent>
-                    </Card>
-                </div>
-
-                {/* Filters */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Filtres</CardTitle>
-                        <CardDescription>Rechercher par numéro ou partenaire</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                            <div className="relative flex-1">
-                                <HugeiconsIcon icon={Search01Icon} className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                                <Input
-                                    placeholder="Rechercher par numéro..."
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="pl-10"
-                                />
-                            </div>
-                            <Select value={selectedDomaine} onValueChange={(value) => setSelectedDomaine(value ?? 'all')}>
-                                <SelectTrigger>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">Tous les domaines</SelectItem>
-                                    <SelectItem value="0">Ventes</SelectItem>
-                                    <SelectItem value="1">Achats</SelectItem>
-                                </SelectContent>
-                            </Select>
-                            <DateRangePicker
-                                date={dateRange}
-                                onDateChange={setDateRange}
-                                className="w-full"
-                            />
-                            <div className="lg:col-span-2">
-                                <PartnerFilter
-                                    partners={uniquePartners}
-                                    selectedPartner={selectedPartner}
-                                    onPartnerChange={setSelectedPartner}
-                                    selectedType={selectedPartnerType}
-                                    onTypeChange={setSelectedPartnerType}
-                                />
-                            </div>
+        <SidebarProvider
+            style={{ "--sidebar-width": "280px", "--header-height": "3.5rem" } as React.CSSProperties}
+        >
+            <Suspense fallback={<div className="hidden md:block w-[--sidebar-width] bg-sidebar border-r h-svh" />}>
+                <AppSidebar />
+            </Suspense>
+            <SidebarInset>
+                <SiteHeader />
+                <div className="flex flex-1 flex-col gap-6 p-4 pb-20 md:p-8 md:pb-8">
+                    {/* Header & Stats */}
+                    <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+                        <div>
+                            <h1 className="text-3xl font-bold tracking-tight">Documents</h1>
+                            <p className="text-muted-foreground">Historique des ventes et achats</p>
                         </div>
-                    </CardContent>
-                </Card>
+                        <div className="flex gap-4 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
+                            <Card className="min-w-[200px] bg-gradient-to-br from-green-500/10 to-green-500/5 border-green-500/20">
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                    <CardTitle className="text-xs font-medium text-green-600 uppercase tracking-wider">Total Ventes</CardTitle>
+                                    <HugeiconsIcon icon={Invoice01Icon} className="h-4 w-4 text-green-500" />
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="text-2xl font-bold text-green-700">{formatPrice(totalVentes)}</div>
+                                </CardContent>
+                            </Card>
+                            <Card className="min-w-[200px] bg-gradient-to-br from-blue-500/10 to-blue-500/5 border-blue-500/20">
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                    <CardTitle className="text-xs font-medium text-blue-600 uppercase tracking-wider">Total Achats</CardTitle>
+                                    <HugeiconsIcon icon={ShoppingBag01Icon} className="h-4 w-4 text-blue-500" />
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="text-2xl font-bold text-blue-700">{formatPrice(totalAchats)}</div>
+                                </CardContent>
+                            </Card>
+                        </div>
+                    </div>
 
-                {/* Data Table */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Liste des Documents</CardTitle>
-                        <CardDescription>
-                            {loading ? 'Chargement...' : `${filteredDocuments.length} document(s) trouvé(s)`}
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        {error ? (
-                            <div className="text-center py-10">
-                                <p className="text-red-500 mb-4">{error}</p>
-                                <Button onClick={fetchDocuments} variant="outline">Réessayer</Button>
+                    {/* Filters */}
+                    <Card>
+                        <CardHeader className="pb-3 border-b border-border/50">
+                            <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+                                <div className="flex items-center gap-2 text-lg font-semibold w-full md:w-auto">
+                                    <HugeiconsIcon icon={FilterIcon} className="h-5 w-5 text-primary" />
+                                    Filtres
+                                </div>
+                                <div className="flex flex-col sm:flex-row w-full md:w-auto gap-3">
+                                    <div className="relative w-full sm:w-64">
+                                        <HugeiconsIcon icon={Search01Icon} className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                        <Input
+                                            placeholder="Rechercher (N° Pièce, Tiers...)"
+                                            className="pl-9 bg-background/50"
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                        />
+                                    </div>
+                                    <Select value={domaineFilter} onValueChange={(value) => setDomaineFilter(value || 'all')}>
+                                        <SelectTrigger className="w-full sm:w-36 bg-background/50">
+                                            {/* @ts-ignore */}
+                                            <SelectValue placeholder="Domaine" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">Tous domaines</SelectItem>
+                                            <SelectItem value="VENTE">Ventes</SelectItem>
+                                            <SelectItem value="ACHAT">Achats</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <Select value={typeFilter} onValueChange={(value) => setTypeFilter(value || 'all')}>
+                                        <SelectTrigger className="w-full sm:w-44 bg-background/50">
+                                            {/* @ts-ignore */}
+                                            <SelectValue placeholder="Type" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">Tous types</SelectItem>
+                                            {uniqueTypes.map(type => (
+                                                <SelectItem key={type} value={type || 'unknown'}>{type || 'Inconnu'}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <Button variant="outline" size="icon" onClick={fetchData} disabled={loading} className="shrink-0 bg-background/50">
+                                        <HugeiconsIcon icon={RefreshIcon} className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                                    </Button>
+                                </div>
                             </div>
-                        ) : loading ? (
-                            <div className="flex items-center justify-center py-10">
-                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                            </div>
-                        ) : filteredDocuments.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center py-10 text-center">
-                                <HugeiconsIcon icon={File01Icon} className="h-12 w-12 text-muted-foreground mb-4" />
-                                <p className="text-muted-foreground">Aucun document trouvé</p>
-                            </div>
-                        ) : (
-                            <div className="overflow-x-auto">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>N° Pièce</TableHead>
-                                            <TableHead>Date</TableHead>
-                                            <TableHead>Tiers</TableHead>
-                                            <TableHead>Domaine</TableHead>
-                                            <TableHead>Type</TableHead>
-                                            <TableHead className="text-right">Montant TTC</TableHead>
-                                            <TableHead className="text-right">Statut</TableHead>
-                                            <TableHead className="text-center">Actions</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {filteredDocuments.map((doc) => (
-                                            <TableRow key={doc.cbmarq} className="hover:bg-muted/50 transition-colors">
-                                                <TableCell className="font-medium">
-                                                    <Badge variant="outline">{doc.do_piece}</Badge>
-                                                </TableCell>
-                                                <TableCell>{formatDate(doc.do_date)}</TableCell>
-                                                <TableCell className="font-medium">
-                                                    {doc.f_comptet?.ct_intitule || doc.do_tiers || '-'}
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Badge variant={doc.do_domaine === 0 ? 'default' : 'secondary'}>
-                                                        {doc.do_domaine === 0 ? 'VENTE' : 'ACHAT'}
-                                                    </Badge>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Badge variant={getTypeBadgeVariant(doc.do_type)}>
-                                                        {getDocumentTypeName(doc.do_domaine, doc.do_type)}
-                                                    </Badge>
-                                                </TableCell>
-                                                <TableCell className="text-right font-semibold">
-                                                    {formatPrice(doc.do_totalttc)}
-                                                </TableCell>
-                                                <TableCell className="text-right">
-                                                    {getStatusBadge(doc.do_statut, doc.do_montregl, doc.do_totalttc)}
-                                                </TableCell>
-                                                <TableCell className="text-center">
-                                                    <DownloadInvoiceButton
-                                                        document={doc}
-                                                        partner={doc.f_comptet as any}
-                                                    />
-                                                </TableCell>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            {error ? (
+                                <div className="p-8 text-center text-red-500">
+                                    <p className="mb-4">{error}</p>
+                                    <Button onClick={fetchData} variant="outline">Réessayer</Button>
+                                </div>
+                            ) : loading ? (
+                                <div className="p-12 flex justify-center">
+                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                                </div>
+                            ) : (
+                                <div className="rounded-md border-0 overflow-hidden">
+                                    <Table>
+                                        <TableHeader className="bg-muted/30">
+                                            <TableRow className="hover:bg-transparent">
+                                                <TableHead className="w-[120px] font-semibold">Date</TableHead>
+                                                <TableHead className="font-semibold">N° Pièce</TableHead>
+                                                <TableHead className="font-semibold">Type</TableHead>
+                                                <TableHead className="font-semibold">Domaine</TableHead>
+                                                <TableHead className="font-semibold">Affaire</TableHead>
+                                                <TableHead className="font-semibold">Tiers</TableHead>
+                                                <TableHead className="text-right font-semibold">Total HT</TableHead>
+                                                <TableHead className="text-right font-semibold">Total TTC</TableHead>
+                                                <TableHead className="font-semibold">Statut</TableHead>
                                             </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
-            </div>
-        </AppLayout>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {filteredDocuments.length === 0 ? (
+                                                <TableRow>
+                                                    <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">
+                                                        Aucun document trouvé.
+                                                    </TableCell>
+                                                </TableRow>
+                                            ) : (
+                                                filteredDocuments.map((doc) => (
+                                                    <TableRow key={doc.id_document} className="hover:bg-muted/50 transition-colors">
+                                                        <TableCell className="font-medium">{formatDate(doc.date_document)}</TableCell>
+                                                        <TableCell>{doc.numero_document}</TableCell>
+                                                        <TableCell><Badge variant="outline" className="bg-background">{doc.type_document}</Badge></TableCell>
+                                                        <TableCell>{getDomaineBadge(doc.domaine_document)}</TableCell>
+                                                        <TableCell>{doc.numero_affaire || '-'}</TableCell>
+                                                        <TableCell className="max-w-[200px] truncate" title={doc.partenaire?.nom_partenaire || doc.nom_partenaire_snapshot || ''}>
+                                                            {doc.partenaire?.nom_partenaire || doc.nom_partenaire_snapshot || '-'}
+                                                        </TableCell>
+                                                        <TableCell className="text-right text-muted-foreground">{formatPrice(doc.montant_ht)}</TableCell>
+                                                        <TableCell className="text-right font-semibold">{formatPrice(doc.montant_ttc)}</TableCell>
+                                                        <TableCell><Badge variant="secondary" className="bg-background">{doc.statut_document}</Badge></TableCell>
+                                                    </TableRow>
+                                                ))
+                                            )}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                </div>
+                <BottomNav />
+            </SidebarInset>
+        </SidebarProvider>
     )
 }
