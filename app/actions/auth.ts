@@ -11,15 +11,22 @@ const COOKIE_NAME = 'auth_token'
 
 export async function login(email: string, password: string): Promise<{ error?: string; success?: boolean }> {
   try {
+    console.log('Login attempt for:', email)
+    
     const user = await prisma.user.findUnique({
       where: { email }
     })
+    
+    console.log('User found:', user ? 'yes' : 'no')
     
     if (!user) {
       return { error: 'Invalid email or password' }
     }
     
+    console.log('Stored password hash:', user.password.substring(0, 20) + '...')
     const isValid = await verifyPassword(password, user.password)
+    console.log('Password valid:', isValid)
+    
     if (!isValid) {
       return { error: 'Invalid email or password' }
     }
@@ -40,6 +47,7 @@ export async function login(email: string, password: string): Promise<{ error?: 
       maxAge: 60 * 60 * 24 * 7 // 7 days
     })
     
+    console.log('Login successful for:', email)
     return { success: true }
   } catch (error) {
     console.error('Login error:', error)

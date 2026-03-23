@@ -6,9 +6,18 @@ import { BottomNav } from "@/components/erp/bottom-nav"
 import { ArticlesView } from "@/components/erp/articles-view"
 import { Suspense } from "react"
 import { getArticlesWithStock } from "@/app/actions/articles"
+import { redirect } from "next/navigation"
+import { getCurrentUser } from "@/app/actions/auth"
+
+export const dynamic = 'force-dynamic'
 
 export default async function ArticlesPage() {
-    const articlesWithStock = await getArticlesWithStock()
+  const user = await getCurrentUser()
+  if (!user) {
+    redirect("/login")
+  }
+  
+  const articlesWithStock = await getArticlesWithStock()
 
     return (
         <SidebarProvider

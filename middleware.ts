@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { verifyToken } from './lib/auth/jwt'
-import { getSession } from './lib/auth/session'
 
-const PUBLIC_PATHS = ['/login', '/register', '/api/auth']
+const PUBLIC_PATHS = ['/login', '/register', '/api/auth', '/favicon.ico', '/_next']
 const AUTH_COOKIE = 'auth_token'
 
 export async function middleware(request: NextRequest) {
@@ -23,31 +22,22 @@ export async function middleware(request: NextRequest) {
   const payload = verifyToken(token)
   
   if (!payload) {
-    const response = isPublicPath 
-      ? NextResponse.next() 
-      : NextResponse.redirect(new URL('/login', request.url))
+    if (isPublicPath) {
+      return NextResponse.next()
+    }
+    const response = NextResponse.redirect(new URL('/login', request.url))
     response.cookies.delete(AUTH_COOKIE)
     return response
   }
   
-  const session = await getSession(payload.sessionId)
-  
-  if (!session) {
-    const response = isPublicPath 
-      ? NextResponse.next() 
-      : NextResponse.redirect(new URL('/login', request.url))
-    response.cookies.delete(AUTH_COOKIE)
-    return response
-  }
-  
-  if (isPublicPath) {
+  if (isPublicPath && pathname !== '/favicon.ico' && !pathname.startsWith('/_next')) {
     return NextResponse.redirect(new URL('/', request.url))
   }
   
   const response = NextResponse.next()
-  response.headers.set('x-user-id', session.userId)
-  response.headers.set('x-user-email', session.email)
-  response.headers.set('x-user-role', session.role)
+  response.headers.set('x-user-id', payload.userId)
+  response.headers.set('x-user-email', payload.email)
+  response.headers.set('x-user-role', payload.role)
   
   return response
 }

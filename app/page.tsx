@@ -5,9 +5,16 @@ import { BottomNav } from "@/components/erp/bottom-nav"
 import { getDashboardStats } from "@/app/actions/dashboard"
 import { Suspense } from "react"
 import { ClientSidebar as AppSidebar } from "@/components/erp/client-sidebar"
+import { redirect } from "next/navigation"
+import { getCurrentUser } from "@/app/actions/auth"
 
 export default async function Page() {
-    const { stats, recentDocs, salesInvoices } = await getDashboardStats()
+  const user = await getCurrentUser()
+  if (!user) {
+    redirect("/login")
+  }
+  
+  const { stats, recentDocs, salesInvoices } = await getDashboardStats()
 
     // Calculate payment status data
     let regle = 0, partiel = 0, encours = 0

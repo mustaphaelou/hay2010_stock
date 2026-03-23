@@ -1,8 +1,15 @@
 import { redis } from '@/lib/db/redis'
-import { randomUUID } from 'crypto'
 
 const SESSION_PREFIX = 'session:'
 const SESSION_TTL = 60 * 60 * 24 * 7 // 7 days in seconds
+
+function generateSessionId(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0
+    const v = c === 'x' ? r : (r & 0x3) | 0x8
+    return v.toString(16)
+  })
+}
 
 export interface SessionData {
   userId: string
@@ -13,7 +20,7 @@ export interface SessionData {
 }
 
 export async function createSession(userId: string, email: string, name: string, role: string): Promise<string> {
-  const sessionId = randomUUID()
+  const sessionId = generateSessionId()
   const sessionData: SessionData = {
     userId,
     email,
