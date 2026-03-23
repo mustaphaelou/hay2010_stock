@@ -5,16 +5,28 @@ import { Button } from '@/components/ui/button'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { FileDownloadIcon, Loading01Icon } from '@hugeicons/core-free-icons'
 import { downloadInvoicePDF } from '@/lib/pdf'
-import type { DocumentWithPartner } from '@/app/actions/documents'
+import type { DocumentWithPartner, DocumentLine } from '@/app/actions/documents'
 import { getDocLines } from '@/app/actions/documents'
-import type { Partenaire } from '@prisma/client'
+
+// Define a minimal partner type for the component
+interface PartnerInfo {
+  nom_partenaire?: string | null
+  adresse_rue?: string | null
+  ville?: string | null
+  code_postal?: string | null
+  pays?: string | null
+  numero_ice?: string | null
+  numero_telephone?: string | null
+  numero_fax?: string | null
+  adresse_email?: string | null
+}
 
 interface DownloadInvoiceButtonProps {
-    document: DocumentWithPartner
-    partner?: Partenaire | null
-    variant?: 'default' | 'ghost' | 'outline' | 'secondary'
-    size?: 'default' | 'sm' | 'lg' | 'icon'
-    className?: string
+  document: DocumentWithPartner
+  partner?: PartnerInfo | null
+  variant?: 'default' | 'ghost' | 'outline' | 'secondary'
+  size?: 'default' | 'sm' | 'lg' | 'icon'
+  className?: string
 }
 
 export function DownloadInvoiceButton({

@@ -1,7 +1,19 @@
 import { pdf } from '@react-pdf/renderer'
 import { InvoiceDocument, InvoiceData, InvoiceLineItem } from './invoice-template'
 import type { DocumentWithPartner, DocumentLine } from '@/app/actions/documents'
-import type { Partenaire } from '@prisma/client'
+
+// Minimal partner info interface
+interface PartnerInfo {
+  nom_partenaire?: string | null
+  adresse_rue?: string | null
+  ville?: string | null
+  code_postal?: string | null
+  pays?: string | null
+  numero_ice?: string | null
+  numero_telephone?: string | null
+  numero_fax?: string | null
+  adresse_email?: string | null
+}
 
 // Company info - can be customized or fetched from settings
 const COMPANY_INFO = {
@@ -69,13 +81,13 @@ function getPaymentStatus(doc: DocumentWithPartner): 'paid' | 'partial' | 'pendi
  * Transform Prisma document + lines into InvoiceData format
  */
 export function transformToInvoiceData(
-    document: DocumentWithPartner,
-    lines: DocumentLine[],
-    partner?: Partenaire | null,
-    options?: {
-        showWatermark?: boolean
-        watermarkText?: string
-    }
+  document: DocumentWithPartner,
+  lines: DocumentLine[],
+  partner?: PartnerInfo | null,
+  options?: {
+    showWatermark?: boolean
+    watermarkText?: string
+  }
 ): InvoiceData {
     // Map lines to invoice items
     const invoiceLines: InvoiceLineItem[] = lines.map(line => ({
@@ -157,13 +169,13 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Blob> {
  * Generate and download PDF for a document
  */
 export async function downloadInvoicePDF(
-    document: DocumentWithPartner,
-    lines: DocumentLine[],
-    partner?: Partenaire | null,
-    options?: {
-        showWatermark?: boolean
-        watermarkText?: string
-    }
+  document: DocumentWithPartner,
+  lines: DocumentLine[],
+  partner?: PartnerInfo | null,
+  options?: {
+    showWatermark?: boolean
+    watermarkText?: string
+  }
 ): Promise<void> {
     const invoiceData = transformToInvoiceData(document, lines, partner, options)
     const blob = await generateInvoicePDF(invoiceData)

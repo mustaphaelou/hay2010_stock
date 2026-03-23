@@ -9,6 +9,10 @@ FROM node:20-slim AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+
+# Generate Prisma Client
+RUN npx prisma generate
+
 # Set build-time env variables
 ENV NEXT_TELEMETRY_DISABLED 1
 RUN npm run build
