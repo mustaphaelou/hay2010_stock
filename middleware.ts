@@ -5,11 +5,18 @@ import { jwtVerify } from 'jose'
 const PUBLIC_PATHS = ['/login', '/register', '/api/auth', '/favicon.ico', '/_next']
 const AUTH_COOKIE = 'auth_token'
 const SESSION_REFRESH_THRESHOLD = 24 * 60 * 60 * 1000
-const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'default-secret-for-development')
+function getJwtSecret(): Uint8Array {
+  const secret = process.env.JWT_SECRET
+  if (!secret) {
+    throw new Error('JWT_SECRET environment variable is required')
+  }
+  return new TextEncoder().encode(secret)
+}
 
 async function verifyTokenEdge(token: string) {
   try {
-    const { payload } = await jwtVerify(token, JWT_SECRET)
+    const secret = getJwtSecret()
+    const { payload } = await jwtVerify(token, secret)
     return payload as { userId: string; email: string; role: string; sessionId: string; iat?: number }
   } catch {
     return null

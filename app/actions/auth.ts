@@ -33,19 +33,19 @@ export async function login(email: string, password: string): Promise<{ error?: 
     const isValid = await verifyPassword(password, user.password)
     console.log('Password valid:', isValid)
     
-    if (!isValid) {
-      return { error: 'Invalid email or password' }
-    }
-    
-    const sessionId = await createSession(user.id, user.email, user.name, user.role)
-    const token = generateToken({
-      userId: user.id,
-      email: user.email,
-      role: user.role,
-      sessionId
-    })
-    
-    const cookieStore = await cookies()
+	if (!isValid) {
+		return { error: 'Invalid email or password' }
+	}
+
+	const sessionId = await createSession(user.id, user.email, user.name, user.role)
+	const token = await generateToken({
+		userId: user.id,
+		email: user.email,
+		role: user.role,
+		sessionId
+	})
+
+	const cookieStore = await cookies()
     cookieStore.set(COOKIE_NAME, token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -66,12 +66,12 @@ export async function logout(): Promise<void> {
     const cookieStore = await cookies()
     const token = cookieStore.get(COOKIE_NAME)?.value
     
-    if (token) {
-      const payload = verifyToken(token)
-      if (payload?.sessionId) {
-        await deleteSession(payload.sessionId)
-      }
-    }
+	if (token) {
+		const payload = await verifyToken(token)
+		if (payload?.sessionId) {
+			await deleteSession(payload.sessionId)
+		}
+	}
     
     cookieStore.delete(COOKIE_NAME)
   } catch (error) {
@@ -98,24 +98,24 @@ export async function register(email: string, password: string, name: string): P
     
     const hashedPassword = await hashPassword(password)
     
-    const user = await prisma.user.create({
-      data: {
-        email,
-        password: hashedPassword,
-        name,
-        role: 'USER'
-      }
-    })
-    
-    const sessionId = await createSession(user.id, user.email, user.name, user.role)
-    const token = generateToken({
-      userId: user.id,
-      email: user.email,
-      role: user.role,
-      sessionId
-    })
-    
-    const cookieStore = await cookies()
+	const user = await prisma.user.create({
+		data: {
+			email,
+			password: hashedPassword,
+			name,
+			role: 'USER'
+		}
+	})
+
+	const sessionId = await createSession(user.id, user.email, user.name, user.role)
+	const token = await generateToken({
+		userId: user.id,
+		email: user.email,
+		role: user.role,
+		sessionId
+	})
+
+	const cookieStore = await cookies()
     cookieStore.set(COOKIE_NAME, token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -135,10 +135,10 @@ export async function getCurrentUser(): Promise<{ id: string; email: string; nam
     const cookieStore = await cookies()
     const token = cookieStore.get(COOKIE_NAME)?.value
     
-    if (!token) return null
-    
-    const payload = verifyToken(token)
-    if (!payload) return null
+	if (!token) return null
+
+	const payload = await verifyToken(token)
+	if (!payload) return null
     
     const session = await getSession(payload.sessionId)
     if (!session) return null

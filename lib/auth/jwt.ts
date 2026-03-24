@@ -1,7 +1,16 @@
-import jwt from 'jsonwebtoken'
+import { SignJWT, jwtVerify } from 'jose'
 
-const JWT_SECRET = process.env.JWT_SECRET || 'default-secret-for-development'
-const JWT_EXPIRES_IN = '7d'
+function getJwtSecret(): Uint8Array {
+  const secret = process.env.JWT_SECRET
+  if (!secret) {
+    throw new Error('JWT_SECRET environment variable is required')
+  }
+  return new TextEncoder().encode(secret)
+}
+
+function getJwtExpiration(): string {
+  return process.env.JWT_EXPIRES_IN || '24h'
+}
 
 export interface JWTPayload {
   userId: string
@@ -12,14 +21,22 @@ export interface JWTPayload {
   exp?: number
 }
 
-export function generateToken(payload: JWTPayload): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN })
+export async function generateToken(payload: JWTPayload): Promise<string> {
+	const secret = getJwtSecret()
+	const expiration = getJwtExpiration()
+
+	return new SignJWT({ ...payload })
+		.setProtectedHeader({ alg: 'HS256' })
+		.setIssuedAt()
+		.setExpirationTime(expiration)
+		.sign(secret)
 }
 
-export function verifyToken(token: string): JWTPayload | null {
+export async function verifyToken(token: string): Promise<JWTPayload | null> {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET)
-    return decoded as JWTPayload
+    const secret = getJwtSecret()
+    const { payload } = await jwtVerify(token, secret)
+    return payload as unknown as JWTPayload
   } catch {
     return null
   }
