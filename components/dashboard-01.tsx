@@ -73,6 +73,38 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  LayersIcon,
+  Settings01Icon,
+  MoreVerticalIcon,
+  ChartUpIcon,
+  Notification01Icon,
+  PackageIcon,
+  UserGroupIcon,
+  Invoice01Icon,
+  Store01Icon,
+  Analytics01Icon,
+  DashboardSquare01Icon,
+  ShoppingBag01Icon,
+  Calculator01Icon,
+  ArrowRight01Icon,
+  ArrowLeft01Icon,
+  TruckDeliveryIcon,
+  File01Icon,
+} from "@hugeicons/core-free-icons"
+
+const PIE_COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
+
+const STATS_CONFIG = {
+  amount: {
+    label: "Chiffre d'Affaires",
+    color: "hsl(var(--primary))",
+  },
+  value: {
+    label: "Valeur",
+    color: "hsl(var(--primary))",
+  },
+} satisfies ChartConfig
 
 type EnhancedProduit = Produit & { categories_produits: { nom_categorie: string } }
 
@@ -304,23 +336,23 @@ export default function Dashboard01Block() {
           .limit(20)
         ])
 
-        // Transform movements for the view
-        type MovementRaw = {
-          id_ligne: number
-          quantite_livree: number
-          produits: { nom_produit: string; code_produit: string } | null
-          documents: { numero_document: string; date_document: Date; type_document: string } | null
-        }
+// Transform movements for the view
+type MovementRaw = {
+  id_ligne: number
+  quantite_livree: number
+  produits: { nom_produit: string; code_produit: string }[] | null
+  documents: { numero_document: string; date_document: Date; type_document: string }[] | null
+}
 
-        const formattedMovements: MovementItem[] = movementsRes.data?.map((m: MovementRaw) => ({
-          id: m.id_ligne,
-          date: formatDate(m.documents?.date_document),
-          ref: m.produits?.code_produit || '',
-          designation: m.produits?.nom_produit || '',
-          type: m.documents?.type_document === 'LIVRAISON' ? (m.quantite_livree > 0 ? "Entrée" : "Sortie") : (m.documents?.type_document === 'FACTURE' ? "Sortie" : "Ajustement"),
-          document: m.documents?.numero_document || '',
-          quantity: m.quantite_livree || 0
-        })) || []
+const formattedMovements: MovementItem[] = (movementsRes.data as MovementRaw[] | null)?.map((m) => ({
+  id: m.id_ligne,
+  date: formatDate(m.documents?.[0]?.date_document),
+  ref: m.produits?.[0]?.code_produit || '',
+  designation: m.produits?.[0]?.nom_produit || '',
+  type: m.documents?.[0]?.type_document === 'LIVRAISON' ? (m.quantite_livree > 0 ? "Entrée" : "Sortie") : (m.documents?.[0]?.type_document === 'FACTURE' ? "Sortie" : "Ajustement"),
+  document: m.documents?.[0]?.numero_document || '',
+  quantity: m.quantite_livree || 0
+})) || []
 
         setProducts((productsRes.data as EnhancedProduit[]) || [])
         setPartners(partnersRes.data as Partenaire[] || [])

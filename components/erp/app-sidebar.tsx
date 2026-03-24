@@ -48,10 +48,9 @@ const companies = [
 ]
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-    const pathname = usePathname()
-    const searchParams = useSearchParams()
-    const { pathname } = usePathname
-    const [mounted, setMounted] = React.useState(false)
+const pathname = usePathname()
+const searchParams = useSearchParams()
+const [mounted, setMounted] = React.useState(false)
 
     React.useEffect(() => {
         setMounted(true)

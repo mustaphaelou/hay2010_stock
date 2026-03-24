@@ -71,7 +71,7 @@ export default async function Page() {
                 <div className="flex flex-1 flex-col gap-4 p-4 pt-0 pb-20 md:gap-8 md:p-8 md:pb-8">
                     <DashboardView
                         initialStats={stats}
-                        initialRecentDocs={recentDocs as DocumentWithComputed[]}
+                        initialRecentDocs={recentDocs as never}
                         paymentData={paymentData}
                         monthlyData={monthlyData}
                     />
