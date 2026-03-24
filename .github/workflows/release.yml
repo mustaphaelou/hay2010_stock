@@ -38,13 +38,11 @@ jobs:
 
       - name: Get current version
         id: current_version
-        working-directory: stock_app
         run: |
           CURRENT_VERSION=$(node -p "require('./package.json').version")
           echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
 
       - name: Bump version
-        working-directory: stock_app
         run: |
           npm version ${{ inputs.version_bump }} -m "chore: bump version to %s"
           NEW_VERSION=$(node -p "require('./package.json').version")

@@ -19,18 +19,14 @@ jobs:
         with:
           node-version: "20"
           cache: "npm"
-          cache-dependency-path: stock_app/package-lock.json
 
       - name: Install dependencies
-        working-directory: stock_app
         run: npm ci
 
       - name: Run ESLint
-        working-directory: stock_app
         run: npm run lint
 
       - name: TypeScript check
-        working-directory: stock_app
         run: npx tsc --noEmit
 
   test:
@@ -45,14 +41,11 @@ jobs:
         with:
           node-version: "20"
           cache: "npm"
-          cache-dependency-path: stock_app/package-lock.json
 
       - name: Install dependencies
-        working-directory: stock_app
         run: npm ci
 
       - name: Run tests
-        working-directory: stock_app
         run: npm run test:ci
         continue-on-error: true
 
@@ -69,7 +62,7 @@ jobs:
       - name: Build Docker image (validation only)
         uses: docker/build-push-action@v5
         with:
-          context: ./stock_app
+          context: .
           push: false
           cache-from: type=gha
           cache-to: type=gha,mode=max
