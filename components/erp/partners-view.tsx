@@ -325,23 +325,9 @@ Conditions & Comptabilité
 <Badge variant="outline">{selectedPartner?.pourcentage_remise?.toString() || 0} %</Badge>
 </div>
 </div>
-</div>
-                                <div className="space-y-1">
-                                    <p className="text-xs text-muted-foreground uppercase">Encours Max</p>
-                                    <p className="font-medium">{selectedPartner?.plafond_credit ? `${selectedPartner.plafond_credit} Dhs` : "Non défini"}</p>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-xs text-muted-foreground uppercase">Compte Collectif</p>
-                                    <p className="font-mono text-xs">{selectedPartner?.compte_collectif || "-"}</p>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-xs text-muted-foreground uppercase">Taux Remise</p>
-                                    <Badge variant="outline">{selectedPartner?.pourcentage_remise?.toString() || 0} %</Badge>
-                                </div>
-                            </div>
-                        </div>
+					</div>
 
-                        <Separator className="bg-muted/50" />
+					<Separator className="bg-muted/50" />
 
                         {/* Section: Audit */}
 <div className="flex flex-col gap-4">
