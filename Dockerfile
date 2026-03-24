@@ -33,8 +33,8 @@ RUN npm run build
 FROM node:20-slim AS runner
 WORKDIR /app
 
-# Install OpenSSL, curl, and wget for Prisma runtime and health checks
-RUN apt-get update && apt-get install -y openssl curl wget && rm -rf /var/lib/apt/lists/*
+# Install OpenSSL, curl, wget, and netcat for Prisma runtime and health checks
+RUN apt-get update && apt-get install -y openssl curl wget netcat-openbsd && rm -rf /var/lib/apt/lists/*
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
