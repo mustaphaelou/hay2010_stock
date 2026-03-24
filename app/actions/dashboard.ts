@@ -28,7 +28,8 @@ export async function getDashboardStats(): Promise<DashboardData> {
         include: {
           partenaire: {
             select: {
-              nom_partenaire: true
+              nom_partenaire: true,
+              type_partenaire: true
             }
           }
         },
@@ -43,6 +44,10 @@ export async function getDashboardStats(): Promise<DashboardData> {
           type_document: { in: ['Facture', 'Avoir'] }
         },
         select: {
+          id_document: true,
+          numero_document: true,
+          type_document: true,
+          domaine_document: true,
           montant_ttc: true,
           solde_du: true,
           date_document: true
@@ -67,7 +72,10 @@ export async function getDashboardStats(): Promise<DashboardData> {
 
     return {
       stats,
-      recentDocs,
+      recentDocs: recentDocs.map(doc => ({
+        ...doc,
+        type_document: String(doc.type_document)
+      })),
       salesInvoices: processedSalesInvoices
     }
   } catch (error) {

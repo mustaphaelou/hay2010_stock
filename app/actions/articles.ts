@@ -19,21 +19,21 @@ export async function getArticlesWithStock(): Promise<ArticleWithStock[]> {
       }
     })
 
-    return result.map((article) => {
-      const totalStock = article.niveaux_stock.reduce(
-        (acc: number, stock) => acc + Number(stock.quantite_en_stock || 0),
-        0
-      )
+  return result.map((article) => {
+    const totalStock = article.niveaux_stock.reduce(
+      (acc: number, stock) => acc + Number(stock.quantite_en_stock || 0),
+      0
+    )
 
-      return {
-        ...article,
-        stock_global: totalStock,
-        prix_vente: Number(article.prix_vente || 0),
-        prix_achat: Number(article.prix_achat || 0),
-        coefficient: Number(article.coefficient || 1),
-        famille: article.famille || article.categorie?.nom_categorie || null
-      }
-    })
+    return {
+      ...article,
+      stock_global: totalStock,
+      prix_vente: article.prix_vente ? Number(article.prix_vente) : null,
+      prix_achat: article.prix_achat ? Number(article.prix_achat) : null,
+      coefficient: article.coefficient ? Number(article.coefficient) : null,
+      famille: article.famille || article.categorie?.nom_categorie || null
+    }
+  })
   } catch (error) {
     console.error('Failed to fetch articles:', error)
     return []
@@ -48,7 +48,7 @@ export async function toggleArticleStatus(
 
   const validationResult = toggleArticleStatusSchema.safeParse({ id_produit, newStatus })
   if (!validationResult.success) {
-    return { error: 'Invalid input: ' + validationResult.error.errors.map(e => e.message).join(', ') }
+    return { error: 'Invalid input: ' + validationResult.error.issues.map((e: { message: string }) => e.message).join(', ') }
   }
 
   try {

@@ -59,25 +59,25 @@ import { toggleArticleStatus } from "@/app/actions/articles"
 
 // Extended type with stock and parsed numbers
 export type ArticleWithStock = {
-    id_produit: number
-    code_produit: string
-    nom_produit: string
-    famille: string | null
-    description_produit: string | null
-    code_barre_ean: string | null
-    unite_mesure: string
-    prix_achat: number
-    prix_vente: number
-    coefficient: number
-    taux_tva: number | string | null
-    stock_minimum: number | null
-    stock_maximum: number | null
-    activer_suivi_stock: boolean
-    en_sommeil: boolean
-    est_actif: boolean
-    date_creation: Date
-    date_modification: Date
-    stock_global: number
+  id_produit: number
+  code_produit: string
+  nom_produit: string
+  famille: string | null
+  description_produit: string | null
+  code_barre_ean: string | null
+  unite_mesure: string
+  prix_achat: number | null
+  prix_vente: number | null
+  coefficient: number | null
+  taux_tva: number | string | null
+  stock_minimum: number | null
+  stock_maximum: number | null
+  activer_suivi_stock: boolean
+  en_sommeil: boolean
+  est_actif: boolean
+  date_creation: Date
+  date_modification: Date
+  stock_global: number
 }
 
 interface ArticlesViewProps {

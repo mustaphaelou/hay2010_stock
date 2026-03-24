@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db/prisma'
 import { requireAuth } from './auth'
 import { getPartnersSchema } from '@/lib/validation'
 import type { PartnerWithComputed } from '@/lib/types'
+import { Prisma } from '@prisma/client'
 
 export async function getPartners(type?: string): Promise<PartnerWithComputed[]> {
   await requireAuth()
@@ -23,11 +24,12 @@ export async function getPartners(type?: string): Promise<PartnerWithComputed[]>
       }
     })
 
-    return partners.map((partner) => ({
-      ...partner,
-      plafond_credit: Number(partner.limite_credit || 0),
-      solde_courant: 0
-    }))
+  return partners.map((partner) => ({
+    ...partner,
+    plafond_credit: Number(partner.limite_credit || 0),
+    solde_courant: 0,
+    pourcentage_remise: partner.pourcentage_remise || new Prisma.Decimal(0)
+  }))
   } catch (error) {
     console.error('Failed to fetch partners:', error)
     return []

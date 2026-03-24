@@ -93,6 +93,7 @@ export type StockLevelWithProduct = {
     nom_depot: string
     id_depot: number
   } | null
+  id_depot?: number
 }
 
 export type Depot = {

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { FileDownloadIcon, Loading01Icon } from '@hugeicons/core-free-icons'
 import { downloadInvoicePDF } from '@/lib/pdf'
-import type { DocumentWithPartner, DocumentLine } from '@/app/actions/documents'
+import type { DocumentWithPartner, DocumentLineType } from '@/app/actions/documents'
 import { getDocLines } from '@/app/actions/documents'
 
 // Define a minimal partner type for the component

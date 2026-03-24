@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db/prisma'
 import { requireAuth } from './auth'
 import { getDocLinesSchema } from '@/lib/validation'
 import type { DocumentWithComputed, DocumentLine } from '@/lib/types'
+import { Prisma } from '@prisma/client'
 
 export type DocumentWithPartner = NonNullable<Awaited<ReturnType<typeof getDocuments>>>[0]
 export type DocumentLineType = NonNullable<Awaited<ReturnType<typeof getDocLines>>>[0]
@@ -22,13 +23,13 @@ function mapDocumentToComputed(doc: {
   date_echeance: Date | null
   date_livraison: Date | null
   date_livraison_prevue: Date | null
-  montant_ht: import('@prisma/client/runtime/library').Decimal
-  montant_remise_total: import('@prisma/client/runtime/library').Decimal
-  montant_tva_total: import('@prisma/client/runtime/library').Decimal
-  montant_ttc: import('@prisma/client/runtime/library').Decimal
-  solde_du: import('@prisma/client/runtime/library').Decimal
+  montant_ht: Prisma.Decimal
+  montant_remise_total: Prisma.Decimal
+  montant_tva_total: Prisma.Decimal
+  montant_ttc: Prisma.Decimal
+  solde_du: Prisma.Decimal
   code_devise: string
-  taux_change: import('@prisma/client/runtime/library').Decimal
+  taux_change: Prisma.Decimal
   statut_document: string
   est_entierement_paye: boolean
   id_entrepot: number | null
@@ -40,7 +41,7 @@ function mapDocumentToComputed(doc: {
   cree_par: string | null
   modifie_par: string | null
   mode_expedition: string | null
-  poids_total_brut: import('@prisma/client/runtime/library').Decimal | null
+  poids_total_brut: Prisma.Decimal | null
   nombre_colis: number | null
   partenaire: {
     nom_partenaire: string
@@ -54,8 +55,8 @@ function mapDocumentToComputed(doc: {
     solde_du_num: Number(doc.solde_du || 0),
     montant_regle: Number(doc.montant_ttc || 0) - Number(doc.solde_du || 0),
     numero_piece: doc.numero_document,
-    nom_tiers: doc.nom_partenaire_snapshot || doc.partenaire?.nom_partenaire,
-    reference: doc.reference_externe,
+    nom_tiers: doc.nom_partenaire_snapshot || doc.partenaire?.nom_partenaire || null,
+    reference: doc.reference_externe || null,
     montant_tva_num: Number(doc.montant_tva_total || 0),
     montant_remise_num: Number(doc.montant_remise_total || 0),
     type_document_num: Number(doc.type_document || 0),

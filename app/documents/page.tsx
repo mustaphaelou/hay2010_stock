@@ -175,22 +175,20 @@ export default function DocumentsPage() {
                                             onChange={(e) => setSearchTerm(e.target.value)}
                                         />
                                     </div>
-                                    <Select value={domaineFilter} onValueChange={(value) => setDomaineFilter(value || 'all')}>
-                                        <SelectTrigger className="w-full sm:w-36 bg-background/50">
-                                            {/* @ts-ignore */}
-                                            <SelectValue placeholder="Domaine" />
-                                        </SelectTrigger>
+              <Select value={domaineFilter} onValueChange={(value) => setDomaineFilter(value || 'all')}>
+                <SelectTrigger className="w-full sm:w-36 bg-background/50">
+                  <SelectValue placeholder="Domaine" />
+                </SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="all">Tous domaines</SelectItem>
                                             <SelectItem value="VENTE">Ventes</SelectItem>
                                             <SelectItem value="ACHAT">Achats</SelectItem>
                                         </SelectContent>
                                     </Select>
-                                    <Select value={typeFilter} onValueChange={(value) => setTypeFilter(value || 'all')}>
-                                        <SelectTrigger className="w-full sm:w-44 bg-background/50">
-                                            {/* @ts-ignore */}
-                                            <SelectValue placeholder="Type" />
-                                        </SelectTrigger>
+              <Select value={typeFilter} onValueChange={(value) => setTypeFilter(value || 'all')}>
+                <SelectTrigger className="w-full sm:w-44 bg-background/50">
+                  <SelectValue placeholder="Type" />
+                </SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="all">Tous types</SelectItem>
                                             {uniqueTypes.map(type => (
@@ -248,8 +246,8 @@ export default function DocumentsPage() {
                                                         <TableCell className="max-w-[200px] truncate" title={doc.partenaire?.nom_partenaire || doc.nom_partenaire_snapshot || ''}>
                                                             {doc.partenaire?.nom_partenaire || doc.nom_partenaire_snapshot || '-'}
                                                         </TableCell>
-                                                        <TableCell className="text-right text-muted-foreground">{formatPrice(doc.montant_ht)}</TableCell>
-                                                        <TableCell className="text-right font-semibold">{formatPrice(doc.montant_ttc)}</TableCell>
+    <TableCell className="text-right text-muted-foreground">{formatPrice(Number(doc.montant_ht))}</TableCell>
+    <TableCell className="text-right font-semibold">{formatPrice(Number(doc.montant_ttc))}</TableCell>
                                                         <TableCell><Badge variant="secondary" className="bg-background">{doc.statut_document}</Badge></TableCell>
                                                     </TableRow>
                                                 ))

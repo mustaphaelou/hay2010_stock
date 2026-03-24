@@ -60,11 +60,11 @@ const columns: ColumnDef<StockLevel>[] = [
         },
     },
     {
-        accessorKey: "quantite_en_stock",
-        header: () => <div className="text-right">Qté Disponible</div>,
-        cell: ({ row }) => {
-            const qty = row.getValue("quantite_en_stock") as number || 0
-            const isLowStock = qty <= 5
+      accessorKey: "quantite_en_stock_num",
+      header: () => <div className="text-right">Qté Disponible</div>,
+      cell: ({ row }) => {
+        const qty = Number(row.getValue("quantite_en_stock_num") || 0)
+        const isLowStock = qty <= 5
             return (
                 <div className={`text-right font-semibold flex items-center justify-end gap-1 ${isLowStock ? 'text-red-500' : ''}`}>
                     {qty}
@@ -76,10 +76,10 @@ const columns: ColumnDef<StockLevel>[] = [
         },
     },
     {
-        accessorKey: "quantite_reservee",
-        header: () => <div className="text-right">Qté Réservée</div>,
-        cell: ({ row }) => {
-            const qty = row.getValue("quantite_reservee") as number || 0
+      accessorKey: "quantite_reservee_num",
+      header: () => <div className="text-right">Qté Réservée</div>,
+      cell: ({ row }) => {
+        const qty = Number(row.getValue("quantite_reservee_num") || 0)
             return <div className="text-right text-muted-foreground">{qty}</div>
         },
     },
@@ -92,16 +92,16 @@ const columns: ColumnDef<StockLevel>[] = [
         },
     },
     {
-        id: "value",
-        header: () => <div className="text-right">Valeur</div>,
-        cell: ({ row }) => {
-            // value = Qte * CMUP or Prix Achat
-            const qty = row.original.quantite_en_stock || 0
-            const cmup = row.original.cout_moyen_pondere || row.original.produit?.prix_achat || 0
-            const value = qty * cmup
-            return <div className="text-right font-semibold text-primary">{formatPrice(value)}</div>
-        },
+    id: "value",
+    header: () => <div className="text-right">Valeur</div>,
+    cell: ({ row }) => {
+      // value = Qte * CMUP or Prix Achat
+      const qty = Number(row.original.quantite_en_stock_num || 0)
+      const cmup = Number(row.original.cout_moyen_pondere || row.original.produit?.prix_achat || 0)
+      const value = qty * cmup
+      return <div className="text-right font-semibold text-primary">{formatPrice(value)}</div>
     },
+  },
 ]
 
 export default function StockPage() {
@@ -141,10 +141,13 @@ export default function StockPage() {
         return matchesDepot
     })
 
-    const totalStockValue = stockLevels.reduce((acc, s) =>
-        acc + ((s.quantite_en_stock || 0) * (s.cout_moyen_pondere || s.produit?.prix_achat || 0)), 0)
+  const totalStockValue = stockLevels.reduce((acc, s) => {
+    const qty = Number(s.quantite_en_stock_num || 0)
+    const price = Number(s.cout_moyen_pondere || s.produit?.prix_achat || 0)
+    return acc + (qty * price)
+  }, 0)
 
-    const lowStockCount = stockLevels.filter(s => (s.quantite_en_stock || 0) <= 5).length
+  const lowStockCount = stockLevels.filter(s => Number(s.quantite_en_stock_num || 0) <= 5).length
 
     return (
         <AppLayout title="Stock" breadcrumb="Niveaux de stock">

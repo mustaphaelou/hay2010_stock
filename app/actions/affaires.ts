@@ -54,12 +54,13 @@ export async function getDocumentsByAffaire(code_affaire: string): Promise<Docum
       }
     })
 
-    return documents.map((doc) => ({
-      ...doc,
-      montant_ht: Number(doc.montant_ht || 0),
-      montant_ttc: Number(doc.montant_ttc || 0),
-      solde_du: Number(doc.solde_du || 0)
-    }))
+      return documents.map((doc) => ({
+        ...doc,
+        type_document: String(doc.type_document),
+        montant_ht: doc.montant_ht,
+        montant_ttc: doc.montant_ttc,
+        solde_du: doc.solde_du
+      }))
   } catch (error) {
     console.error('Failed to fetch documents for affaire:', error)
     return []

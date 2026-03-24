@@ -278,12 +278,12 @@ export default function AffairesPage() {
                                                     <TableCell className="font-medium">
                                                         {doc.partenaire?.nom_partenaire || doc.nom_partenaire_snapshot || '-'}
                                                     </TableCell>
-                                                    <TableCell className="text-right">
-                                                        {formatPrice(doc.montant_ht)}
-                                                    </TableCell>
-                                                    <TableCell className="text-right font-semibold">
-                                                        {formatPrice(doc.montant_ttc)}
-                                                    </TableCell>
+                <TableCell className="text-right">
+                  {formatPrice(Number(doc.montant_ht))}
+                </TableCell>
+                <TableCell className="text-right font-semibold">
+                  {formatPrice(Number(doc.montant_ttc))}
+                </TableCell>
                                                 </TableRow>
                                             ))}
                                         </TableBody>

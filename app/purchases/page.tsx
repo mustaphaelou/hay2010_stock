@@ -61,19 +61,20 @@ const formatDate = (date: Date | string | null) => {
     })
 }
 
-const getDocumentTypeName = (type: number) => {
-    switch (type) {
-        case 10: return 'DEMANDE ACHAT'
-        case 11: return 'PRÉPARATION CMD'
-        case 12: return 'BON COMMANDE'
-        case 13: return 'BON RÉCEPTION'
-        case 14: return 'BON RETOUR'
-        case 15: return 'BON D\'AVOIR'
-        case 16: return 'FACTURE'
-        case 17: return 'FACTURE COMPTABILISÉE'
-        case 18: return 'ARCHIVE'
-        default: return `TYPE ${type}`
-    }
+const getDocumentTypeName = (type: string | number) => {
+  const typeStr = String(type)
+  switch (typeStr) {
+    case '10': return 'DEMANDE ACHAT'
+    case '11': return 'PRÉPARATION CMD'
+    case '12': return 'BON COMMANDE'
+    case '13': return 'BON RÉCEPTION'
+    case '14': return 'BON RETOUR'
+    case '15': return 'BON D\'AVOIR'
+    case '16': return 'FACTURE'
+    case '17': return 'FACTURE COMPTABILISÉE'
+    case '18': return 'ARCHIVE'
+    default: return `TYPE ${type}`
+  }
 }
 import { Suspense } from "react"
 
@@ -113,66 +114,67 @@ export default function PurchasesPage() {
         doc.partenaire?.nom_partenaire || doc.nom_tiers
     ).filter(Boolean))).sort() as string[]
 
-    const filteredDocuments = documents.filter(doc => {
-        const matchesSearch = searchTerm === '' ||
-            doc.numero_piece?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            doc.nom_tiers?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            doc.partenaire?.nom_partenaire?.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredDocuments = documents.filter(doc => {
+    const matchesSearch = searchTerm === '' ||
+      doc.numero_piece?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      doc.nom_tiers?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      doc.partenaire?.nom_partenaire?.toLowerCase().includes(searchTerm.toLowerCase())
 
-        let matchesDate = true
-        if (dateRange?.from && doc.date_document) {
-            const docDate = new Date(doc.date_document)
-            const start = startOfDay(dateRange.from)
-            const end = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from)
-            matchesDate = isWithinInterval(docDate, { start, end })
-        }
+    let matchesDate = true
+    if (dateRange?.from && doc.date_document) {
+      const docDate = new Date(doc.date_document)
+      const start = startOfDay(dateRange.from)
+      const end = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from)
+      matchesDate = isWithinInterval(docDate, { start, end })
+    }
 
-        const supplierName = doc.partenaire?.nom_partenaire || doc.nom_tiers
-        const matchesSupplier = selectedSupplier === 'all' || supplierName === selectedSupplier
+    const supplierName = doc.partenaire?.nom_partenaire || doc.nom_tiers
+    const matchesSupplier = selectedSupplier === 'all' || supplierName === selectedSupplier
 
-        const matchesPartnerType = selectedPartnerType === 'all' ||
-            (doc.partenaire && doc.partenaire.type_partenaire?.toString() === selectedPartnerType)
+    const matchesPartnerType = selectedPartnerType === 'all' ||
+      (doc.partenaire && doc.partenaire.type_partenaire?.toString() === selectedPartnerType)
 
-        let matchesType = true
-        if (selectedType === 'en_cours') {
-            matchesType = doc.statut_document !== 2
-        } else if (selectedType !== 'all') {
-            matchesType = doc.type_document === selectedType
-        }
+    let matchesType = true
+    if (selectedType === 'en_cours') {
+      matchesType = doc.statut_document !== '2'
+    } else if (selectedType !== 'all') {
+      matchesType = String(doc.type_document) === String(selectedType)
+    }
 
-        return matchesSearch && matchesDate && matchesSupplier && matchesPartnerType && matchesType
-    })
+    return matchesSearch && matchesDate && matchesSupplier && matchesPartnerType && matchesType
+  })
 
-    const documentTypeCounts = documents.reduce((acc, doc) => {
-        const type = doc.type_document || 0
-        acc[type] = (acc[type] || 0) + 1
-        return acc
-    }, {} as Record<number, number>)
+  const documentTypeCounts = documents.reduce((acc, doc) => {
+    const type = String(doc.type_document || '0')
+    acc[type] = (acc[type] || 0) + 1
+    return acc
+  }, {} as Record<string, number>)
 
-    const purchaseTypes = [
-        { id: 'en_cours', label: 'Documents en cours', count: documents.filter(d => d.statut_document !== 2).length },
-        { id: 10, label: 'Demande d\'achat', count: documentTypeCounts[10] || 0 },
-        { id: 11, label: 'Préparation de commande', count: documentTypeCounts[11] || 0 },
-        { id: 12, label: 'Bon de commande', count: documentTypeCounts[12] || 0 },
-        { id: 13, label: 'Bon de réception', count: documentTypeCounts[13] || 0 },
-        { id: 14, label: 'Bon de retour', count: documentTypeCounts[14] || 0 },
-        { id: 15, label: 'Bon d\'avoir', count: documentTypeCounts[15] || 0 },
-        { id: 16, label: 'Facture', count: documentTypeCounts[16] || 0 },
-        { id: 17, label: 'Facture comptabilisée', count: documentTypeCounts[17] || 0 },
-        { id: 18, label: 'Archive', count: documentTypeCounts[18] || 0 },
-    ]
+  const purchaseTypes = [
+    { id: 'en_cours', label: 'Documents en cours', count: documents.filter(d => d.statut_document !== '2').length },
+    { id: '10', label: 'Demande d\'achat', count: documentTypeCounts['10'] || 0 },
+    { id: '11', label: 'Préparation de commande', count: documentTypeCounts['11'] || 0 },
+    { id: '12', label: 'Bon de commande', count: documentTypeCounts['12'] || 0 },
+    { id: '13', label: 'Bon de réception', count: documentTypeCounts['13'] || 0 },
+    { id: '14', label: 'Bon de retour', count: documentTypeCounts['14'] || 0 },
+    { id: '15', label: 'Bon d\'avoir', count: documentTypeCounts['15'] || 0 },
+    { id: '16', label: 'Facture', count: documentTypeCounts['16'] || 0 },
+    { id: '17', label: 'Facture comptabilisée', count: documentTypeCounts['17'] || 0 },
+    { id: '18', label: 'Archive', count: documentTypeCounts['18'] || 0 },
+  ]
 
-    const totalAchats = filteredDocuments
-        .filter(d => d.type_document === 16 || d.type_document === 17)
-        .reduce((acc, d) => acc + (d.montant_ttc || 0), 0)
+  const totalAchats = filteredDocuments
+    .filter(d => String(d.type_document) === '16' || String(d.type_document) === '17')
+    .reduce((acc, d) => acc + (d.montant_ttc_num || 0), 0)
 
-    const totalRegle = filteredDocuments
-        .filter(d => d.type_document === 16 || d.type_document === 17)
-        .reduce((acc, d) => acc + (d.montant_regle || 0), 0)
+  const totalRegle = filteredDocuments
+    .filter(d => String(d.type_document) === '16' || String(d.type_document) === '17')
+    .reduce((acc, d) => acc + (d.montant_regle || 0), 0)
 
-    const getStatusBadge = (doc: PurchaseDocument) => {
-        const isPaid = doc.montant_regle && doc.montant_ttc && doc.montant_regle >= doc.montant_ttc
-        const isPartial = doc.montant_regle && doc.montant_ttc && doc.montant_regle > 0 && doc.montant_regle < doc.montant_ttc
+  const getStatusBadge = (doc: PurchaseDocument) => {
+    const montantTTC = doc.montant_ttc_num
+    const isPaid = doc.montant_regle && montantTTC && doc.montant_regle >= montantTTC
+    const isPartial = doc.montant_regle && montantTTC && doc.montant_regle > 0 && doc.montant_regle < montantTTC
 
   if (isPaid) {
     return <Badge variant="success">
@@ -324,15 +326,15 @@ export default function PurchasesPage() {
                                                     <TableCell className="font-medium">
                                                         {doc.partenaire?.nom_partenaire || doc.nom_tiers || '-'}
                                                     </TableCell>
-                                                    <TableCell>
-                                                        <Badge variant="secondary">{getDocumentTypeName(doc.type_document || 0)}</Badge>
-                                                    </TableCell>
-                                                    <TableCell className="text-right font-semibold">
-                                                        {mounted ? formatPrice(doc.montant_ttc) : '-'}
-                                                    </TableCell>
-                                                    <TableCell className="text-right">
-                                                        {mounted ? formatPrice(doc.montant_regle) : '-'}
-                                                    </TableCell>
+                <TableCell>
+                  <Badge variant="secondary">{getDocumentTypeName(doc.type_document || 0)}</Badge>
+                </TableCell>
+                <TableCell className="text-right font-semibold">
+                  {mounted ? formatPrice(doc.montant_ttc_num) : '-'}
+                </TableCell>
+                <TableCell className="text-right">
+                  {mounted ? formatPrice(doc.montant_regle) : '-'}
+                </TableCell>
                                                     <TableCell className="text-right">
                                                         {getStatusBadge(doc)}
                                                     </TableCell>

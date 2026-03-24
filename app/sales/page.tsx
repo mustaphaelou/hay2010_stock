@@ -154,11 +154,10 @@ export default function SalesPage() {
                                             onChange={(e) => setSearchTerm(e.target.value)}
                                         />
                                     </div>
-                                    <Select value={typeFilter} onValueChange={(value) => setTypeFilter(value || 'all')}>
-                                        <SelectTrigger className="w-full sm:w-44 bg-background/50">
-                                            {/* @ts-ignore */}
-                                            <SelectValue placeholder="Type de document" />
-                                        </SelectTrigger>
+              <Select value={typeFilter} onValueChange={(value) => setTypeFilter(value || 'all')}>
+                <SelectTrigger className="w-full sm:w-44 bg-background/50">
+                  <SelectValue placeholder="Type de document" />
+                </SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="all">Tous types</SelectItem>
                                             {uniqueTypes.map(type => (
@@ -213,8 +212,8 @@ export default function SalesPage() {
                                                             {doc.partenaire?.nom_partenaire || doc.nom_partenaire_snapshot || '-'}
                                                         </TableCell>
                                                         <TableCell>{doc.numero_affaire || '-'}</TableCell>
-                                                        <TableCell className="text-right text-muted-foreground">{formatPrice(doc.montant_ht)}</TableCell>
-                                                        <TableCell className="text-right font-semibold">{formatPrice(doc.montant_ttc)}</TableCell>
+                <TableCell className="text-right text-muted-foreground">{formatPrice(Number(doc.montant_ht))}</TableCell>
+                <TableCell className="text-right font-semibold">{formatPrice(Number(doc.montant_ttc))}</TableCell>
                                                     </TableRow>
                                                 ))
                                             )}
