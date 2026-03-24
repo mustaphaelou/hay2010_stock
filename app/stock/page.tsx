@@ -51,14 +51,14 @@ const columns: ColumnDef<StockLevel>[] = [
             return <div className="max-w-[250px] truncate">{design || '-'}</div>
         },
     },
-    {
-        accessorKey: "depot.nom_depot",
-        header: "Dépôt",
-        cell: ({ row }) => {
-            const depot = row.original.depot?.nom_depot
-            return depot ? <Badge variant="secondary">{depot}</Badge> : '-'
-        },
+  {
+    accessorKey: "entrepot.nom_entrepot",
+    header: "Dépôt",
+    cell: ({ row }) => {
+      const entrepot = row.original.entrepot?.nom_entrepot
+      return entrepot ? <Badge variant="secondary">{entrepot}</Badge> : '-'
     },
+  },
     {
       accessorKey: "quantite_en_stock_num",
       header: () => <div className="text-right">Qté Disponible</div>,
@@ -134,12 +134,12 @@ export default function StockPage() {
         fetchData()
     }, [])
 
-    const filteredStock = stockLevels.filter(stock => {
-        const matchesDepot = selectedDepot === 'all' ||
-            (stock.id_depot && stock.id_depot.toString() === selectedDepot)
+  const filteredStock = stockLevels.filter(stock => {
+    const matchesDepot = selectedDepot === 'all' ||
+      (stock.id_entrepot && stock.id_entrepot.toString() === selectedDepot)
 
-        return matchesDepot
-    })
+    return matchesDepot
+  })
 
   const totalStockValue = stockLevels.reduce((acc, s) => {
     const qty = Number(s.quantite_en_stock_num || 0)

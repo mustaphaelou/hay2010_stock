@@ -89,11 +89,6 @@ export type StockLevelWithProduct = {
   quantite_reservee_num: number
   cout_moyen_pondere: number
   valeur_stock: number
-  depot: {
-    nom_depot: string
-    id_depot: number
-  } | null
-  id_depot?: number
 }
 
 export type Depot = {

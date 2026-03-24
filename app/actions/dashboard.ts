@@ -18,12 +18,12 @@ export async function getDashboardStats(): Promise<DashboardData> {
       recentDocs,
       salesInvoices
     ] = await Promise.all([
-      prisma.partenaire.count({ where: { type_partenaire: 'CLIENT' } }),
-      prisma.partenaire.count({ where: { type_partenaire: 'FOURNISSEUR' } }),
+      prisma.partenaire.count({ where: { type_partenaire: { contains: 'CLIENT' } } }),
+      prisma.partenaire.count({ where: { type_partenaire: { contains: 'FOURNISSEUR' } } }),
       prisma.produit.count(),
       prisma.categorieProduit.count(),
-      prisma.docVente.count({ where: { domaine_document: 'VENTE' } }),
-      prisma.docVente.count({ where: { domaine_document: 'ACHAT' } }),
+      prisma.docVente.count({ where: { domaine_document: { equals: 'VENTE' } } }),
+      prisma.docVente.count({ where: { domaine_document: { equals: 'ACHAT' } } }),
       prisma.docVente.findMany({
         include: {
           partenaire: {
@@ -38,22 +38,25 @@ export async function getDashboardStats(): Promise<DashboardData> {
         },
         take: 5
       }),
-      prisma.docVente.findMany({
-        where: {
-          domaine_document: 'VENTE',
-          type_document: { in: ['Facture', 'Avoir'] }
-        },
-        select: {
-          id_document: true,
-          numero_document: true,
-          type_document: true,
-          domaine_document: true,
-          montant_ttc: true,
-          solde_du: true,
-          date_document: true
-        },
-        take: 500
-      })
+    prisma.docVente.findMany({
+      where: {
+        domaine_document: { equals: 'VENTE' },
+        type_document: { in: ['Facture', 'Avoir'] }
+      },
+      select: {
+        id_document: true,
+        numero_document: true,
+        type_document: true,
+        domaine_document: true,
+        montant_ttc: true,
+        solde_du: true,
+        date_document: true,
+        montant_ht: true,
+        montant_remise_total: true,
+        montant_tva_total: true
+      },
+      take: 500
+    })
     ])
 
     const stats: DashboardStats = {

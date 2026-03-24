@@ -24,32 +24,32 @@ export async function getStockLevels(): Promise<StockLevelWithProduct[]> {
         }
       },
       orderBy: {
-        quantite_en_stock: 'asc'
+        date_modification: 'desc'
       }
     })
 
   return stockQuery.map((stock) => ({
     ...stock,
-    quantite_en_stock_num: Number(stock.quantite_en_stock || 0),
-    quantite_reservee_num: Number(stock.quantite_reservee || 0),
-    cout_moyen_pondere: stock.produit ? Number(stock.produit.prix_achat || 0) : 0,
+    quantite_en_stock_num: Number(stock.quantite_en_stock ?? 0),
+    quantite_reservee_num: Number(stock.quantite_reservee ?? 0),
+    cout_moyen_pondere: stock.produit ? Number(stock.produit.prix_achat ?? 0) : 0,
     valeur_stock: stock.produit
-      ? Number(stock.quantite_en_stock || 0) * Number(stock.produit.prix_achat || 0)
+      ? Number(stock.quantite_en_stock ?? 0) * Number(stock.produit.prix_achat ?? 0)
       : 0,
     produit: stock.produit
       ? {
-        nom_produit: stock.produit.nom_produit,
-        code_produit: stock.produit.code_produit,
-        prix_achat: stock.produit.prix_achat
-      }
+          nom_produit: stock.produit.nom_produit,
+          code_produit: stock.produit.code_produit,
+          prix_achat: stock.produit.prix_achat
+        }
       : null,
-    depot: stock.entrepot
+    entrepot: stock.entrepot
       ? {
-        nom_depot: stock.entrepot.nom_entrepot,
-        id_depot: stock.entrepot.id_entrepot
-      }
+          nom_entrepot: stock.entrepot.nom_entrepot,
+          id_entrepot: stock.entrepot.id_entrepot
+        }
       : null,
-    id_depot: stock.entrepot?.id_entrepot
+    id_entrepot: stock.entrepot?.id_entrepot ?? stock.id_entrepot
   }))
   } catch (error) {
     console.error('Failed to fetch stock levels:', error)

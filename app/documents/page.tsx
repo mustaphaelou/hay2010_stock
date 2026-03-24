@@ -175,20 +175,20 @@ export default function DocumentsPage() {
                                             onChange={(e) => setSearchTerm(e.target.value)}
                                         />
                                     </div>
-              <Select value={domaineFilter} onValueChange={(value) => setDomaineFilter(value || 'all')}>
-                <SelectTrigger className="w-full sm:w-36 bg-background/50">
-                  <SelectValue placeholder="Domaine" />
-                </SelectTrigger>
+<Select value={domaineFilter} onValueChange={(value) => setDomaineFilter(value || 'all')}>
+            <SelectTrigger className="w-full sm:w-36 bg-background/50">
+              <SelectValue />
+            </SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="all">Tous domaines</SelectItem>
                                             <SelectItem value="VENTE">Ventes</SelectItem>
                                             <SelectItem value="ACHAT">Achats</SelectItem>
                                         </SelectContent>
                                     </Select>
-              <Select value={typeFilter} onValueChange={(value) => setTypeFilter(value || 'all')}>
-                <SelectTrigger className="w-full sm:w-44 bg-background/50">
-                  <SelectValue placeholder="Type" />
-                </SelectTrigger>
+<Select value={typeFilter} onValueChange={(value) => setTypeFilter(value || 'all')}>
+            <SelectTrigger className="w-full sm:w-44 bg-background/50">
+              <SelectValue />
+            </SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="all">Tous types</SelectItem>
                                             {uniqueTypes.map(type => (

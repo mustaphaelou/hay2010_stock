@@ -79,9 +79,9 @@ export function Login01() {
           <form onSubmit={handleSubmit} className="space-y-5">
             <FieldGroup>
               <Field>
-                <FieldLabel htmlFor="email" required>
-                  Adresse Email
-                </FieldLabel>
+            <FieldLabel htmlFor="email">
+              Adresse Email <span className="text-red-500">*</span>
+            </FieldLabel>
                 <Input
                   id="email"
                   type="email"
@@ -95,9 +95,9 @@ export function Login01() {
               </Field>
 
               <Field>
-                <FieldLabel htmlFor="password" required>
-                  Mot de passe
-                </FieldLabel>
+            <FieldLabel htmlFor="password">
+              Mot de passe <span className="text-red-500">*</span>
+            </FieldLabel>
                 <div className="relative">
                   <Input
                     id="password"

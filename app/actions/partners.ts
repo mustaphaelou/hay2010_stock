@@ -26,9 +26,9 @@ export async function getPartners(type?: string): Promise<PartnerWithComputed[]>
 
   return partners.map((partner) => ({
     ...partner,
-    plafond_credit: Number(partner.limite_credit || 0),
+    plafond_credit: Number(partner.limite_credit ?? 0),
     solde_courant: 0,
-    pourcentage_remise: partner.pourcentage_remise || new Prisma.Decimal(0)
+    pourcentage_remise: partner.pourcentage_remise ?? new Prisma.Decimal(0)
   }))
   } catch (error) {
     console.error('Failed to fetch partners:', error)

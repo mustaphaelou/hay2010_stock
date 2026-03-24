@@ -154,10 +154,10 @@ export default function SalesPage() {
                                             onChange={(e) => setSearchTerm(e.target.value)}
                                         />
                                     </div>
-              <Select value={typeFilter} onValueChange={(value) => setTypeFilter(value || 'all')}>
-                <SelectTrigger className="w-full sm:w-44 bg-background/50">
-                  <SelectValue placeholder="Type de document" />
-                </SelectTrigger>
+<Select value={typeFilter} onValueChange={(value) => setTypeFilter(value || 'all')}>
+          <SelectTrigger className="w-full sm:w-44 bg-background/50">
+            <SelectValue />
+          </SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="all">Tous types</SelectItem>
                                             {uniqueTypes.map(type => (

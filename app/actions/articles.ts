@@ -19,7 +19,7 @@ export async function getArticlesWithStock(): Promise<ArticleWithStock[]> {
       }
     })
 
-  return result.map((article) => {
+    return result.map((article) => {
     const totalStock = article.niveaux_stock.reduce(
       (acc: number, stock) => acc + Number(stock.quantite_en_stock || 0),
       0
@@ -28,9 +28,9 @@ export async function getArticlesWithStock(): Promise<ArticleWithStock[]> {
     return {
       ...article,
       stock_global: totalStock,
-      prix_vente: article.prix_vente ? Number(article.prix_vente) : null,
-      prix_achat: article.prix_achat ? Number(article.prix_achat) : null,
-      coefficient: article.coefficient ? Number(article.coefficient) : null,
+      prix_vente: article.prix_vente,
+      prix_achat: article.prix_achat,
+      coefficient: article.coefficient,
       famille: article.famille || article.categorie?.nom_categorie || null
     }
   })

@@ -170,7 +170,7 @@ export async function getDocLines(docId: number): Promise<DocumentLine[]> {
       }
     })
 
-    return lines.map((line) => ({
+    return lines.map((line: typeof lines[0]) => ({
       ...line,
       quantite: Number(line.quantite_commandee || 0),
       prix_unitaire: Number(line.prix_unitaire_ht || 0),

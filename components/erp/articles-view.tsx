@@ -58,27 +58,8 @@ import {
 import { toggleArticleStatus } from "@/app/actions/articles"
 
 // Extended type with stock and parsed numbers
-export type ArticleWithStock = {
-  id_produit: number
-  code_produit: string
-  nom_produit: string
-  famille: string | null
-  description_produit: string | null
-  code_barre_ean: string | null
-  unite_mesure: string
-  prix_achat: number | null
-  prix_vente: number | null
-  coefficient: number | null
-  taux_tva: number | string | null
-  stock_minimum: number | null
-  stock_maximum: number | null
-  activer_suivi_stock: boolean
-  en_sommeil: boolean
-  est_actif: boolean
-  date_creation: Date
-  date_modification: Date
-  stock_global: number
-}
+import type { ArticleWithStock } from '@/lib/types'
+export type { ArticleWithStock }
 
 interface ArticlesViewProps {
     initialData: ArticleWithStock[]
@@ -450,22 +431,22 @@ export function ArticlesView({ initialData }: ArticlesViewProps) {
                                 Tarification
                             </h3>
                             <div className="grid grid-cols-2 gap-x-4 gap-y-4 bg-muted/30 p-4 rounded-lg">
-                                <div className="space-y-1">
-                                    <p className="text-xs text-muted-foreground uppercase">Prix Achat HT</p>
-                                    <p className="text-lg font-bold text-info">{formatPrice(selectedArticle?.prix_achat || 0)}</p>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-xs text-muted-foreground uppercase">Prix Vente HT</p>
-                                    <p className="text-lg font-bold text-emerald-600">{formatPrice(selectedArticle?.prix_vente || 0)}</p>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-xs text-muted-foreground uppercase">Coefficient</p>
-                                    <Badge variant="outline" className="font-mono">{selectedArticle?.coefficient || "1.00"}</Badge>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-xs text-muted-foreground uppercase">TVA %</p>
-                                    <p className="text-sm font-medium">{String(selectedArticle?.taux_tva) || "20.0"}</p>
-                                </div>
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground uppercase">Prix Achat HT</p>
+              <p className="text-lg font-bold text-info">{formatPrice(selectedArticle?.prix_achat ? Number(selectedArticle.prix_achat) : 0)}</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground uppercase">Prix Vente HT</p>
+              <p className="text-lg font-bold text-emerald-600">{formatPrice(selectedArticle?.prix_vente ? Number(selectedArticle.prix_vente) : 0)}</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground uppercase">Coefficient</p>
+              <Badge variant="outline" className="font-mono">{selectedArticle?.coefficient ? Number(selectedArticle.coefficient).toFixed(2) : "1.00"}</Badge>
+            </div>
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground uppercase">TVA %</p>
+              <p className="text-sm font-medium">{selectedArticle?.taux_tva ? String(selectedArticle.taux_tva) : "20.0"}</p>
+            </div>
                             </div>
                         </div>
 
