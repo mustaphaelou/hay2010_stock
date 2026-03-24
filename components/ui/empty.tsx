@@ -3,12 +3,12 @@
 import * as React from "react"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { cn } from "@/lib/utils"
-import type { HugeiconsProps, IconSvgElement } from "@hugeicons/react"
+import type { IconSvgElement } from "@hugeicons/react"
 
 interface EmptyProps {
   title?: string
   description?: string
-  icon?: any
+  icon?: IconSvgElement
   action?: React.ReactNode
   className?: string
 }

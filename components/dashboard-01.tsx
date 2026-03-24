@@ -4,49 +4,39 @@ import * as React from "react"
 import Link from "next/link"
 import { ModeToggle } from "@/components/mode-toggle"
 import { LanguageToggle } from "@/components/language-toggle"
-import { useState, useEffect, useMemo, useCallback } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { createClient } from "@/lib/supabase/client"
-import type { User } from "@supabase/supabase-js"
+import { Bar, BarChart, Pie, PieChart, Cell, YAxis, Legend, CartesianGrid, XAxis } from "recharts"
+import { HugeiconsIcon } from "@hugeicons/react"
+import type { IconSvgElement } from "@hugeicons/react"
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs"
 import type { Partenaire, Produit } from "@/lib/supabase/types"
 import { formatPrice, formatDate } from "@/lib/utils/format"
 import {
-  type ColumnDef,
-} from "@tanstack/react-table"
-import { Area, AreaChart, CartesianGrid, XAxis } from "recharts"
-import { z } from "zod"
-
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegendContent,
+  type ChartConfig,
+} from "@/components/ui/chart"
 import {
   Avatar,
   AvatarFallback,
   AvatarImage,
 } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import {
   Card,
-  CardAction,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  ChartLegend,
-  ChartLegendContent,
-  type ChartConfig,
-} from "@/components/ui/chart"
-import {
-  Drawer,
-  DrawerContent,
-  DrawerDescription,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerTrigger,
-} from "@/components/ui/drawer"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -56,13 +46,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { Progress } from "@/components/ui/progress"
 import { Spinner } from "@/components/ui/spinner"
@@ -71,12 +54,10 @@ import {
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
-  SidebarGroupContent,
   SidebarGroupLabel,
   SidebarHeader,
   SidebarInset,
   SidebarMenu,
-  SidebarMenuAction,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarProvider,
@@ -91,67 +72,32 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import {
-  ToggleGroup,
-  ToggleGroupItem,
-} from "@/components/ui/toggle-group"
-import { HugeiconsIcon } from "@hugeicons/react"
-import {
-  LayersIcon,
-  Settings01Icon,
-  MoreVerticalIcon,
-  Logout01Icon,
-  ChartUpIcon,
-  ChartDownIcon,
-  UserCircleIcon,
-  CreditCardIcon,
-  Notification01Icon,
-  PackageIcon,
-  UserGroupIcon,
-  DocumentValidationIcon,
-  Invoice01Icon,
-  Store01Icon,
-  Analytics01Icon,
-  DashboardSquare01Icon,
-  ShoppingBag01Icon,
-  TruckDeliveryIcon,
-  Calculator01Icon,
-  File01Icon,
-  ArrowRight01Icon,
-  ArrowLeft01Icon
-} from "@hugeicons/core-free-icons"
-import { Bar, BarChart, Line, LineChart, Pie, PieChart, Cell, YAxis, Legend, ResponsiveContainer } from "recharts"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs"
-
-// Hoisted static constants
-const CHART_CONFIG = {
-  revenue: {
-    label: "CA Mensuel",
-    color: "hsl(var(--primary))",
-  },
-} satisfies ChartConfig
-
-const STATS_CONFIG = {
-  amount: {
-    label: "Chiffre d'Affaires",
-    color: "hsl(var(--primary))",
-  },
-  value: {
-    label: "Valeur",
-    color: "hsl(var(--primary))",
-  },
-} satisfies ChartConfig
-
-const PIE_COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
-
-// Types for data
 type EnhancedProduit = Produit & { categories_produits: { nom_categorie: string } }
+
+type MovementItem = {
+  id: number
+  date: string
+  ref: string
+  designation: string
+  type: string
+  document: string
+  quantity: number
+}
+
+type DocumentItem = {
+  id_document: number
+  numero_document: string
+  date_document: Date
+  type_document: string
+  domaine_document?: string
+  montant_ttc: number
+  montant_ht?: number
+  statut_document: string
+  nom_partenaire_date?: string
+  partenaires?: { nom_partenaire: string }
+}
 
 const StatsArticlesView = React.memo(function StatsArticlesView({ products }: { products: EnhancedProduit[] }) {
   // Derive stats from real data
@@ -225,7 +171,7 @@ const StatsArticlesView = React.memo(function StatsArticlesView({ products }: { 
         <Card variant="premium">
           <CardHeader>
             <CardTitle>Répartition par Famille</CardTitle>
-            <CardDescription>Nombre d'articles par famille de produits.</CardDescription>
+            <CardDescription>Nombre d&apos;articles par famille de produits.</CardDescription>
           </CardHeader>
           <CardContent>
             <ChartContainer config={STATS_CONFIG} className="h-[300px] w-full">
@@ -256,7 +202,7 @@ const StatsArticlesView = React.memo(function StatsArticlesView({ products }: { 
 })
 
 
-const StockMovementsView = React.memo(function StockMovementsView({ movements = [] }: { movements?: any[] }) {
+const StockMovementsView = React.memo(function StockMovementsView({ movements = [] }: { movements?: MovementItem[] }) {
   return (
     <div className="flex flex-1 flex-col gap-6 animate-fade-in-up">
       <div className="flex items-center justify-between">
@@ -290,11 +236,11 @@ const StockMovementsView = React.memo(function StockMovementsView({ movements = 
                     Aucun mouvement enregistré
                   </TableCell>
                 </TableRow>
-              ) : movements.map((movement: any) => (
-                <TableRow key={movement.id} className="table-row-virtualized hover:bg-muted/50 transition-colors">
-                  <TableCell>{movement.date}</TableCell>
-                  <TableCell className="font-medium">{movement.ref}</TableCell>
-                  <TableCell>{movement.designation}</TableCell>
+) : movements.map((movement) => (
+            <TableRow key={movement.id} className="table-row-virtualized hover:bg-muted/50 transition-colors">
+              <TableCell>{movement.date}</TableCell>
+              <TableCell className="font-medium">{movement.ref}</TableCell>
+              <TableCell>{movement.designation}</TableCell>
                   <TableCell>
                     <Badge variant={movement.type === "Entrée" ? "default" : "secondary"}>
                       {movement.type === "Entrée" ? <HugeiconsIcon icon={ArrowRight01Icon} className="mr-1 h-3 w-3" /> : <HugeiconsIcon icon={ArrowLeft01Icon} className="mr-1 h-3 w-3" />}
@@ -319,12 +265,11 @@ export default function Dashboard01Block() {
   const [currentView, setCurrentView] = useState<"dashboard" | "stats-articles" | "stock-movements">("dashboard")
   const [activeTab, setActiveTab] = useState<string>("overview")
   const [selectedFamily, setSelectedFamily] = useState<string>("all")
-  const [selectedCategory, setSelectedCategory] = useState<string>("all")
 
   const [products, setProducts] = useState<EnhancedProduit[]>([])
   const [partners, setPartners] = useState<Partenaire[]>([])
-  const [documents, setDocuments] = useState<any[]>([])
-  const [movements, setMovements] = useState<any[]>([])
+  const [documents, setDocuments] = useState<DocumentItem[]>([])
+  const [movements, setMovements] = useState<MovementItem[]>([])
   const [loading, setLoading] = useState(true)
 
   const supabase = createClient()
@@ -337,42 +282,49 @@ export default function Dashboard01Block() {
         // Reference: async-parallel best practice
         const [productsRes, partnersRes, docsRes, movementsRes] = await Promise.all([
           supabase
-            .from('produits')
-            .select('*, categories_produits(nom_categorie)')
-            .order('nom_produit'),
+          .from('produits')
+          .select('*, categories_produits(nom_categorie)')
+          .order('nom_produit'),
           supabase
-            .from('partenaires')
-            .select('*'),
+          .from('partenaires')
+          .select('*'),
           supabase
-            .from('documents')
-            .select('*, partenaires(nom_partenaire)')
-            .order('date_document', { ascending: false }),
+          .from('documents')
+          .select('*, partenaires(nom_partenaire)')
+          .order('date_document', { ascending: false }),
           supabase
-            .from('lignes_documents')
-            .select(`
-              id_ligne,
-              quantite_livree,
-              produits (nom_produit, code_produit),
-              documents (numero_document, date_document, type_document)
-            `)
-            .order('id_ligne', { ascending: false })
-            .limit(20)
+          .from('lignes_documents')
+          .select(`
+            id_ligne,
+            quantite_livree,
+            produits (nom_produit, code_produit),
+            documents (numero_document, date_document, type_document)
+          `)
+          .order('id_ligne', { ascending: false })
+          .limit(20)
         ])
 
         // Transform movements for the view
-        const formattedMovements = movementsRes.data?.map((m: any) => ({
+        type MovementRaw = {
+          id_ligne: number
+          quantite_livree: number
+          produits: { nom_produit: string; code_produit: string } | null
+          documents: { numero_document: string; date_document: Date; type_document: string } | null
+        }
+
+        const formattedMovements: MovementItem[] = movementsRes.data?.map((m: MovementRaw) => ({
           id: m.id_ligne,
           date: formatDate(m.documents?.date_document),
-          ref: m.produits?.code_produit,
-          designation: m.produits?.nom_produit,
+          ref: m.produits?.code_produit || '',
+          designation: m.produits?.nom_produit || '',
           type: m.documents?.type_document === 'LIVRAISON' ? (m.quantite_livree > 0 ? "Entrée" : "Sortie") : (m.documents?.type_document === 'FACTURE' ? "Sortie" : "Ajustement"),
-          document: m.documents?.numero_document,
+          document: m.documents?.numero_document || '',
           quantity: m.quantite_livree || 0
         })) || []
 
-        setProducts((productsRes.data as any) || [])
+        setProducts((productsRes.data as EnhancedProduit[]) || [])
         setPartners(partnersRes.data as Partenaire[] || [])
-        setDocuments(docsRes.data || [])
+        setDocuments(docsRes.data as DocumentItem[] || [])
         setMovements(formattedMovements)
       } catch (err) {
         console.error('Error fetching dashboard data:', err)
@@ -382,7 +334,7 @@ export default function Dashboard01Block() {
     }
 
     fetchData()
-  }, [])
+  }, [supabase])
 
   // Memoize filtered stock to prevent recalculation on every render
   const filteredStock = useMemo(() =>
@@ -415,13 +367,12 @@ export default function Dashboard01Block() {
         } as React.CSSProperties
       }
     >
-      <AppSidebar
-        variant="sidebar"
-        collapsible="icon"
-        onNavigate={(view) => setCurrentView(view)}
-        onTabChange={(tab) => setActiveTab(tab)}
-        currentView={currentView}
-      />
+<AppSidebar
+          variant="sidebar"
+          collapsible="icon"
+          onNavigate={(view) => setCurrentView(view)}
+          onTabChange={(tab) => setActiveTab(tab)}
+        />
       <SidebarInset>
         <SiteHeader />
         <div className="flex flex-1 flex-col p-6 md:p-8 gap-8 bg-muted/20">
@@ -429,7 +380,7 @@ export default function Dashboard01Block() {
             <Tabs value={activeTab} onValueChange={(val) => setActiveTab(String(val))} className="w-full">
               <div className="flex items-center justify-between">
                 <TabsList>
-                  <TabsTrigger value="overview">Vue d'ensemble</TabsTrigger>
+                  <TabsTrigger value="overview">Vue d&apos;ensemble</TabsTrigger>
                   <TabsTrigger value="sales">Ventes</TabsTrigger>
                   <TabsTrigger value="purchases">Achats</TabsTrigger>
                   <TabsTrigger value="stock">Stock</TabsTrigger>
@@ -452,7 +403,7 @@ export default function Dashboard01Block() {
                 <Card>
                   <CardHeader>
                     <CardTitle>Derniers Partenaires</CardTitle>
-                    <CardDescription>Vue d'ensemble des derniers comptes créés.</CardDescription>
+                    <CardDescription>Vue d&apos;ensemble des derniers comptes créés.</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <Table>
@@ -493,11 +444,11 @@ export default function Dashboard01Block() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">Chiffre d'Affaires</CardTitle>
+                      <CardTitle className="text-sm font-medium">Chiffre d&apos;Affaires</CardTitle>
                       <HugeiconsIcon icon={Calculator01Icon} strokeWidth={2} className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                      <div className="text-3xl font-bold">{formatPrice(documents.filter(d => d.type_document === 'FACTURE').reduce((acc: number, d: any) => acc + (d.montant_ttc || 0), 0))}</div>
+                      <div className="text-3xl font-bold">{formatPrice(documents.filter(d => d.type_document === 'FACTURE').reduce((acc, d) => acc + (d.montant_ttc || 0), 0))}</div>
                       <p className="text-xs text-muted-foreground">CA global sur factures confirmées</p>
                     </CardContent>
                   </Card>
@@ -542,7 +493,7 @@ export default function Dashboard01Block() {
                     </CardHeader>
                     <CardContent>
                       <div className="text-3xl font-bold">{formatPrice(totalStockValue)}</div>
-                      <p className="text-xs text-muted-foreground">{lowStockCount} articles sous le seuil d'alerte</p>
+                      <p className="text-xs text-muted-foreground">{lowStockCount} articles sous le seuil d&apos;alerte</p>
                     </CardContent>
                   </Card>
                 </div>
@@ -649,7 +600,7 @@ export default function Dashboard01Block() {
 
 
 
-function AppSidebar({ currentView, onNavigate, onTabChange, ...props }: React.ComponentProps<typeof Sidebar> & { currentView?: string, onNavigate?: (view: "dashboard" | "stats-articles" | "stock-movements") => void, onTabChange?: (tab: string) => void }) {
+function AppSidebar({ onNavigate, onTabChange, ...props }: React.ComponentProps<typeof Sidebar> & { onNavigate?: (view: "dashboard" | "stats-articles" | "stock-movements") => void, onTabChange?: (tab: string) => void }) {
   // Sage 100 Structure
   const structureItems = [
     { title: "Produits", url: "/articles", icon: PackageIcon },
@@ -762,7 +713,7 @@ function AppSidebar({ currentView, onNavigate, onTabChange, ...props }: React.Co
   )
 }
 
-function NavGroup({ title, items }: { title: string, items: { title: string, url: string, icon: any, action?: () => void }[] }) {
+function NavGroup({ title, items }: { title: string, items: { title: string, url: string, icon: IconSvgElement, action?: () => void }[] }) {
   return (
     <SidebarGroup>
       <SidebarGroupLabel>{title}</SidebarGroupLabel>
@@ -930,7 +881,7 @@ function SectionCards({ totalStockValue, totalPartners, totalProducts, lowStockC
         <CardContent className="relative">
           <div className={`text-3xl font-bold tracking-tight ${lowStockCount > 0 ? 'text-red-600 dark:text-red-400' : ''}`}>{lowStockCount}</div>
           <p className="text-xs text-muted-foreground mt-1">
-            {lowStockCount > 0 ? "Articles sous le seuil d'alerte" : "Aucune rupture à prévoir"}
+            {lowStockCount > 0 ? "Articles sous le seuil d&apos;alerte" : "Aucune rupture à prévoir"}
           </p>
         </CardContent>
       </Card>
@@ -938,7 +889,7 @@ function SectionCards({ totalStockValue, totalPartners, totalProducts, lowStockC
   )
 }
 
-const ChartBarInteractive = React.memo(function ChartBarInteractive({ documents = [] }: { documents?: any[] }) {
+const ChartBarInteractive = React.memo(function ChartBarInteractive({ documents = [] }: { documents?: DocumentItem[] }) {
   // Config for the comparison chart
   const COMPARISON_CONFIG = {
     sales: {
@@ -1027,7 +978,7 @@ const ChartBarInteractive = React.memo(function ChartBarInteractive({ documents 
   )
 })
 
-const DataTable = React.memo(function DataTable({ data }: { data: any[] }) {
+const DataTable = React.memo(function DataTable({ data }: { data: DocumentItem[] }) {
   return (
     <Table>
       <TableHeader>

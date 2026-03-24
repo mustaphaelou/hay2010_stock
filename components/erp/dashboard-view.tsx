@@ -55,13 +55,13 @@ interface DashboardViewProps {
     monthlyData?: { month: string; ventes: number; achats: number }[]
 }
 
-export function DashboardView({ initialStats, initialRecentDocs, paymentData, monthlyData }: DashboardViewProps) {
+export function DashboardView({ initialStats, initialRecentDocs, paymentData }: DashboardViewProps) {
     return (
         <div className="space-y-6 sm:space-y-8 animate-fade-in-up px-1 sm:px-0">
             {/* Header - with gradient text */}
             <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                    <h2 className="text-2xl sm:text-4xl font-extrabold tracking-tight gradient-text">Vue d'ensemble</h2>
+                    <h2 className="text-2xl sm:text-4xl font-extrabold tracking-tight gradient-text">Vue d&apos;ensemble</h2>
                     <p className="text-sm text-muted-foreground">Bienvenue dans votre tableau de bord de gestion.</p>
                 </div>
             </div>

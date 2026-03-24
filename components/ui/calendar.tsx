@@ -67,8 +67,8 @@ function Calendar({
                     }
                     return <ChevronRightIcon className="size-4" />
                 },
-                DayButton: (props: DayButtonProps) => {
-                    const { day, modifiers, className, ...buttonProps } = props
+DayButton: (props: DayButtonProps) => {
+    const { modifiers, className, ...buttonProps } = props
                     return (
                         <Button
                             variant="ghost"

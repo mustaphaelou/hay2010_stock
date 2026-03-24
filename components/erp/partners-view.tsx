@@ -16,18 +16,17 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
-    MoreVerticalIcon,
-    InformationCircleIcon,
-    ContactIcon,
-    Location01Icon,
-    SmartPhone01Icon,
-    Mail01Icon,
-    GlobalIcon,
-    Cash01Icon,
-    Calendar01Icon,
-    Building01Icon,
-    UserIcon,
-    UserGroupIcon
+  MoreVerticalIcon,
+  InformationCircleIcon,
+  ContactIcon,
+  Location01Icon,
+  SmartPhone01Icon,
+  Mail01Icon,
+  GlobalIcon,
+  Cash01Icon,
+  Calendar01Icon,
+  Building01Icon,
+  UserGroupIcon
 } from "@hugeicons/core-free-icons"
 import {
     Sheet,

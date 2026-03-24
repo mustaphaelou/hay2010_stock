@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { format, subDays, startOfMonth, endOfMonth, startOfYesterday, endOfYesterday, isSameDay } from "date-fns"
+import { format, startOfMonth, endOfMonth, startOfYesterday, endOfYesterday } from "date-fns"
 import { Calendar as CalendarIcon, ChevronDown } from "lucide-react"
 import { DateRange } from "react-day-picker"
 
@@ -60,7 +60,7 @@ export function DateRangePicker({
                             className="text-xs"
                             onClick={() => onDateChange?.({ from: new Date(), to: new Date() })}
                         >
-                            Aujourd'hui
+                            Aujourd&apos;hui
                         </Button>
                         <Button
                             variant="ghost"

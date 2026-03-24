@@ -5,18 +5,16 @@ import Link from "next/link"
 import Image from "next/image"
 import { usePathname, useSearchParams } from "next/navigation"
 import {
-    Sidebar,
-    SidebarContent,
-    SidebarFooter,
-    SidebarGroup,
-    SidebarGroupContent,
-    SidebarGroupLabel,
-    SidebarHeader,
-    SidebarMenu,
-    SidebarMenuButton,
-    SidebarMenuItem,
-    SidebarRail,
-    useSidebar,
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarRail,
 } from "@/components/ui/sidebar"
 import {
     DropdownMenu,
@@ -52,7 +50,7 @@ const companies = [
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     const pathname = usePathname()
     const searchParams = useSearchParams()
-    const { state } = useSidebar()
+    const { pathname } = usePathname
     const [mounted, setMounted] = React.useState(false)
 
     React.useEffect(() => {
@@ -153,12 +151,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     <SidebarMenu>
                         <SidebarMenuItem>
                             <SidebarMenuButton
-                                tooltip="Vue d'ensemble"
+                                tooltip="Vue d&apos;ensemble"
                                 isActive={pathname === "/"}
                                 render={<Link href="/" />}
                             >
                                 <HugeiconsIcon icon={DashboardSquare01Icon} strokeWidth={2} />
-                                <span>Vue d'ensemble</span>
+                                <span>Vue d&apos;ensemble</span>
                             </SidebarMenuButton>
                         </SidebarMenuItem>
                     </SidebarMenu>

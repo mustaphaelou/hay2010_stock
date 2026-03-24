@@ -338,7 +338,7 @@ export function InvoiceDocument({ data }: { data: InvoiceData }) {
                     <View style={styles.logoSection}>
                         <Text style={styles.logoText}>HAY</Text>
                         <Text style={[styles.logoText, { marginTop: -8 }]}>2010<Text style={{ fontSize: 10 }}>.Sarl</Text></Text>
-                        <Text style={styles.logoSubtext}>Travaux d'électrification</Text>
+                        <Text style={styles.logoSubtext}>Travaux d&apos;électrification</Text>
                         <Text style={styles.logoSubtext}>& Eclairage public</Text>
                     </View>
                 </View>

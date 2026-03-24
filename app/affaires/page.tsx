@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect, useCallback, Suspense } from 'react'
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/erp/app-sidebar"
 import { SiteHeader } from "@/components/erp/site-header"
@@ -76,47 +76,47 @@ export default function AffairesPage() {
     const [loadingDocs, setLoadingDocs] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
-    // Load all distinct affaires
-    const fetchAffairesData = async () => {
-        setLoading(true)
-        setError(null)
-        try {
-            const data = await getAffaires()
-            setAffaires(data)
-            if (data.length > 0 && !selectedAffaire) {
-                setSelectedAffaire(data[0])
-            }
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Erreur lors du chargement')
-        } finally {
-            setLoading(false)
-        }
+  // Load all distinct affaires
+  const fetchAffairesData = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const data = await getAffaires()
+      setAffaires(data)
+      if (data.length > 0 && !selectedAffaire) {
+        setSelectedAffaire(data[0])
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors du chargement')
+    } finally {
+      setLoading(false)
     }
+  }, [selectedAffaire])
 
-    // Load documents for selected affaire
-    const fetchDocuments = async () => {
-        if (!selectedAffaire) return
-        setLoadingDocs(true)
-        setError(null)
-        try {
-            const data = await getDocumentsByAffaire(selectedAffaire)
-            setDocuments(data || [])
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Erreur lors du chargement')
-        } finally {
-            setLoadingDocs(false)
-        }
+  // Load documents for selected affaire
+  const fetchDocuments = useCallback(async () => {
+    if (!selectedAffaire) return
+    setLoadingDocs(true)
+    setError(null)
+    try {
+      const data = await getDocumentsByAffaire(selectedAffaire)
+      setDocuments(data || [])
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors du chargement')
+    } finally {
+      setLoadingDocs(false)
     }
+  }, [selectedAffaire])
 
-    useEffect(() => {
-        fetchAffairesData()
-    }, [])
+  useEffect(() => {
+    fetchAffairesData()
+  }, [fetchAffairesData])
 
-    useEffect(() => {
-        if (selectedAffaire) {
-            fetchDocuments()
-        }
-    }, [selectedAffaire])
+  useEffect(() => {
+    if (selectedAffaire) {
+      fetchDocuments()
+    }
+  }, [selectedAffaire, fetchDocuments])
 
     // Calculate stats
     const ventesDocuments = documents.filter(d => d.domaine_document === 'VENTE')

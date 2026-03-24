@@ -25,9 +25,9 @@ function Tabs({
       data-orientation={orientation}
       value={value}
       defaultValue={defaultValue}
-      // @ts-ignore
-      onChange={(event: any, val: any) => {
-        // @ts-ignore
+      // @ts-expect-error - Base UI Tabs typing mismatch
+      onChange={(event: React.SyntheticEvent, val: string | number | null) => {
+        // @ts-expect-error - Base UI Tabs typing mismatch
         props.onChange?.(event, val)
         if (onValueChange && val !== null) {
           onValueChange(val)

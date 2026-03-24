@@ -46,23 +46,26 @@ import {
     SidebarRail,
 } from "@/components/ui/sidebar"
 import { HugeiconsIcon } from "@hugeicons/react"
+import type { IconSvgElement } from "@hugeicons/react"
 import {
-    LayersIcon,
-    Settings01Icon,
-    MoreVerticalIcon,
-    PackageIcon,
-    UserGroupIcon,
-    Invoice01Icon,
-    Store01Icon,
-    DashboardSquare01Icon,
-    ShoppingBag01Icon,
-    TruckDeliveryIcon,
-    ChartUpIcon,
-    File01Icon,
-    Analytics01Icon,
-    Calculator01Icon,
-    Briefcase01Icon,
+  LayersIcon,
+  Settings01Icon,
+  MoreVerticalIcon,
+  PackageIcon,
+  UserGroupIcon,
+  Invoice01Icon,
+  Store01Icon,
+  DashboardSquare01Icon,
+  ChartUpIcon,
+  Analytics01Icon,
+  Briefcase01Icon,
 } from "@hugeicons/core-free-icons"
+
+interface NavItem {
+  title: string
+  url: string
+  icon: IconSvgElement
+}
 
 interface AppLayoutProps {
     children: React.ReactNode
@@ -206,9 +209,9 @@ function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 }
 
 function NavGroup({ title, items, currentPath }: {
-    title: string,
-    items: { title: string, url: string, icon: any }[],
-    currentPath: string
+  title: string,
+  items: NavItem[],
+  currentPath: string
 }) {
     return (
         <SidebarGroup>

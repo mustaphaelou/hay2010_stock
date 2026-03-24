@@ -126,7 +126,7 @@ export default function SalesPage() {
                         <div className="flex gap-4 w-full md:w-auto">
                             <Card className="w-full md:min-w-[200px] bg-gradient-to-br from-green-500/10 to-green-500/5 border-green-500/20">
                                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                    <CardTitle className="text-xs font-medium text-green-600 uppercase tracking-wider">Chiffre d'Affaires</CardTitle>
+                                    <CardTitle className="text-xs font-medium text-green-600 uppercase tracking-wider">Chiffre d&apos;Affaires</CardTitle>
                                     <HugeiconsIcon icon={Invoice01Icon} className="text-emerald-500" />
                                 </CardHeader>
                                 <CardContent>

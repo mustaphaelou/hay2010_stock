@@ -209,7 +209,7 @@ export default function PurchasesPage() {
                         <div className="flex items-center justify-between">
                             <div>
                                 <h1 className="text-3xl font-bold tracking-tight">Achats</h1>
-                                <p className="text-muted-foreground">Gestion des documents d'achat</p>
+                                <p className="text-muted-foreground">Gestion des documents d&apos;achat</p>
                             </div>
                             <Button onClick={fetchDocuments} disabled={loading}>
                                 <HugeiconsIcon icon={RefreshIcon} className="mr-2 h-4 w-4" />
@@ -281,7 +281,7 @@ export default function PurchasesPage() {
                         {/* Table */}
                         <Card>
                             <CardHeader>
-                                <CardTitle>Documents d'Achat</CardTitle>
+                                <CardTitle>Documents d&apos;Achat</CardTitle>
                                 <CardDescription>
                                     {loading ? 'Chargement...' : `${filteredDocuments.length} document(s)`}
                                 </CardDescription>
