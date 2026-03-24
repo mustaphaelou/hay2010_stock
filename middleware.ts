@@ -1,11 +1,20 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { verifyToken } from './lib/auth/jwt'
-import { refreshSession } from './lib/auth/session'
+import { jwtVerify } from 'jose'
 
 const PUBLIC_PATHS = ['/login', '/register', '/api/auth', '/favicon.ico', '/_next']
 const AUTH_COOKIE = 'auth_token'
-const SESSION_REFRESH_THRESHOLD = 24 * 60 * 60 * 1000 // 24 hours in milliseconds
+const SESSION_REFRESH_THRESHOLD = 24 * 60 * 60 * 1000
+const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'default-secret-for-development')
+
+async function verifyTokenEdge(token: string) {
+  try {
+    const { payload } = await jwtVerify(token, JWT_SECRET)
+    return payload as { userId: string; email: string; role: string; sessionId: string; iat?: number }
+  } catch {
+    return null
+  }
+}
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -21,7 +30,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  const payload = verifyToken(token)
+  const payload = await verifyTokenEdge(token)
 
   if (!payload) {
     if (isPublicPath) {
@@ -32,17 +41,8 @@ export async function middleware(request: NextRequest) {
     return response
   }
 
-  // Check if session needs refresh (if older than threshold)
   const tokenIssuedAt = payload.iat ? payload.iat * 1000 : Date.now()
   const shouldRefreshSession = Date.now() - tokenIssuedAt > SESSION_REFRESH_THRESHOLD
-
-  if (shouldRefreshSession && payload.sessionId) {
-    try {
-      await refreshSession(payload.sessionId)
-    } catch (error) {
-      console.error('Failed to refresh session:', error)
-    }
-  }
 
   if (isPublicPath && pathname !== '/favicon.ico' && !pathname.startsWith('/_next')) {
     return NextResponse.redirect(new URL('/', request.url))
