@@ -147,23 +147,23 @@ export function MobileCardList<T>({
 }: MobileCardListProps<T>) {
     if (loading) {
         return (
-            <div className={cn("space-y-3", className)}>
+<div className={cn("flex flex-col gap-3", className)}>
                 {Array.from({ length: skeletonCount }).map((_, i) => (
                     <Card key={i} className="animate-pulse">
                         <CardContent className="p-4">
                             <div className="flex items-start justify-between gap-3 mb-3">
-                                <div className="flex-1 space-y-2">
+                                <div className="flex-1 flex flex-col gap-2">
                                     <div className="h-4 bg-muted rounded w-1/3" />
                                     <div className="h-5 bg-muted rounded w-2/3" />
                                 </div>
-                                <div className="h-8 w-8 bg-muted rounded" />
+                                <div className="size-8 bg-muted rounded" />
                             </div>
                             <div className="grid grid-cols-2 gap-3 pt-2 border-t">
-                                <div className="space-y-1">
-                                    <div className="h-3 bg-muted rounded w-1/2" />
-                                    <div className="h-4 bg-muted rounded w-3/4" />
-                                </div>
-                                <div className="space-y-1">
+<div className="flex flex-col gap-1">
+            <div className="h-3 bg-muted rounded w-1/2" />
+            <div className="h-4 bg-muted rounded w-3/4" />
+          </div>
+          <div className="flex flex-col gap-1">
                                     <div className="h-3 bg-muted rounded w-1/2" />
                                     <div className="h-4 bg-muted rounded w-3/4" />
                                 </div>
@@ -184,8 +184,8 @@ export function MobileCardList<T>({
     }
 
     return (
-        <div className={cn("space-y-3", className)}>
-            {data.map((item, index) => renderCard(item, index))}
+<div className={cn("flex flex-col gap-3", className)}>
+    {data.map((item, index) => renderCard(item, index))}
         </div>
     )
 }

@@ -7,12 +7,13 @@ import { ColumnDef } from "@tanstack/react-table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
@@ -77,21 +78,23 @@ const createColumns = (onViewDetails: (partner: Partner) => void): ColumnDef<Par
             const partner = row.original
             return (
                 <DropdownMenu>
-                    <DropdownMenuTrigger className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0">
+                    <DropdownMenuTrigger className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground size-8 p-0">
                         <span className="sr-only">Menu</span>
                         <HugeiconsIcon icon={MoreVerticalIcon}  />
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem onClick={() => navigator.clipboard.writeText(partner.code_partenaire)}>
-                            Copier N° Compte
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => onViewDetails(partner)}>
-                            Voir fiche
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>Voir historique</DropdownMenuItem>
-                    </DropdownMenuContent>
+<DropdownMenuContent align="end">
+        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuGroup>
+          <DropdownMenuItem onClick={() => navigator.clipboard.writeText(partner.code_partenaire)}>
+            Copier N° Compte
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onViewDetails(partner)}>
+            Voir fiche
+          </DropdownMenuItem>
+          <DropdownMenuItem>Voir historique</DropdownMenuItem>
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
                 </DropdownMenu>
             )
         },
@@ -130,13 +133,13 @@ export function PartnersView({ type, title }: PartnersViewProps) {
     }, [type])
 
     return (
-        <div className="space-y-6 sm:space-y-8 animate-fade-in-up">
+        <div className="flex flex-col gap-6 sm:gap-8 animate-fade-in-up">
             {/* Responsive header - Stacked with more impact */}
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between px-1">
                 <div className="flex flex-col gap-1">
                     <h2 className="text-2xl sm:text-4xl font-extrabold tracking-tight gradient-text">{title}</h2>
                     <p className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                        <span className="flex h-2 w-2 rounded-full bg-primary" />
+                        <span className="flex size-2 rounded-full bg-primary" />
                         {data.length} {type === 0 ? "clients" : "fournisseurs"} référencés au total
                     </p>
                 </div>
@@ -194,44 +197,44 @@ export function PartnersView({ type, title }: PartnersViewProps) {
 
                     <div className="grid gap-5 py-4 sm:py-6 px-0 sm:px-1">
                         {/* Section: Informations Générales */}
-                        <div className="space-y-4">
-                            <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground/70 uppercase tracking-wider">
-                                <HugeiconsIcon icon={InformationCircleIcon}  />
-                                Identification
-                            </h3>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-1">
-                                    <p className="text-xs text-muted-foreground uppercase">N° Compte</p>
-                                    <p className="font-medium">{selectedPartner?.code_partenaire}</p>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-xs text-muted-foreground uppercase">Type</p>
-                                    <p className="font-medium">{selectedPartner?.type_partenaire}</p>
-                                </div>
-                                <div className="col-span-2 space-y-1">
-                                    <p className="text-xs text-muted-foreground uppercase">Intitulé</p>
-                                    <p className="font-medium">{selectedPartner?.nom_partenaire}</p>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-xs text-muted-foreground uppercase">Identifiant / ICE</p>
-                                    <p className="font-medium">{selectedPartner?.numero_ice || "-"}</p>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-xs text-muted-foreground uppercase">TVA</p>
-                                    <p className="font-medium">{selectedPartner?.numero_tva || "-"}</p>
-                                </div>
-                            </div>
+<div className="flex flex-col gap-4">
+<h3 className="text-sm font-semibold flex items-center gap-2 text-foreground/70 uppercase tracking-wider">
+<HugeiconsIcon icon={InformationCircleIcon} />
+Identification
+</h3>
+<div className="grid grid-cols-2 gap-4">
+<div className="flex flex-col gap-1">
+<p className="text-xs text-muted-foreground uppercase">N° Compte</p>
+<p className="font-medium">{selectedPartner?.code_partenaire}</p>
+</div>
+<div className="flex flex-col gap-1">
+<p className="text-xs text-muted-foreground uppercase">Type</p>
+<p className="font-medium">{selectedPartner?.type_partenaire}</p>
+</div>
+<div className="col-span-2 flex flex-col gap-1">
+<p className="text-xs text-muted-foreground uppercase">Intitulé</p>
+<p className="font-medium">{selectedPartner?.nom_partenaire}</p>
+</div>
+<div className="flex flex-col gap-1">
+<p className="text-xs text-muted-foreground uppercase">Identifiant / ICE</p>
+<p className="font-medium">{selectedPartner?.numero_ice || "-"}</p>
+</div>
+<div className="flex flex-col gap-1">
+<p className="text-xs text-muted-foreground uppercase">TVA</p>
+<p className="font-medium">{selectedPartner?.numero_tva || "-"}</p>
+</div>
+</div>
                         </div>
 
                         <Separator className="bg-muted/50" />
 
                         {/* Section: Contact & Communication */}
-                        <div className="space-y-4">
-                            <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground/70 uppercase tracking-wider">
-                                <HugeiconsIcon icon={ContactIcon}  />
-                                Contact & Communication
-                            </h3>
-                            <div className="space-y-3">
+<div className="flex flex-col gap-4">
+<h3 className="text-sm font-semibold flex items-center gap-2 text-foreground/70 uppercase tracking-wider">
+<HugeiconsIcon icon={ContactIcon} />
+Contact & Communication
+</h3>
+<div className="flex flex-col gap-3">
                                 <div className="flex items-center gap-3">
                                     <div className="bg-muted p-2 rounded-full">
               <HugeiconsIcon icon={SmartPhone01Icon} className="text-muted-foreground" />
@@ -277,14 +280,14 @@ export function PartnersView({ type, title }: PartnersViewProps) {
                         <Separator className="bg-muted/50" />
 
                         {/* Section: Localisation */}
-                        <div className="space-y-4">
-                            <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground/70 uppercase tracking-wider">
-                                <HugeiconsIcon icon={Location01Icon}  />
-                                Localisation
-                            </h3>
-                            <div className="bg-muted/30 p-4 rounded-lg space-y-2">
+<div className="flex flex-col gap-4">
+<h3 className="text-sm font-semibold flex items-center gap-2 text-foreground/70 uppercase tracking-wider">
+<HugeiconsIcon icon={Location01Icon} />
+Localisation
+</h3>
+<div className="bg-muted/30 p-4 rounded-lg flex flex-col gap-2">
                                 <div className="flex items-start gap-2">
-                                    <HugeiconsIcon icon={Building01Icon} className="h-4 w-4 mt-1 text-muted-foreground" />
+                                    <HugeiconsIcon icon={Building01Icon} className="size-4 mt-1 text-muted-foreground" />
                                     <div>
                                         <p className="font-medium">{selectedPartner?.adresse_rue || "Pas d'adresse"}</p>
                                         <p className="text-sm">
@@ -299,16 +302,30 @@ export function PartnersView({ type, title }: PartnersViewProps) {
                         <Separator className="bg-muted/50" />
 
                         {/* Section: Comptabilité / Conditions */}
-                        <div className="space-y-4">
-                            <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground/70 uppercase tracking-wider">
-                                <HugeiconsIcon icon={Cash01Icon}  />
-                                Conditions & Comptabilité
-                            </h3>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-1">
-                                    <p className="text-xs text-muted-foreground uppercase">Encours Actuel</p>
-                                    <p className="font-bold text-primary">{selectedPartner?.solde_courant ? `${selectedPartner.solde_courant} Dhs` : "0.00 Dhs"}</p>
-                                </div>
+<div className="flex flex-col gap-4">
+<h3 className="text-sm font-semibold flex items-center gap-2 text-foreground/70 uppercase tracking-wider">
+<HugeiconsIcon icon={Cash01Icon} />
+Conditions & Comptabilité
+</h3>
+<div className="grid grid-cols-2 gap-4">
+<div className="flex flex-col gap-1">
+<p className="text-xs text-muted-foreground uppercase">Encours Actuel</p>
+<p className="font-bold text-primary">{selectedPartner?.solde_courant ? `${selectedPartner.solde_courant} Dhs` : "0.00 Dhs"}</p>
+</div>
+<div className="flex flex-col gap-1">
+<p className="text-xs text-muted-foreground uppercase">Encours Max</p>
+<p className="font-medium">{selectedPartner?.plafond_credit ? `${selectedPartner.plafond_credit} Dhs` : "Non défini"}</p>
+</div>
+<div className="flex flex-col gap-1">
+<p className="text-xs text-muted-foreground uppercase">Compte Collectif</p>
+<p className="font-mono text-xs">{selectedPartner?.compte_collectif || "-"}</p>
+</div>
+<div className="flex flex-col gap-1">
+<p className="text-xs text-muted-foreground uppercase">Taux Remise</p>
+<Badge variant="outline">{selectedPartner?.pourcentage_remise?.toString() || 0} %</Badge>
+</div>
+</div>
+</div>
                                 <div className="space-y-1">
                                     <p className="text-xs text-muted-foreground uppercase">Encours Max</p>
                                     <p className="font-medium">{selectedPartner?.plafond_credit ? `${selectedPartner.plafond_credit} Dhs` : "Non défini"}</p>
@@ -327,12 +344,12 @@ export function PartnersView({ type, title }: PartnersViewProps) {
                         <Separator className="bg-muted/50" />
 
                         {/* Section: Audit */}
-                        <div className="space-y-4">
-                            <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground/70 uppercase tracking-wider">
-                                <HugeiconsIcon icon={Calendar01Icon}  />
-                                Historique
-                            </h3>
-                            <div className="space-y-3 bg-muted/20 p-3 rounded-md text-xs">
+<div className="flex flex-col gap-4">
+<h3 className="text-sm font-semibold flex items-center gap-2 text-foreground/70 uppercase tracking-wider">
+<HugeiconsIcon icon={Calendar01Icon} />
+Historique
+</h3>
+<div className="flex flex-col gap-3 bg-muted/20 p-3 rounded-md text-xs">
                                 <div className="flex justify-between items-center">
                                     <span className="text-muted-foreground">Créé le</span>
                                     <span className="font-medium">{selectedPartner?.date_creation ? formatDate(selectedPartner.date_creation.toISOString()) : "-"}</span>

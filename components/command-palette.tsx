@@ -66,27 +66,27 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
                     <CommandItem
                         onSelect={() => runCommand(() => router.push("/"))}
                     >
-                        <HugeiconsIcon icon={DashboardSquare01Icon} className="mr-2 h-4 w-4" />
+                        <HugeiconsIcon icon={DashboardSquare01Icon} className="mr-2 size-4" />
                         <span>Tableau de bord</span>
                         <CommandShortcut>⌘D</CommandShortcut>
                     </CommandItem>
                     <CommandItem
                         onSelect={() => runCommand(() => router.push("/articles"))}
                     >
-                        <HugeiconsIcon icon={PackageIcon} className="mr-2 h-4 w-4" />
+                        <HugeiconsIcon icon={PackageIcon} className="mr-2 size-4" />
                         <span>Produits</span>
                         <CommandShortcut>⌘P</CommandShortcut>
                     </CommandItem>
                     <CommandItem
                         onSelect={() => runCommand(() => router.push("/partners"))}
                     >
-                        <HugeiconsIcon icon={UserGroupIcon} className="mr-2 h-4 w-4" />
+                        <HugeiconsIcon icon={UserGroupIcon} className="mr-2 size-4" />
                         <span>Clients & Fournisseurs</span>
                     </CommandItem>
                     <CommandItem
                         onSelect={() => runCommand(() => router.push("/stock"))}
                     >
-                        <HugeiconsIcon icon={Store01Icon} className="mr-2 h-4 w-4" />
+                        <HugeiconsIcon icon={Store01Icon} className="mr-2 size-4" />
                         <span>Stock</span>
                     </CommandItem>
                 </CommandGroup>
@@ -97,13 +97,13 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
                     <CommandItem
                         onSelect={() => runCommand(() => router.push("/documents"))}
                     >
-                        <HugeiconsIcon icon={Invoice01Icon} className="mr-2 h-4 w-4" />
+                        <HugeiconsIcon icon={Invoice01Icon} className="mr-2 size-4" />
                         <span>Documents</span>
                     </CommandItem>
                     <CommandItem
                         onSelect={() => runCommand(() => router.push("/affaires"))}
                     >
-                        <HugeiconsIcon icon={Briefcase01Icon} className="mr-2 h-4 w-4" />
+                        <HugeiconsIcon icon={Briefcase01Icon} className="mr-2 size-4" />
                         <span>Affaires</span>
                     </CommandItem>
                 </CommandGroup>
@@ -114,13 +114,13 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
                     <CommandItem
                         onSelect={() => runCommand(() => router.push("/statistics"))}
                     >
-                        <HugeiconsIcon icon={Analytics01Icon} className="mr-2 h-4 w-4" />
+                        <HugeiconsIcon icon={Analytics01Icon} className="mr-2 size-4" />
                         <span>Statistiques</span>
                     </CommandItem>
                     <CommandItem
                         onSelect={() => runCommand(() => router.push("/movements"))}
                     >
-                        <HugeiconsIcon icon={ChartUpIcon} className="mr-2 h-4 w-4" />
+                        <HugeiconsIcon icon={ChartUpIcon} className="mr-2 size-4" />
                         <span>Mouvements de stock</span>
                     </CommandItem>
                 </CommandGroup>
@@ -131,7 +131,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
                     <CommandItem
                         onSelect={() => runCommand(() => router.push("/settings"))}
                     >
-                        <HugeiconsIcon icon={Settings01Icon} className="mr-2 h-4 w-4" />
+                        <HugeiconsIcon icon={Settings01Icon} className="mr-2 size-4" />
                         <span>Paramètres</span>
                         <CommandShortcut>⌘,</CommandShortcut>
                     </CommandItem>

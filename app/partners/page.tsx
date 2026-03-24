@@ -25,11 +25,11 @@ function PartnersContent() {
                 <div className="flex items-center justify-between mb-4">
                     <TabsList className="grid w-full max-w-[400px] grid-cols-2">
                         <TabsTrigger value="clients" className="flex items-center gap-2">
-                            <HugeiconsIcon icon={UserGroupIcon} size={16} />
+                            <HugeiconsIcon icon={UserGroupIcon} size={16} data-icon="inline-start" />
                             <span>Clients</span>
                         </TabsTrigger>
                         <TabsTrigger value="suppliers" className="flex items-center gap-2">
-                            <HugeiconsIcon icon={TruckDeliveryIcon} size={16} />
+                            <HugeiconsIcon icon={TruckDeliveryIcon} size={16} data-icon="inline-start" />
                             <span>Fournisseurs</span>
                         </TabsTrigger>
                     </TabsList>

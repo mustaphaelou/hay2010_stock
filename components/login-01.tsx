@@ -51,7 +51,7 @@ export function Login01() {
           {/* Logo section */}
           <div className="flex flex-col items-center mb-8">
             <div className="relative mb-4">
-              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary to-violet-600 flex items-center justify-center shadow-lg shadow-primary/25">
+              <div className="size-20 rounded-2xl bg-gradient-to-br from-primary to-violet-600 flex items-center justify-center shadow-lg shadow-primary/25">
                 <Image
                   src="/hay2010-logo.png"
                   alt="HAY2010"
@@ -60,8 +60,8 @@ export function Login01() {
                   className="object-contain"
                 />
               </div>
-              <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-emerald-500 rounded-full border-2 border-background flex items-center justify-center">
-                <div className="w-2 h-2 bg-white rounded-full" />
+<div className="absolute -bottom-1 -right-1 size-6 bg-emerald-500 rounded-full border-2 border-background flex items-center justify-center">
+								<div className="size-2 bg-white rounded-full" />
               </div>
             </div>
             <h1 className="text-2xl font-bold tracking-tight gradient-text">HAY2010</h1>
@@ -76,7 +76,7 @@ export function Login01() {
           )}
 
           {/* Login form */}
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-5">
             <FieldGroup>
               <Field>
             <FieldLabel htmlFor="email">

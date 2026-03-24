@@ -72,7 +72,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   LayersIcon,
   Settings01Icon,
@@ -171,7 +171,7 @@ const StatsArticlesView = React.memo(function StatsArticlesView({ products }: { 
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Articles</CardTitle>
             <div className="icon-container">
-              <HugeiconsIcon icon={PackageIcon} strokeWidth={2} className="h-4 w-4 text-primary" />
+              <HugeiconsIcon icon={PackageIcon} strokeWidth={2} className="size-4 text-primary" />
             </div>
           </CardHeader>
           <CardContent>
@@ -275,7 +275,7 @@ const StockMovementsView = React.memo(function StockMovementsView({ movements = 
               <TableCell>{movement.designation}</TableCell>
                   <TableCell>
                     <Badge variant={movement.type === "Entrée" ? "default" : "secondary"}>
-                      {movement.type === "Entrée" ? <HugeiconsIcon icon={ArrowRight01Icon} className="mr-1 h-3 w-3" /> : <HugeiconsIcon icon={ArrowLeft01Icon} className="mr-1 h-3 w-3" />}
+                      {movement.type === "Entrée" ? <HugeiconsIcon icon={ArrowRight01Icon} className="mr-1 size-3" /> : <HugeiconsIcon icon={ArrowLeft01Icon} className="mr-1 size-3" />}
                       {movement.type}
                     </Badge>
                   </TableCell>
@@ -419,7 +419,7 @@ const formattedMovements: MovementItem[] = (movementsRes.data as MovementRaw[] |
                 </TabsList>
               </div>
 
-              <TabsContent value="overview" className="space-y-6 mt-6">
+              <TabsContent value="overview" className="flex flex-col gap-6 mt-6">
                 {/* KPI Section */}
                 <SectionCards
                   totalStockValue={totalStockValue}
@@ -472,12 +472,12 @@ const formattedMovements: MovementItem[] = (movementsRes.data as MovementRaw[] |
                 </Card>
               </TabsContent>
 
-              <TabsContent value="sales" className="space-y-6 mt-6">
+              <TabsContent value="sales" className="flex flex-col gap-6 mt-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                       <CardTitle className="text-sm font-medium">Chiffre d&apos;Affaires</CardTitle>
-                      <HugeiconsIcon icon={Calculator01Icon} strokeWidth={2} className="h-4 w-4 text-muted-foreground" />
+                      <HugeiconsIcon icon={Calculator01Icon} strokeWidth={2} className="size-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
                       <div className="text-3xl font-bold">{formatPrice(documents.filter(d => d.type_document === 'FACTURE').reduce((acc, d) => acc + (d.montant_ttc || 0), 0))}</div>
@@ -487,7 +487,7 @@ const formattedMovements: MovementItem[] = (movementsRes.data as MovementRaw[] |
                   <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                       <CardTitle className="text-sm font-medium">Documents Actifs</CardTitle>
-                      <HugeiconsIcon icon={ShoppingBag01Icon} strokeWidth={2} className="h-4 w-4 text-muted-foreground" />
+                      <HugeiconsIcon icon={ShoppingBag01Icon} strokeWidth={2} className="size-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
                       <div className="text-3xl font-bold">{documents.length}</div>
@@ -505,7 +505,7 @@ const formattedMovements: MovementItem[] = (movementsRes.data as MovementRaw[] |
                 </Card>
               </TabsContent>
 
-              <TabsContent value="purchases" className="space-y-6 mt-6">
+              <TabsContent value="purchases" className="flex flex-col gap-6 mt-6">
                 <Card>
                   <CardHeader>
                     <CardTitle>Dernières Opérations</CardTitle>
@@ -516,12 +516,12 @@ const formattedMovements: MovementItem[] = (movementsRes.data as MovementRaw[] |
                 </Card>
               </TabsContent>
 
-              <TabsContent value="stock" className="space-y-6 mt-6">
+              <TabsContent value="stock" className="flex flex-col gap-6 mt-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                       <CardTitle className="text-sm font-medium">Stock Valorisé</CardTitle>
-                      <HugeiconsIcon icon={PackageIcon} strokeWidth={2} className="h-4 w-4 text-muted-foreground" />
+                      <HugeiconsIcon icon={PackageIcon} strokeWidth={2} className="size-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
                       <div className="text-3xl font-bold">{formatPrice(totalStockValue)}</div>
@@ -537,10 +537,12 @@ const formattedMovements: MovementItem[] = (movementsRes.data as MovementRaw[] |
                         <SelectTrigger className="w-[180px]">
                           <SelectValue />
                         </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">Toutes les familles</SelectItem>
-                          {families.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}
-                        </SelectContent>
+<SelectContent>
+<SelectGroup>
+<SelectItem value="all">Toutes les familles</SelectItem>
+{families.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}
+</SelectGroup>
+</SelectContent>
                       </Select>
                     </div>
                   </CardHeader>
@@ -570,8 +572,8 @@ const formattedMovements: MovementItem[] = (movementsRes.data as MovementRaw[] |
                         ) : filteredStock.length === 0 ? (
                           <TableRow>
                             <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
-                              <div className="space-y-2">
-                                <HugeiconsIcon icon={PackageIcon} className="h-10 w-10 mx-auto opacity-30" />
+<div className="flex flex-col gap-2">
+						<HugeiconsIcon icon={PackageIcon} className="size-10 mx-auto opacity-30" />
                                 <p>Aucun produit trouvé</p>
                               </div>
                             </TableCell>
@@ -781,7 +783,7 @@ function NavUser({ user }: { user: { name: string; email: string; avatar: string
             className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             render={<DropdownMenuTrigger />}
           >
-            <Avatar className="h-8 w-8 rounded-lg">
+            <Avatar className="size-8 rounded-lg">
               <AvatarImage src={user.avatar} alt={user.name} />
               <AvatarFallback className="rounded-lg">AD</AvatarFallback>
             </Avatar>
@@ -800,7 +802,7 @@ function NavUser({ user }: { user: { name: string; email: string; avatar: string
             <DropdownMenuGroup>
               <DropdownMenuLabel className="p-0 font-normal">
                 <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                  <Avatar className="h-8 w-8 rounded-lg">
+<Avatar className="size-8 rounded-lg">
                     <AvatarImage src={user.avatar} alt={user.name} />
                     <AvatarFallback className="rounded-lg">AD</AvatarFallback>
                   </Avatar>
@@ -856,7 +858,7 @@ function SectionCards({ totalStockValue, totalPartners, totalProducts, lowStockC
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative">
           <CardTitle className="text-sm font-medium">Partenaires</CardTitle>
           <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
-            <HugeiconsIcon icon={UserGroupIcon} strokeWidth={2} className="h-4 w-4 text-primary icon-bounce" />
+            <HugeiconsIcon icon={UserGroupIcon} strokeWidth={2} className="size-4 text-primary icon-bounce" />
           </div>
         </CardHeader>
         <CardContent className="relative">
@@ -873,7 +875,7 @@ function SectionCards({ totalStockValue, totalPartners, totalProducts, lowStockC
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative">
           <CardTitle className="text-sm font-medium">Total Produits</CardTitle>
           <div className="p-2 rounded-lg bg-cyan-500/10 group-hover:bg-cyan-500/20 transition-colors">
-            <HugeiconsIcon icon={PackageIcon} strokeWidth={2} className="h-4 w-4 text-cyan-600 dark:text-cyan-400 icon-bounce" />
+            <HugeiconsIcon icon={PackageIcon} strokeWidth={2} className="size-4 text-cyan-600 dark:text-cyan-400 icon-bounce" />
           </div>
         </CardHeader>
         <CardContent className="relative">
@@ -890,7 +892,7 @@ function SectionCards({ totalStockValue, totalPartners, totalProducts, lowStockC
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative">
           <CardTitle className="text-sm font-medium">Stock Valorisé</CardTitle>
           <div className="p-2 rounded-lg bg-emerald-500/10 group-hover:bg-emerald-500/20 transition-colors">
-            <HugeiconsIcon icon={Calculator01Icon} strokeWidth={2} className="h-4 w-4 text-emerald-600 dark:text-emerald-400 icon-bounce" />
+            <HugeiconsIcon icon={Calculator01Icon} strokeWidth={2} className="size-4 text-emerald-600 dark:text-emerald-400 icon-bounce" />
           </div>
         </CardHeader>
         <CardContent className="relative">
@@ -907,7 +909,7 @@ function SectionCards({ totalStockValue, totalPartners, totalProducts, lowStockC
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative">
           <CardTitle className="text-sm font-medium">Alertes Stock</CardTitle>
           <div className={`p-2 rounded-lg transition-colors ${lowStockCount > 0 ? 'bg-red-500/15 group-hover:bg-red-500/25 pulse-ring' : 'bg-orange-500/10 group-hover:bg-orange-500/20'}`}>
-            <HugeiconsIcon icon={Notification01Icon} strokeWidth={2} className={`h-4 w-4 ${lowStockCount > 0 ? 'text-red-500' : 'text-orange-500 dark:text-orange-400'}`} />
+            <HugeiconsIcon icon={Notification01Icon} strokeWidth={2} className={`size-4 ${lowStockCount > 0 ? 'text-destructive' : 'text-warning'}`} />
           </div>
         </CardHeader>
         <CardContent className="relative">
@@ -966,7 +968,7 @@ const ChartBarInteractive = React.memo(function ChartBarInteractive({ documents 
     <Card className="h-full card-shadow border-0 overflow-hidden">
       <CardHeader className="bg-gradient-to-r from-primary/5 to-transparent">
         <CardTitle className="flex items-center gap-2">
-          <HugeiconsIcon icon={Analytics01Icon} className="h-5 w-5 text-primary" />
+          <HugeiconsIcon icon={Analytics01Icon} className="size-5 text-primary" />
           <span className="gradient-text">Performance Commerciale</span>
         </CardTitle>
         <CardDescription>
@@ -998,8 +1000,8 @@ const ChartBarInteractive = React.memo(function ChartBarInteractive({ documents 
             </BarChart>
           ) : (
             <div className="flex h-full items-center justify-center text-muted-foreground bg-muted/5 rounded-lg border border-dashed">
-              <div className="text-center space-y-2">
-                <HugeiconsIcon icon={ChartUpIcon} className="h-12 w-12 mx-auto opacity-30" />
+<div className="flex flex-col gap-2 text-center">
+						<HugeiconsIcon icon={ChartUpIcon} className="size-12 mx-auto opacity-30" />
                 <p>En attente de données de mouvement</p>
               </div>
             </div>
@@ -1027,8 +1029,8 @@ const DataTable = React.memo(function DataTable({ data }: { data: DocumentItem[]
         {data.length === 0 ? (
           <TableRow>
             <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
-              <div className="space-y-2">
-                <HugeiconsIcon icon={Invoice01Icon} className="h-10 w-10 mx-auto opacity-30" />
+<div className="flex flex-col gap-2">
+							<HugeiconsIcon icon={Invoice01Icon} className="size-10 mx-auto opacity-30" />
                 <p>Aucun document trouvé</p>
               </div>
             </TableCell>

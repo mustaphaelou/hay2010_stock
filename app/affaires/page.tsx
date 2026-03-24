@@ -23,11 +23,12 @@ import {
     TableRow,
 } from "@/components/ui/table"
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
@@ -142,7 +143,7 @@ export default function AffairesPage() {
                             <p className="text-muted-foreground">Mouvements des documents par affaire</p>
                         </div>
                         <Button onClick={fetchDocuments} disabled={loadingDocs || !selectedAffaire}>
-                            <HugeiconsIcon icon={RefreshIcon} className="mr-2 h-4 w-4" />
+                            <HugeiconsIcon icon={RefreshIcon} className="mr-2 size-4" />
                             Actualiser
                         </Button>
                     </div>
@@ -151,7 +152,7 @@ export default function AffairesPage() {
                     <Card>
                         <CardHeader>
                             <CardTitle className="text-lg flex items-center gap-2">
-                                <HugeiconsIcon icon={FolderOpenIcon} className="h-5 w-5" />
+                                <HugeiconsIcon icon={FolderOpenIcon} className="size-5" />
                                 Sélection Affaire
                             </CardTitle>
                         </CardHeader>
@@ -164,13 +165,15 @@ export default function AffairesPage() {
                                 <SelectTrigger className="w-full max-w-md">
                                     <SelectValue />
                                 </SelectTrigger>
-                                <SelectContent>
-                                    {affaires.map((affaire) => (
-                                        <SelectItem key={affaire} value={affaire}>
-                                            {affaire}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
+<SelectContent>
+<SelectGroup>
+{affaires.map((affaire) => (
+<SelectItem key={affaire} value={affaire}>
+{affaire}
+</SelectItem>
+))}
+</SelectGroup>
+</SelectContent>
                             </Select>
                             {affaires.length === 0 && !loading && (
                                 <p className="text-sm text-muted-foreground mt-2">
@@ -186,7 +189,7 @@ export default function AffairesPage() {
                             <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
                                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                                     <CardTitle className="text-sm font-medium">Documents</CardTitle>
-                                    <HugeiconsIcon icon={File01Icon} className="h-4 w-4 text-primary" />
+                                    <HugeiconsIcon icon={File01Icon} className="size-4 text-primary" />
                                 </CardHeader>
                                 <CardContent>
                                     <div className="text-2xl font-bold">{documents.length}</div>
@@ -198,7 +201,7 @@ export default function AffairesPage() {
                             <Card className="bg-gradient-to-br from-green-500/10 to-green-500/5 border-green-500/20">
                                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                                     <CardTitle className="text-sm font-medium">Total Ventes</CardTitle>
-                                    <HugeiconsIcon icon={Invoice01Icon} className="h-4 w-4 text-green-600" />
+                                    <HugeiconsIcon icon={Invoice01Icon} className="size-4 text-green-600" />
                                 </CardHeader>
                                 <CardContent>
                                     <div className="text-2xl font-bold text-green-600">{formatPrice(totalVentes)}</div>
@@ -207,7 +210,7 @@ export default function AffairesPage() {
                             <Card className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 border-blue-500/20">
                                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                                     <CardTitle className="text-sm font-medium">Total Achats</CardTitle>
-                                    <HugeiconsIcon icon={ShoppingBag01Icon} className="h-4 w-4 text-blue-600" />
+                                    <HugeiconsIcon icon={ShoppingBag01Icon} className="size-4 text-blue-600" />
                                 </CardHeader>
                                 <CardContent>
                                     <div className="text-2xl font-bold text-blue-600">{formatPrice(totalAchats)}</div>
@@ -238,12 +241,12 @@ export default function AffairesPage() {
                             <CardContent>
                                 {error ? (
                                     <div className="text-center py-10">
-                                        <p className="text-red-500 mb-4">{error}</p>
+                                        <p className="text-destructive mb-4">{error}</p>
                                         <Button onClick={fetchDocuments} variant="outline">Réessayer</Button>
                                     </div>
                                 ) : loadingDocs ? (
                                     <div className="flex items-center justify-center py-10">
-                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                                        <div className="animate-spin rounded-full size-8 border-b-2 border-primary"></div>
                                     </div>
                                 ) : documents.length === 0 ? (
                                     <div className="text-center py-10 text-muted-foreground">

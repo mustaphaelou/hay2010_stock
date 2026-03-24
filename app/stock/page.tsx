@@ -12,11 +12,12 @@ import {
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
@@ -66,10 +67,10 @@ const columns: ColumnDef<StockLevel>[] = [
         const qty = Number(row.getValue("quantite_en_stock_num") || 0)
         const isLowStock = qty <= 5
             return (
-                <div className={`text-right font-semibold flex items-center justify-end gap-1 ${isLowStock ? 'text-red-500' : ''}`}>
+                <div className={`text-right font-semibold flex items-center justify-end gap-1 ${isLowStock ? 'text-destructive' : ''}`}>
                     {qty}
                     {isLowStock && (
-                        <HugeiconsIcon icon={AlertCircleIcon} className="h-4 w-4 text-red-500" />
+                        <HugeiconsIcon icon={AlertCircleIcon} className="size-4 text-destructive" />
                     )}
                 </div>
             )
@@ -159,7 +160,7 @@ export default function StockPage() {
                         <p className="text-muted-foreground font-medium">Suivi en temps réel des quantités par dépôt.</p>
                     </div>
                     <Button onClick={fetchData} disabled={loading} size="lg" className="hover-lift shadow-md rounded-xl">
-                        <HugeiconsIcon icon={RefreshIcon} className={cn("mr-2 h-5 w-5", loading && "animate-spin")} />
+                        <HugeiconsIcon icon={RefreshIcon} className={cn("mr-2 size-5", loading && "animate-spin")} />
                         Actualiser
                     </Button>
                 </div>
@@ -169,8 +170,8 @@ export default function StockPage() {
                     <Card variant="kpi" className="hover-lift glow">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 p-0">
                             <CardTitle className="text-xs sm:text-sm font-semibold text-muted-foreground uppercase tracking-wider">Lignes Stock</CardTitle>
-                            <div className="icon-container w-10 h-10 shadow-sm opacity-90">
-                                <HugeiconsIcon icon={PackageIcon} className="h-5 w-5 text-primary" />
+<div className="icon-container size-10 shadow-sm opacity-90">
+              <HugeiconsIcon icon={PackageIcon} className="size-5 text-primary" />
                             </div>
                         </CardHeader>
                         <CardContent className="p-0 pt-3">
@@ -182,8 +183,8 @@ export default function StockPage() {
                     <Card variant="kpi" className="hover-lift glow">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 p-0">
                             <CardTitle className="text-xs sm:text-sm font-semibold text-muted-foreground uppercase tracking-wider">Valeur Totale</CardTitle>
-                            <div className="icon-container w-10 h-10 shadow-sm opacity-90">
-                                <HugeiconsIcon icon={Store01Icon} className="h-5 w-5 text-green-500" />
+                            <div className="icon-container size-10 shadow-sm opacity-90">
+                                <HugeiconsIcon icon={Store01Icon} className="size-5 text-success" />
                             </div>
                         </CardHeader>
                         <CardContent className="p-0 pt-3">
@@ -195,8 +196,8 @@ export default function StockPage() {
                     <Card variant="kpi" className="hover-lift glow">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 p-0">
                             <CardTitle className="text-xs sm:text-sm font-semibold text-muted-foreground uppercase tracking-wider">Dépôts</CardTitle>
-                            <div className="icon-container w-10 h-10 shadow-sm opacity-90">
-                                <HugeiconsIcon icon={Store01Icon} className="h-5 w-5 text-orange-500" />
+                            <div className="icon-container size-10 shadow-sm opacity-90">
+                                <HugeiconsIcon icon={Store01Icon} className="size-5 text-warning" />
                             </div>
                         </CardHeader>
                         <CardContent className="p-0 pt-3">
@@ -208,8 +209,8 @@ export default function StockPage() {
                     <Card variant="kpi" className={cn("hover-lift glow", lowStockCount > 0 && "bg-destructive/5 ring-destructive/20")}>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 p-0">
                             <CardTitle className="text-xs sm:text-sm font-semibold text-muted-foreground uppercase tracking-wider">Alertes</CardTitle>
-                            <div className={cn("icon-container w-10 h-10 shadow-sm", lowStockCount > 0 ? "bg-destructive/10" : "opacity-90")}>
-                                <HugeiconsIcon icon={AlertCircleIcon} className={cn("h-5 w-5", lowStockCount > 0 ? "text-destructive" : "text-muted-foreground")} />
+                            <div className={cn("icon-container size-10 shadow-sm", lowStockCount > 0 ? "bg-destructive/10" : "opacity-90")}>
+                                <HugeiconsIcon icon={AlertCircleIcon} className={cn("size-5", lowStockCount > 0 ? "text-destructive" : "text-muted-foreground")} />
                             </div>
                         </CardHeader>
                         <CardContent className="p-0 pt-3">
@@ -232,14 +233,16 @@ export default function StockPage() {
                                 <SelectTrigger className="w-full h-11 rounded-xl shadow-sm">
                                     <SelectValue />
                                 </SelectTrigger>
-                                <SelectContent className="rounded-xl">
-                                    <SelectItem value="all">Tous les dépôts</SelectItem>
-                                    {depots.map(d => (
-                                        <SelectItem key={d.id_depot} value={d.id_depot.toString()}>
-                                            {d.nom_depot}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
+<SelectContent className="rounded-xl">
+<SelectGroup>
+<SelectItem value="all">Tous les dépôts</SelectItem>
+{depots.map(d => (
+<SelectItem key={d.id_depot} value={d.id_depot.toString()}>
+{d.nom_depot}
+</SelectItem>
+))}
+</SelectGroup>
+</SelectContent>
                             </Select>
                         </CardContent>
                     </Card>
@@ -254,15 +257,15 @@ export default function StockPage() {
                                         {loading ? 'Chargement des données...' : `${filteredStock.length} ligne(s) trouvée(s)`}
                                     </CardDescription>
                                 </div>
-                                <div className="p-2 rounded-lg bg-background border shadow-xs">
-                                    <HugeiconsIcon icon={PackageIcon} className="h-5 w-5 text-primary" />
+<div className="p-2 rounded-lg bg-background border shadow-xs">
+          <HugeiconsIcon icon={PackageIcon} className="size-5 text-primary" />
                                 </div>
                             </div>
                         </CardHeader>
                         <CardContent className="p-0 sm:p-2">
                             {error ? (
                                 <div className="text-center py-16 px-4">
-                                    <HugeiconsIcon icon={AlertCircleIcon} className="mx-auto h-12 w-12 text-destructive/50 mb-4" />
+                                    <HugeiconsIcon icon={AlertCircleIcon} className="mx-auto size-12 text-destructive/50 mb-4" />
                                     <p className="text-destructive font-semibold mb-6">{error}</p>
                                     <Button onClick={fetchData} variant="outline" size="lg" className="rounded-xl">Réessayer</Button>
                                 </div>

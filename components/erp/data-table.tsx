@@ -30,11 +30,12 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Empty } from "@/components/ui/empty"
@@ -111,7 +112,7 @@ export function DataTable<TData, TValue>({
     const endRow = Math.min((pagination.pageIndex + 1) * pagination.pageSize, totalRows)
 
     return (
-        <div className="space-y-4">
+        <div className="flex flex-col gap-4">
             {/* Mobile-first responsive toolbar */}
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 {/* Search input - full width on mobile */}
@@ -137,7 +138,7 @@ export function DataTable<TData, TValue>({
                             <Button
                                 variant={viewMode === "table" ? "secondary" : "ghost"}
                                 size="icon"
-                                className="h-11 w-11 rounded-r-none"
+                                className="size-11 rounded-r-none"
                                 onClick={() => setViewMode("table")}
                                 aria-label="Vue tableau"
                                 aria-pressed={viewMode === "table"}
@@ -147,7 +148,7 @@ export function DataTable<TData, TValue>({
                             <Button
                                 variant={viewMode === "cards" ? "secondary" : "ghost"}
                                 size="icon"
-                                className="h-11 w-11 rounded-l-none border-l"
+                                className="size-11 rounded-l-none border-l"
                                 onClick={() => setViewMode("cards")}
                                 aria-label="Vue cartes"
                                 aria-pressed={viewMode === "cards"}
@@ -165,11 +166,13 @@ export function DataTable<TData, TValue>({
                         <SelectTrigger className="w-[110px] sm:w-[130px] h-11 sm:h-9 flex-shrink-0">
                             <SelectValue />
                         </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="10">10 lignes</SelectItem>
-                            <SelectItem value="50">50 lignes</SelectItem>
-                            <SelectItem value="100">100 lignes</SelectItem>
-                        </SelectContent>
+<SelectContent>
+								<SelectGroup>
+									<SelectItem value="10">10 lignes</SelectItem>
+									<SelectItem value="50">50 lignes</SelectItem>
+									<SelectItem value="100">100 lignes</SelectItem>
+								</SelectGroup>
+							</SelectContent>
                     </Select>
                     {/* Column visibility - icon only on mobile */}
                     <DropdownMenu>
@@ -177,7 +180,7 @@ export function DataTable<TData, TValue>({
                             className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-11 sm:h-9 px-3 sm:px-4 py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring flex-shrink-0"
                             aria-label="Afficher ou masquer les colonnes"
                         >
-                            <HugeiconsIcon icon={Settings01Icon} className="h-4 w-4 sm:mr-2" />
+                            <HugeiconsIcon icon={Settings01Icon} className="size-4 sm:mr-2" />
                             <span className="hidden sm:inline">Colonnes</span>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
@@ -203,23 +206,23 @@ export function DataTable<TData, TValue>({
             {/* Content: Table or Cards view */}
             {viewMode === "cards" && mobileCardRenderer ? (
                 /* Mobile Card View */
-                <div className="space-y-3">
+                <div className="flex flex-col gap-3">
                     {loading ? (
                         Array.from({ length: 5 }).map((_, i) => (
                             <div key={`card-skeleton-${i}`} className="rounded-lg border bg-card p-4 animate-pulse">
                                 <div className="flex items-start justify-between gap-3 mb-3">
-                                    <div className="flex-1 space-y-2">
+                                    <div className="flex-1 flex flex-col gap-2">
                                         <div className="h-4 bg-muted rounded w-1/3" />
                                         <div className="h-5 bg-muted rounded w-2/3" />
                                     </div>
-                                    <div className="h-8 w-8 bg-muted rounded" />
+                                    <div className="size-8 bg-muted rounded" />
                                 </div>
                                 <div className="grid grid-cols-2 gap-3 pt-2 border-t">
-                                    <div className="space-y-1">
+                                    <div className="flex flex-col gap-1">
                                         <div className="h-3 bg-muted rounded w-1/2" />
                                         <div className="h-4 bg-muted rounded w-3/4" />
                                     </div>
-                                    <div className="space-y-1">
+                                    <div className="flex flex-col gap-1">
                                         <div className="h-3 bg-muted rounded w-1/2" />
                                         <div className="h-4 bg-muted rounded w-3/4" />
                                     </div>
@@ -329,22 +332,22 @@ export function DataTable<TData, TValue>({
                         <Button
                             variant="outline"
                             size="sm"
-                            className="h-10 w-10 sm:h-9 sm:w-9 p-0 rounded-lg hover:bg-primary/5 hover:text-primary transition-all active:scale-95"
+                            className="size-10 sm:size-9 p-0 rounded-lg hover:bg-primary/5 hover:text-primary transition-all active:scale-95"
                             onClick={() => table.previousPage()}
                             disabled={!table.getCanPreviousPage()}
                             aria-label="Page précédente"
                         >
-                            <HugeiconsIcon icon={ArrowLeft01Icon} className="h-5 w-5 sm:h-4 sm:w-4" aria-hidden="true" />
+                            <HugeiconsIcon icon={ArrowLeft01Icon} className="size-5 sm:size-4" aria-hidden="true" />
                         </Button>
                         <Button
                             variant="outline"
                             size="sm"
-                            className="h-10 w-10 sm:h-9 sm:w-9 p-0 rounded-lg hover:bg-primary/5 hover:text-primary transition-all active:scale-95"
+                            className="size-10 sm:size-9 p-0 rounded-lg hover:bg-primary/5 hover:text-primary transition-all active:scale-95"
                             onClick={() => table.nextPage()}
                             disabled={!table.getCanNextPage()}
                             aria-label="Page suivante"
                         >
-                            <HugeiconsIcon icon={ArrowRight01Icon} className="h-5 w-5 sm:h-4 sm:w-4" aria-hidden="true" />
+                            <HugeiconsIcon icon={ArrowRight01Icon} className="size-5 sm:size-4" aria-hidden="true" />
                         </Button>
                     </div>
                 </div>

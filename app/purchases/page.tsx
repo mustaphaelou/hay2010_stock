@@ -212,7 +212,7 @@ export default function PurchasesPage() {
                                 <p className="text-muted-foreground">Gestion des documents d&apos;achat</p>
                             </div>
                             <Button onClick={fetchDocuments} disabled={loading}>
-                                <HugeiconsIcon icon={RefreshIcon} className="mr-2 h-4 w-4" />
+                                <HugeiconsIcon icon={RefreshIcon} className="mr-2 size-4" />
                                 Actualiser
                             </Button>
                         </div>
@@ -222,7 +222,7 @@ export default function PurchasesPage() {
                             <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
                                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                                     <CardTitle className="text-sm font-medium">Documents</CardTitle>
-                                    <HugeiconsIcon icon={ShoppingBag01Icon} className="h-4 w-4 text-primary" />
+                                    <HugeiconsIcon icon={ShoppingBag01Icon} className="size-4 text-primary" />
                                 </CardHeader>
                                 <CardContent>
                                     <div className="text-2xl font-bold">{documents.length}</div>
@@ -257,7 +257,7 @@ export default function PurchasesPage() {
                         {/* Search */}
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             <div className="relative">
-                                <HugeiconsIcon icon={Search01Icon} className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                                <HugeiconsIcon icon={Search01Icon} className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                                 <Input
                                     placeholder="Rechercher par numéro..."
                                     value={searchTerm}
@@ -289,12 +289,12 @@ export default function PurchasesPage() {
                             <CardContent>
                                 {error ? (
                                     <div className="text-center py-10">
-                                        <p className="text-red-500 mb-4">{error}</p>
+                                        <p className="text-destructive mb-4">{error}</p>
                                         <Button onClick={fetchDocuments} variant="outline">Réessayer</Button>
                                     </div>
                                 ) : loading ? (
                                     <div className="flex items-center justify-center py-10">
-                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                                        <div className="animate-spin rounded-full size-8 border-b-2 border-primary"></div>
                                     </div>
                                 ) : (
                                     <Table>

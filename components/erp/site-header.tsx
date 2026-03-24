@@ -18,7 +18,7 @@ export function SiteHeader() {
     return (
         <header className="flex h-14 sm:h-14 shrink-0 items-center gap-2 border-b bg-background/95 backdrop-blur-sm px-3 sm:px-4 sticky top-0 z-10 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
             {/* Larger touch target for sidebar toggle on mobile */}
-            <SidebarTrigger className="-ml-1 h-10 w-10 sm:h-8 sm:w-8" />
+            <SidebarTrigger className="-ml-1 size-10 sm:size-8" />
             <Separator orientation="vertical" className="mr-1 sm:mr-2 h-4 hidden sm:block" />
             {/* Breadcrumbs - simplified on mobile */}
             <Breadcrumb className="flex-1 min-w-0">
@@ -38,7 +38,7 @@ export function SiteHeader() {
                     <ModeToggle />
                     <LanguageToggle />
                 </div>
-                <Avatar size="sm" className="h-8 w-8 sm:h-9 sm:w-9">
+                <Avatar size="sm" className="size-8 sm:size-9">
                     <AvatarImage src="/hay2010-logo.png" alt="User" />
                     <AvatarFallback>ML</AvatarFallback>
                 </Avatar>

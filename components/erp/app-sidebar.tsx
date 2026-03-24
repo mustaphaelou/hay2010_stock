@@ -75,9 +75,9 @@ const [mounted, setMounted] = React.useState(false)
                     </SidebarMenu>
                 </SidebarHeader>
                 <SidebarContent>
-                    <div className="p-4 space-y-4">
+                    <div className="p-4 flex flex-col gap-4">
                         <div className="h-4 w-20 bg-muted animate-pulse rounded" />
-                        <div className="space-y-2">
+                        <div className="flex flex-col gap-2">
                             <div className="h-8 w-full bg-muted animate-pulse rounded" />
                             <div className="h-8 w-full bg-muted animate-pulse rounded" />
                             <div className="h-8 w-full bg-muted animate-pulse rounded" />

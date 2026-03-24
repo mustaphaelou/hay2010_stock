@@ -90,13 +90,13 @@ export function FloatingActionButton({
                             <Button
                                 size="icon"
                                 variant="secondary"
-                                className="h-12 w-12 rounded-full shadow-lg"
+                                className="size-12 rounded-full shadow-lg"
                                 onClick={() => handleActionClick(action)}
                                 aria-label={action.label}
                             >
                                 <HugeiconsIcon
                                     icon={action.icon}
-                                    className="h-5 w-5"
+                                    className="size-5"
                                     aria-hidden="true"
                                 />
                             </Button>
@@ -108,19 +108,19 @@ export function FloatingActionButton({
             {/* Primary FAB */}
             <Button
                 size="icon"
-                className={cn(
-                    "h-14 w-14 rounded-full shadow-lg transition-transform",
-                    "hover:scale-105 active:scale-95",
-                    "bg-primary hover:bg-primary/90",
-                    isOpen && "rotate-45"
-                )}
+className={cn(
+            "size-14 rounded-full shadow-lg transition-transform",
+            "hover:scale-105 active:scale-95",
+            "bg-primary hover:bg-primary/90",
+            isOpen && "rotate-45"
+          )}
                 onClick={handlePrimaryClick}
                 aria-label={hasActions ? (isOpen ? "Fermer le menu" : "Ouvrir le menu d'actions") : primaryLabel}
                 aria-expanded={hasActions ? isOpen : undefined}
             >
                 <HugeiconsIcon
                     icon={isOpen && hasActions ? Cancel01Icon : (CustomIcon || Add01Icon)}
-                    className="h-6 w-6 transition-transform"
+                    className="size-6 transition-transform"
                     strokeWidth={2.5}
                     aria-hidden="true"
                 />

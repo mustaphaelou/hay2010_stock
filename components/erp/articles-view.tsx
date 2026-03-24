@@ -7,12 +7,13 @@ import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
@@ -102,7 +103,7 @@ const createColumns = (onViewDetails: (article: ArticleWithStock) => void): Colu
             const isOutOfStock = stock === 0
 
             return (
-                <div className={`text-right font-semibold flex items-center justify-end gap-1 ${isOutOfStock ? 'text-red-500' : isLowStock ? 'text-orange-500' : ''}`}>
+                <div className={`text-right font-semibold flex items-center justify-end gap-1 ${isOutOfStock ? 'text-destructive' : isLowStock ? 'text-warning' : ''}`}>
                     {stock}
                     {isLowStock && (
               <HugeiconsIcon icon={AlertCircleIcon} className="text-warning" aria-hidden="true" />
@@ -134,25 +135,27 @@ const createColumns = (onViewDetails: (article: ArticleWithStock) => void): Colu
             return (
                 <DropdownMenu>
                     <DropdownMenuTrigger
-                        className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground size-8 p-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         aria-label="Ouvrir le menu d'actions"
                     >
                         <span className="sr-only">Menu</span>
-                        <HugeiconsIcon icon={MoreVerticalIcon} className="h-4 w-4" aria-hidden="true" />
+                        <HugeiconsIcon icon={MoreVerticalIcon} className="size-4" aria-hidden="true" />
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem
-                            onClick={() => navigator.clipboard.writeText(article.code_produit)}
-                        >
-                            Copier référence
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => onViewDetails(article)}>
-                            Voir détails
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>Mouvements stock</DropdownMenuItem>
-                    </DropdownMenuContent>
+<DropdownMenuContent align="end">
+        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuGroup>
+          <DropdownMenuItem
+            onClick={() => navigator.clipboard.writeText(article.code_produit)}
+          >
+            Copier référence
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onViewDetails(article)}>
+            Voir détails
+          </DropdownMenuItem>
+          <DropdownMenuItem>Mouvements stock</DropdownMenuItem>
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
                 </DropdownMenu>
             )
         },
@@ -236,12 +239,12 @@ export function ArticlesView({ initialData }: ArticlesViewProps) {
     }
 
     return (
-        <div className="space-y-6 sm:space-y-8 animate-fade-in-up">
+        <div className="flex flex-col gap-6 sm:gap-8 animate-fade-in-up">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between px-1">
                 <div className="flex flex-col gap-1">
                     <h2 className="text-2xl sm:text-4xl font-extrabold tracking-tight gradient-text">Gestion des Articles</h2>
                     <p className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                        <span className="flex h-2 w-2 rounded-full bg-primary" />
+                        <span className="flex size-2 rounded-full bg-primary" />
                         {filteredData.length} articles trouvés sur {localData.length} au total
                     </p>
                 </div>
@@ -251,7 +254,7 @@ export function ArticlesView({ initialData }: ArticlesViewProps) {
                         <DropdownMenuTrigger
                             className={cn(buttonVariants({ variant: "outline" }), "w-full lg:w-auto gap-2 lg:h-11 rounded-xl shadow-sm border-muted/60")}
                         >
-                            <div className={`h-2 w-2 rounded-full ${selectedStatus === "active" ? "bg-green-500" :
+                            <div className={`size-2 rounded-full ${selectedStatus === "active" ? "bg-green-500" :
                                 selectedStatus === "sommeil" ? "bg-slate-400" : "bg-primary"
                                 }`} />
                             <span className="truncate">
@@ -259,11 +262,13 @@ export function ArticlesView({ initialData }: ArticlesViewProps) {
                                     selectedStatus === "active" ? "Actifs" : "Sommeil"}
                             </span>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="rounded-xl">
-                            <DropdownMenuItem onClick={() => setSelectedStatus("all")}>Tous les statuts</DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setSelectedStatus("active")}>Articles Actifs</DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setSelectedStatus("sommeil")}>Articles en sommeil</DropdownMenuItem>
-                        </DropdownMenuContent>
+<DropdownMenuContent align="end" className="rounded-xl">
+        <DropdownMenuGroup>
+          <DropdownMenuItem onClick={() => setSelectedStatus("all")}>Tous les statuts</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setSelectedStatus("active")}>Articles Actifs</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setSelectedStatus("sommeil")}>Articles en sommeil</DropdownMenuItem>
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
                     </DropdownMenu>
 
                     <div className="relative w-full lg:w-auto">
@@ -273,7 +278,7 @@ export function ArticlesView({ initialData }: ArticlesViewProps) {
                             onClick={() => setIsFilterOpen(!isFilterOpen)}
                         >
                             <span className="flex items-center gap-2 truncate">
-                                <HugeiconsIcon icon={TagsIcon} className="h-4 w-4" />
+                                <HugeiconsIcon icon={TagsIcon} className="size-4" />
                                 <span className="truncate">
                                     {selectedFamille === "all" ? "Familles" : selectedFamille}
                                 </span>
@@ -374,7 +379,7 @@ export function ArticlesView({ initialData }: ArticlesViewProps) {
                             Détails complets de l&apos;article et informations de stock.
                         </SheetDescription>
                         <div className="flex items-center justify-between pt-4 border-t mt-4">
-                            <div className="space-y-0.5">
+                            <div className="flex flex-col gap-0.5">
                                 <Label className="text-sm font-medium">Statut de l&apos;article</Label>
                                 <p className="text-xs text-muted-foreground">
                                     {selectedArticle?.en_sommeil ? "Désactivé (En sommeil)" : "Activé (En vente)"}
@@ -390,106 +395,106 @@ export function ArticlesView({ initialData }: ArticlesViewProps) {
 
                     <Separator />
 
-                    <div className="grid gap-5 py-4 sm:py-6 px-0 sm:px-1">
-                        <div className="space-y-4">
-                            <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground/70 uppercase tracking-wider">
-                                <HugeiconsIcon icon={InformationCircleIcon} />
-                                Informations Générales
+<div className="grid gap-5 py-4 sm:py-6 px-0 sm:px-1">
+<div className="flex flex-col gap-4">
+<h3 className="text-sm font-semibold flex items-center gap-2 text-foreground/70 uppercase tracking-wider">
+<HugeiconsIcon icon={InformationCircleIcon} />
+Informations Générales
                             </h3>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-1">
-                                    <p className="text-xs text-muted-foreground uppercase">Référence</p>
-                                    <p className="font-medium">{selectedArticle?.code_produit}</p>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-xs text-muted-foreground uppercase">Famille</p>
-                                    <p className="font-medium">{selectedArticle?.famille || "-"}</p>
-                                </div>
-                                <div className="col-span-2 space-y-1">
-                                    <p className="text-xs text-muted-foreground uppercase">Désignation Complémentaire</p>
-                                    <p className="font-medium">{selectedArticle?.description_produit || "-"}</p>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-xs text-muted-foreground uppercase">Code Barre</p>
+<div className="grid grid-cols-2 gap-4">
+<div className="flex flex-col gap-1">
+<p className="text-xs text-muted-foreground uppercase">Référence</p>
+<p className="font-medium">{selectedArticle?.code_produit}</p>
+</div>
+<div className="flex flex-col gap-1">
+<p className="text-xs text-muted-foreground uppercase">Famille</p>
+<p className="font-medium">{selectedArticle?.famille || "-"}</p>
+</div>
+<div className="col-span-2 flex flex-col gap-1">
+<p className="text-xs text-muted-foreground uppercase">Désignation Complémentaire</p>
+<p className="font-medium">{selectedArticle?.description_produit || "-"}</p>
+</div>
+<div className="flex flex-col gap-1">
+<p className="text-xs text-muted-foreground uppercase">Code Barre</p>
                                     <div className="flex items-center gap-2">
-                                        <HugeiconsIcon icon={BarCode02Icon} className="h-4 w-4 text-muted-foreground" />
+                                        <HugeiconsIcon icon={BarCode02Icon} className="size-4 text-muted-foreground" />
                                         <p className="font-medium font-mono">{selectedArticle?.code_barre_ean || "-"}</p>
-                                    </div>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-xs text-muted-foreground uppercase">Unité de mesure</p>
+</div>
+</div>
+<div className="flex flex-col gap-1">
+<p className="text-xs text-muted-foreground uppercase">Unité de mesure</p>
                                     <p className="font-medium">{selectedArticle?.unite_mesure || "Unité"}</p>
                                 </div>
                             </div>
                         </div>
 
-                        <Separator className="bg-muted/50" />
+<Separator className="bg-muted/50" />
 
-                        <div className="space-y-4">
-                            <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground/70 uppercase tracking-wider">
-                                <HugeiconsIcon icon={Money01Icon} />
-                                Tarification
+<div className="flex flex-col gap-4">
+<h3 className="text-sm font-semibold flex items-center gap-2 text-foreground/70 uppercase tracking-wider">
+<HugeiconsIcon icon={Money01Icon} />
+Tarification
                             </h3>
-                            <div className="grid grid-cols-2 gap-x-4 gap-y-4 bg-muted/30 p-4 rounded-lg">
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground uppercase">Prix Achat HT</p>
-              <p className="text-lg font-bold text-info">{formatPrice(selectedArticle?.prix_achat ? Number(selectedArticle.prix_achat) : 0)}</p>
-            </div>
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground uppercase">Prix Vente HT</p>
-              <p className="text-lg font-bold text-emerald-600">{formatPrice(selectedArticle?.prix_vente ? Number(selectedArticle.prix_vente) : 0)}</p>
-            </div>
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground uppercase">Coefficient</p>
-              <Badge variant="outline" className="font-mono">{selectedArticle?.coefficient ? Number(selectedArticle.coefficient).toFixed(2) : "1.00"}</Badge>
-            </div>
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground uppercase">TVA %</p>
+<div className="grid grid-cols-2 gap-x-4 gap-y-4 bg-muted/30 p-4 rounded-lg">
+<div className="flex flex-col gap-1">
+<p className="text-xs text-muted-foreground uppercase">Prix Achat HT</p>
+<p className="text-lg font-bold text-info">{formatPrice(selectedArticle?.prix_achat ? Number(selectedArticle.prix_achat) : 0)}</p>
+</div>
+<div className="flex flex-col gap-1">
+<p className="text-xs text-muted-foreground uppercase">Prix Vente HT</p>
+<p className="text-lg font-bold text-emerald-600">{formatPrice(selectedArticle?.prix_vente ? Number(selectedArticle.prix_vente) : 0)}</p>
+</div>
+<div className="flex flex-col gap-1">
+<p className="text-xs text-muted-foreground uppercase">Coefficient</p>
+<Badge variant="outline" className="font-mono">{selectedArticle?.coefficient ? Number(selectedArticle.coefficient).toFixed(2) : "1.00"}</Badge>
+</div>
+<div className="flex flex-col gap-1">
+<p className="text-xs text-muted-foreground uppercase">TVA %</p>
               <p className="text-sm font-medium">{selectedArticle?.taux_tva ? String(selectedArticle.taux_tva) : "20.0"}</p>
             </div>
                             </div>
                         </div>
 
-                        <Separator className="bg-muted/50" />
+<Separator className="bg-muted/50" />
 
-                        <div className="space-y-4">
-                            <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground/70 uppercase tracking-wider">
-                                <HugeiconsIcon icon={PackageIcon} className="h-4 w-4" />
-                                Gestion des Stocks
+<div className="flex flex-col gap-4">
+<h3 className="text-sm font-semibold flex items-center gap-2 text-foreground/70 uppercase tracking-wider">
+<HugeiconsIcon icon={PackageIcon} className="size-4" />
+Gestion des Stocks
                             </h3>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-1">
-                                    <p className="text-xs text-muted-foreground uppercase">Stock Actuel</p>
+<div className="grid grid-cols-2 gap-4">
+<div className="flex flex-col gap-1">
+<p className="text-xs text-muted-foreground uppercase">Stock Actuel</p>
                                     <p className={cn("text-2xl font-bold", selectedArticle?.stock_global === 0 ? "text-destructive" : "text-primary")}>
-                                        {selectedArticle?.stock_global}
-                                    </p>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-xs text-muted-foreground uppercase">Suivi Stock</p>
+{selectedArticle?.stock_global}
+</p>
+</div>
+<div className="flex flex-col gap-1">
+<p className="text-xs text-muted-foreground uppercase">Suivi Stock</p>
                                     <div className="flex items-center gap-2 mt-1">
                                         <div className={cn("size-2 rounded-full", selectedArticle?.activer_suivi_stock ? "bg-emerald-500" : "bg-destructive")} />
                                         <p className="text-sm font-medium">{selectedArticle?.activer_suivi_stock ? 'Activé' : 'Désactivé'}</p>
-                                    </div>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-xs text-muted-foreground uppercase">Stock Mini</p>
-                                    <p className="font-medium">{selectedArticle?.stock_minimum || 0}</p>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-xs text-muted-foreground uppercase">Stock Maxi</p>
+</div>
+</div>
+<div className="flex flex-col gap-1">
+<p className="text-xs text-muted-foreground uppercase">Stock Mini</p>
+<p className="font-medium">{selectedArticle?.stock_minimum || 0}</p>
+</div>
+<div className="flex flex-col gap-1">
+<p className="text-xs text-muted-foreground uppercase">Stock Maxi</p>
                                     <p className="font-medium">{selectedArticle?.stock_maximum || 0}</p>
                                 </div>
                             </div>
                         </div>
 
-                        <Separator className="bg-muted/50" />
+<Separator className="bg-muted/50" />
 
-                        <div className="space-y-4">
-                            <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground/70 uppercase tracking-wider">
-                                <HugeiconsIcon icon={Calendar01Icon} className="h-4 w-4" />
-                                Audit & Dates
+<div className="flex flex-col gap-4">
+<h3 className="text-sm font-semibold flex items-center gap-2 text-foreground/70 uppercase tracking-wider">
+<HugeiconsIcon icon={Calendar01Icon} className="size-4" />
+Audit & Dates
                             </h3>
-                            <div className="space-y-3 bg-muted/20 p-3 rounded-md text-xs">
+                            <div className="flex flex-col gap-3 bg-muted/20 p-3 rounded-md text-xs">
                                 <div className="flex justify-between items-center">
                                     <span className="text-muted-foreground">Date Création</span>
                                     <span className="font-medium">{selectedArticle?.date_creation ? formatDate(selectedArticle.date_creation) : "-"}</span>

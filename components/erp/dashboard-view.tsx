@@ -57,7 +57,7 @@ interface DashboardViewProps {
 
 export function DashboardView({ initialStats, initialRecentDocs, paymentData }: DashboardViewProps) {
     return (
-        <div className="space-y-6 sm:space-y-8 animate-fade-in-up px-1 sm:px-0">
+        <div className="flex flex-col gap-6 sm:gap-8 animate-fade-in-up px-1 sm:px-0">
             {/* Header - with gradient text */}
             <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                 <div>
@@ -152,7 +152,7 @@ export function DashboardView({ initialStats, initialRecentDocs, paymentData }: 
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 sm:pb-2 p-0">
                         <CardTitle className="text-xs sm:text-sm font-semibold text-muted-foreground uppercase tracking-wider">Achats</CardTitle>
                         <div className="icon-container w-8 h-8 sm:w-11 sm:h-11 shadow-sm">
-                            <HugeiconsIcon icon={ShoppingBag01Icon} strokeWidth={2.5} className="h-4 w-4 sm:h-5 sm:w-5 text-fuchsia-500 icon-bounce" />
+                            <HugeiconsIcon icon={ShoppingBag01Icon} strokeWidth={2.5} className="size-4 sm:size-5 text-fuchsia-500 icon-bounce" />
                         </div>
                     </CardHeader>
                     <CardContent className="p-0 pt-3">
@@ -184,7 +184,7 @@ export function DashboardView({ initialStats, initialRecentDocs, paymentData }: 
                                     Aperçu de vos transactions récentes.
                                 </CardDescription>
                             </div>
-                            <HugeiconsIcon icon={FolderOpenIcon} className="h-5 w-5 text-muted-foreground" />
+                            <HugeiconsIcon icon={FolderOpenIcon} className="size-5 text-muted-foreground" />
                         </div>
                     </CardHeader>
                     <CardContent className="p-0">

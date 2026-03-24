@@ -2,11 +2,12 @@
 
 import * as React from "react"
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { HugeiconsIcon } from "@hugeicons/react"
@@ -46,26 +47,28 @@ export function PartnerFilter({
                         <SelectTrigger className="h-10">
                             <SelectValue />
                         </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">
-                                <div className="flex items-center gap-2">
-                                    <HugeiconsIcon icon={UserGroupIcon} className="h-4 w-4" />
-                                    <span>Tous</span>
-                                </div>
-                            </SelectItem>
-                            <SelectItem value="0">
-                                <div className="flex items-center gap-2">
-                                    <HugeiconsIcon icon={UserAccountIcon} className="h-4 w-4" />
-                                    <span>Clients</span>
-                                </div>
-                            </SelectItem>
-                            <SelectItem value="1">
-                                <div className="flex items-center gap-2">
-                                    <HugeiconsIcon icon={Building01Icon} className="h-4 w-4" />
-                                    <span>Fournisseurs</span>
-                                </div>
-                            </SelectItem>
-                        </SelectContent>
+<SelectContent>
+<SelectGroup>
+<SelectItem value="all">
+                  <div className="flex items-center gap-2">
+                    <HugeiconsIcon icon={UserGroupIcon} className="size-4" />
+                    <span>Tous</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="0">
+                  <div className="flex items-center gap-2">
+                    <HugeiconsIcon icon={UserAccountIcon} className="size-4" />
+                    <span>Clients</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="1">
+                  <div className="flex items-center gap-2">
+                    <HugeiconsIcon icon={Building01Icon} className="size-4" />
+                    <span>Fournisseurs</span>
+                  </div>
+                </SelectItem>
+</SelectGroup>
+</SelectContent>
                     </Select>
                 </div>
             )}
@@ -74,34 +77,36 @@ export function PartnerFilter({
                 <Select value={selectedPartner} onValueChange={(value) => onPartnerChange(value ?? 'all')}>
                     <SelectTrigger className="h-10">
                         <div className="flex items-center gap-2">
-                            <HugeiconsIcon icon={Search01Icon} className="h-4 w-4 text-muted-foreground" />
+                            <HugeiconsIcon icon={Search01Icon} className="size-4 text-muted-foreground" />
                             <SelectValue />
                         </div>
                     </SelectTrigger>
-                    <SelectContent>
-                        <div className="p-2 pb-0">
-                            <Input
-                                placeholder="Rechercher..."
-                                value={searchValue}
-                                onChange={(e) => setSearchValue(e.target.value)}
-                                className="h-8"
-                            />
-                        </div>
-                        <div className="max-h-[200px] overflow-y-auto">
-                            <SelectItem value="all">Tous les partenaires</SelectItem>
-                            {filteredPartners.length === 0 ? (
-                                <div className="py-2 px-2 text-sm text-muted-foreground text-center">
-                                    Aucun partenaire trouvé
-                                </div>
-                            ) : (
-                                filteredPartners.map((partner) => (
-                                    <SelectItem key={partner} value={partner}>
-                                        {partner}
-                                    </SelectItem>
-                                ))
-                            )}
-                        </div>
-                    </SelectContent>
+<SelectContent>
+<div className="p-2 pb-0">
+<Input
+placeholder="Rechercher..."
+value={searchValue}
+onChange={(e) => setSearchValue(e.target.value)}
+className="h-8"
+/>
+</div>
+<SelectGroup>
+<div className="max-h-[200px] overflow-y-auto">
+<SelectItem value="all">Tous les partenaires</SelectItem>
+{filteredPartners.length === 0 ? (
+<div className="py-2 px-2 text-sm text-muted-foreground text-center">
+Aucun partenaire trouvé
+</div>
+) : (
+filteredPartners.map((partner) => (
+<SelectItem key={partner} value={partner}>
+{partner}
+</SelectItem>
+))
+)}
+</div>
+</SelectGroup>
+</SelectContent>
                 </Select>
             </div>
         </div>

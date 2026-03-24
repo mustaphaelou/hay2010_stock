@@ -71,16 +71,16 @@ export function BottomNav() {
                             <div className="relative">
                                 <HugeiconsIcon
                                     icon={item.icon}
-                                    className={cn(
-                                        "h-5 w-5 transition-transform",
-                                        isActive && "scale-110"
-                                    )}
+className={cn(
+              "size-5 transition-transform",
+              isActive && "scale-110"
+            )}
                                     strokeWidth={isActive ? 2.5 : 2}
                                     aria-hidden="true"
                                 />
                                 {isActive && (
                                     <span
-                                        className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary"
+                                        className="absolute -bottom-1 left-1/2 -translate-x-1/2 size-1 rounded-full bg-primary"
                                         aria-hidden="true"
                                     />
                                 )}

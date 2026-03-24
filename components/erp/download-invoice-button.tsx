@@ -65,9 +65,9 @@ export function DownloadInvoiceButton({
             aria-label="Télécharger le PDF"
         >
             {loading ? (
-                <HugeiconsIcon icon={Loading01Icon} className="h-4 w-4 animate-spin" />
+                <HugeiconsIcon icon={Loading01Icon} className="size-4 animate-spin" />
             ) : (
-                <HugeiconsIcon icon={FileDownloadIcon} className="h-4 w-4" />
+                <HugeiconsIcon icon={FileDownloadIcon} className="size-4" />
             )}
             {size !== 'icon' && <span className="ml-2">PDF</span>}
         </Button>

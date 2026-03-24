@@ -36,7 +36,7 @@ export function DateRangePicker({
                             !date && "text-muted-foreground"
                         )}
                     >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        <CalendarIcon className="mr-2 size-4" />
                         {date?.from ? (
                             date.to ? (
                                 <>
@@ -49,7 +49,7 @@ export function DateRangePicker({
                         ) : (
                             <span>Sélectionner une date</span>
                         )}
-                        <ChevronDown className="ml-auto h-4 w-4 opacity-50" />
+                        <ChevronDown className="ml-auto size-4 opacity-50" />
                     </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">

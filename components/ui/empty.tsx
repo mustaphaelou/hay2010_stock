@@ -31,7 +31,7 @@ export function Empty({
         <div className="mb-4 rounded-full bg-muted p-4">
           <HugeiconsIcon
             icon={Icon}
-            className="h-8 w-8 text-muted-foreground"
+            className="size-8 text-muted-foreground"
             strokeWidth={1.5}
           />
         </div>

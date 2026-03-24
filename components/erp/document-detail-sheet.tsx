@@ -136,8 +136,8 @@ export function DocumentDetailSheet({ document, open, onOpenChange }: DocumentDe
             <SheetContent side="right" className="w-full sm:max-w-xl overflow-y-auto">
                 <SheetHeader>
       <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-          <HugeiconsIcon icon={Invoice01Icon} className="h-5 w-5 text-primary" />
+<div className="flex size-10 items-center justify-center rounded-lg bg-primary/10">
+        <HugeiconsIcon icon={Invoice01Icon} className="size-5 text-primary" />
         </div>
         <div>
           <SheetTitle className="text-xl">{document.numero_piece || document.numero_document}</SheetTitle>
@@ -151,18 +151,18 @@ export function DocumentDetailSheet({ document, open, onOpenChange }: DocumentDe
                 <div className="flex-1 overflow-y-auto px-4 pb-4">
                     {/* Document Info */}
                     <div className="grid grid-cols-2 gap-4 py-4">
-                        <div className="space-y-1">
-                            <p className="text-xs text-muted-foreground flex items-center gap-1">
-                                <HugeiconsIcon icon={Calendar03Icon} className="h-3 w-3" />
-                                Date
-                            </p>
+<div className="flex flex-col gap-1">
+      <p className="text-xs text-muted-foreground flex items-center gap-1">
+        <HugeiconsIcon icon={Calendar03Icon} className="size-3" />
+        Date
+      </p>
                             <p className="font-medium">{formatDate(document.date_document)}</p>
                         </div>
-      <div className="space-y-1">
-        <p className="text-xs text-muted-foreground flex items-center gap-1">
-          <HugeiconsIcon icon={UserIcon} className="h-3 w-3" />
-          Tiers
-        </p>
+<div className="flex flex-col gap-1">
+      <p className="text-xs text-muted-foreground flex items-center gap-1">
+        <HugeiconsIcon icon={UserIcon} className="size-3" />
+        Tiers
+      </p>
         <p className="font-medium">{document.partenaire?.nom_partenaire || document.nom_tiers || document.nom_partenaire_snapshot || '-'}</p>
       </div>
                     </div>
@@ -171,21 +171,21 @@ export function DocumentDetailSheet({ document, open, onOpenChange }: DocumentDe
 
       {/* Totals */}
       <div className="grid grid-cols-2 gap-4 py-4">
-        <div className="space-y-2">
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Total HT</span>
-            <span>{formatPrice(totalHT)}</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">TVA</span>
-            <span>{formatPrice(tva)}</span>
-          </div>
-          <div className="flex justify-between font-semibold">
-            <span>Total TTC</span>
-            <span className="text-primary">{formatPrice(montantTTC)}</span>
-          </div>
+<div className="flex flex-col gap-2">
+        <div className="flex justify-between text-sm">
+          <span className="text-muted-foreground">Total HT</span>
+          <span>{formatPrice(totalHT)}</span>
         </div>
-        <div className="space-y-2">
+        <div className="flex justify-between text-sm">
+          <span className="text-muted-foreground">TVA</span>
+          <span>{formatPrice(tva)}</span>
+        </div>
+        <div className="flex justify-between font-semibold">
+          <span>Total TTC</span>
+          <span className="text-primary">{formatPrice(montantTTC)}</span>
+        </div>
+      </div>
+      <div className="flex flex-col gap-2">
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Réglé</span>
             <span className="text-green-600">{formatPrice(document.montant_regle)}</span>
@@ -200,7 +200,7 @@ export function DocumentDetailSheet({ document, open, onOpenChange }: DocumentDe
             <span className="text-sm text-muted-foreground">Statut</span>
             {isPaid ? (
               <Badge className="bg-green-500/10 text-green-600 border-green-500/30">
-                <HugeiconsIcon icon={CheckmarkCircle01Icon} className="h-3 w-3 mr-1" />
+                <HugeiconsIcon icon={CheckmarkCircle01Icon} className="size-3 mr-1" />
                 RÉGLÉ
               </Badge>
             ) : isPartial ? (
@@ -218,11 +218,11 @@ export function DocumentDetailSheet({ document, open, onOpenChange }: DocumentDe
                     <div className="py-4">
                         <h4 className="font-semibold mb-3">Lignes du document</h4>
                         {loading ? (
-                            <div className="space-y-2">
-                                {[1, 2, 3].map(i => (
-                                    <Skeleton key={i} className="h-12 w-full" />
-                                ))}
-                            </div>
+<div className="flex flex-col gap-2">
+        {[1, 2, 3].map(i => (
+          <Skeleton key={i} className="h-12 w-full" />
+        ))}
+      </div>
                         ) : lines.length === 0 ? (
                             <p className="text-sm text-muted-foreground text-center py-4">
                                 Aucune ligne trouvée

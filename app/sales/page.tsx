@@ -22,11 +22,12 @@ import {
     TableRow,
 } from "@/components/ui/table"
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
@@ -141,12 +142,12 @@ export default function SalesPage() {
                         <CardHeader className="pb-3 border-b border-border/50">
                             <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
                                 <div className="flex items-center gap-2 text-lg font-semibold w-full md:w-auto">
-                                    <HugeiconsIcon icon={FilterIcon} className="h-5 w-5 text-primary" />
+                                    <HugeiconsIcon icon={FilterIcon} className="size-5 text-primary" />
                                     Filtres
                                 </div>
                                 <div className="flex flex-col sm:flex-row w-full md:w-auto gap-3">
                                     <div className="relative w-full sm:w-64">
-                                        <HugeiconsIcon icon={Search01Icon} className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                        <HugeiconsIcon icon={Search01Icon} className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
                                         <Input
                                             placeholder="Rechercher (N° Pièce, Client...)"
                                             className="pl-9 bg-background/50"
@@ -158,28 +159,30 @@ export default function SalesPage() {
           <SelectTrigger className="w-full sm:w-44 bg-background/50">
             <SelectValue />
           </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="all">Tous types</SelectItem>
-                                            {uniqueTypes.map(type => (
-                                                <SelectItem key={type} value={type || 'unknown'}>{type || 'Inconnu'}</SelectItem>
-                                            ))}
-                                        </SelectContent>
+<SelectContent>
+<SelectGroup>
+<SelectItem value="all">Tous types</SelectItem>
+{uniqueTypes.map(type => (
+<SelectItem key={type} value={type || 'unknown'}>{type || 'Inconnu'}</SelectItem>
+))}
+</SelectGroup>
+</SelectContent>
                                     </Select>
                                     <Button variant="outline" size="icon" onClick={fetchData} disabled={loading} className="shrink-0 bg-background/50">
-                                        <HugeiconsIcon icon={RefreshIcon} className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                                        <HugeiconsIcon icon={RefreshIcon} className={`size-4 ${loading ? 'animate-spin' : ''}`} />
                                     </Button>
                                 </div>
                             </div>
                         </CardHeader>
                         <CardContent className="p-0">
                             {error ? (
-                                <div className="p-8 text-center text-red-500">
+                                <div className="p-8 text-center text-destructive">
                                     <p className="mb-4">{error}</p>
                                     <Button onClick={fetchData} variant="outline">Réessayer</Button>
                                 </div>
                             ) : loading ? (
                                 <div className="p-12 flex justify-center">
-                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                                    <div className="animate-spin rounded-full size-8 border-b-2 border-primary"></div>
                                 </div>
                             ) : (
                                 <div className="rounded-md border-0 overflow-hidden">
