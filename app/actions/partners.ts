@@ -24,12 +24,41 @@ export async function getPartners(type?: string): Promise<PartnerWithComputed[]>
       }
     })
 
-  return partners.map((partner) => ({
-    ...partner,
-    plafond_credit: Number(partner.limite_credit ?? 0),
-    solde_courant: 0,
-    pourcentage_remise: partner.pourcentage_remise ?? new Prisma.Decimal(0)
-  }))
+    return partners.map((partner) => ({
+      id_partenaire: partner.id_partenaire,
+      code_partenaire: partner.code_partenaire,
+      nom_partenaire: partner.nom_partenaire,
+      type_partenaire: partner.type_partenaire,
+      adresse_email: partner.adresse_email,
+      numero_telephone: partner.numero_telephone,
+      numero_fax: partner.numero_fax,
+      url_site_web: partner.url_site_web,
+      adresse_rue: partner.adresse_rue,
+      code_postal: partner.code_postal,
+      ville: partner.ville,
+      pays: partner.pays,
+      numero_tva: partner.numero_tva,
+      numero_ice: partner.numero_ice,
+      numero_rc: partner.numero_rc,
+      delai_paiement_jours: partner.delai_paiement_jours,
+      limite_credit: partner.limite_credit,
+      pourcentage_remise: partner.pourcentage_remise ?? new Prisma.Decimal(0),
+      numero_compte_bancaire: partner.numero_compte_bancaire,
+      code_banque: partner.code_banque,
+      numero_iban: partner.numero_iban,
+      code_swift: partner.code_swift,
+      est_actif: partner.est_actif,
+      est_bloque: partner.est_bloque,
+      date_creation: partner.date_creation,
+      date_modification: partner.date_modification,
+      cree_par: partner.cree_par,
+      modifie_par: partner.modifie_par,
+      compte_collectif: partner.compte_collectif,
+      compte_auxiliaire: partner.compte_auxiliaire,
+      // Computed fields
+      plafond_credit: Number(partner.limite_credit ?? 0),
+      solde_courant: 0
+    }))
   } catch (error) {
     console.error('Failed to fetch partners:', error)
     return []

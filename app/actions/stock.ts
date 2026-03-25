@@ -28,29 +28,44 @@ export async function getStockLevels(): Promise<StockLevelWithProduct[]> {
       }
     })
 
-  return stockQuery.map((stock) => ({
-    ...stock,
-    quantite_en_stock_num: Number(stock.quantite_en_stock ?? 0),
-    quantite_reservee_num: Number(stock.quantite_reservee ?? 0),
-    cout_moyen_pondere: stock.produit ? Number(stock.produit.prix_achat ?? 0) : 0,
-    valeur_stock: stock.produit
-      ? Number(stock.quantite_en_stock ?? 0) * Number(stock.produit.prix_achat ?? 0)
-      : 0,
-    produit: stock.produit
-      ? {
-          nom_produit: stock.produit.nom_produit,
-          code_produit: stock.produit.code_produit,
-          prix_achat: stock.produit.prix_achat
-        }
-      : null,
-    entrepot: stock.entrepot
-      ? {
-          nom_entrepot: stock.entrepot.nom_entrepot,
-          id_entrepot: stock.entrepot.id_entrepot
-        }
-      : null,
-    id_entrepot: stock.entrepot?.id_entrepot ?? stock.id_entrepot
-  }))
+    return stockQuery.map((stock) => {
+      const produit = stock.produit
+      const entrepot = stock.entrepot
+
+      return {
+        id_stock: stock.id_stock,
+        id_produit: stock.id_produit,
+        id_entrepot: stock.id_entrepot,
+        quantite_en_stock: stock.quantite_en_stock,
+        quantite_reservee: stock.quantite_reservee,
+        quantite_commandee: stock.quantite_commandee,
+        date_dernier_mouvement: stock.date_dernier_mouvement,
+        type_dernier_mouvement: stock.type_dernier_mouvement,
+        date_creation: stock.date_creation,
+        date_modification: stock.date_modification,
+        // Computed fields
+        quantite_en_stock_num: Number(stock.quantite_en_stock ?? 0),
+        quantite_reservee_num: Number(stock.quantite_reservee ?? 0),
+        cout_moyen_pondere: produit ? Number(produit.prix_achat ?? 0) : 0,
+        valeur_stock: produit
+          ? Number(stock.quantite_en_stock ?? 0) * Number(produit.prix_achat ?? 0)
+          : 0,
+        // Nested relations
+        produit: produit
+          ? {
+            nom_produit: produit.nom_produit,
+            code_produit: produit.code_produit,
+            prix_achat: produit.prix_achat
+          }
+          : null,
+        entrepot: entrepot
+          ? {
+            nom_entrepot: entrepot.nom_entrepot,
+            id_entrepot: entrepot.id_entrepot
+          }
+          : null
+      }
+    })
   } catch (error) {
     console.error('Failed to fetch stock levels:', error)
     return []
