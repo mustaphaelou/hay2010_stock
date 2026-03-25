@@ -45,6 +45,9 @@ docs/
 # CI/CD
 .github
 
+# Prisma generated files (regenerate in container)
+lib/generated/prisma/
+
 # Misc
 *.log
 *.pid

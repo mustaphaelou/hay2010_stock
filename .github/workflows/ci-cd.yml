@@ -11,82 +11,83 @@ permissions:
   contents: read
   security-events: write
 
+# Only cancel in-progress runs for PRs, not for main branch deployments
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   lint:
     name: Lint & Type Check
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: "npm"
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: "20"
+        cache: "npm"
 
-      - name: Install dependencies
-        run: npm ci
+    - name: Install dependencies
+      run: npm ci
 
-      - name: Run ESLint
-        run: npm run lint
+    - name: Run ESLint
+      run: npm run lint
 
-      - name: TypeScript check
-        run: npx tsc --noEmit
+    - name: TypeScript check
+      run: npx tsc --noEmit
 
   prisma-validate:
     name: Prisma Schema Validation
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: "npm"
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: "20"
+        cache: "npm"
 
-      - name: Install dependencies
-        run: npm ci
+    - name: Install dependencies
+      run: npm ci
 
-      - name: Validate Prisma schema
-        run: npx prisma validate
+    - name: Validate Prisma schema
+      run: npx prisma validate
 
-      - name: Check Prisma client generation
-        run: npx prisma generate
+    - name: Check Prisma client generation
+      run: npx prisma generate
 
   security-scan:
     name: Security Scanning
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: "npm"
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: "20"
+        cache: "npm"
 
-      - name: Install dependencies
-        run: npm ci
+    - name: Install dependencies
+      run: npm ci
 
-      - name: Run npm audit
-        run: npm audit --audit-level=moderate
-        continue-on-error: true
+    - name: Run npm audit
+      run: npm audit --audit-level=moderate
+      continue-on-error: true
 
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
-        with:
-          languages: javascript-typescript
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v3
+      with:
+        languages: javascript-typescript
 
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v3
 
   test:
     name: Run Tests
@@ -118,55 +119,60 @@ jobs:
     env:
       DATABASE_URL: postgresql://test:test@localhost:5432/test_db
       REDIS_URL: redis://localhost:6379
+      NEXTAUTH_SECRET: test-secret-for-ci
+      NEXTAUTH_URL: http://localhost:3000
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: "npm"
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: "20"
+        cache: "npm"
 
-      - name: Install dependencies
-        run: npm ci
+    - name: Install dependencies
+      run: npm ci
 
-      - name: Generate Prisma Client
-        run: npx prisma generate
+    - name: Generate Prisma Client
+      run: npx prisma generate
 
-      - name: Run tests with coverage
-        run: npm run test:ci
+    - name: Push database schema
+      run: npx prisma db push --skip-generate
 
-      - name: Upload coverage report
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          path: coverage/
-          retention-days: 7
+    - name: Run tests with coverage
+      run: npm run test:ci
+
+    - name: Upload coverage report
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-report
+        path: coverage/
+        retention-days: 7
 
   build-check:
     name: Docker Build Validation
     runs-on: ubuntu-latest
     needs: [lint, test, prisma-validate]
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
 
-      - name: Build Docker image (validation only)
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: false
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+    - name: Build Docker image (validation only)
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: false
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
 
-      - name: Build status
-        if: success()
-        run: |
-          echo "✅ Build validation passed - Coolify will handle deployment"
+    - name: Build status
+      if: success()
+      run: |
+        echo "✅ Build validation passed - Coolify will handle deployment"
 
   docker-publish:
     name: Publish Docker Image
@@ -174,36 +180,48 @@ jobs:
     needs: [test, build-check]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+    - name: Validate Docker Hub secrets
+      run: |
+        if [ -z "${{ secrets.DOCKERHUB_USERNAME }}" ]; then
+          echo "::error::DOCKERHUB_USERNAME secret is not configured"
+          exit 1
+        fi
+        if [ -z "${{ secrets.DOCKERHUB_TOKEN }}" ]; then
+          echo "::error::DOCKERHUB_TOKEN secret is not configured"
+          exit 1
+        fi
+        echo "✅ Docker Hub secrets are configured"
 
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
 
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ secrets.DOCKERHUB_USERNAME }}/stock-app
-          tags: |
-            type=sha,prefix=
-            type=raw,value=latest,enable={{is_default_branch}}
+    - name: Login to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ secrets.DOCKERHUB_USERNAME }}/stock-app
+        tags: |
+          type=sha,prefix=
+          type=raw,value=latest,enable={{is_default_branch}}
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
 
   notify:
     name: Notify on Failure
@@ -211,9 +229,9 @@ jobs:
     needs: [lint, prisma-validate, security-scan, test, build-check]
     if: failure() && github.event_name == 'push'
     steps:
-      - name: Send notification
-        run: |
-          echo "❌ CI/CD pipeline failed for ${{ github.repository }}"
-          echo "Branch: ${{ github.ref_name }}"
-          echo "Commit: ${{ github.sha }}"
-          echo "View logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+    - name: Send notification
+      run: |
+        echo "❌ CI/CD pipeline failed for ${{ github.repository }}"
+        echo "Branch: ${{ github.ref_name }}"
+        echo "Commit: ${{ github.sha }}"
+        echo "View logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
