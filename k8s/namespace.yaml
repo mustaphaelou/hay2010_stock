@@ -1,0 +1,8 @@
+# Kubernetes Namespace for Stock Application
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: stock-app
+  labels:
+    name: stock-app
+    environment: production
