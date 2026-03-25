@@ -4,9 +4,12 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
+// =====================================================
+// AUTHENTICATION MODELS
+// =====================================================
+// AUTHENTICATION MODELS
 // =====================================================
 // AUTHENTICATION MODELS
 // =====================================================

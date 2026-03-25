@@ -10,12 +10,12 @@ import { redirect } from 'next/navigation'
 
 const COOKIE_NAME = 'auth_token'
 
-export async function login(email: string, password: string): Promise<{ error?: string; success?: boolean }> {
+export async function login(email: string, password: string, rememberMe: boolean = false): Promise<{ error?: string; success?: boolean }> {
   try {
     const validationResult = loginSchema.safeParse({ email, password })
-  if (!validationResult.success) {
-    return { error: 'Invalid input: ' + validationResult.error.issues.map((e: { message: string }) => e.message).join(', ') }
-  }
+    if (!validationResult.success) {
+      return { error: 'Invalid input: ' + validationResult.error.issues.map((e: { message: string }) => e.message).join(', ') }
+    }
 
     console.log('Login attempt for:', email)
 
@@ -24,35 +24,37 @@ export async function login(email: string, password: string): Promise<{ error?: 
     })
 
     console.log('User found:', user ? 'yes' : 'no')
-    
+
     if (!user) {
       return { error: 'Invalid email or password' }
     }
-    
+
     console.log('Stored password hash:', user.password.substring(0, 20) + '...')
     const isValid = await verifyPassword(password, user.password)
     console.log('Password valid:', isValid)
-    
-	if (!isValid) {
-		return { error: 'Invalid email or password' }
-	}
 
-	const sessionId = await createSession(user.id, user.email, user.name, user.role)
-	const token = await generateToken({
-		userId: user.id,
-		email: user.email,
-		role: user.role,
-		sessionId
-	})
+    if (!isValid) {
+      return { error: 'Invalid email or password' }
+    }
 
-	const cookieStore = await cookies()
+    const sessionId = await createSession(user.id, user.email, user.name, user.role)
+    const token = await generateToken({
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+      sessionId
+    })
+
+    const maxAge = rememberMe ? 60 * 60 * 24 * 30 : 60 * 60 * 24 * 7 // 30 days if remember me, else 7 days
+
+    const cookieStore = await cookies()
     cookieStore.set(COOKIE_NAME, token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 7 // 7 days
+      maxAge
     })
-    
+
     console.log('Login successful for:', email)
     return { success: true }
   } catch (error) {
