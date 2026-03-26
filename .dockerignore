@@ -45,8 +45,8 @@ docs/
 # CI/CD
 .github
 
-# Prisma generated files (regenerate in container)
-lib/generated/prisma/
+# Prisma generated files - keep them for Docker build
+# lib/generated/prisma/
 
 # Misc
 *.log

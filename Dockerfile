@@ -47,7 +47,7 @@ COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 
 # Copy Prisma generated client for runtime
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/lib/generated/prisma ./lib/generated/prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
 COPY --from=builder /app/prisma ./prisma
@@ -57,7 +57,7 @@ COPY docker-entrypoint.sh /app/docker-entrypoint.sh
 RUN chmod +x /app/docker-entrypoint.sh
 
 # Create prisma migrations directory with proper permissions
-RUN chown -R nextjs:nodejs /app/prisma /app/node_modules/.prisma /app/node_modules/@prisma
+RUN chown -R nextjs:nodejs /app/prisma /app/lib/generated/prisma /app/node_modules/@prisma
 
 USER nextjs
 
