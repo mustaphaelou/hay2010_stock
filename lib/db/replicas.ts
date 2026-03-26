@@ -5,7 +5,7 @@
  * Write operations go to the primary, read operations are load-balanced across replicas.
  */
 
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient } from '@/lib/generated/prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { Pool } from 'pg'
 
@@ -199,7 +199,7 @@ export async function withTransaction<T>(
     fn: (client: Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$extends'>) => Promise<T>
 ): Promise<T> {
     const client = getWriteClient()
-    return client.$transaction(async (tx) => {
+    return client.$transaction(async (tx: Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$extends'>) => {
         return fn(tx)
     })
 }
@@ -211,7 +211,7 @@ export async function withReadTransaction<T>(
     fn: (client: Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$extends'>) => Promise<T>
 ): Promise<T> {
     const client = getReadClient()
-    return client.$transaction(async (tx) => {
+    return client.$transaction(async (tx: Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$extends'>) => {
         return fn(tx)
     }, { isolationLevel: 'RepeatableRead' })
 }

@@ -28,7 +28,7 @@ export async function getStockLevels(): Promise<StockLevelWithProduct[]> {
       }
     })
 
-    return stockQuery.map((stock) => {
+    return stockQuery.map((stock: typeof stockQuery[0]) => {
       const produit = stock.produit
       const entrepot = stock.entrepot
 
@@ -79,7 +79,7 @@ export async function getDepots(): Promise<Depot[]> {
       where: { est_actif: true },
       orderBy: { nom_entrepot: 'asc' }
     })
-    return depots.map((depot) => ({
+    return depots.map((depot: typeof depots[0]) => ({
       ...depot,
       id_depot: depot.id_entrepot,
       nom_depot: depot.nom_entrepot

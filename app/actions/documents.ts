@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db/prisma'
 import { requireAuth } from './auth'
 import { getDocLinesSchema } from '@/lib/validation'
 import type { DocumentWithComputed, DocumentLine } from '@/lib/types'
-import { Prisma } from '@prisma/client'
+import { Prisma } from '@/lib/generated/prisma/client'
 
 export type DocumentWithPartner = NonNullable<Awaited<ReturnType<typeof getDocuments>>>[0]
 export type DocumentLineType = NonNullable<Awaited<ReturnType<typeof getDocLines>>>[0]

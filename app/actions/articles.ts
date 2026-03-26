@@ -19,21 +19,21 @@ export async function getArticlesWithStock(): Promise<ArticleWithStock[]> {
       }
     })
 
-    return result.map((article) => {
-    const totalStock = article.niveaux_stock.reduce(
-      (acc: number, stock) => acc + Number(stock.quantite_en_stock || 0),
-      0
-    )
+    return result.map((article: typeof result[0]) => {
+      const totalStock = article.niveaux_stock.reduce(
+        (acc: number, stock: typeof article.niveaux_stock[0]) => acc + Number(stock.quantite_en_stock || 0),
+        0
+      )
 
-    return {
-      ...article,
-      stock_global: totalStock,
-      prix_vente: article.prix_vente,
-      prix_achat: article.prix_achat,
-      coefficient: article.coefficient,
-      famille: article.famille || article.categorie?.nom_categorie || null
-    }
-  })
+      return {
+        ...article,
+        stock_global: totalStock,
+        prix_vente: article.prix_vente,
+        prix_achat: article.prix_achat,
+        coefficient: article.coefficient,
+        famille: article.famille || article.categorie?.nom_categorie || null
+      }
+    })
   } catch (error) {
     console.error('Failed to fetch articles:', error)
     return []

@@ -1,5 +1,5 @@
 import 'dotenv/config'
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient } from '../lib/generated/prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { Pool } from 'pg'
 import bcrypt from 'bcryptjs'
@@ -24,7 +24,7 @@ async function main() {
 
   if (!existingAdmin) {
     const hashedPassword = await bcrypt.hash('admin123', 12)
-    
+
     await prisma.user.create({
       data: {
         email: 'admin@hay2010.com',
@@ -68,7 +68,7 @@ async function main() {
     const existing = await prisma.categorieProduit.findUnique({
       where: { code_categorie: cat.code_categorie }
     })
-    
+
     if (!existing) {
       await prisma.categorieProduit.create({ data: cat })
       console.log(`Created category: ${cat.nom_categorie}`)

@@ -154,7 +154,7 @@ const pdfWorker = new Worker<PDFGenerationJob>(
             }
 
             // Transform raw lines to computed format
-            const linesWithComputed = document.lignes.map((line) => ({
+            const linesWithComputed = document.lignes.map((line: typeof document.lignes[0]) => ({
                 ...line,
                 quantite: Number(line.quantite_commandee || 0),
                 prix_unitaire: Number(line.prix_unitaire_ht || 0),

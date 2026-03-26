@@ -20,7 +20,7 @@ export async function getAffaires(): Promise<string[]> {
         code_affaire: 'asc'
       }
     })
-    return affaires.map((a) => a.code_affaire)
+    return affaires.map((a: { code_affaire: string }) => a.code_affaire)
   } catch (error) {
     console.error('Failed to fetch affaires:', error)
     return []
@@ -54,13 +54,13 @@ export async function getDocumentsByAffaire(code_affaire: string): Promise<Docum
       }
     })
 
-      return documents.map((doc) => ({
-        ...doc,
-        type_document: String(doc.type_document),
-        montant_ht: doc.montant_ht,
-        montant_ttc: doc.montant_ttc,
-        solde_du: doc.solde_du
-      }))
+    return documents.map((doc: typeof documents[0]) => ({
+      ...doc,
+      type_document: String(doc.type_document),
+      montant_ht: doc.montant_ht,
+      montant_ttc: doc.montant_ttc,
+      solde_du: doc.solde_du
+    }))
   } catch (error) {
     console.error('Failed to fetch documents for affaire:', error)
     return []

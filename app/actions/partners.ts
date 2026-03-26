@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db/prisma'
 import { requireAuth } from './auth'
 import { getPartnersSchema } from '@/lib/validation'
 import type { PartnerWithComputed } from '@/lib/types'
-import { Prisma } from '@prisma/client'
+import { Prisma } from '@/lib/generated/prisma/client'
 
 export async function getPartners(type?: string): Promise<PartnerWithComputed[]> {
   await requireAuth()
@@ -24,7 +24,7 @@ export async function getPartners(type?: string): Promise<PartnerWithComputed[]>
       }
     })
 
-    return partners.map((partner) => ({
+    return partners.map((partner: typeof partners[0]) => ({
       id_partenaire: partner.id_partenaire,
       code_partenaire: partner.code_partenaire,
       nom_partenaire: partner.nom_partenaire,

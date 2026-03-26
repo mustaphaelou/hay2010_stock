@@ -68,14 +68,14 @@ export async function getDashboardStats(): Promise<DashboardData> {
       purchasesCount: purchasesCount
     }
 
-    const processedSalesInvoices: SalesInvoice[] = salesInvoices.map((s) => ({
+    const processedSalesInvoices: SalesInvoice[] = salesInvoices.map((s: typeof salesInvoices[0]) => ({
       montant_ttc: s.montant_ttc,
       solde_du: s.solde_du,
       date_document: s.date_document,
       montant_regle: Number(s.montant_ttc) - Number(s.solde_du)
     }))
 
-    const processedRecentDocs: DocumentBase[] = recentDocs.map(doc => ({
+    const processedRecentDocs: DocumentBase[] = recentDocs.map((doc: typeof recentDocs[0]) => ({
       id_document: doc.id_document,
       numero_document: doc.numero_document,
       type_document: doc.type_document,
