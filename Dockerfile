@@ -49,7 +49,6 @@ COPY --from=builder /app/.next/static ./.next/static
 # Copy Prisma generated client for runtime
 COPY --from=builder /app/lib/generated/prisma ./lib/generated/prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
 COPY --from=builder /app/prisma ./prisma
 
 # Copy entrypoint script
@@ -67,3 +66,32 @@ ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
 ENTRYPOINT ["/app/docker-entrypoint.sh"]
+
+# Stage 4: Migration runner (for running migrations separately)
+FROM node:20-slim AS migrator
+WORKDIR /app
+
+# Install OpenSSL for Prisma
+RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+
+# Copy package files and install all dependencies (including devDependencies for prisma CLI)
+COPY package*.json ./
+RUN npm install
+
+# Copy prisma schema and generate client
+COPY prisma ./prisma
+COPY prisma.config.ts ./
+RUN npx prisma generate
+
+# Copy migrations
+COPY prisma/migrations ./prisma/migrations
+
+# Set up non-root user
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 migrator
+RUN chown -R migrator:nodejs /app
+
+USER migrator
+
+# Default command runs migrations
+CMD ["npx", "prisma", "migrate", "deploy"]
