@@ -29,13 +29,13 @@ if [ -n "$DATABASE_URL" ]; then
     echo "Production environment detected - using safe deployment mode"
     # In production, we deploy without accepting data loss automatically
     # If migrations are pending, this will fail safely and alert
-    npx prisma migrate deploy || {
+    ./node_modules/prisma/build/index.js migrate deploy || {
       echo "::warning::Prisma migrate deploy failed, attempting db push as fallback"
-      npx prisma db push --skip-generate
+      ./node_modules/prisma/build/index.js db push --skip-generate
     }
   else
     echo "Development/Staging environment - using db push"
-    npx prisma db push --skip-generate
+    ./node_modules/prisma/build/index.js db push --skip-generate
   fi
   echo "Database schema synchronized!"
 else
