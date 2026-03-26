@@ -16,6 +16,8 @@ services:
       postgres:
         condition: service_healthy
     restart: "no"
+    networks:
+      - backend
 
   app:
     build:
@@ -46,6 +48,15 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+    networks:
+      - frontend
+      - backend
 
   postgres:
     image: postgres:16-alpine
@@ -54,8 +65,9 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_DB: ${POSTGRES_DB:-hay2010_db}
+    # Only expose to localhost for development
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
@@ -66,22 +78,35 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+    networks:
+      - backend
 
   redis:
     image: redis:7-alpine
     container_name: hay2010_redis
+    # Only expose to localhost for development
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     volumes:
       - redis_data:/data
     restart: always
-    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    command: redis-server --appendonly yes --appendfsync everysec --maxmemory 256mb --maxmemory-policy allkeys-lru --save 60 1000
     healthcheck:
       test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - backend
 
 volumes:
   postgres_data:
   redis_data:
+
+
+networks:
+  frontend:
+    driver: bridge
+  backend:
+    driver: bridge
+    internal: false # Set to true in production for full isolation

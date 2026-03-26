@@ -12,6 +12,18 @@ build
 # Testing
 coverage
 .nyc_output
+__tests__
+tests
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+vitest.config.ts
+jest.config.*
+
+# TypeScript
+*.tsbuildinfo
+.tsbuildinfo
 
 # Environment files - inject at runtime
 .env
@@ -40,6 +52,8 @@ docker-compose*.yml
 # Documentation
 README.md
 CHANGELOG.md
+SETUP.md
+DEPLOY.md
 docs/
 
 # CI/CD
@@ -54,3 +68,10 @@ docs/
 *.seed
 *.pid.lock
 .turbo
+errors.txt
+tsc_errors.log
+
+# Plans and documentation
+plans/
+*.md
+!README.md

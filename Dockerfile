@@ -1,22 +1,21 @@
 # Stage 1: Install dependencies
-FROM node:20-slim AS deps
+FROM node:20-alpine AS deps
 WORKDIR /app
 
-# Install OpenSSL for Prisma
-RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+# Install build dependencies
+RUN apk add --no-cache openssl libc6-compat
 
 COPY package*.json ./
 
-# Use npm install instead of npm ci to ensure devDependencies are installed
-# regardless of NODE_ENV setting from Coolify
-RUN npm install
+# Use npm ci for faster, reproducible builds
+RUN npm ci --prefer-offline --no-audit
 
 # Stage 2: Build the application
-FROM node:20-slim AS builder
+FROM node:20-alpine AS builder
 WORKDIR /app
 
 # Install OpenSSL for Prisma
-RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache openssl
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -30,33 +29,32 @@ ENV DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy?connection_limit
 RUN npm run build
 
 # Stage 3: Runner
-FROM node:20-slim AS runner
+FROM node:20-alpine AS runner
 WORKDIR /app
 
-# Install OpenSSL, curl, wget, and netcat for Prisma runtime and health checks
-RUN apt-get update && apt-get install -y openssl curl wget netcat-openbsd && rm -rf /var/lib/apt/lists/*
+# Install runtime dependencies
+RUN apk add --no-cache openssl curl
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+# Create non-root user (Alpine style)
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
 
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
+# Copy only production artifacts
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 # Copy Prisma generated client for runtime
-COPY --from=builder /app/lib/generated/prisma ./lib/generated/prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=builder /app/prisma ./prisma
+COPY --from=builder --chown=nextjs:nodejs /app/lib/generated/prisma ./lib/generated/prisma
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
+COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 
 # Copy entrypoint script
-COPY docker-entrypoint.sh /app/docker-entrypoint.sh
+COPY --chown=nextjs:nodejs docker-entrypoint.sh /app/docker-entrypoint.sh
 RUN chmod +x /app/docker-entrypoint.sh
-
-# Create prisma migrations directory with proper permissions
-RUN chown -R nextjs:nodejs /app/prisma /app/lib/generated/prisma /app/node_modules/@prisma
 
 USER nextjs
 
@@ -68,28 +66,27 @@ ENV HOSTNAME="0.0.0.0"
 ENTRYPOINT ["/app/docker-entrypoint.sh"]
 
 # Stage 4: Migration runner (for running migrations separately)
-FROM node:20-slim AS migrator
+FROM node:20-alpine AS migrator
 WORKDIR /app
 
 # Install OpenSSL for Prisma
-RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache openssl
 
 # Copy package files and install all dependencies (including devDependencies for prisma CLI)
 COPY package*.json ./
-RUN npm install
+RUN npm ci --prefer-offline --no-audit
 
 # Copy prisma schema and generate client
 COPY prisma ./prisma
-COPY prisma.config.ts ./
 RUN npx prisma generate
 
 # Copy migrations
 COPY prisma/migrations ./prisma/migrations
 
 # Set up non-root user
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 migrator
-RUN chown -R migrator:nodejs /app
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 migrator && \
+    chown -R migrator:nodejs /app
 
 USER migrator
 

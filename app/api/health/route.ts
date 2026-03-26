@@ -1,35 +1,47 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
+import { redis } from '@/lib/db/redis'
 
 export async function GET() {
-  try {
-    // Check database connection
-    await prisma.$queryRaw`SELECT 1`
-
-    return NextResponse.json(
-      {
-        status: 'healthy',
-        timestamp: new Date().toISOString(),
-        services: {
-          database: 'connected',
-          app: 'running'
-        }
-      },
-      { status: 200 }
-    )
-  } catch (error) {
-    console.error('Health check failed:', error)
-    return NextResponse.json(
-      {
-        status: 'unhealthy',
-        timestamp: new Date().toISOString(),
-        services: {
-          database: 'disconnected',
-          app: 'running'
-        },
-        error: 'Database connection failed'
-      },
-      { status: 503 }
-    )
+  const health = {
+    status: 'healthy' as 'healthy' | 'unhealthy' | 'degraded',
+    timestamp: new Date().toISOString(),
+    services: {
+      database: 'connected' as string,
+      redis: 'connected' as string,
+      app: 'running'
+    },
+    latency: {
+      database: 0,
+      redis: 0
+    }
   }
+
+  // Check database connection
+  try {
+    const dbStart = Date.now()
+    await prisma.$queryRaw`SELECT 1`
+    health.latency.database = Date.now() - dbStart
+  } catch (error) {
+    console.error('Database health check failed:', error)
+    health.services.database = 'disconnected'
+    health.status = 'unhealthy'
+  }
+
+  // Check Redis connection
+  try {
+    const redisStart = Date.now()
+    await redis.ping()
+    health.latency.redis = Date.now() - redisStart
+  } catch (error) {
+    console.error('Redis health check failed:', error)
+    health.services.redis = 'disconnected'
+    // Redis failure is degraded, not unhealthy - app can run without Redis
+    if (health.status === 'healthy') {
+      health.status = 'degraded'
+    }
+  }
+
+  const statusCode = health.status === 'healthy' ? 200 : health.status === 'degraded' ? 200 : 503
+  return NextResponse.json(health, { status: statusCode })
 }
