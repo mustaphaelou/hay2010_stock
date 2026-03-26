@@ -107,68 +107,68 @@ export const cacheQueue = new Queue<CacheWarmupJob>('cache-warmup', defaultQueue
 const pdfWorker = new Worker<PDFGenerationJob>(
     'documents',
     async (job: Job<PDFGenerationJob>) => {
-        const { documentId, userId, format, email } = job.data
+        const { documentId, userId: _userId, format: _format, email } = job.data
 
         // Update progress
         await job.updateProgress(10)
         await job.log(`Starting PDF generation for document ${documentId}`)
 
         try {
-      // Dynamic import to avoid circular dependencies
-      const { generateInvoicePDF, transformToInvoiceData } = await import('@/lib/pdf/generate-invoice')
+            // Dynamic import to avoid circular dependencies
+            const { generateInvoicePDF, transformToInvoiceData } = await import('@/lib/pdf/generate-invoice')
 
-      // Fetch document data - using prisma directly to avoid circular imports
-      await job.updateProgress(20)
-      const { prisma } = await import('@/lib/db/prisma')
-      const document = await prisma.docVente.findUnique({
-        where: { id_document: documentId },
-        include: {
-          partenaire: true,
-          lignes: {
-            include: { produit: true }
-          }
-        }
-      })
+            // Fetch document data - using prisma directly to avoid circular imports
+            await job.updateProgress(20)
+            const { prisma } = await import('@/lib/db/prisma')
+            const document = await prisma.docVente.findUnique({
+                where: { id_document: documentId },
+                include: {
+                    partenaire: true,
+                    lignes: {
+                        include: { produit: true }
+                    }
+                }
+            })
 
-      if (!document) {
-        throw new Error(`Document ${documentId} not found`)
-      }
+            if (!document) {
+                throw new Error(`Document ${documentId} not found`)
+            }
 
-      await job.updateProgress(40)
+            await job.updateProgress(40)
 
-      // Transform raw document to computed format (add computed fields)
-      const documentWithComputed = {
-        ...document,
-        montant_ht_num: Number(document.montant_ht || 0),
-        montant_ttc_num: Number(document.montant_ttc || 0),
-        solde_du_num: Number(document.solde_du || 0),
-        montant_regle: Number(document.montant_ttc || 0) - Number(document.solde_du || 0),
-        numero_piece: document.numero_document,
-        nom_tiers: document.nom_partenaire_snapshot || document.partenaire?.nom_partenaire || null,
-        reference: document.reference_externe || null,
-        montant_tva_num: Number(document.montant_tva_total || 0),
-        montant_remise_num: Number(document.montant_remise_total || 0),
-        type_document_num: Number(document.type_document || 0),
-        statut_document_num: Number(document.statut_document || 0),
-        domaine: document.domaine_document
-      }
+            // Transform raw document to computed format (add computed fields)
+            const documentWithComputed = {
+                ...document,
+                montant_ht_num: Number(document.montant_ht || 0),
+                montant_ttc_num: Number(document.montant_ttc || 0),
+                solde_du_num: Number(document.solde_du || 0),
+                montant_regle: Number(document.montant_ttc || 0) - Number(document.solde_du || 0),
+                numero_piece: document.numero_document,
+                nom_tiers: document.nom_partenaire_snapshot || document.partenaire?.nom_partenaire || null,
+                reference: document.reference_externe || null,
+                montant_tva_num: Number(document.montant_tva_total || 0),
+                montant_remise_num: Number(document.montant_remise_total || 0),
+                type_document_num: Number(document.type_document || 0),
+                statut_document_num: Number(document.statut_document || 0),
+                domaine: document.domaine_document
+            }
 
-      // Transform raw lines to computed format
-      const linesWithComputed = document.lignes.map((line) => ({
-        ...line,
-        quantite: Number(line.quantite_commandee || 0),
-        prix_unitaire: Number(line.prix_unitaire_ht || 0),
-        montant_ht_num: Number(line.montant_ht || 0),
-        montant_ttc_num: Number(line.montant_ttc || 0),
-        designation: line.nom_produit_snapshot || line.produit?.nom_produit || null,
-        reference_article: line.code_produit_snapshot || null,
-        ordre: line.numero_ligne,
-        code_taxe: null
-      }))
+            // Transform raw lines to computed format
+            const linesWithComputed = document.lignes.map((line) => ({
+                ...line,
+                quantite: Number(line.quantite_commandee || 0),
+                prix_unitaire: Number(line.prix_unitaire_ht || 0),
+                montant_ht_num: Number(line.montant_ht || 0),
+                montant_ttc_num: Number(line.montant_ttc || 0),
+                designation: line.nom_produit_snapshot || line.produit?.nom_produit || null,
+                reference_article: line.code_produit_snapshot || null,
+                ordre: line.numero_ligne,
+                code_taxe: null
+            }))
 
-      // Transform to InvoiceData format and generate PDF
-      const invoiceData = transformToInvoiceData(documentWithComputed, linesWithComputed, document.partenaire)
-      const pdfBuffer = await generateInvoicePDF(invoiceData)
+            // Transform to InvoiceData format and generate PDF
+            const invoiceData = transformToInvoiceData(documentWithComputed, linesWithComputed, document.partenaire)
+            const pdfBuffer = await generateInvoicePDF(invoiceData)
             await job.updateProgress(80)
 
             // Upload to storage (implement based on your storage solution)
@@ -219,7 +219,7 @@ const pdfWorker = new Worker<PDFGenerationJob>(
 const reportWorker = new Worker<ReportGenerationJob>(
     'reports',
     async (job: Job<ReportGenerationJob>) => {
-        const { reportType, userId, filters, format } = job.data
+        const { reportType, userId: _userId, filters: _filters, format } = job.data
 
         await job.updateProgress(10)
         await job.log(`Starting ${reportType} report generation`)
@@ -278,7 +278,7 @@ const reportWorker = new Worker<ReportGenerationJob>(
 const stockImportWorker = new Worker<StockImportJob>(
     'stock-imports',
     async (job: Job<StockImportJob>) => {
-        const { fileUrl, userId, options } = job.data
+        const { fileUrl, userId: _userId, options: _options } = job.data
 
         await job.updateProgress(5)
         await job.log(`Starting stock import from ${fileUrl}`)

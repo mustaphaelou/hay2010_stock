@@ -16,7 +16,6 @@ import {
     FolderOpenIcon,
     Invoice01Icon,
     ShoppingBag01Icon,
-    Notification01Icon,
     Analytics01Icon,
 } from "@hugeicons/core-free-icons"
 import { cn } from "@/lib/utils"

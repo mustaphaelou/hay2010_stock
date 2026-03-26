@@ -24,6 +24,27 @@ export function ChartSkeleton({
 }: ChartSkeletonProps) {
     const heightValue = typeof height === "number" ? `${height}px` : height
 
+    // Generate stable random heights using useMemo to avoid hydration mismatches
+    const barHeights = React.useMemo(
+        () => Array.from({ length: 7 }, (_, i) => 30 + ((i * 13) % 60)),
+        []
+    )
+
+    const linePoints = React.useMemo(
+        () =>
+            Array.from({ length: 12 }, (_, i) => {
+                const x = (i / 11) * 100
+                const y = 20 + ((i * 17) % 60)
+                return `L ${x}% ${y}%`
+            }).join(" "),
+        []
+    )
+
+    const areaHeights = React.useMemo(
+        () => Array.from({ length: 12 }, (_, i) => 20 + ((i * 11) % 70)),
+        []
+    )
+
     return (
         <Card className={cn("overflow-hidden", className)}>
             {(title || description) && (
@@ -39,12 +60,12 @@ export function ChartSkeleton({
                 >
                     {variant === "bar" && (
                         <div className="flex items-end justify-around h-full gap-2 pt-4">
-                            {[...Array(7)].map((_, i) => (
+                            {barHeights.map((h, i) => (
                                 <Skeleton
                                     key={i}
                                     className="w-full max-w-[40px] rounded-t"
                                     style={{
-                                        height: `${30 + Math.random() * 60}%`,
+                                        height: `${h}%`,
                                         animationDelay: `${i * 100}ms`,
                                     }}
                                 />
@@ -65,19 +86,13 @@ export function ChartSkeleton({
                         <div className="relative h-full">
                             <svg className="w-full h-full" preserveAspectRatio="none">
                                 <defs>
-                                    <linearGradient id="skeleton-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                                    <linearGradient id="skeleton-gradient" x1="0%" y1="0" x2="0%" y2="100%">
                                         <stop offset="0%" stopColor="hsl(var(--muted))" stopOpacity="0.5" />
                                         <stop offset="100%" stopColor="hsl(var(--muted))" stopOpacity="0" />
                                     </linearGradient>
                                 </defs>
                                 <path
-                                    d={`M 0 ${heightValue} ${[...Array(12)]
-                                        .map((_, i) => {
-                                            const x = (i / 11) * 100
-                                            const y = 20 + Math.random() * 60
-                                            return `L ${x}% ${y}%`
-                                        })
-                                        .join(" ")} L 100% ${heightValue} Z`}
+                                    d={`M 0 ${heightValue} ${linePoints} L 100% ${heightValue} Z`}
                                     fill="url(#skeleton-gradient)"
                                     className="animate-pulse"
                                 />
@@ -87,12 +102,12 @@ export function ChartSkeleton({
 
                     {variant === "area" && (
                         <div className="flex items-end h-full gap-1">
-                            {[...Array(12)].map((_, i) => (
+                            {areaHeights.map((h, i) => (
                                 <Skeleton
                                     key={i}
                                     className="flex-1 rounded-t"
                                     style={{
-                                        height: `${20 + Math.random() * 70}%`,
+                                        height: `${h}%`,
                                         animationDelay: `${i * 50}ms`,
                                     }}
                                 />

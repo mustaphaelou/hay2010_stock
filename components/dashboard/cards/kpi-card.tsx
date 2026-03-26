@@ -53,12 +53,17 @@ interface KPICardProps extends VariantProps<typeof kpiCardVariants> {
 
 function AnimatedNumber({ value, duration = 1000 }: { value: number; duration?: number }) {
     const [displayValue, setDisplayValue] = React.useState(0)
-    const startTime = React.useRef(Date.now())
+    const startTime = React.useRef<number | null>(null)
 
     React.useEffect(() => {
+        // Initialize startTime on first render to avoid calling Date.now() during render
+        if (startTime.current === null) {
+            startTime.current = Date.now()
+        }
+
         const animate = () => {
             const now = Date.now()
-            const progress = Math.min((now - startTime.current) / duration, 1)
+            const progress = Math.min((now - startTime.current!) / duration, 1)
             // Easing function for smooth animation
             const easeOutQuart = 1 - Math.pow(1 - progress, 4)
             setDisplayValue(Math.floor(easeOutQuart * value))
