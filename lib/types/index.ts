@@ -1,6 +1,35 @@
 import { Prisma } from '@/lib/generated/prisma/client'
 
 // =====================================================
+// AUTH TYPES
+// =====================================================
+
+export type UserRole = 'ADMIN' | 'MANAGER' | 'USER' | 'VIEWER'
+
+export type AuthUser = {
+  id: string
+  email: string
+  name: string
+  role?: UserRole
+}
+
+export interface PaginatedResult<T> {
+  data: T[]
+  total: number
+  page: number
+  pageSize: number
+  totalPages: number
+}
+
+export interface PaginationParams {
+  page?: number
+  pageSize?: number
+  search?: string
+  sortBy?: string
+  sortOrder?: 'asc' | 'desc'
+}
+
+// =====================================================
 // PRODUCT TYPES
 // =====================================================
 

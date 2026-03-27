@@ -89,7 +89,8 @@ export async function register(email: string, password: string, name: string): P
     })
 
     if (existingUser) {
-      return { error: 'Email already registered' }
+      console.warn('Registration attempt with existing email:', email)
+      return { error: 'If this email is valid, you will receive a confirmation email' }
     }
 
     const hashedPassword = await hashPassword(password)

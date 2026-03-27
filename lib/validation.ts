@@ -1,14 +1,25 @@
 import { z } from 'zod'
 
+const passwordSchema = z.string()
+  .min(8, 'Le mot de passe doit contenir au moins 8 caractères')
+  .max(100, 'Le mot de passe ne peut pas dépasser 100 caractères')
+  .regex(/[A-Z]/, 'Le mot de passe doit contenir au moins une lettre majuscule')
+  .regex(/[a-z]/, 'Le mot de passe doit contenir au moins une lettre minuscule')
+  .regex(/[0-9]/, 'Le mot de passe doit contenir au moins un chiffre')
+
 export const loginSchema = z.object({
-  email: z.string().email('Invalid email address'),
-  password: z.string().min(6, 'Password must be at least 6 characters')
+  email: z.string().email('Adresse email invalide'),
+  password: z.string().min(1, 'Le mot de passe est requis')
 })
 
 export const registerSchema = z.object({
-  email: z.string().email('Invalid email address'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
-  name: z.string().min(1, 'Name is required')
+  email: z.string().email('Adresse email invalide'),
+  password: passwordSchema,
+  name: z.string().min(2, 'Le nom doit contenir au moins 2 caractères'),
+  confirmPassword: z.string()
+}).refine(data => data.password === data.confirmPassword, {
+  message: 'Les mots de passe ne correspondent pas',
+  path: ['confirmPassword']
 })
 
 export const toggleArticleStatusSchema = z.object({
