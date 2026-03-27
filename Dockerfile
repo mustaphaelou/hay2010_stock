@@ -20,7 +20,7 @@ RUN apk add --no-cache openssl
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Generate Prisma Client
+# Generate Prisma Client (prisma.config.ts is needed for Prisma 7.x)
 RUN npx prisma generate
 
 # Build the application with dummy database URL (will be replaced at runtime)
@@ -32,8 +32,8 @@ RUN npm run build
 FROM node:20-alpine AS runner
 WORKDIR /app
 
-# Install runtime dependencies
-RUN apk add --no-cache openssl curl
+# Install runtime dependencies (netcat-openbsd for database health check)
+RUN apk add --no-cache openssl curl netcat-openbsd
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -78,10 +78,13 @@ RUN npm ci --prefer-offline --no-audit
 
 # Copy prisma schema and generate client
 COPY prisma ./prisma
-RUN npx prisma generate
+COPY prisma.config.ts ./
 
 # Copy migrations
 COPY prisma/migrations ./prisma/migrations
+
+# Generate Prisma client (requires prisma.config.ts for Prisma 7.x)
+RUN npx prisma generate
 
 # Set up non-root user
 RUN addgroup --system --gid 1001 nodejs && \
@@ -90,5 +93,6 @@ RUN addgroup --system --gid 1001 nodejs && \
 
 USER migrator
 
-# Default command runs migrations
-CMD ["npx", "prisma", "migrate", "deploy"]
+# Default command runs migrations with explicit database URL
+# The DATABASE_URL should be passed via environment variable
+CMD ["sh", "-c", "npx prisma migrate deploy"]
