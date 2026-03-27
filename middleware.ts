@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { jwtVerify } from 'jose'
 
-const PUBLIC_PATHS = ['/login', '/register', '/api/auth', '/favicon.ico', '/_next']
+const PUBLIC_PATHS = ['/login', '/register', '/api/auth', '/api/health', '/favicon.ico', '/_next']
 const AUTH_COOKIE = 'auth_token'
 const SESSION_REFRESH_THRESHOLD = 24 * 60 * 60 * 1000
 function getJwtSecret(): Uint8Array {

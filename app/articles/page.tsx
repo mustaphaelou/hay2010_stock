@@ -34,7 +34,7 @@ export default async function ArticlesPage() {
             <SidebarInset>
                 <SiteHeader />
                 <div className="flex flex-1 flex-col gap-4 p-4 pt-0 pb-20 md:gap-8 md:p-8 md:pb-8">
-                    <ArticlesView initialData={articlesWithStock} />
+                    <ArticlesView data={articlesWithStock} />
                 </div>
                 <BottomNav />
             </SidebarInset>

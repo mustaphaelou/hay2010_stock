@@ -24,19 +24,20 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
-    DashboardSquare01Icon,
-    Invoice01Icon,
-    ShoppingBag01Icon,
-    PackageIcon,
-    UserGroupIcon,
-    TruckDeliveryIcon,
-    Settings01Icon,
-    Logout01Icon,
-    MoreVerticalIcon,
-    File01Icon,
-    ProductLoadingIcon,
-    FolderOpenIcon,
+  DashboardSquare01Icon,
+  Invoice01Icon,
+  ShoppingBag01Icon,
+  PackageIcon,
+  UserGroupIcon,
+  TruckDeliveryIcon,
+  Settings01Icon,
+  Logout01Icon,
+  MoreVerticalIcon,
+  File01Icon,
+  ProductLoadingIcon,
+  FolderOpenIcon,
 } from "@hugeicons/core-free-icons"
+import { logout } from "@/app/actions/auth"
 
 // Company switcher data
 const companies = [
@@ -265,16 +266,22 @@ const [mounted, setMounted] = React.useState(false)
                 </SidebarGroup>
             </SidebarContent>
 
-            <SidebarFooter>
-                <SidebarMenu>
-                    <SidebarMenuItem>
-                        <SidebarMenuButton tooltip="Déconnexion" aria-label="Se déconnecter de l'application">
-                            <HugeiconsIcon icon={Logout01Icon} strokeWidth={2} aria-hidden="true" />
-                            <span>Déconnexion</span>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                </SidebarMenu>
-            </SidebarFooter>
+      <SidebarFooter>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              tooltip="Déconnexion"
+              aria-label="Se déconnecter de l'application"
+              onClick={async () => {
+                await logout()
+              }}
+            >
+              <HugeiconsIcon icon={Logout01Icon} strokeWidth={2} aria-hidden="true" />
+              <span>Déconnexion</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
             <SidebarRail />
         </Sidebar>
     )

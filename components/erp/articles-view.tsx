@@ -1,513 +1,295 @@
 "use client"
 
 import * as React from "react"
-import { DataTable } from "@/components/erp/data-table"
-import { ColumnDef } from "@tanstack/react-table"
-import { Badge } from "@/components/ui/badge"
-import { Button, buttonVariants } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table"
+import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
-    MoreVerticalIcon,
-    AlertCircleIcon,
-} from "@hugeicons/core-free-icons"
-import { formatPrice } from "@/lib/utils/format"
-import { Switch } from "@/components/ui/switch"
-import { Label } from "@/components/ui/label"
-
-import {
-    Sheet,
-    SheetContent,
-    SheetHeader,
-    SheetTitle,
-    SheetDescription,
-} from "@/components/ui/sheet"
-import {
-    InformationCircleIcon,
+    ViewIcon,
     PackageIcon,
-    TagsIcon,
-    Money01Icon,
-    BarCode02Icon,
-    Calendar01Icon,
+    Alert01Icon,
+    Search01Icon,
+    FilterIcon,
+    ArrowDown01Icon
 } from "@hugeicons/core-free-icons"
-import { Separator } from "@/components/ui/separator"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
 import {
-    Card,
-    CardHeader,
-    CardTitle,
-    CardDescription,
-    CardContent,
-} from "@/components/ui/card"
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
-    Command,
-    CommandInput,
-    CommandList,
-    CommandEmpty,
-    CommandGroup,
-    CommandItem,
-} from "@/components/ui/command"
-
-import { toggleArticleStatus } from "@/app/actions/articles"
-
-// Extended type with stock and parsed numbers
-import type { ArticleWithStock } from '@/lib/types'
-export type { ArticleWithStock }
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
+import { formatPrice } from "@/lib/utils/format"
+import { cn } from "@/lib/utils"
+// Import our new detailed sheet component
+import { ArticleDetailsSheet } from "@/components/erp/article-details-sheet"
+import type { ArticleWithStock } from "@/lib/types"
 
 interface ArticlesViewProps {
-    initialData: ArticleWithStock[]
+    data: ArticleWithStock[]
+    isLoading?: boolean
 }
 
-// Define columns
-const createColumns = (onViewDetails: (article: ArticleWithStock) => void): ColumnDef<ArticleWithStock>[] => [
-    {
-        accessorKey: "code_produit",
-        header: "Référence",
-        cell: ({ row }) => <div className="font-medium text-primary">{row.getValue("code_produit")}</div>,
-    },
-    {
-        accessorKey: "nom_produit",
-        header: "Désignation",
-    },
-    {
-        accessorKey: "famille",
-        id: "famille",
-        header: "Famille",
-        cell: ({ row }) => {
-            const famille = row.original.famille
-            return famille ? <Badge variant="outline">{famille}</Badge> : "-"
-        },
-    },
-    {
-        accessorKey: "prix_vente",
-        header: () => <div className="text-right">Prix Vente HT</div>,
-        cell: ({ row }) => {
-            const price = parseFloat(row.getValue("prix_vente") || "0")
-            return <div className="text-right font-medium">{formatPrice(price)}</div>
-        },
-    },
-    {
-        accessorKey: "stock_global",
-        header: () => <div className="text-right">Stock (Global)</div>,
-        cell: ({ row }) => {
-            const stock = row.original.stock_global || 0
-            const isLowStock = stock <= 5 && stock > 0
-            const isOutOfStock = stock === 0
-
-            return (
-                <div className={`text-right font-semibold flex items-center justify-end gap-1 ${isOutOfStock ? 'text-destructive' : isLowStock ? 'text-warning' : ''}`}>
-                    {stock}
-                    {isLowStock && (
-              <HugeiconsIcon icon={AlertCircleIcon} className="text-warning" aria-hidden="true" />
-              )}
-              {isOutOfStock && (
-              <HugeiconsIcon icon={AlertCircleIcon} className="text-destructive" aria-hidden="true" />
-                    )}
-                </div>
-            )
-        }
-    },
-    {
-        accessorKey: "en_sommeil",
-        header: "Statut",
-        cell: ({ row }) => {
-            const isSommeil = row.getValue("en_sommeil") as boolean
-            return (
-                <Badge variant={isSommeil ? "secondary" : "success"}>
-                    {isSommeil ? "En sommeil" : "Actif"}
-                </Badge>
-            )
-        }
-    },
-    {
-        id: "actions",
-        cell: ({ row }) => {
-            const article = row.original
-
-            return (
-                <DropdownMenu>
-                    <DropdownMenuTrigger
-                        className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground size-8 p-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        aria-label="Ouvrir le menu d'actions"
-                    >
-                        <span className="sr-only">Menu</span>
-                        <HugeiconsIcon icon={MoreVerticalIcon} className="size-4" aria-hidden="true" />
-                    </DropdownMenuTrigger>
-<DropdownMenuContent align="end">
-        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuGroup>
-          <DropdownMenuItem
-            onClick={() => navigator.clipboard.writeText(article.code_produit)}
-          >
-            Copier référence
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onViewDetails(article)}>
-            Voir détails
-          </DropdownMenuItem>
-          <DropdownMenuItem>Mouvements stock</DropdownMenuItem>
-        </DropdownMenuGroup>
-      </DropdownMenuContent>
-                </DropdownMenu>
-            )
-        },
-    },
-]
-
-export function ArticlesView({ initialData }: ArticlesViewProps) {
+export function ArticlesView({ data, isLoading }: ArticlesViewProps) {
+    const [searchQuery, setSearchQuery] = React.useState("")
+    const [familyFilter, setFamilyFilter] = React.useState("Toutes")
     const [selectedArticle, setSelectedArticle] = React.useState<ArticleWithStock | null>(null)
-    const [isDetailsOpen, setIsDetailsOpen] = React.useState(false)
-    const [selectedFamille, setSelectedFamille] = React.useState<string>("all")
-    const [selectedStatus, setSelectedStatus] = React.useState<"all" | "active" | "sommeil">("active")
-    const [isFilterOpen, setIsFilterOpen] = React.useState(false)
-    const [localData, setLocalData] = React.useState<ArticleWithStock[]>(initialData)
-    const [isUpdating, setIsUpdating] = React.useState(false)
+    const [isSheetOpen, setIsSheetOpen] = React.useState(false)
+    const [localData, setLocalData] = React.useState<ArticleWithStock[]>(data)
 
+    // Sync with prop data when it changes
     React.useEffect(() => {
-        setLocalData(initialData)
-    }, [initialData])
+        setLocalData(data)
+    }, [data])
 
-    const familles = React.useMemo(() => {
-        const familleSet = new Set<string>()
-        localData.forEach(article => {
-            if (article.famille) {
-                familleSet.add(article.famille)
-            }
-        })
-        return Array.from(familleSet).sort()
-    }, [localData])
+    const families = React.useMemo(() => {
+        const uniqueFamilies = new Set(data.map(a => a.famille).filter(Boolean))
+        return ["Toutes", ...Array.from(uniqueFamilies)]
+    }, [data])
 
     const filteredData = React.useMemo(() => {
         return localData.filter(article => {
-            const matchesFamille = selectedFamille === "all" || article.famille === selectedFamille
-            const matchesStatus =
-                selectedStatus === "all" ||
-                (selectedStatus === "active" && !article.en_sommeil) ||
-                (selectedStatus === "sommeil" && article.en_sommeil)
-
-            return matchesFamille && matchesStatus
+            const matchesSearch =
+                article.nom_produit?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                article.code_produit?.toLowerCase().includes(searchQuery.toLowerCase())
+            const matchesFamily = familyFilter === "Toutes" || article.famille === familyFilter
+            return matchesSearch && matchesFamily
         })
-    }, [localData, selectedFamille, selectedStatus])
+    }, [localData, searchQuery, familyFilter])
 
-    const handleViewDetails = (article: ArticleWithStock) => {
+    const handleOpenDetails = (article: ArticleWithStock) => {
         setSelectedArticle(article)
-        setIsDetailsOpen(true)
+        setIsSheetOpen(true)
     }
 
-    const columns = React.useMemo(() => createColumns(handleViewDetails), [])
-
-    const formatDate = (dateValue: Date | string) => {
-        if (!dateValue) return "-"
-        return new Date(dateValue).toLocaleDateString('fr-FR', {
-            day: '2-digit',
-            month: 'long',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        })
-    }
-
-    const handleToggleStatus = async (article: ArticleWithStock) => {
-        setIsUpdating(true)
-        try {
-            const newStatus = !article.en_sommeil
-            const res = await toggleArticleStatus(article.id_produit, newStatus)
-
-            if (res.error) throw new Error(res.error)
-
-            const updatedData = localData.map(a =>
-                a.id_produit === article.id_produit ? { ...a, en_sommeil: newStatus } : a
+    const handleStatusChange = (updatedArticle: ArticleWithStock, newStatus: boolean) => {
+        setLocalData(prev =>
+            prev.map(article =>
+                article.id_produit === updatedArticle.id_produit
+                    ? { ...article, en_sommeil: newStatus }
+                    : article
             )
-            setLocalData(updatedData)
-
-            if (selectedArticle?.id_produit === article.id_produit) {
-                setSelectedArticle({ ...selectedArticle, en_sommeil: newStatus })
-            }
-        } catch (error) {
-            console.error("Error updating article status:", error)
-        } finally {
-            setIsUpdating(false)
+        )
+        // Also update the selected article in the sheet
+        if (selectedArticle?.id_produit === updatedArticle.id_produit) {
+            setSelectedArticle({ ...selectedArticle, en_sommeil: newStatus })
         }
     }
 
+    if (isLoading) {
+        return (
+            <div className="space-y-4">
+                <div className="flex flex-col sm:flex-row gap-4">
+                    <Skeleton className="h-10 w-full sm:w-[300px]" />
+                    <Skeleton className="h-10 w-full sm:w-[200px]" />
+                </div>
+                <div className="rounded-xl border border-border overflow-hidden bg-card shadow-sm">
+                    <div className="p-4 bg-muted/50 border-b">
+                        <div className="grid grid-cols-5 gap-4">
+                            <Skeleton className="h-4 w-20" />
+                            <Skeleton className="h-4 w-40" />
+                            <Skeleton className="h-4 w-20" />
+                            <Skeleton className="h-4 w-20" />
+                            <Skeleton className="h-4 w-20" />
+                        </div>
+                    </div>
+                    {Array.from({ length: 5 }).map((_, i) => (
+                        <div key={i} className="p-4 border-b last:border-0">
+                            <div className="grid grid-cols-5 gap-4">
+                                <Skeleton className="h-4 w-16" />
+                                <Skeleton className="h-4 w-48" />
+                                <Skeleton className="h-4 w-12" />
+                                <Skeleton className="h-4 w-20" />
+                                <Skeleton className="h-4 w-24" />
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        )
+    }
+
     return (
-        <div className="flex flex-col gap-6 sm:gap-8 animate-fade-in-up">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between px-1">
-                <div className="flex flex-col gap-1">
-                    <h2 className="text-2xl sm:text-4xl font-extrabold tracking-tight gradient-text">Gestion des Articles</h2>
-                    <p className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                        <span className="flex size-2 rounded-full bg-primary" />
-                        {filteredData.length} articles trouvés sur {localData.length} au total
-                    </p>
-                </div>
-
-                <div className="grid grid-cols-2 lg:flex items-center gap-2 lg:gap-3">
-                    <DropdownMenu>
-                        <DropdownMenuTrigger
-                            className={cn(buttonVariants({ variant: "outline" }), "w-full lg:w-auto gap-2 lg:h-11 rounded-xl shadow-sm border-muted/60")}
-                        >
-                            <div className={`size-2 rounded-full ${selectedStatus === "active" ? "bg-green-500" :
-                                selectedStatus === "sommeil" ? "bg-slate-400" : "bg-primary"
-                                }`} />
-                            <span className="truncate">
-                                {selectedStatus === "all" ? "Tous les statuts" :
-                                    selectedStatus === "active" ? "Actifs" : "Sommeil"}
-                            </span>
-                        </DropdownMenuTrigger>
-<DropdownMenuContent align="end" className="rounded-xl">
-        <DropdownMenuGroup>
-          <DropdownMenuItem onClick={() => setSelectedStatus("all")}>Tous les statuts</DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setSelectedStatus("active")}>Articles Actifs</DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setSelectedStatus("sommeil")}>Articles en sommeil</DropdownMenuItem>
-        </DropdownMenuGroup>
-      </DropdownMenuContent>
-                    </DropdownMenu>
-
-                    <div className="relative w-full lg:w-auto">
-                        <Button
-                            variant="outline"
-                            className="w-full lg:min-w-[180px] justify-between lg:h-11 rounded-xl shadow-sm border-muted/60"
-                            onClick={() => setIsFilterOpen(!isFilterOpen)}
-                        >
-                            <span className="flex items-center gap-2 truncate">
-                                <HugeiconsIcon icon={TagsIcon} className="size-4" />
-                                <span className="truncate">
-                                    {selectedFamille === "all" ? "Familles" : selectedFamille}
-                                </span>
-                            </span>
-                        </Button>
-                        {isFilterOpen && (
-                            <>
-                                <div
-                                    className="fixed inset-0 z-40"
-                                    onClick={() => setIsFilterOpen(false)}
-                                />
-                                <div className="absolute right-0 top-full mt-2 z-50 w-[280px] max-w-[calc(100vw-2rem)] rounded-xl border bg-popover shadow-lg animate-in fade-in-0 zoom-in-95 overflow-hidden">
-                                    <Command>
-                                        <CommandInput placeholder="Rechercher une famille..." className="h-10" />
-                                        <CommandList className="max-h-[40vh]">
-                                            <CommandEmpty>Aucune famille trouvée.</CommandEmpty>
-                                            <CommandGroup>
-                                                <CommandItem
-                                                    onSelect={() => {
-                                                        setSelectedFamille("all")
-                                                        setIsFilterOpen(false)
-                                                    }}
-                                                    className={cn("py-2.5 px-4 cursor-pointer", selectedFamille === "all" ? "bg-accent" : "")}
-                                                >
-                                                    <span className="flex-1 font-medium">Toutes les familles</span>
-                                                    <Badge variant="secondary" className="text-[10px]">{localData.length}</Badge>
-                                                </CommandItem>
-                                                {familles.map((famille) => {
-                                                    const count = localData.filter(a => a.famille === famille).length
-                                                    return (
-                                                        <CommandItem
-                                                            key={famille}
-                                                            onSelect={() => {
-                                                                setSelectedFamille(famille)
-                                                                setIsFilterOpen(false)
-                                                            }}
-                                                            className={cn("py-2.5 px-4 cursor-pointer", selectedFamille === famille ? "bg-accent" : "")}
-                                                        >
-                                                            <span className="flex-1 truncate">{famille}</span>
-                                                            <Badge variant="secondary" className="text-[10px]">{count}</Badge>
-                                                        </CommandItem>
-                                                    )
-                                                })}
-                                            </CommandGroup>
-                                        </CommandList>
-                                    </Command>
-                                </div>
-                            </>
-                        )}
-                    </div>
-
-                    <Button className="col-span-2 lg:col-auto lg:h-11 lg:px-6 hover-lift shadow-md rounded-xl font-bold">
-                        <span className="mr-2 text-xl">+</span> Nouveau Produit
-                    </Button>
-                </div>
-            </div>
-
-            <Card className="overflow-hidden border-muted/40 shadow-sm transition-all hover:shadow-md">
-                <CardHeader className="pb-4 bg-muted/20 border-b">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <CardTitle className="text-lg font-bold flex items-center gap-2">
-                                <HugeiconsIcon icon={PackageIcon} className="text-primary" />
-                                Catalogue Articles
-                            </CardTitle>
-                            <CardDescription>Gérez votre inventaire et vos références produits.</CardDescription>
-                        </div>
-                    </div>
-                </CardHeader>
-                <CardContent className="p-0 sm:p-2">
-                    <DataTable
-                        columns={columns}
-                        data={filteredData}
-                        searchKey="nom_produit"
-                        placeholder="Chercher par nom, référence..."
-                        loading={false}
+        <div className="flex flex-col space-y-4">
+            {/* Control Bar */}
+            <div className="bg-card/50 backdrop-blur-sm p-3 rounded-xl border border-border flex flex-col sm:flex-row gap-3 shadow-sm">
+                <div className="relative flex-1 group">
+                    <HugeiconsIcon
+                        icon={Search01Icon}
+                        className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors"
                     />
-                </CardContent>
-            </Card>
-
-            <Sheet open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
-                <SheetContent className="w-full sm:max-w-md overflow-y-auto p-4 sm:p-6">
-                    <SheetHeader className="pb-4">
-                        <div className="flex items-center gap-2 mb-1">
-                            <Badge variant="outline" className="text-primary border-primary/20 bg-primary/5">
-                                {selectedArticle?.code_produit}
-                            </Badge>
-                            {selectedArticle?.famille && (
-                                <Badge variant="secondary">
-                                    {selectedArticle.famille}
-                                </Badge>
-                            )}
-                        </div>
-                        <SheetTitle className="text-xl font-bold leading-tight">
-                            {selectedArticle?.nom_produit}
-                        </SheetTitle>
-                        <SheetDescription>
-                            Détails complets de l&apos;article et informations de stock.
-                        </SheetDescription>
-                        <div className="flex items-center justify-between pt-4 border-t mt-4">
-                            <div className="flex flex-col gap-0.5">
-                                <Label className="text-sm font-medium">Statut de l&apos;article</Label>
-                                <p className="text-xs text-muted-foreground">
-                                    {selectedArticle?.en_sommeil ? "Désactivé (En sommeil)" : "Activé (En vente)"}
-                                </p>
-                            </div>
-                            <Switch
-                                checked={!selectedArticle?.en_sommeil}
-                                onCheckedChange={() => selectedArticle && handleToggleStatus(selectedArticle)}
-                                disabled={isUpdating}
-                            />
-                        </div>
-                    </SheetHeader>
-
-                    <Separator />
-
-<div className="grid gap-5 py-4 sm:py-6 px-0 sm:px-1">
-<div className="flex flex-col gap-4">
-<h3 className="text-sm font-semibold flex items-center gap-2 text-foreground/70 uppercase tracking-wider">
-<HugeiconsIcon icon={InformationCircleIcon} />
-Informations Générales
-                            </h3>
-<div className="grid grid-cols-2 gap-4">
-<div className="flex flex-col gap-1">
-<p className="text-xs text-muted-foreground uppercase">Référence</p>
-<p className="font-medium">{selectedArticle?.code_produit}</p>
-</div>
-<div className="flex flex-col gap-1">
-<p className="text-xs text-muted-foreground uppercase">Famille</p>
-<p className="font-medium">{selectedArticle?.famille || "-"}</p>
-</div>
-<div className="col-span-2 flex flex-col gap-1">
-<p className="text-xs text-muted-foreground uppercase">Désignation Complémentaire</p>
-<p className="font-medium">{selectedArticle?.description_produit || "-"}</p>
-</div>
-<div className="flex flex-col gap-1">
-<p className="text-xs text-muted-foreground uppercase">Code Barre</p>
-                                    <div className="flex items-center gap-2">
-                                        <HugeiconsIcon icon={BarCode02Icon} className="size-4 text-muted-foreground" />
-                                        <p className="font-medium font-mono">{selectedArticle?.code_barre_ean || "-"}</p>
-</div>
-</div>
-<div className="flex flex-col gap-1">
-<p className="text-xs text-muted-foreground uppercase">Unité de mesure</p>
-                                    <p className="font-medium">{selectedArticle?.unite_mesure || "Unité"}</p>
-                                </div>
-                            </div>
-                        </div>
-
-<Separator className="bg-muted/50" />
-
-<div className="flex flex-col gap-4">
-<h3 className="text-sm font-semibold flex items-center gap-2 text-foreground/70 uppercase tracking-wider">
-<HugeiconsIcon icon={Money01Icon} />
-Tarification
-                            </h3>
-<div className="grid grid-cols-2 gap-x-4 gap-y-4 bg-muted/30 p-4 rounded-lg">
-<div className="flex flex-col gap-1">
-<p className="text-xs text-muted-foreground uppercase">Prix Achat HT</p>
-<p className="text-lg font-bold text-info">{formatPrice(selectedArticle?.prix_achat ? Number(selectedArticle.prix_achat) : 0)}</p>
-</div>
-<div className="flex flex-col gap-1">
-<p className="text-xs text-muted-foreground uppercase">Prix Vente HT</p>
-<p className="text-lg font-bold text-emerald-600">{formatPrice(selectedArticle?.prix_vente ? Number(selectedArticle.prix_vente) : 0)}</p>
-</div>
-<div className="flex flex-col gap-1">
-<p className="text-xs text-muted-foreground uppercase">Coefficient</p>
-<Badge variant="outline" className="font-mono">{selectedArticle?.coefficient ? Number(selectedArticle.coefficient).toFixed(2) : "1.00"}</Badge>
-</div>
-<div className="flex flex-col gap-1">
-<p className="text-xs text-muted-foreground uppercase">TVA %</p>
-              <p className="text-sm font-medium">{selectedArticle?.taux_tva ? String(selectedArticle.taux_tva) : "20.0"}</p>
+                    <Input
+                        placeholder="Rechercher un article ou code..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="pl-10 h-10 border-none bg-muted/30 focus-visible:ring-1 focus-visible:ring-primary/50"
+                    />
+                </div>
+                <div className="flex gap-2 items-center">
+                    <Select value={familyFilter} onValueChange={(value) => setFamilyFilter(value ?? "Toutes")}>
+        <SelectTrigger className="w-full sm:w-[200px] h-10 bg-muted/30 border-none focus:ring-1 focus:ring-primary/50">
+          <div className="flex items-center gap-2">
+            <HugeiconsIcon icon={FilterIcon} className="size-4 text-muted-foreground" />
+            <SelectValue />
+          </div>
+        </SelectTrigger>
+                        <SelectContent>
+                            {families.map(family => (
+                                <SelectItem key={family} value={family || "Sans famille"}>
+                                    {family || "Sans famille"}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
             </div>
-                            </div>
-                        </div>
 
-<Separator className="bg-muted/50" />
+            {/* Main Table */}
+            <div className="rounded-xl border border-border/60 overflow-hidden bg-card shadow-lg shadow-black/5 animate-in fade-in duration-500">
+                <Table>
+                    <TableHeader className="bg-muted/40">
+                        <TableRow className="hover:bg-transparent border-border/40">
+                            <TableHead className="w-[140px] font-semibold text-foreground/70 uppercase tracking-widest text-[10px]">Référence</TableHead>
+                            <TableHead className="font-semibold text-foreground/70 uppercase tracking-widest text-[10px]">Article</TableHead>
+                            <TableHead className="font-semibold text-foreground/70 uppercase tracking-widest text-[10px]">Dernière Modification</TableHead>
+                            <TableHead className="text-right font-semibold text-foreground/70 uppercase tracking-widest text-[10px]">Prix Vente</TableHead>
+                            <TableHead className="text-right font-semibold text-foreground/70 uppercase tracking-widest text-[10px]">Stock</TableHead>
+                            <TableHead className="w-[50px]"></TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {filteredData.length === 0 ? (
+                            <TableRow>
+                                <TableCell colSpan={6} className="h-40 text-center">
+                                    <div className="flex flex-col items-center justify-center gap-2 opacity-50">
+                                        <HugeiconsIcon icon={PackageIcon} className="size-10" />
+                                        <p>Aucun article trouvé</p>
+                                    </div>
+                                </TableCell>
+                            </TableRow>
+                        ) : (
+                            filteredData.map((article) => (
+                                <TableRow
+                                    key={article.id_produit}
+                                    className={cn(
+                                        "group transition-all hover:bg-muted/30 cursor-pointer border-border/40",
+                                        article.en_sommeil && "opacity-60 bg-muted/10"
+                                    )}
+                                    onClick={() => handleOpenDetails(article)}
+                                >
+                                    <TableCell className="py-4">
+                                        <Badge variant="outline" className="font-mono text-xs bg-muted/40 border-border/50 group-hover:border-primary/30 transition-colors">
+                                            {article.code_produit}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell className="py-4">
+                                        <div className="flex flex-col gap-0.5 max-w-[300px]">
+                                            <span className="font-medium text-sm line-clamp-1 group-hover:text-primary transition-colors">{article.nom_produit}</span>
+                                            <div className="flex items-center gap-2">
+                                                {article.famille && (
+                                                    <span className="text-[11px] text-muted-foreground bg-muted p-0.5 px-1 rounded">{article.famille}</span>
+                                                )}
+                                                {article.en_sommeil && (
+                                                    <Badge variant="destructive" className="h-4 text-[9px] uppercase px-1">En sommeil</Badge>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="py-4 text-muted-foreground text-xs italic">
+                                        {article.date_modification ? new Date(article.date_modification).toLocaleDateString() : '-'}
+                                    </TableCell>
+                                    <TableCell className="text-right py-4">
+                                        <span className="font-semibold text-primary">{formatPrice(Number(article.prix_vente) || 0)}</span>
+                                    </TableCell>
+                                    <TableCell className="text-right py-4">
+                                        <div className="flex items-center justify-end gap-2">
+                                            <span className={cn(
+                                                "font-bold text-sm",
+                                                Number(article.stock_global) <= 0 ? "text-destructive" :
+                                                    Number(article.stock_global) <= (article.stock_minimum || 0) ? "text-amber-500" :
+                                                        "text-foreground"
+                                            )}>
+                                                {article.stock_global}
+                                            </span>
+                                            {Number(article.stock_global) <= (article.stock_minimum || 0) && (
+                                                <HugeiconsIcon icon={Alert01Icon} className="size-3.5 text-amber-500" />
+                                            )}
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="text-right py-4">
+                                        <div className="flex items-center justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+<Button
+              variant="ghost"
+              size="icon"
+              className="size-8 rounded-full hover:bg-primary/10 hover:text-primary"
+              onClick={(e) => {
+                e.stopPropagation()
+                handleOpenDetails(article)
+              }}
+            >
+              <HugeiconsIcon icon={ViewIcon} className="size-4" />
+            </Button>
+                                        </div>
+                                    </TableCell>
+                                </TableRow>
+                            ))
+                        )}
+                    </TableBody>
+                </Table>
+            </div>
 
-<div className="flex flex-col gap-4">
-<h3 className="text-sm font-semibold flex items-center gap-2 text-foreground/70 uppercase tracking-wider">
-<HugeiconsIcon icon={PackageIcon} className="size-4" />
-Gestion des Stocks
-                            </h3>
-<div className="grid grid-cols-2 gap-4">
-<div className="flex flex-col gap-1">
-<p className="text-xs text-muted-foreground uppercase">Stock Actuel</p>
-                                    <p className={cn("text-2xl font-bold", selectedArticle?.stock_global === 0 ? "text-destructive" : "text-primary")}>
-{selectedArticle?.stock_global}
-</p>
-</div>
-<div className="flex flex-col gap-1">
-<p className="text-xs text-muted-foreground uppercase">Suivi Stock</p>
-                                    <div className="flex items-center gap-2 mt-1">
-                                        <div className={cn("size-2 rounded-full", selectedArticle?.activer_suivi_stock ? "bg-emerald-500" : "bg-destructive")} />
-                                        <p className="text-sm font-medium">{selectedArticle?.activer_suivi_stock ? 'Activé' : 'Désactivé'}</p>
-</div>
-</div>
-<div className="flex flex-col gap-1">
-<p className="text-xs text-muted-foreground uppercase">Stock Mini</p>
-<p className="font-medium">{selectedArticle?.stock_minimum || 0}</p>
-</div>
-<div className="flex flex-col gap-1">
-<p className="text-xs text-muted-foreground uppercase">Stock Maxi</p>
-                                    <p className="font-medium">{selectedArticle?.stock_maximum || 0}</p>
-                                </div>
-                            </div>
-                        </div>
-
-<Separator className="bg-muted/50" />
-
-<div className="flex flex-col gap-4">
-<h3 className="text-sm font-semibold flex items-center gap-2 text-foreground/70 uppercase tracking-wider">
-<HugeiconsIcon icon={Calendar01Icon} className="size-4" />
-Audit & Dates
-                            </h3>
-                            <div className="flex flex-col gap-3 bg-muted/20 p-3 rounded-md text-xs">
-                                <div className="flex justify-between items-center">
-                                    <span className="text-muted-foreground">Date Création</span>
-                                    <span className="font-medium">{selectedArticle?.date_creation ? formatDate(selectedArticle.date_creation) : "-"}</span>
-                                </div>
-                                <div className="flex justify-between items-center">
-                                    <span className="text-muted-foreground">Dernière Modification</span>
-                                    <span className="font-medium">{selectedArticle?.date_modification ? formatDate(selectedArticle.date_modification) : "-"}</span>
-                                </div>
-                            </div>
-                        </div>
+            {/* Pagination/Status Bar */}
+            <div className="flex flex-col sm:flex-row justify-between items-center bg-muted/20 p-3 rounded-lg border border-border/40 gap-4">
+                <div className="flex items-center gap-4 text-xs font-medium text-muted-foreground">
+                    <div className="flex items-center gap-1.5 bg-background/50 px-2 py-1 rounded border border-border/40">
+                        <HugeiconsIcon icon={PackageIcon} className="size-3.5" />
+                        <span>Total: <span className="text-foreground">{localData.length}</span> articles</span>
                     </div>
-                </SheetContent>
-            </Sheet>
+        <div className="flex items-center gap-1.5 bg-background/50 px-2 py-1 rounded border border-border/40">
+          <HugeiconsIcon icon={Alert01Icon} className="size-3.5 text-amber-500" />
+          <span>Stock Faible: <span className="text-amber-600">{localData.filter(a => (a.stock_global || 0) <= (a.stock_minimum || 0)).length}</span></span>
+        </div>
+                </div>
+                <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">Lignes par page:</span>
+                    <Select defaultValue="20">
+                        <SelectTrigger className="h-8 w-16 bg-background text-xs">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="20">20</SelectItem>
+                            <SelectItem value="50">50</SelectItem>
+                            <SelectItem value="100">100</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+            </div>
+
+            {/* Detailed Sheet Component */}
+            <ArticleDetailsSheet
+                article={selectedArticle}
+                open={isSheetOpen}
+                onOpenChange={setIsSheetOpen}
+                onStatusChange={handleStatusChange}
+            />
         </div>
     )
 }
