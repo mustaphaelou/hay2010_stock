@@ -24,7 +24,7 @@ export async function getPartners(type?: string): Promise<PartnerWithComputed[]>
       }
     })
 
-    return partners.map((partner: typeof partners[0]) => ({
+    return partners.map((partner): PartnerWithComputed => ({
       id_partenaire: partner.id_partenaire,
       code_partenaire: partner.code_partenaire,
       nom_partenaire: partner.nom_partenaire,
@@ -58,7 +58,7 @@ export async function getPartners(type?: string): Promise<PartnerWithComputed[]>
       // Computed fields
       plafond_credit: Number(partner.limite_credit ?? 0),
       solde_courant: 0
-    }))
+    }));
   } catch (error) {
     console.error('Failed to fetch partners:', error)
     return []

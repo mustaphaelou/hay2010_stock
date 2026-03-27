@@ -1,6 +1,8 @@
 import { pdf } from '@react-pdf/renderer'
 import { InvoiceDocument, InvoiceData, InvoiceLineItem } from './invoice-template'
-import type { DocumentWithPartner, DocumentLineType } from '@/app/actions/documents'
+import type { DocumentWithComputed, DocumentLine as DocumentLineType } from '@/lib/types'
+
+type DocumentWithPartner = DocumentWithComputed
 
 // Minimal partner info interface
 interface PartnerInfo {
@@ -17,16 +19,16 @@ interface PartnerInfo {
 
 // Company info - can be customized or fetched from settings
 const COMPANY_INFO = {
-    name: 'HAY2010',
-    tagline: 'Travaux d\'électrification & Eclairage public',
-    address: 'MAG N° 21 HAY EL MENZAH CYM',
-    city: 'RABAT',
-    postalCode: '',
-    country: 'Maroc',
-    phone: '05 37 28 11 11',
-    email: 'ste.hay2010@gmail.com',
-    ice: '001459327000056',
-    rc: '87305',
+  name: 'HAY2010',
+  tagline: 'Travaux d\'électrification & Eclairage public',
+  address: 'MAG N° 21 HAY EL MENZAH CYM',
+  city: 'RABAT',
+  postalCode: '',
+  country: 'Maroc',
+  phone: '05 37 28 11 11',
+  email: 'ste.hay2010@gmail.com',
+  ice: '001459327000056',
+  rc: '87305',
 }
 
 // Document type mapping
@@ -57,12 +59,12 @@ const DOCUMENT_TYPE_NAMES: Record<string, Record<string, string>> = {
  * Format a date string to French locale
  */
 function formatDateFR(dateStr: Date | string | null): string {
-    if (!dateStr) return '-'
-    return new Date(dateStr).toLocaleDateString('fr-FR', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-    })
+  if (!dateStr) return '-'
+  return new Date(dateStr).toLocaleDateString('fr-FR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  })
 }
 
 /**
@@ -160,9 +162,9 @@ export function transformToInvoiceData(
  * Generate PDF blob from invoice data
  */
 export async function generateInvoicePDF(data: InvoiceData): Promise<Blob> {
-    const doc = <InvoiceDocument data={data} />
-    const blob = await pdf(doc).toBlob()
-    return blob
+  const doc = <InvoiceDocument data={data} />
+  const blob = await pdf(doc).toBlob()
+  return blob
 }
 
 /**
@@ -195,14 +197,14 @@ export async function downloadInvoicePDF(
  * Generate PDF as base64 string (for email attachments, etc.)
  */
 export async function generateInvoicePDFBase64(data: InvoiceData): Promise<string> {
-    const blob = await generateInvoicePDF(data)
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader()
-        reader.onloadend = () => {
-            const base64 = (reader.result as string).split(',')[1]
-            resolve(base64)
-        }
-        reader.onerror = reject
-        reader.readAsDataURL(blob)
-    })
+  const blob = await generateInvoicePDF(data)
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      const base64 = (reader.result as string).split(',')[1]
+      resolve(base64)
+    }
+    reader.onerror = reject
+    reader.readAsDataURL(blob)
+  })
 }

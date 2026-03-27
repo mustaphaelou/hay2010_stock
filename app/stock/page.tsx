@@ -12,12 +12,12 @@ import {
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+    Select,
+    SelectContent,
+    SelectGroup,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
 } from "@/components/ui/select"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
@@ -33,9 +33,10 @@ import { formatPrice } from "@/lib/utils/format"
 import { cn } from "@/lib/utils"
 // Server actions
 import { getStockLevels, getDepots } from '@/app/actions/stock'
+import type { StockLevelWithProduct, Depot as DepotType } from '@/lib/types'
 
-type StockLevel = Awaited<ReturnType<typeof getStockLevels>>[0]
-type Depot = Awaited<ReturnType<typeof getDepots>>[0]
+type StockLevel = StockLevelWithProduct
+type Depot = DepotType
 
 const columns: ColumnDef<StockLevel>[] = [
     {
@@ -52,20 +53,20 @@ const columns: ColumnDef<StockLevel>[] = [
             return <div className="max-w-[250px] truncate">{design || '-'}</div>
         },
     },
-  {
-    accessorKey: "entrepot.nom_entrepot",
-    header: "Dépôt",
-    cell: ({ row }) => {
-      const entrepot = row.original.entrepot?.nom_entrepot
-      return entrepot ? <Badge variant="secondary">{entrepot}</Badge> : '-'
-    },
-  },
     {
-      accessorKey: "quantite_en_stock_num",
-      header: () => <div className="text-right">Qté Disponible</div>,
-      cell: ({ row }) => {
-        const qty = Number(row.getValue("quantite_en_stock_num") || 0)
-        const isLowStock = qty <= 5
+        accessorKey: "entrepot.nom_entrepot",
+        header: "Dépôt",
+        cell: ({ row }) => {
+            const entrepot = row.original.entrepot?.nom_entrepot
+            return entrepot ? <Badge variant="secondary">{entrepot}</Badge> : '-'
+        },
+    },
+    {
+        accessorKey: "quantite_en_stock_num",
+        header: () => <div className="text-right">Qté Disponible</div>,
+        cell: ({ row }) => {
+            const qty = Number(row.getValue("quantite_en_stock_num") || 0)
+            const isLowStock = qty <= 5
             return (
                 <div className={`text-right font-semibold flex items-center justify-end gap-1 ${isLowStock ? 'text-destructive' : ''}`}>
                     {qty}
@@ -77,10 +78,10 @@ const columns: ColumnDef<StockLevel>[] = [
         },
     },
     {
-      accessorKey: "quantite_reservee_num",
-      header: () => <div className="text-right">Qté Réservée</div>,
-      cell: ({ row }) => {
-        const qty = Number(row.getValue("quantite_reservee_num") || 0)
+        accessorKey: "quantite_reservee_num",
+        header: () => <div className="text-right">Qté Réservée</div>,
+        cell: ({ row }) => {
+            const qty = Number(row.getValue("quantite_reservee_num") || 0)
             return <div className="text-right text-muted-foreground">{qty}</div>
         },
     },
@@ -93,16 +94,16 @@ const columns: ColumnDef<StockLevel>[] = [
         },
     },
     {
-    id: "value",
-    header: () => <div className="text-right">Valeur</div>,
-    cell: ({ row }) => {
-      // value = Qte * CMUP or Prix Achat
-      const qty = Number(row.original.quantite_en_stock_num || 0)
-      const cmup = Number(row.original.cout_moyen_pondere || row.original.produit?.prix_achat || 0)
-      const value = qty * cmup
-      return <div className="text-right font-semibold text-primary">{formatPrice(value)}</div>
+        id: "value",
+        header: () => <div className="text-right">Valeur</div>,
+        cell: ({ row }) => {
+            // value = Qte * CMUP or Prix Achat
+            const qty = Number(row.original.quantite_en_stock_num || 0)
+            const cmup = Number(row.original.cout_moyen_pondere || row.original.produit?.prix_achat || 0)
+            const value = qty * cmup
+            return <div className="text-right font-semibold text-primary">{formatPrice(value)}</div>
+        },
     },
-  },
 ]
 
 export default function StockPage() {
@@ -135,20 +136,20 @@ export default function StockPage() {
         fetchData()
     }, [])
 
-  const filteredStock = stockLevels.filter(stock => {
-    const matchesDepot = selectedDepot === 'all' ||
-      (stock.id_entrepot && stock.id_entrepot.toString() === selectedDepot)
+    const filteredStock = stockLevels.filter(stock => {
+        const matchesDepot = selectedDepot === 'all' ||
+            (stock.id_entrepot && stock.id_entrepot.toString() === selectedDepot)
 
-    return matchesDepot
-  })
+        return matchesDepot
+    })
 
-  const totalStockValue = stockLevels.reduce((acc, s) => {
-    const qty = Number(s.quantite_en_stock_num || 0)
-    const price = Number(s.cout_moyen_pondere || s.produit?.prix_achat || 0)
-    return acc + (qty * price)
-  }, 0)
+    const totalStockValue = stockLevels.reduce((acc, s) => {
+        const qty = Number(s.quantite_en_stock_num || 0)
+        const price = Number(s.cout_moyen_pondere || s.produit?.prix_achat || 0)
+        return acc + (qty * price)
+    }, 0)
 
-  const lowStockCount = stockLevels.filter(s => Number(s.quantite_en_stock_num || 0) <= 5).length
+    const lowStockCount = stockLevels.filter(s => Number(s.quantite_en_stock_num || 0) <= 5).length
 
     return (
         <AppLayout title="Stock" breadcrumb="Niveaux de stock">
@@ -170,8 +171,8 @@ export default function StockPage() {
                     <Card variant="kpi" className="hover-lift glow">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 p-0">
                             <CardTitle className="text-xs sm:text-sm font-semibold text-muted-foreground uppercase tracking-wider">Lignes Stock</CardTitle>
-<div className="icon-container size-10 shadow-sm opacity-90">
-              <HugeiconsIcon icon={PackageIcon} className="size-5 text-primary" />
+                            <div className="icon-container size-10 shadow-sm opacity-90">
+                                <HugeiconsIcon icon={PackageIcon} className="size-5 text-primary" />
                             </div>
                         </CardHeader>
                         <CardContent className="p-0 pt-3">
@@ -233,16 +234,16 @@ export default function StockPage() {
                                 <SelectTrigger className="w-full h-11 rounded-xl shadow-sm">
                                     <SelectValue />
                                 </SelectTrigger>
-<SelectContent className="rounded-xl">
-<SelectGroup>
-<SelectItem value="all">Tous les dépôts</SelectItem>
-{depots.map(d => (
-<SelectItem key={d.id_depot} value={d.id_depot.toString()}>
-{d.nom_depot}
-</SelectItem>
-))}
-</SelectGroup>
-</SelectContent>
+                                <SelectContent className="rounded-xl">
+                                    <SelectGroup>
+                                        <SelectItem value="all">Tous les dépôts</SelectItem>
+                                        {depots.map(d => (
+                                            <SelectItem key={d.id_depot} value={d.id_depot.toString()}>
+                                                {d.nom_depot}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectGroup>
+                                </SelectContent>
                             </Select>
                         </CardContent>
                     </Card>
@@ -257,8 +258,8 @@ export default function StockPage() {
                                         {loading ? 'Chargement des données...' : `${filteredStock.length} ligne(s) trouvée(s)`}
                                     </CardDescription>
                                 </div>
-<div className="p-2 rounded-lg bg-background border shadow-xs">
-          <HugeiconsIcon icon={PackageIcon} className="size-5 text-primary" />
+                                <div className="p-2 rounded-lg bg-background border shadow-xs">
+                                    <HugeiconsIcon icon={PackageIcon} className="size-5 text-primary" />
                                 </div>
                             </div>
                         </CardHeader>

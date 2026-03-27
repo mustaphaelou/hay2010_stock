@@ -6,10 +6,10 @@ import { AppSidebar } from "@/components/erp/app-sidebar"
 import { SiteHeader } from "@/components/erp/site-header"
 import { BottomNav } from "@/components/erp/bottom-nav"
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
+    Card,
+    CardContent,
+    CardHeader,
+    CardTitle,
 } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -22,12 +22,12 @@ import {
     TableRow,
 } from "@/components/ui/table"
 import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+    Select,
+    SelectContent,
+    SelectGroup,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
 } from "@/components/ui/select"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
@@ -63,10 +63,10 @@ const formatDate = (date: Date | string | null) => {
 }
 
 const getDomaineBadge = (domaine: string) => {
-  if (domaine === 'VENTE') {
-    return <Badge variant="success">Vente</Badge>
-  }
-  return <Badge variant="info">Achat</Badge>
+    if (domaine === 'VENTE') {
+        return <Badge variant="success">Vente</Badge>
+    }
+    return <Badge variant="info">Achat</Badge>
 }
 
 export default function DocumentsPage() {
@@ -138,20 +138,20 @@ export default function DocumentsPage() {
                         <div className="flex gap-4 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
                             <Card className="min-w-[200px] bg-gradient-to-br from-green-500/10 to-green-500/5 border-green-500/20">
                                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-xs font-medium text-emerald-600 uppercase tracking-wider">Total Ventes</CardTitle>
-              <HugeiconsIcon icon={Invoice01Icon} className="text-emerald-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-emerald-700">{formatPrice(totalVentes)}</div>
-            </CardContent>
-          </Card>
-          <Card className="min-w-[200px] bg-gradient-to-br from-blue-500/10 to-blue-500/5 border-blue-500/20">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-xs font-medium text-info uppercase tracking-wider">Total Achats</CardTitle>
-              <HugeiconsIcon icon={ShoppingBag01Icon} className="text-info" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-info">{formatPrice(totalAchats)}</div>
+                                    <CardTitle className="text-xs font-medium text-emerald-600 uppercase tracking-wider">Total Ventes</CardTitle>
+                                    <HugeiconsIcon icon={Invoice01Icon} className="text-emerald-500" />
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="text-2xl font-bold text-emerald-700">{formatPrice(totalVentes)}</div>
+                                </CardContent>
+                            </Card>
+                            <Card className="min-w-[200px] bg-gradient-to-br from-blue-500/10 to-blue-500/5 border-blue-500/20">
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                    <CardTitle className="text-xs font-medium text-info uppercase tracking-wider">Total Achats</CardTitle>
+                                    <HugeiconsIcon icon={ShoppingBag01Icon} className="text-info" />
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="text-2xl font-bold text-info">{formatPrice(totalAchats)}</div>
                                 </CardContent>
                             </Card>
                         </div>
@@ -175,30 +175,30 @@ export default function DocumentsPage() {
                                             onChange={(e) => setSearchTerm(e.target.value)}
                                         />
                                     </div>
-<Select value={domaineFilter} onValueChange={(value) => setDomaineFilter(value || 'all')}>
-            <SelectTrigger className="w-full sm:w-36 bg-background/50">
-              <SelectValue />
-            </SelectTrigger>
-<SelectContent>
-<SelectGroup>
-<SelectItem value="all">Tous domaines</SelectItem>
-<SelectItem value="VENTE">Ventes</SelectItem>
-<SelectItem value="ACHAT">Achats</SelectItem>
-</SelectGroup>
-</SelectContent>
+                                    <Select value={domaineFilter} onValueChange={(value) => setDomaineFilter(value ?? 'all')}>
+                                        <SelectTrigger className="w-full sm:w-36 bg-background/50">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectGroup>
+                                                <SelectItem value="all">Tous domaines</SelectItem>
+                                                <SelectItem value="VENTE">Ventes</SelectItem>
+                                                <SelectItem value="ACHAT">Achats</SelectItem>
+                                            </SelectGroup>
+                                        </SelectContent>
                                     </Select>
-<Select value={typeFilter} onValueChange={(value) => setTypeFilter(value || 'all')}>
-            <SelectTrigger className="w-full sm:w-44 bg-background/50">
-              <SelectValue />
-            </SelectTrigger>
-<SelectContent>
-<SelectGroup>
-<SelectItem value="all">Tous types</SelectItem>
-{uniqueTypes.map(type => (
-<SelectItem key={type} value={type || 'unknown'}>{type || 'Inconnu'}</SelectItem>
-))}
-</SelectGroup>
-</SelectContent>
+                                    <Select value={typeFilter} onValueChange={(value) => setTypeFilter(value ?? 'all')}>
+                                        <SelectTrigger className="w-full sm:w-44 bg-background/50">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectGroup>
+                                                <SelectItem value="all">Tous types</SelectItem>
+                                                {uniqueTypes.map(type => (
+                                                    <SelectItem key={type} value={type || 'unknown'}>{type || 'Inconnu'}</SelectItem>
+                                                ))}
+                                            </SelectGroup>
+                                        </SelectContent>
                                     </Select>
                                     <Button variant="outline" size="icon" onClick={fetchData} disabled={loading} className="shrink-0 bg-background/50">
                                         <HugeiconsIcon icon={RefreshIcon} className={`size-4 ${loading ? 'animate-spin' : ''}`} />
@@ -250,8 +250,8 @@ export default function DocumentsPage() {
                                                         <TableCell className="max-w-[200px] truncate" title={doc.partenaire?.nom_partenaire || doc.nom_partenaire_snapshot || ''}>
                                                             {doc.partenaire?.nom_partenaire || doc.nom_partenaire_snapshot || '-'}
                                                         </TableCell>
-    <TableCell className="text-right text-muted-foreground">{formatPrice(Number(doc.montant_ht))}</TableCell>
-    <TableCell className="text-right font-semibold">{formatPrice(Number(doc.montant_ttc))}</TableCell>
+                                                        <TableCell className="text-right text-muted-foreground">{formatPrice(Number(doc.montant_ht))}</TableCell>
+                                                        <TableCell className="text-right font-semibold">{formatPrice(Number(doc.montant_ttc))}</TableCell>
                                                         <TableCell><Badge variant="secondary" className="bg-background">{doc.statut_document}</Badge></TableCell>
                                                     </TableRow>
                                                 ))

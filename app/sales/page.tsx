@@ -22,12 +22,12 @@ import {
     TableRow,
 } from "@/components/ui/table"
 import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+    Select,
+    SelectContent,
+    SelectGroup,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
 } from "@/components/ui/select"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
@@ -155,18 +155,18 @@ export default function SalesPage() {
                                             onChange={(e) => setSearchTerm(e.target.value)}
                                         />
                                     </div>
-<Select value={typeFilter} onValueChange={(value) => setTypeFilter(value || 'all')}>
-          <SelectTrigger className="w-full sm:w-44 bg-background/50">
-            <SelectValue />
-          </SelectTrigger>
-<SelectContent>
-<SelectGroup>
-<SelectItem value="all">Tous types</SelectItem>
-{uniqueTypes.map(type => (
-<SelectItem key={type} value={type || 'unknown'}>{type || 'Inconnu'}</SelectItem>
-))}
-</SelectGroup>
-</SelectContent>
+                                    <Select value={typeFilter} onValueChange={(value) => setTypeFilter(value ?? 'all')}>
+                                        <SelectTrigger className="w-full sm:w-44 bg-background/50">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectGroup>
+                                                <SelectItem value="all">Tous types</SelectItem>
+                                                {uniqueTypes.map(type => (
+                                                    <SelectItem key={type} value={type || 'unknown'}>{type || 'Inconnu'}</SelectItem>
+                                                ))}
+                                            </SelectGroup>
+                                        </SelectContent>
                                     </Select>
                                     <Button variant="outline" size="icon" onClick={fetchData} disabled={loading} className="shrink-0 bg-background/50">
                                         <HugeiconsIcon icon={RefreshIcon} className={`size-4 ${loading ? 'animate-spin' : ''}`} />
@@ -215,8 +215,8 @@ export default function SalesPage() {
                                                             {doc.partenaire?.nom_partenaire || doc.nom_partenaire_snapshot || '-'}
                                                         </TableCell>
                                                         <TableCell>{doc.numero_affaire || '-'}</TableCell>
-                <TableCell className="text-right text-muted-foreground">{formatPrice(Number(doc.montant_ht))}</TableCell>
-                <TableCell className="text-right font-semibold">{formatPrice(Number(doc.montant_ttc))}</TableCell>
+                                                        <TableCell className="text-right text-muted-foreground">{formatPrice(Number(doc.montant_ht))}</TableCell>
+                                                        <TableCell className="text-right font-semibold">{formatPrice(Number(doc.montant_ttc))}</TableCell>
                                                     </TableRow>
                                                 ))
                                             )}

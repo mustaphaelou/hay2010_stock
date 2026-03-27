@@ -155,29 +155,23 @@ export async function getDocLines(docId: number): Promise<DocumentLine[]> {
 
   try {
     const lines = await prisma.ligneDocument.findMany({
-      where: {
-        id_document: docId
-      },
+      where: { id_document: docId },
       include: {
         produit: {
-          select: {
-            nom_produit: true
-          }
+          select: { nom_produit: true }
         }
       },
-      orderBy: {
-        numero_ligne: 'asc'
-      }
+      orderBy: { numero_ligne: 'asc' }
     })
 
-    return lines.map((line: typeof lines[0]) => ({
+    return lines.map((line): DocumentLine => ({
       ...line,
       quantite: Number(line.quantite_commandee || 0),
       prix_unitaire: Number(line.prix_unitaire_ht || 0),
       montant_ht_num: Number(line.montant_ht || 0),
       montant_ttc_num: Number(line.montant_ttc || 0),
-      designation: line.nom_produit_snapshot || line.produit?.nom_produit,
-      reference_article: line.code_produit_snapshot,
+      designation: line.nom_produit_snapshot || line.produit?.nom_produit || null,
+      reference_article: line.code_produit_snapshot || null,
       ordre: line.numero_ligne,
       code_taxe: null
     }))
