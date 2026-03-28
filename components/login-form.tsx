@@ -33,9 +33,9 @@ export function LoginForm({
       if (result.error) {
         setError(result.error)
         setLoading(false)
-      } else {
-        window.location.href = '/'
-      }
+} else {
+    window.location.reload()
+  }
     } catch (err) {
       console.error('Login submit error:', err)
       setError('An unexpected error occurred')
