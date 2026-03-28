@@ -58,17 +58,17 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Validate Prisma schema
+        run: npx prisma validate
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
       - name: Run ESLint
         run: npm run lint
 
       - name: TypeScript check
         run: npx tsc --noEmit
-
-      - name: Validate Prisma schema
-        run: npx prisma validate
-
-      - name: Check Prisma client generation
-        run: npx prisma generate
 
   security-scan:
     name: Security Scanning
@@ -321,4 +321,3 @@ jobs:
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
         if: always() && env.SLACK_WEBHOOK_URL != ''
-

@@ -1,9 +1,12 @@
 "use client"
 
 import * as React from "react"
+import { type ComponentType } from "react"
 import { cn } from "@/lib/utils"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import type { InteractiveChartCardProps } from "./interactive-chart-card"
+import type { EnhancedDataTableProps } from "./enhanced-data-table"
 
 const LazyInteractiveChartCard = React.lazy(() =>
   import("./interactive-chart-card").then((mod) => ({ default: mod.InteractiveChartCard }))
@@ -98,57 +101,6 @@ interface LazyLoadProps {
   className?: string
 }
 
-const LazyLoad = React.memo(function LazyLoad({
-  children,
-  fallback,
-  height = 300,
-  className,
-}: LazyLoadProps) {
-  const [isVisible, setIsVisible] = React.useState(false)
-  const [hasError, setHasError] = React.useState(false)
-  const ref = React.useRef<HTMLDivElement>(null)
-
-  React.useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsVisible(true)
-          observer.disconnect()
-        }
-      },
-      { threshold: 0.1, rootMargin: "100px" }
-    )
-
-    if (ref.current) {
-      observer.observe(ref.current)
-    }
-
-    return () => observer.disconnect()
-  }, [])
-
-  if (hasError) {
-    return (
-      <div className={cn("flex items-center justify-center", className)} style={{ height }}>
-        <p className="text-muted-foreground">Failed to load component</p>
-      </div>
-    )
-  }
-
-  return (
-    <div ref={ref} className={className} style={{ minHeight: isVisible ? undefined : height }}>
-      {isVisible ? (
-        <React.Suspense fallback={fallback || <Skeleton className="w-full h-full" />}>
-          <React.ErrorBoundary fallback={<div>Something went wrong</div>}>
-            {children}
-          </React.ErrorBoundary>
-        </React.Suspense>
-      ) : (
-        fallback || <Skeleton className="w-full" style={{ height }} />
-      )}
-    </div>
-  )
-})
-
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode; fallback?: React.ReactNode },
   { hasError: boolean }
@@ -170,12 +122,53 @@ class ErrorBoundary extends React.Component<
   }
 }
 
-interface LazyInteractiveChartCardProps extends React.ComponentProps<typeof LazyInteractiveChartCard> {
+const LazyLoad = React.memo(function LazyLoad({
+  children,
+  fallback,
+  height = 300,
+  className,
+}: LazyLoadProps) {
+  const [isVisible, setIsVisible] = React.useState(false)
+  const ref = React.useRef<HTMLDivElement>(null)
+
+  React.useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true)
+          observer.disconnect()
+        }
+      },
+      { threshold: 0.1, rootMargin: "100px" }
+    )
+
+    if (ref.current) {
+      observer.observe(ref.current)
+    }
+
+    return () => observer.disconnect()
+  }, [])
+
+  return (
+    <div ref={ref} className={className} style={{ minHeight: isVisible ? undefined : height }}>
+      {isVisible ? (
+        <React.Suspense fallback={fallback || <Skeleton className="w-full h-full" />}>
+          <ErrorBoundary fallback={<div>Something went wrong</div>}>
+            {children}
+          </ErrorBoundary>
+        </React.Suspense>
+      ) : (
+        fallback || <Skeleton className="w-full" style={{ height }} />
+      )}
+    </div>
+  )
+})
+
+interface LazyInteractiveChartCardProps extends InteractiveChartCardProps {
   height?: number
 }
 
-function LazyInteractiveChartCardWrapper(props: LazyInteractiveChartCardProps) {
-  const { height = 300, ...rest } = props as { height?: number } & Record<string, unknown>
+function LazyInteractiveChartCardWrapper({ height = 300, ...rest }: LazyInteractiveChartCardProps) {
   return (
     <React.Suspense fallback={<ChartLoadingFallback height={height} />}>
       <LazyInteractiveChartCard {...rest} />
@@ -191,10 +184,11 @@ function LazyPerformanceGaugeWrapper(props: React.ComponentProps<typeof LazyPerf
   )
 }
 
-function LazyEnhancedDataTableWrapper<TData, TValue>(props: React.ComponentProps<typeof LazyEnhancedDataTable<TData, TValue>>) {
+function LazyEnhancedDataTableWrapper<TData, TValue>(props: EnhancedDataTableProps<TData, TValue>) {
+  const TypedTable = LazyEnhancedDataTable as ComponentType<EnhancedDataTableProps<TData, TValue>>
   return (
     <React.Suspense fallback={<TableLoadingFallback />}>
-      <LazyEnhancedDataTable {...props} />
+      <TypedTable {...props} />
     </React.Suspense>
   )
 }

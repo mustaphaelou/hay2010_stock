@@ -10,7 +10,7 @@ import { HugeiconsIcon } from "@hugeicons/react"
 import {
   ArrowDown01Icon,
   ArrowUp01Icon,
-  Product1Icon,
+  ShoppingBag01Icon,
   ShoppingCart01Icon,
   ArrowRight01Icon,
   StarIcon,
@@ -119,7 +119,7 @@ const ProductAvatar = React.memo(function ProductAvatar({
       )}
     >
       <HugeiconsIcon
-        icon={Product1Icon}
+        icon={ShoppingBag01Icon}
         strokeWidth={2}
         className={cn("text-primary", size === "sm" ? "size-4" : "size-5")}
       />
@@ -204,7 +204,7 @@ const TopProductsWidget = React.memo(function TopProductsWidget({
           <div className="flex flex-col items-center justify-center py-8 text-center">
             <div className="rounded-full bg-muted p-4 mb-3">
               <HugeiconsIcon
-                icon={Product1Icon}
+                icon={ShoppingBag01Icon}
                 strokeWidth={2}
                 className="size-6 text-muted-foreground"
               />

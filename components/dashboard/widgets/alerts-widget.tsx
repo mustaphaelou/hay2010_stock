@@ -12,7 +12,7 @@ import {
   Alert02Icon,
   PackageIcon,
   Wallet01Icon,
-  InformationIcon,
+  InformationCircleIcon,
   CheckmarkCircle01Icon,
   Delete01Icon,
   ViewIcon,
@@ -58,7 +58,7 @@ const severityConfig: Record<
     color: "text-blue-600 dark:text-blue-400",
     bgColor: "bg-blue-50 dark:bg-blue-950/50",
     borderColor: "border-blue-200 dark:border-blue-800",
-    icon: InformationIcon,
+    icon: InformationCircleIcon,
   },
   medium: {
     color: "text-yellow-600 dark:text-yellow-400",
@@ -83,7 +83,7 @@ const severityConfig: Record<
 const typeConfig: Record<AlertType, { icon: typeof PackageIcon; label: string }> = {
   stock: { icon: PackageIcon, label: "Stock" },
   payment: { icon: Wallet01Icon, label: "Payment" },
-  system: { icon: InformationIcon, label: "System" },
+  system: { icon: InformationCircleIcon, label: "System" },
   order: { icon: PackageIcon, label: "Order" },
 }
 

@@ -23,7 +23,7 @@ function useSWRLike<T>(
   fetcher: () => Promise<T>,
   options: FetchOptions<T> = {}
 ): FetchState<T> & {
-  mutate: (data?: T | ((prev: T | null) => T)) => Promise<void>
+  mutate: (data?: T | ((prev: T | null) => T) | null) => Promise<void>
   revalidate: () => Promise<void>
 } {
   const {
@@ -107,16 +107,18 @@ function useSWRLike<T>(
   )
 
   const mutate = React.useCallback(
-    async (data?: T | ((prev: T | null) => T)) => {
+    async (data?: T | ((prev: T | null) => T) | null) => {
       if (typeof data === "function") {
         setState((prev) => {
           const newData = (data as (prev: T | null) => T)(prev.data)
           cacheRef.current.set(key, { data: newData, timestamp: Date.now() })
           return { ...prev, data: newData }
         })
-      } else if (data !== undefined) {
+      } else if (data !== undefined && data !== null) {
         cacheRef.current.set(key, { data, timestamp: Date.now() })
         setState((prev) => ({ ...prev, data }))
+      } else if (data === null) {
+        setState((prev) => ({ ...prev, data: null }))
       }
     },
     [key]
