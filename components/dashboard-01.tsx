@@ -14,7 +14,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs"
-import { formatPrice, formatDate } from "@/lib/utils/format"
+import { formatPrice, formatDate } from "@/lib/utils"
 import {
   ChartContainer,
   ChartTooltip,

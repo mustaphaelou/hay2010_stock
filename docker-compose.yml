@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # Migration service - runs once to apply migrations
   migrate:
@@ -109,4 +107,4 @@ networks:
     driver: bridge
   backend:
     driver: bridge
-    internal: false # Set to true in production for full isolation
+    internal: true

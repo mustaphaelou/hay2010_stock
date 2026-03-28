@@ -37,7 +37,7 @@ import {
     SheetDescription,
 } from "@/components/ui/sheet"
 import { Separator } from "@/components/ui/separator"
-import { formatDate } from "@/lib/utils/format"
+import { formatDate } from "@/lib/utils"
 import {
     Card,
     CardHeader,

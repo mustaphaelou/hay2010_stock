@@ -37,7 +37,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-import { formatPrice } from "@/lib/utils/format"
+import { formatPrice } from "@/lib/utils"
 import { cn } from "@/lib/utils"
 // Import our new detailed sheet component
 import { ArticleDetailsSheet } from "@/components/erp/article-details-sheet"

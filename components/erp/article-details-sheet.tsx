@@ -20,7 +20,7 @@ import {
     BarCode02Icon,
     Calendar01Icon,
 } from "@hugeicons/core-free-icons"
-import { formatPrice } from "@/lib/utils/format"
+import { formatPrice } from "@/lib/utils"
 import { cn } from "@/lib/utils"
 import { toggleArticleStatus } from "@/app/actions/articles"
 import type { ArticleWithStock } from "@/lib/types"

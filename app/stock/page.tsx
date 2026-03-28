@@ -29,7 +29,7 @@ import {
 
 import { DataTable } from "@/components/erp/data-table"
 import { ColumnDef } from "@tanstack/react-table"
-import { formatPrice } from "@/lib/utils/format"
+import { formatPrice } from "@/lib/utils"
 import { cn } from "@/lib/utils"
 // Server actions
 import { getStockLevels, getDepots } from '@/app/actions/stock'

@@ -52,32 +52,31 @@ const nextConfig: NextConfig = {
   // =====================================================
   experimental: {
     // Optimize package imports to reduce bundle size
-    optimizePackageImports: [
-      "recharts",
-      "@hugeicons/core-free-icons",
-      "@hugeicons/react",
-      "@base-ui/react",
-      "@tanstack/react-table",
-      "@dnd-kit/core",
-      "@dnd-kit/sortable",
-      "@dnd-kit/modifiers",
-      "@dnd-kit/utilities",
-      "class-variance-authority",
-      "clsx",
-      "tailwind-merge",
-      "@radix-ui/react-dialog",
-      "@radix-ui/react-popover",
-      "@radix-ui/react-dropdown-menu",
-      "@radix-ui/react-select",
-      "@radix-ui/react-tabs",
-      "@radix-ui/react-tooltip",
-      "@radix-ui/react-avatar",
-      "@radix-ui/react-separator",
-      "@radix-ui/react-toggle",
-      "@radix-ui/react-toggle-group",
-      "lucide-react",
-      "zod",
-    ],
+optimizePackageImports: [
+    "recharts",
+    "@hugeicons/core-free-icons",
+    "@hugeicons/react",
+    "@base-ui/react",
+    "@dnd-kit/core",
+    "@dnd-kit/sortable",
+    "@dnd-kit/modifiers",
+    "@dnd-kit/utilities",
+    "class-variance-authority",
+    "clsx",
+    "tailwind-merge",
+    "@radix-ui/react-dialog",
+    "@radix-ui/react-popover",
+    "@radix-ui/react-dropdown-menu",
+    "@radix-ui/react-select",
+    "@radix-ui/react-tabs",
+    "@radix-ui/react-tooltip",
+    "@radix-ui/react-avatar",
+    "@radix-ui/react-separator",
+    "@radix-ui/react-toggle",
+    "@radix-ui/react-toggle-group",
+    "lucide-react",
+    "zod",
+  ],
 
     // Server actions configuration
     serverActions: {
@@ -128,8 +127,8 @@ const nextConfig: NextConfig = {
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           {
-            key: 'Content-Security-Policy',
-            value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https:; frame-ancestors 'self';"
+        key: 'Content-Security-Policy',
+        value: "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https:; frame-ancestors 'none';"
           },
           { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' }
         ]
@@ -176,7 +175,6 @@ const nextConfig: NextConfig = {
   // =====================================================
   env: {
     NEXT_PUBLIC_APP_VERSION: process.env.npm_package_version || '1.0.0',
-    NEXT_PUBLIC_BUILD_TIME: new Date().toISOString(),
   },
 
   // =====================================================

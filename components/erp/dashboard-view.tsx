@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { formatPrice } from "@/lib/utils/format"
+import { formatPrice } from "@/lib/utils"
 import {
   Card,
   CardContent,

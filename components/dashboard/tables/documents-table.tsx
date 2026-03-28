@@ -49,7 +49,7 @@ import {
 import { Empty } from "@/components/ui/empty"
 import { ExportButton } from "../export-button"
 import { cn } from "@/lib/utils"
-import { formatPrice } from "@/lib/utils/format"
+import { formatPrice } from "@/lib/utils"
 
 interface DocumentItem {
     id_document: number
