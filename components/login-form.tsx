@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { Button } from "@/components/ui/button"
@@ -15,6 +16,8 @@ export function LoginForm({
   className,
   ...props
 }: React.ComponentProps<"form">) {
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [rememberMe, setRememberMe] = useState(false)
@@ -33,9 +36,16 @@ export function LoginForm({
       if (result.error) {
         setError(result.error)
         setLoading(false)
-} else {
-    window.location.reload()
-  }
+      } else {
+        // Get the redirect URL from search params, default to dashboard
+        const redirectTo = searchParams.get('redirect') || '/'
+        // Don't redirect to static assets or login page
+        const safeRedirect = redirectTo.startsWith('/login') || redirectTo.match(/\.(png|jpg|svg|ico|css|js|map|json)$/)
+          ? '/'
+          : redirectTo
+        router.push(safeRedirect)
+        router.refresh()
+      }
     } catch (err) {
       console.error('Login submit error:', err)
       setError('An unexpected error occurred')

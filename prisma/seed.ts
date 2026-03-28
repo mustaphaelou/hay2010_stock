@@ -1,4 +1,6 @@
 import 'dotenv/config'
+import { config } from 'dotenv'
+config({ path: '.env.local', override: true })
 import { PrismaClient } from '../lib/generated/prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { Pool } from 'pg'

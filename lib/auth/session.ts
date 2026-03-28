@@ -1,8 +1,10 @@
 import { randomBytes } from 'crypto'
-import { redis } from '@/lib/db/redis'
 
 const SESSION_PREFIX = 'session:'
 const SESSION_TTL = 60 * 60 * 24 * 7 // 7 days in seconds
+
+// In-memory session fallback for when Redis is unavailable
+const memoryStore = new Map<string, { data: string; expiresAt: number }>()
 
 /**
  * Generate a cryptographically secure session ID
@@ -20,6 +22,20 @@ export interface SessionData {
   createdAt: number
 }
 
+/**
+ * Try to get Redis client, returns null if unavailable
+ */
+async function getRedis() {
+  try {
+    const { redis } = await import('@/lib/db/redis')
+    // Test connection with a ping
+    await redis.ping()
+    return redis
+  } catch {
+    return null
+  }
+}
+
 export async function createSession(userId: string, email: string, name: string, role: string): Promise<string> {
   const sessionId = generateSessionId()
   const sessionData: SessionData = {
@@ -30,30 +46,81 @@ export async function createSession(userId: string, email: string, name: string,
     createdAt: Date.now()
   }
 
-  await redis.setex(
-    `${SESSION_PREFIX}${sessionId}`,
-    SESSION_TTL,
-    JSON.stringify(sessionData)
-  )
+  const redisClient = await getRedis()
+  
+  if (redisClient) {
+    await redisClient.setex(
+      `${SESSION_PREFIX}${sessionId}`,
+      SESSION_TTL,
+      JSON.stringify(sessionData)
+    )
+  } else {
+    // Fallback to in-memory store
+    console.warn('[Session] Redis unavailable, using in-memory session store')
+    memoryStore.set(`${SESSION_PREFIX}${sessionId}`, {
+      data: JSON.stringify(sessionData),
+      expiresAt: Date.now() + SESSION_TTL * 1000
+    })
+  }
 
   return sessionId
 }
 
 export async function getSession(sessionId: string): Promise<SessionData | null> {
-  const data = await redis.get(`${SESSION_PREFIX}${sessionId}`)
-  if (!data) return null
-
-  try {
-    return JSON.parse(data) as SessionData
-  } catch {
-    return null
+  const key = `${SESSION_PREFIX}${sessionId}`
+  
+  const redisClient = await getRedis()
+  
+  if (redisClient) {
+    const data = await redisClient.get(key)
+    if (!data) return null
+    try {
+      return JSON.parse(data) as SessionData
+    } catch {
+      return null
+    }
+  } else {
+    // Fallback to in-memory store
+    const entry = memoryStore.get(key)
+    if (!entry) return null
+    
+    // Check expiration
+    if (Date.now() > entry.expiresAt) {
+      memoryStore.delete(key)
+      return null
+    }
+    
+    try {
+      return JSON.parse(entry.data) as SessionData
+    } catch {
+      return null
+    }
   }
 }
 
 export async function deleteSession(sessionId: string): Promise<void> {
-  await redis.del(`${SESSION_PREFIX}${sessionId}`)
+  const key = `${SESSION_PREFIX}${sessionId}`
+  
+  const redisClient = await getRedis()
+  
+  if (redisClient) {
+    await redisClient.del(key)
+  } else {
+    memoryStore.delete(key)
+  }
 }
 
 export async function refreshSession(sessionId: string): Promise<void> {
-  await redis.expire(`${SESSION_PREFIX}${sessionId}`, SESSION_TTL)
+  const key = `${SESSION_PREFIX}${sessionId}`
+  
+  const redisClient = await getRedis()
+  
+  if (redisClient) {
+    await redisClient.expire(key, SESSION_TTL)
+  } else {
+    const entry = memoryStore.get(key)
+    if (entry) {
+      entry.expiresAt = Date.now() + SESSION_TTL * 1000
+    }
+  }
 }
