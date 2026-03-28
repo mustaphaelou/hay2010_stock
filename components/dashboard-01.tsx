@@ -985,10 +985,12 @@ const ChartBarInteractive = React.memo(function ChartBarInteractive({ documents 
                 tickLine={false}
                 tickMargin={10}
                 axisLine={false}
-                tickFormatter={(value) => {
-                  const [year, month] = value.split('-')
-                  return new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString('fr-FR', { month: 'short' })
-                }}
+tickFormatter={(value) => {
+if (!value || typeof value !== 'string') return ''
+const [year, month] = value.split('-')
+if (!year || !month) return value
+return new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString('fr-FR', { month: 'short' })
+}}
               />
               <ChartTooltip
                 cursor={false}

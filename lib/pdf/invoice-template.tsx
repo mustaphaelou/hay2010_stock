@@ -352,7 +352,7 @@ export function InvoiceDocument({ data }: { data: InvoiceData }) {
                             <Text style={styles.docInfoValue}>{data.documentNumber}</Text>
                         </View>
                         <View style={styles.docInfoRow}>
-                            <Text style={styles.docInfoLabel}>Date {data.documentType.split(' ')[0]} :</Text>
+                            <Text style={styles.docInfoLabel}>Date {data.documentType?.split(' ')[0] || ''} :</Text>
                             <Text style={styles.docInfoValue}>{data.date}</Text>
                         </View>
                         {data.devisNumber && (

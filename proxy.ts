@@ -37,7 +37,7 @@ function addSecurityHeaders(response: NextResponse): void {
   response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Apply rate limiting first (except for public paths)
@@ -96,6 +96,7 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
+  runtime: 'nodejs',
   matcher: [
     '/((?!_next/static|_next/image|favicon.ico|public).*)',
   ],

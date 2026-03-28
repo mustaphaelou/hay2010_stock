@@ -90,12 +90,14 @@ export function SalesPurchasesChart({
     const marginPercent = totalSales > 0 ? (margin / totalSales) * 100 : 0
 
     // Format month for display
-    const formatMonth = (monthStr: string) => {
-        const [year, month] = monthStr.split("-")
-        return new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString("fr-FR", {
-            month: "short",
-        })
-    }
+const formatMonth = (monthStr: string) => {
+if (!monthStr || typeof monthStr !== 'string') return ''
+const [year, month] = monthStr.split("-")
+if (!year || !month) return monthStr
+return new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString("fr-FR", {
+month: "short",
+})
+}
 
     return (
         <Card className={cn("overflow-hidden", className)}>

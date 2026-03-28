@@ -201,10 +201,21 @@ export async function generateInvoicePDFBase64(data: InvoiceData): Promise<strin
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
     reader.onloadend = () => {
-      const base64 = (reader.result as string).split(',')[1]
+      const result = reader.result
+      if (!result || typeof result !== 'string') {
+        reject(new Error('Failed to read PDF data: result is null or invalid'))
+        return
+      }
+      const base64 = result.split(',')[1]
+      if (!base64) {
+        reject(new Error('Invalid base64 data: no data URL prefix found'))
+        return
+      }
       resolve(base64)
     }
-    reader.onerror = reject
+    reader.onerror = () => {
+      reject(new Error('FileReader error while reading PDF blob'))
+    }
     reader.readAsDataURL(blob)
   })
 }
