@@ -68,20 +68,28 @@ export function RealtimeMetricsGrid({
   const [isTransitioning, setIsTransitioning] = React.useState(false)
 
   React.useEffect(() => {
+    const timeouts: NodeJS.Timeout[] = []
+
     if (animated && metrics.length > 0) {
       setIsTransitioning(true)
       setVisibleMetrics([])
       
       metrics.forEach((_, index) => {
-        setTimeout(() => {
-          setVisibleMetrics((prev) => [...prev, metrics[index]])
+        const t1 = setTimeout(() => {
+          setVisibleMetrics(metrics.slice(0, index + 1))
           if (index === metrics.length - 1) {
-            setTimeout(() => setIsTransitioning(false), 300)
+            const t2 = setTimeout(() => setIsTransitioning(false), 300)
+            timeouts.push(t2)
           }
         }, index * staggerDelay)
+        timeouts.push(t1)
       })
     } else {
       setVisibleMetrics(metrics)
+    }
+
+    return () => {
+      timeouts.forEach(clearTimeout)
     }
   }, [metrics, animated, staggerDelay])
 
