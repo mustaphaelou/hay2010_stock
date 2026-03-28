@@ -85,19 +85,23 @@ export async function proxy(request: NextRequest) {
     return response
   }
 
-  const response = NextResponse.next()
+const response = NextResponse.next()
   response.headers.set('x-user-id', payload.userId)
   response.headers.set('x-user-email', payload.email)
   response.headers.set('x-user-role', payload.role)
-  
-  addSecurityHeaders(response)
-  
-  return response
-}
 
-export const config = {
-  runtime: 'nodejs',
-  matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|public).*)',
-  ],
+  // RBAC check for admin routes
+  const isAdminRoute = pathname.startsWith('/api/admin')
+  if (isAdminRoute && payload.role !== 'ADMIN') {
+    const forbiddenResponse = NextResponse.json(
+      { error: 'Forbidden', code: 'INSUFFICIENT_ROLE' },
+      { status: 403 }
+    )
+    addSecurityHeaders(forbiddenResponse)
+    return forbiddenResponse
+  }
+
+  addSecurityHeaders(response)
+
+  return response
 }

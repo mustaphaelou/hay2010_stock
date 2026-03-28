@@ -16,8 +16,19 @@ model User {
   email     String   @unique
   password  String
   name      String
-  role Role @default(USER)
+  role      Role     @default(USER)
   createdAt DateTime @default(now())
+
+  // Reverse relations for audit fields
+  createdPartenaires  Partenaire[]  @relation("CreatedByPartenaire")
+  updatedPartenaires  Partenaire[]  @relation("UpdatedByPartenaire")
+  createdProduits     Produit[]     @relation("CreatedByProduit")
+  updatedProduits     Produit[]     @relation("UpdatedByProduit")
+  createdDocuments    DocVente[]    @relation("CreatedByDocument")
+  updatedDocuments    DocVente[]    @relation("UpdatedByDocument")
+  createdAffaires     Affaire[]     @relation("CreatedByAffaire")
+  updatedAffaires     Affaire[]     @relation("UpdatedByAffaire")
+  createdMouvements   MouvementStock[] @relation("CreatedByMouvement")
 
   @@map("users")
 }
@@ -66,17 +77,21 @@ type_partenaire TypePartenaire @default(CLIENT)
   est_bloque             Boolean   @default(false)
   date_creation          DateTime  @default(now())
   date_modification      DateTime  @default(now()) @updatedAt
-  cree_par               String?   @db.Uuid
-  modifie_par            String?   @db.Uuid
-  compte_collectif       String?   @db.VarChar(20)
-  compte_auxiliaire      String?   @db.VarChar(20)
+  cree_par      String?   @db.Uuid
+  modifie_par   String?   @db.Uuid
+  compte_collectif   String?   @db.VarChar(20)
+  compte_auxiliaire  String?   @db.VarChar(20)
+
+  // User relations for audit fields
+  createdBy  User?  @relation("CreatedByPartenaire", fields: [cree_par], references: [id])
+  updatedBy  User?  @relation("UpdatedByPartenaire", fields: [modifie_par], references: [id])
 
   // Relations
-  produits Produit[] @relation("FournisseurPrincipal")
-  documents_vente DocVente[]
-  affaires_client Affaire[]
-  tarifs_fournisseurs TarifFournisseur[]
-  historique_prix HistoriquePrixAchat[]
+  produits             Produit[]             @relation("FournisseurPrincipal")
+  documents_vente      DocVente[]
+  affaires_client      Affaire[]
+  tarifs_fournisseurs  TarifFournisseur[]
+  historique_prix      HistoriquePrixAchat[]
   tarifs_exceptionnels TarifExceptionnel[]
 
   @@map("partenaires")
@@ -160,22 +175,26 @@ model Produit {
   est_abandonne                     Boolean   @default(false)
   date_creation                     DateTime  @default(now())
   date_modification                 DateTime  @default(now()) @updatedAt
-  cree_par                          String?   @db.Uuid
-  modifie_par                       String?   @db.Uuid
-  compte_general_vente              String?   @db.VarChar(20)
-  compte_general_achat              String?   @db.VarChar(20)
-  code_taxe_vente                   String?   @db.VarChar(10)
-  code_taxe_achat                   String?   @db.VarChar(10)
+  cree_par                String?   @db.Uuid
+  modifie_par             String?   @db.Uuid
+  compte_general_vente    String?   @db.VarChar(20)
+  compte_general_achat    String?   @db.VarChar(20)
+  code_taxe_vente         String?   @db.VarChar(10)
+  code_taxe_achat         String?   @db.VarChar(10)
 
-// Relations
-  categorie CategorieProduit? @relation(fields: [id_categorie], references: [id_categorie])
-  fournisseur_principal Partenaire? @relation("FournisseurPrincipal", fields: [id_fournisseur_principal], references: [id_partenaire])
-  niveaux_stock NiveauStock[]
-  lignes_documents LigneDocument[]
+  // User relations for audit fields
+  createdBy  User?  @relation("CreatedByProduit", fields: [cree_par], references: [id])
+  updatedBy  User?  @relation("UpdatedByProduit", fields: [modifie_par], references: [id])
+
+  // Relations
+  categorie           CategorieProduit?  @relation(fields: [id_categorie], references: [id_categorie])
+  fournisseur_principal Partenaire?      @relation("FournisseurPrincipal", fields: [id_fournisseur_principal], references: [id_partenaire])
+  niveaux_stock       NiveauStock[]
+  lignes_documents    LigneDocument[]
   tarifs_fournisseurs TarifFournisseur[]
-  historique_prix HistoriquePrixAchat[]
-  mouvements_stock MouvementStock[]
-  lots_serie LotSerie[]
+  historique_prix     HistoriquePrixAchat[]
+  mouvements_stock    MouvementStock[]
+  lots_serie          LotSerie[]
   tarifs_exceptionnels TarifExceptionnel[]
 
   @@map("produits")
@@ -254,13 +273,17 @@ model Affaire {
   en_sommeil             Boolean   @default(false)
   date_creation          DateTime  @default(now())
   date_modification      DateTime  @default(now()) @updatedAt
-  cree_par               String?   @db.Uuid
-  modifie_par            String?   @db.Uuid
+  cree_par      String?   @db.Uuid
+  modifie_par   String?   @db.Uuid
+
+  // User relations for audit fields
+  createdBy  User?  @relation("CreatedByAffaire", fields: [cree_par], references: [id])
+  updatedBy  User?  @relation("UpdatedByAffaire", fields: [modifie_par], references: [id])
 
   // Relations
-  client                 Partenaire?      @relation(fields: [id_client], references: [id_partenaire])
-  documents_affaire      DocVente[]
-  lignes_documents       LigneDocument[]
+  client           Partenaire?      @relation(fields: [id_client], references: [id_partenaire])
+  documents_affaire DocVente[]
+  lignes_documents  LigneDocument[]
 
   @@map("affaires")
   @@index([type_affaire])
@@ -297,17 +320,21 @@ model DocVente {
   reference_externe      String?   @db.VarChar(100)
   date_creation          DateTime  @default(now())
   date_modification      DateTime  @default(now()) @updatedAt
-  cree_par               String?   @db.Uuid
-  modifie_par            String?   @db.Uuid
-  mode_expedition        String?   @db.VarChar(50)
-  poids_total_brut       Decimal?  @db.Decimal(10, 3)
-  nombre_colis           Int?
+  cree_par          String?   @db.Uuid
+  modifie_par       String?   @db.Uuid
+  mode_expedition   String?   @db.VarChar(50)
+  poids_total_brut  Decimal?  @db.Decimal(10, 3)
+  nombre_colis      Int?
+
+  // User relations for audit fields
+  createdBy  User?  @relation("CreatedByDocument", fields: [cree_par], references: [id])
+  updatedBy  User?  @relation("UpdatedByDocument", fields: [modifie_par], references: [id])
 
   // Relations
-  partenaire             Partenaire    @relation(fields: [id_partenaire], references: [id_partenaire])
-  affaire                Affaire?      @relation(fields: [id_affaire], references: [id_affaire])
-  entrepot               Entrepot?     @relation(fields: [id_entrepot], references: [id_entrepot])
-  lignes                 LigneDocument[]
+  partenaire  Partenaire        @relation(fields: [id_partenaire], references: [id_partenaire])
+  affaire     Affaire?          @relation(fields: [id_affaire], references: [id_affaire])
+  entrepot    Entrepot?         @relation(fields: [id_entrepot], references: [id_entrepot])
+  lignes      LigneDocument[]
 
   @@map("documents")
   @@index([type_document])
@@ -346,10 +373,11 @@ model LigneDocument {
   date_modification      DateTime  @default(now()) @updatedAt
 
   // Relations
-  document               DocVente  @relation(fields: [id_document], references: [id_document], onDelete: Cascade)
-  produit                Produit   @relation(fields: [id_produit], references: [id_produit])
-  affaire                Affaire?  @relation(fields: [id_affaire], references: [id_affaire])
-  lot                    LotSerie? @relation(fields: [id_lot], references: [id_lot])
+  document    DocVente        @relation(fields: [id_document], references: [id_document], onDelete: Cascade)
+  produit     Produit         @relation(fields: [id_produit], references: [id_produit])
+  affaire     Affaire?        @relation(fields: [id_affaire], references: [id_affaire])
+  lot         LotSerie?       @relation(fields: [id_lot], references: [id_lot])
+  mouvements  MouvementStock[]
 
   @@map("lignes_documents")
   @@index([id_document])
@@ -378,23 +406,27 @@ model HistoriquePrixAchat {
 }
 
 model MouvementStock {
-  id_mouvement           Int       @id @default(autoincrement())
-  id_produit             Int
-  id_entrepot            Int
-  id_document            Int?
-  id_ligne_document      Int?
-  type_mouvement         String    @db.VarChar(30)
-  quantite               Decimal   @db.Decimal(15, 3)
-  date_mouvement         DateTime  @default(now())
-  reference_document     String?   @db.VarChar(50)
-  motif                  String?
-  cree_par               String?   @db.Uuid
-  id_lot                 Int?
-  date_creation          DateTime  @default(now())
+  id_mouvement      Int       @id @default(autoincrement())
+  id_produit        Int
+  id_entrepot       Int
+  id_document       Int?
+  id_ligne_document Int?
+  type_mouvement    String    @db.VarChar(30)
+  quantite          Decimal   @db.Decimal(15, 3)
+  date_mouvement    DateTime  @default(now())
+  reference_document String?  @db.VarChar(50)
+  motif             String?
+  cree_par          String?   @db.Uuid
+  id_lot            Int?
+  date_creation     DateTime  @default(now())
+
+  // User relation for audit field
+  createdBy  User?  @relation("CreatedByMouvement", fields: [cree_par], references: [id])
 
   // Relations
-  produit                Produit   @relation(fields: [id_produit], references: [id_produit])
-  entrepot               Entrepot  @relation(fields: [id_entrepot], references: [id_entrepot])
+  produit        Produit        @relation(fields: [id_produit], references: [id_produit])
+  entrepot       Entrepot       @relation(fields: [id_entrepot], references: [id_entrepot])
+  ligneDocument  LigneDocument? @relation(fields: [id_ligne_document], references: [id_ligne])
 
   @@map("mouvements_stock")
   @@index([id_produit])
@@ -404,20 +436,20 @@ model MouvementStock {
 }
 
 model LotSerie {
-  id_lot                 Int       @id @default(autoincrement())
-  code_lot               String    @db.VarChar(50)
-  id_produit             Int
-  date_fabrication       DateTime? @db.Date
-  date_peremption        DateTime? @db.Date
-  numero_serie_unique    String?   @db.VarChar(100)
-  quantite_initiale      Decimal?  @db.Decimal(15, 3)
-  quantite_actuelle      Decimal   @default(0) @db.Decimal(15, 3)
-  est_actif              Boolean   @default(true)
-  date_creation          DateTime  @default(now())
+  id_lot              Int       @id @default(autoincrement())
+  code_lot            String    @db.VarChar(50)
+  id_produit          Int
+  date_fabrication    DateTime? @db.Date
+  date_peremption     DateTime? @db.Date
+  numero_serie_unique String?   @unique @db.VarChar(100)
+  quantite_initiale   Decimal?  @db.Decimal(15, 3)
+  quantite_actuelle   Decimal   @default(0) @db.Decimal(15, 3)
+  est_actif           Boolean   @default(true)
+  date_creation       DateTime  @default(now())
 
   // Relations
-  produit                Produit   @relation(fields: [id_produit], references: [id_produit], onDelete: Cascade)
-  lignes_documents       LigneDocument[]
+  produit         Produit         @relation(fields: [id_produit], references: [id_produit], onDelete: Cascade)
+  lignes_documents LigneDocument[]
 
   @@unique([code_lot, id_produit])
   @@map("lots_serie")

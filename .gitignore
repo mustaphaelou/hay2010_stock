@@ -40,4 +40,11 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# debug files
+errors.txt
+tsc_errors.log
+lint_output.txt
+eslint_out.txt
+tsc_output.txt
+
 /lib/generated/prisma

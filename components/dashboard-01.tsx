@@ -5,7 +5,6 @@ import Link from "next/link"
 import { ModeToggle } from "@/components/mode-toggle"
 import { LanguageToggle } from "@/components/language-toggle"
 import { useState, useEffect, useMemo } from "react"
-import { createClient } from "@/lib/supabase/client"
 import { Bar, BarChart, Pie, PieChart, Cell, YAxis, Legend, CartesianGrid, XAxis } from "recharts"
 import { HugeiconsIcon } from "@hugeicons/react"
 import type { IconSvgElement } from "@hugeicons/react"
@@ -15,7 +14,6 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs"
-import type { Partenaire, Produit } from "@/lib/supabase/types"
 import { formatPrice, formatDate } from "@/lib/utils/format"
 import {
   ChartContainer,
@@ -106,7 +104,25 @@ const STATS_CONFIG = {
   },
 } satisfies ChartConfig
 
-type EnhancedProduit = Produit & { categories_produits: { nom_categorie: string } }
+type EnhancedProduit = {
+  id_produit: number
+  code_produit: string
+  nom_produit: string
+  prix_vente: number | null
+  prix_achat: number | null
+  stock_maximum: number | null
+  niveau_reappro_quantite: number | null
+  categories_produits?: { nom_categorie: string } | null
+}
+
+type Partenaire = {
+  id_partenaire: number
+  code_partenaire: string
+  nom_partenaire: string
+  type_partenaire: string
+  ville: string | null
+  est_actif: boolean
+}
 
 type MovementItem = {
   id: number
@@ -123,12 +139,12 @@ type DocumentItem = {
   numero_document: string
   date_document: Date
   type_document: string
-  domaine_document?: string
+  domaine_document?: string | null
   montant_ttc: number
-  montant_ht?: number
+  montant_ht?: number | null
   statut_document: string
-  nom_partenaire_date?: string
-  partenaires?: { nom_partenaire: string }
+  nom_partenaire_snapshot?: string | null
+  partenaire?: { nom_partenaire: string } | null
 }
 
 const StatsArticlesView = React.memo(function StatsArticlesView({ products }: { products: EnhancedProduit[] }) {
@@ -268,11 +284,11 @@ const StockMovementsView = React.memo(function StockMovementsView({ movements = 
                     Aucun mouvement enregistré
                   </TableCell>
                 </TableRow>
-) : movements.map((movement) => (
-            <TableRow key={movement.id} className="table-row-virtualized hover:bg-muted/50 transition-colors">
-              <TableCell>{movement.date}</TableCell>
-              <TableCell className="font-medium">{movement.ref}</TableCell>
-              <TableCell>{movement.designation}</TableCell>
+              ) : movements.map((movement) => (
+                <TableRow key={movement.id} className="table-row-virtualized hover:bg-muted/50 transition-colors">
+                  <TableCell>{movement.date}</TableCell>
+                  <TableCell className="font-medium">{movement.ref}</TableCell>
+                  <TableCell>{movement.designation}</TableCell>
                   <TableCell>
                     <Badge variant={movement.type === "Entrée" ? "default" : "secondary"}>
                       {movement.type === "Entrée" ? <HugeiconsIcon icon={ArrowRight01Icon} className="mr-1 size-3" /> : <HugeiconsIcon icon={ArrowLeft01Icon} className="mr-1 size-3" />}
@@ -304,60 +320,18 @@ export default function Dashboard01Block() {
   const [movements, setMovements] = useState<MovementItem[]>([])
   const [loading, setLoading] = useState(true)
 
-  const supabase = createClient()
-
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true)
       try {
-        // OPTIMIZATION: Parallel queries with Promise.all (4× faster than sequential)
-        // Reference: async-parallel best practice
-        const [productsRes, partnersRes, docsRes, movementsRes] = await Promise.all([
-          supabase
-          .from('produits')
-          .select('*, categories_produits(nom_categorie)')
-          .order('nom_produit'),
-          supabase
-          .from('partenaires')
-          .select('*'),
-          supabase
-          .from('documents')
-          .select('*, partenaires(nom_partenaire)')
-          .order('date_document', { ascending: false }),
-          supabase
-          .from('lignes_documents')
-          .select(`
-            id_ligne,
-            quantite_livree,
-            produits (nom_produit, code_produit),
-            documents (numero_document, date_document, type_document)
-          `)
-          .order('id_ligne', { ascending: false })
-          .limit(20)
-        ])
-
-// Transform movements for the view
-type MovementRaw = {
-  id_ligne: number
-  quantite_livree: number
-  produits: { nom_produit: string; code_produit: string }[] | null
-  documents: { numero_document: string; date_document: Date; type_document: string }[] | null
-}
-
-const formattedMovements: MovementItem[] = (movementsRes.data as MovementRaw[] | null)?.map((m) => ({
-  id: m.id_ligne,
-  date: formatDate(m.documents?.[0]?.date_document),
-  ref: m.produits?.[0]?.code_produit || '',
-  designation: m.produits?.[0]?.nom_produit || '',
-  type: m.documents?.[0]?.type_document === 'LIVRAISON' ? (m.quantite_livree > 0 ? "Entrée" : "Sortie") : (m.documents?.[0]?.type_document === 'FACTURE' ? "Sortie" : "Ajustement"),
-  document: m.documents?.[0]?.numero_document || '',
-  quantity: m.quantite_livree || 0
-})) || []
-
-        setProducts((productsRes.data as EnhancedProduit[]) || [])
-        setPartners(partnersRes.data as Partenaire[] || [])
-        setDocuments(docsRes.data as DocumentItem[] || [])
-        setMovements(formattedMovements)
+        // Use server actions instead of Supabase client
+        const { getDashboardData } = await import('@/app/actions/dashboard-data')
+        const data = await getDashboardData()
+        
+        setProducts(data.products || [])
+        setPartners(data.partners || [])
+        setDocuments(data.documents || [])
+        setMovements(data.movements || [])
       } catch (err) {
         console.error('Error fetching dashboard data:', err)
       } finally {
@@ -366,14 +340,15 @@ const formattedMovements: MovementItem[] = (movementsRes.data as MovementRaw[] |
     }
 
     fetchData()
-  }, [supabase])
+  }, [])
 
   // Memoize filtered stock to prevent recalculation on every render
   const filteredStock = useMemo(() =>
     products.filter(item => {
       const familyMatch = selectedFamily === "all" || item.categories_produits?.nom_categorie === selectedFamily
       return familyMatch
-    }), [products, selectedFamily]
+    }),
+    [products, selectedFamily]
   )
 
   // Memoize unique families for filters
@@ -399,12 +374,12 @@ const formattedMovements: MovementItem[] = (movementsRes.data as MovementRaw[] |
         } as React.CSSProperties
       }
     >
-<AppSidebar
-          variant="sidebar"
-          collapsible="icon"
-          onNavigate={(view) => setCurrentView(view)}
-          onTabChange={(tab) => setActiveTab(tab)}
-        />
+      <AppSidebar
+        variant="sidebar"
+        collapsible="icon"
+        onNavigate={(view) => setCurrentView(view)}
+        onTabChange={(tab) => setActiveTab(tab)}
+      />
       <SidebarInset>
         <SiteHeader />
         <div className="flex flex-1 flex-col p-6 md:p-8 gap-8 bg-muted/20">
@@ -537,12 +512,12 @@ const formattedMovements: MovementItem[] = (movementsRes.data as MovementRaw[] |
                         <SelectTrigger className="w-[180px]">
                           <SelectValue />
                         </SelectTrigger>
-<SelectContent>
-<SelectGroup>
-<SelectItem value="all">Toutes les familles</SelectItem>
-{families.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}
-</SelectGroup>
-</SelectContent>
+                        <SelectContent>
+                          <SelectGroup>
+                            <SelectItem value="all">Toutes les familles</SelectItem>
+                            {families.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}
+                          </SelectGroup>
+                        </SelectContent>
                       </Select>
                     </div>
                   </CardHeader>
@@ -572,8 +547,8 @@ const formattedMovements: MovementItem[] = (movementsRes.data as MovementRaw[] |
                         ) : filteredStock.length === 0 ? (
                           <TableRow>
                             <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
-<div className="flex flex-col gap-2">
-						<HugeiconsIcon icon={PackageIcon} className="size-10 mx-auto opacity-30" />
+                              <div className="flex flex-col gap-2">
+                                <HugeiconsIcon icon={PackageIcon} className="size-10 mx-auto opacity-30" />
                                 <p>Aucun produit trouvé</p>
                               </div>
                             </TableCell>
@@ -631,7 +606,6 @@ const formattedMovements: MovementItem[] = (movementsRes.data as MovementRaw[] |
     </SidebarProvider >
   )
 }
-
 
 
 function AppSidebar({ onNavigate, onTabChange, ...props }: React.ComponentProps<typeof Sidebar> & { onNavigate?: (view: "dashboard" | "stats-articles" | "stock-movements") => void, onTabChange?: (tab: string) => void }) {
@@ -802,7 +776,7 @@ function NavUser({ user }: { user: { name: string; email: string; avatar: string
             <DropdownMenuGroup>
               <DropdownMenuLabel className="p-0 font-normal">
                 <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-<Avatar className="size-8 rounded-lg">
+                  <Avatar className="size-8 rounded-lg">
                     <AvatarImage src={user.avatar} alt={user.name} />
                     <AvatarFallback className="rounded-lg">AD</AvatarFallback>
                   </Avatar>
@@ -985,12 +959,12 @@ const ChartBarInteractive = React.memo(function ChartBarInteractive({ documents 
                 tickLine={false}
                 tickMargin={10}
                 axisLine={false}
-tickFormatter={(value) => {
-if (!value || typeof value !== 'string') return ''
-const [year, month] = value.split('-')
-if (!year || !month) return value
-return new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString('fr-FR', { month: 'short' })
-}}
+                tickFormatter={(value) => {
+                  if (!value || typeof value !== 'string') return ''
+                  const [year, month] = value.split('-')
+                  if (!year || !month) return value
+                  return new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString('fr-FR', { month: 'short' })
+                }}
               />
               <ChartTooltip
                 cursor={false}
@@ -1002,8 +976,8 @@ return new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString('fr-FR',
             </BarChart>
           ) : (
             <div className="flex h-full items-center justify-center text-muted-foreground bg-muted/5 rounded-lg border border-dashed">
-<div className="flex flex-col gap-2 text-center">
-						<HugeiconsIcon icon={ChartUpIcon} className="size-12 mx-auto opacity-30" />
+              <div className="flex flex-col gap-2 text-center">
+                <HugeiconsIcon icon={ChartUpIcon} className="size-12 mx-auto opacity-30" />
                 <p>En attente de données de mouvement</p>
               </div>
             </div>
@@ -1031,8 +1005,8 @@ const DataTable = React.memo(function DataTable({ data }: { data: DocumentItem[]
         {data.length === 0 ? (
           <TableRow>
             <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
-<div className="flex flex-col gap-2">
-							<HugeiconsIcon icon={Invoice01Icon} className="size-10 mx-auto opacity-30" />
+              <div className="flex flex-col gap-2">
+                <HugeiconsIcon icon={Invoice01Icon} className="size-10 mx-auto opacity-30" />
                 <p>Aucun document trouvé</p>
               </div>
             </TableCell>
@@ -1041,7 +1015,7 @@ const DataTable = React.memo(function DataTable({ data }: { data: DocumentItem[]
           <TableRow key={doc.id_document} className="table-row-hover group">
             <TableCell className="font-medium text-primary">{doc.numero_document}</TableCell>
             <TableCell className="text-muted-foreground">{new Date(doc.date_document).toLocaleDateString('fr-FR')}</TableCell>
-            <TableCell className="font-medium">{doc.partenaires?.nom_partenaire || doc.nom_partenaire_date || '-'}</TableCell>
+            <TableCell className="font-medium">{doc.partenaire?.nom_partenaire || doc.nom_partenaire_snapshot || '-'}</TableCell>
             <TableCell>
               <Badge variant="outline" className="font-normal">
                 {doc.type_document}

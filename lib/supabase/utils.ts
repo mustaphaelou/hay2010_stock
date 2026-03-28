@@ -1,34 +1,15 @@
+// Supabase utility stub - Supabase has been removed from this project
+// This file is kept for backward compatibility but will throw an error if used
+
 /**
-* Fetch all rows from a Supabase query by paginating automatically
-* @param query The initial Supabase query
-* @param pageSize Number of rows per page (default 1000)
-*/
+ * @deprecated Use Prisma client directly from @/lib/db/prisma
+ * Prisma supports pagination natively with skip/take
+ */
 export async function fetchAllRows<T>(
   query: {
     range: (from: number, to: number) => Promise<{ data: T[] | null; error: Error | null }>
   },
   pageSize: number = 1000
 ): Promise<T[]> {
-  let allData: T[] = []
-  let from = 0
-  let hasMore = true
-
-  while (hasMore) {
-    const { data, error } = await query.range(from, from + pageSize - 1)
-
-    if (error) {
-      console.error('Error in fetchAllRows:', error)
-      throw error
-    }
-
-    if (data && data.length > 0) {
-      allData = allData.concat(data)
-      from += pageSize
-      hasMore = data.length === pageSize
-    } else {
-      hasMore = false
-    }
-  }
-
-  return allData
+  throw new Error('Supabase utilities are no longer available. Use Prisma client with skip/take for pagination.')
 }
