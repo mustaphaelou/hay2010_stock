@@ -47,18 +47,18 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-          cache-dependency-path: stock_app/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
-        working-directory: stock_app
+        
         run: npm ci
 
       - name: Run ESLint
-        working-directory: stock_app
+        
         run: npm run lint
 
       - name: Type check
-        working-directory: stock_app
+        
         run: npx tsc --noEmit
 
   # =====================================================
@@ -77,20 +77,20 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-          cache-dependency-path: stock_app/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
-        working-directory: stock_app
+        
         run: npm ci
 
       - name: Run tests with coverage
-        working-directory: stock_app
+        
         run: npm run test:ci
 
       - name: Upload coverage report
         uses: codecov/codecov-action@v4
         with:
-          files: ./stock_app/coverage/lcov.info
+          files: ./coverage/lcov.info
           fail_ci_if_error: false
 
   # =====================================================
@@ -109,14 +109,14 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-          cache-dependency-path: stock_app/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
-        working-directory: stock_app
+        
         run: npm ci
 
       - name: Run npm audit
-        working-directory: stock_app
+        
         run: npm audit --audit-level=high
         continue-on-error: ${{ github.ref != 'refs/heads/main' }}
 
@@ -157,7 +157,7 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          context: stock_app
+          context: .
           tags: |
             type=sha,prefix=
             type=ref,event=branch
@@ -173,8 +173,8 @@ jobs:
         id: build
         uses: docker/build-push-action@v5
         with:
-          context: ./stock_app
-          file: ./stock_app/Dockerfile
+          context: .
+          file: ./Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
