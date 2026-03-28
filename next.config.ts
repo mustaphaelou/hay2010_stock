@@ -4,7 +4,10 @@ const nextConfig: NextConfig = {
   // =====================================================
   // OUTPUT CONFIGURATION
   // =====================================================
-  output: 'standalone',
+  // Disabled standalone on Windows due to filename restrictions (colons in externals)
+  output: process.env.STANDALONE_BUILD === 'true' || (process.env.NODE_ENV === 'production' && process.platform !== 'win32') 
+    ? 'standalone' 
+    : undefined,
 
   // =====================================================
   // IMAGE OPTIMIZATION
