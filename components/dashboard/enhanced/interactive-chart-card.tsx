@@ -139,7 +139,7 @@ export function InteractiveChartCard({
     if (!data.length) return data
 
     const now = new Date()
-    let startDate = new Date(now)
+    const startDate = new Date(now)
 
     switch (timeRange) {
       case "7d":

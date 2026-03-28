@@ -4,28 +4,20 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { InteractiveChartCard, type ChartType, type TimeRange, type DataPoint } from "./interactive-chart-card"
-import { StatsOverviewCard } from "./stats-overview-card"
 import type { StatsOverviewCardProps } from "./stats-overview-card"
 import { RealtimeMetricsGrid } from "./realtime-metrics-grid"
 import { DashboardHeader, type BreadcrumbItemType } from "./dashboard-header"
 import { RecentActivityFeed, type ActivityItem } from "./recent-activity-feed"
 import { PerformanceGauge, type Threshold } from "./performance-gauge"
 import { HugeiconsIcon } from "@hugeicons/react"
-import type { IconSvgElement } from "@hugeicons/react"
 import {
-  PackageIcon,
-  UserGroupIcon,
-  ShoppingBag01Icon,
-  Invoice01Icon,
-  TruckDeliveryIcon,
-  FolderOpenIcon,
-  ArrowRightIcon,
   LayoutGridIcon,
   LayoutIcon,
 } from "@hugeicons/core-free-icons"
 
 interface KPICard extends Omit<StatsOverviewCardProps, "value"> {
   id: string
+  title: string
   value: number | string
   href?: string
 }
@@ -40,7 +32,7 @@ interface ChartData {
   defaultTimeRange?: TimeRange
 }
 
-interface ActivityData extends ActivityItem {}
+type ActivityData = ActivityItem
 
 interface GaugeData {
   id: string
@@ -66,20 +58,6 @@ interface EnhancedDashboardViewProps {
   onSettings?: () => void
   showViewToggle?: boolean
 }
-
-const defaultPaymentThresholds: Threshold[] = [
-  { value: 25, label: "Low", color: "#22c55e" },
-  { value: 50, label: "Medium", color: "#eab308" },
-  { value: 75, label: "High", color: "#f97316" },
-  { value: 100, label: "Critical", color: "#ef4444" },
-]
-
-const defaultStockThresholds: Threshold[] = [
-  { value: 20, label: "Critical", color: "#ef4444" },
-  { value: 40, label: "Low", color: "#f97316" },
-  { value: 70, label: "Good", color: "#eab308" },
-  { value: 100, label: "Optimal", color: "#22c55e" },
-]
 
 const LoadingSkeleton = React.memo(function LoadingSkeleton() {
   return (
