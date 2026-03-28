@@ -77,18 +77,23 @@ export default function DocumentsPage() {
     const [domaineFilter, setDomaineFilter] = useState<string>('all')
     const [typeFilter, setTypeFilter] = useState<string>('all')
 
-    const fetchData = async () => {
-        setLoading(true)
-        setError(null)
-        try {
-            const data = await getDocuments()
-            setDocuments(data || [])
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Erreur réseau')
-        } finally {
-            setLoading(false)
-        }
+  const fetchData = async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const result = await getDocuments()
+      if (result.error) {
+        setError(result.error)
+        setDocuments([])
+      } else {
+        setDocuments(result.data || [])
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur réseau')
+    } finally {
+      setLoading(false)
     }
+  }
 
     useEffect(() => {
         fetchData()

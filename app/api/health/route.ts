@@ -1,47 +1,71 @@
 import { NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
 import { prisma } from '@/lib/db/prisma'
 import { redis } from '@/lib/db/redis'
+import { verifyToken } from '@/lib/auth/jwt'
+
+const COOKIE_NAME = 'auth_token'
 
 export async function GET() {
-  const health = {
-    status: 'healthy' as 'healthy' | 'unhealthy' | 'degraded',
-    timestamp: new Date().toISOString(),
-    services: {
-      database: 'connected' as string,
-      redis: 'connected' as string,
-      app: 'running'
-    },
-    latency: {
-      database: 0,
-      redis: 0
+  const cookieStore = await cookies()
+  const token = cookieStore.get(COOKIE_NAME)?.value
+  
+  let isAuthenticated = false
+  let isAdmin = false
+  
+  if (token) {
+    try {
+      const payload = await verifyToken(token)
+      if (payload && (payload.role === 'ADMIN' || payload.role === 'MANAGER')) {
+        isAuthenticated = true
+        isAdmin = payload.role === 'ADMIN'
+      }
+    } catch {
+      // Token invalid, proceed with basic health check
     }
   }
 
-  // Check database connection
+  const basicHealth = {
+    status: 'ok' as 'ok' | 'error',
+    timestamp: new Date().toISOString()
+  }
+
   try {
-    const dbStart = Date.now()
     await prisma.$queryRaw`SELECT 1`
-    health.latency.database = Date.now() - dbStart
-  } catch (error) {
-    console.error('Database health check failed:', error)
-    health.services.database = 'disconnected'
-    health.status = 'unhealthy'
-  }
-
-  // Check Redis connection
-  try {
-    const redisStart = Date.now()
     await redis.ping()
-    health.latency.redis = Date.now() - redisStart
-  } catch (error) {
-    console.error('Redis health check failed:', error)
-    health.services.redis = 'disconnected'
-    // Redis failure is degraded, not unhealthy - app can run without Redis
-    if (health.status === 'healthy') {
-      health.status = 'degraded'
+    
+    if (isAuthenticated) {
+      const dbStart = Date.now()
+      await prisma.$queryRaw`SELECT 1`
+      const dbLatency = Date.now() - dbStart
+      
+      const redisStart = Date.now()
+      await redis.ping()
+      const redisLatency = Date.now() - redisStart
+      
+      return NextResponse.json({
+        ...basicHealth,
+        status: 'ok',
+        services: {
+          database: 'connected',
+          redis: 'connected',
+          app: 'running'
+        },
+        latency: {
+          database: dbLatency,
+          redis: redisLatency
+        },
+        version: process.env.npm_package_version || '1.0.0',
+        environment: process.env.NODE_ENV
+      })
     }
+    
+    return NextResponse.json(basicHealth)
+  } catch (error) {
+    console.error('Health check failed:', error)
+    return NextResponse.json(
+      { status: 'error', timestamp: new Date().toISOString() },
+      { status: 503 }
+    )
   }
-
-  const statusCode = health.status === 'healthy' ? 200 : health.status === 'degraded' ? 200 : 503
-  return NextResponse.json(health, { status: statusCode })
 }

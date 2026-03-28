@@ -95,15 +95,20 @@ export default function PurchasesPage() {
         setLoading(true)
         setError(null)
 
-        try {
-            const data = await getPurchasesDocuments()
-            setDocuments(data || [])
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Erreur lors du chargement')
-        } finally {
-            setLoading(false)
-        }
+  try {
+      const result = await getPurchasesDocuments()
+      if (result.error) {
+        setError(result.error)
+        setDocuments([])
+      } else {
+        setDocuments(result.data || [])
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors du chargement')
+    } finally {
+      setLoading(false)
     }
+  }
 
     useEffect(() => {
         setMounted(true)

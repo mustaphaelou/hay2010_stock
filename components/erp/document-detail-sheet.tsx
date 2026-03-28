@@ -109,9 +109,12 @@ export function DocumentDetailSheet({ document, open, onOpenChange }: DocumentDe
     const fetchLines = async () => {
       setLoading(true)
       try {
-        const data = await getDocLines(document.id_document)
-        if (data) {
-          setLines(data)
+        const result = await getDocLines(document.id_document)
+        if (result.error) {
+          console.error('Error fetching document lines:', result.error)
+          setLines([])
+        } else {
+          setLines(result.data || [])
         }
       } catch (err) {
         console.error('Error fetching document lines:', err)

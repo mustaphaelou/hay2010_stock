@@ -117,20 +117,25 @@ export default function StockPage() {
         setLoading(true)
         setError(null)
 
-        try {
-            const [stockData, depotsData] = await Promise.all([
-                getStockLevels(),
-                getDepots()
-            ])
+  try {
+      const [stockResult, depotsData] = await Promise.all([
+        getStockLevels(),
+        getDepots()
+      ])
 
-            setStockLevels(stockData || [])
-            setDepots(depotsData || [])
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Erreur lors du chargement des niveaux de stock')
-        } finally {
-            setLoading(false)
-        }
+      if (stockResult.error) {
+        setError(stockResult.error)
+        setStockLevels([])
+      } else {
+        setStockLevels(stockResult.data || [])
+      }
+      setDepots(depotsData || [])
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors du chargement des niveaux de stock')
+    } finally {
+      setLoading(false)
     }
+  }
 
     useEffect(() => {
         fetchData()

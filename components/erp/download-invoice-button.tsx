@@ -42,18 +42,18 @@ export function DownloadInvoiceButton({
         try {
             setLoading(true)
 
-            // Fetch document lines using Server Action
-            const lines = await getDocLines(document.id_document)
+  // Fetch document lines using Server Action
+    const linesResult = await getDocLines(document.id_document)
 
-            // Generate and download PDF
-            await downloadInvoicePDF(document, lines || [], partner)
-        } catch (err) {
-            console.error('Error generating PDF:', err)
-            alert('Erreur lors de la génération du PDF')
-        } finally {
-            setLoading(false)
-        }
-    }
+    // Generate and download PDF
+    await downloadInvoicePDF(document, linesResult.data || [], partner)
+  } catch (err) {
+    console.error('Error generating PDF:', err)
+    alert('Erreur lors de la génération du PDF')
+  } finally {
+    setLoading(false)
+  }
+}
 
     return (
         <Button

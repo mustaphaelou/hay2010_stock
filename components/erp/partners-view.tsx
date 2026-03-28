@@ -46,7 +46,7 @@ import {
     CardContent,
 } from "@/components/ui/card"
 
-type Partner = Awaited<ReturnType<typeof getPartners>>[0]
+type Partner = Awaited<ReturnType<typeof getPartners>>['data'][0]
 
 const createColumns = (onViewDetails: (partner: Partner) => void): ColumnDef<Partner>[] => [
     {
@@ -118,19 +118,19 @@ export function PartnersView({ type, title }: PartnersViewProps) {
 
     const columns = React.useMemo(() => createColumns(handleViewDetails), [])
 
-    React.useEffect(() => {
-        async function fetchData() {
-            try {
-                const partnerType = type === 0 ? 'CLIENT' : 'FOURNISSEUR'
-                const partners = await getPartners(partnerType)
-                setData(partners || [])
-            } catch (error) {
-                console.error("Error fetching partners:", error)
-            }
-        }
+  React.useEffect(() => {
+    async function fetchData() {
+      try {
+        const partnerType = type === 0 ? 'CLIENT' : 'FOURNISSEUR'
+        const result = await getPartners(partnerType)
+        setData(result.data || [])
+      } catch (error) {
+        console.error("Error fetching partners:", error)
+      }
+    }
 
-        fetchData()
-    }, [type])
+    fetchData()
+  }, [type])
 
     return (
         <div className="flex flex-col gap-6 sm:gap-8 animate-fade-in-up">

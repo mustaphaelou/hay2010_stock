@@ -6,37 +6,57 @@ import { requireAuth } from './auth'
 import { toggleArticleStatusSchema } from '@/lib/validation'
 import type { ArticleWithStock } from '@/lib/types'
 
-export async function getArticlesWithStock(): Promise<ArticleWithStock[]> {
+export async function getArticlesWithStock(page: number = 1, limit: number = 50): Promise<{ data: ArticleWithStock[]; meta: { total: number; page: number; limit: number; totalPages: number }; error?: string }> {
   await requireAuth()
+  
+  const skip = (page - 1) * limit
+
   try {
-    const result = await prisma.produit.findMany({
-      include: {
-        categorie: true,
-        niveaux_stock: true,
-      },
-      orderBy: {
-        nom_produit: 'asc'
-      }
-    })
+    const [result, total] = await Promise.all([
+      prisma.produit.findMany({
+        skip,
+        take: limit,
+        include: {
+          categorie: true,
+          niveaux_stock: true,
+        },
+        orderBy: {
+          nom_produit: 'asc'
+        }
+      }),
+      prisma.produit.count()
+    ])
 
-    return result.map((article: typeof result[0]) => {
-      const totalStock = article.niveaux_stock.reduce(
-        (acc: number, stock: typeof article.niveaux_stock[0]) => acc + Number(stock.quantite_en_stock || 0),
-        0
-      )
+    return {
+      data: result.map((article: typeof result[0]) => {
+        const totalStock = article.niveaux_stock.reduce(
+          (acc: number, stock: typeof article.niveaux_stock[0]) => acc + Number(stock.quantite_en_stock || 0),
+          0
+        )
 
-      return {
-        ...article,
-        stock_global: totalStock,
-        prix_vente: article.prix_vente,
-        prix_achat: article.prix_achat,
-        coefficient: article.coefficient,
-        famille: article.famille || article.categorie?.nom_categorie || null
+        return {
+          ...article,
+          stock_global: totalStock,
+          prix_vente: article.prix_vente,
+          prix_achat: article.prix_achat,
+          coefficient: article.coefficient,
+          famille: article.famille || article.categorie?.nom_categorie || null
+        }
+      }),
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
       }
-    })
+    }
   } catch (error) {
     console.error('Failed to fetch articles:', error)
-    return []
+    return { 
+      data: [], 
+      meta: { total: 0, page, limit, totalPages: 0 },
+      error: 'Failed to fetch articles'
+    }
   }
 }
 

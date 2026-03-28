@@ -10,19 +10,13 @@ datasource db {
 // =====================================================
 // AUTHENTICATION MODELS
 // =====================================================
-// AUTHENTICATION MODELS
-// =====================================================
-// AUTHENTICATION MODELS
-// =====================================================
-// AUTHENTICATION MODELS
-// =====================================================
 
 model User {
   id        String   @id @default(uuid())
   email     String   @unique
   password  String
   name      String
-  role      Role     @default(HR)
+  role Role @default(USER)
   createdAt DateTime @default(now())
 
   @@map("users")
@@ -30,8 +24,15 @@ model User {
 
 enum Role {
   ADMIN
-  HR
+  MANAGER
   USER
+  VIEWER
+}
+
+enum TypePartenaire {
+  CLIENT
+  FOURNISSEUR
+  LES_DEUX
 }
 
 // =====================================================
@@ -42,7 +43,7 @@ model Partenaire {
   id_partenaire          Int       @id @default(autoincrement())
   code_partenaire        String    @unique @db.VarChar(50)
   nom_partenaire         String    @db.VarChar(255)
-  type_partenaire        String    @db.VarChar(20) // CLIENT, FOURNISSEUR, LES_DEUX
+type_partenaire TypePartenaire @default(CLIENT)
   adresse_email          String?   @db.VarChar(255)
   numero_telephone       String?   @db.VarChar(50)
   numero_fax             String?   @db.VarChar(50)
@@ -71,11 +72,12 @@ model Partenaire {
   compte_auxiliaire      String?   @db.VarChar(20)
 
   // Relations
-  produits               Produit[]            @relation("FournisseurPrincipal")
-  documents_vente        DocVente[]
-  affaires_client        Affaire[]
-  tarifs_fournisseurs    TarifFournisseur[]
-  historique_prix        HistoriquePrixAchat[]
+  produits Produit[] @relation("FournisseurPrincipal")
+  documents_vente DocVente[]
+  affaires_client Affaire[]
+  tarifs_fournisseurs TarifFournisseur[]
+  historique_prix HistoriquePrixAchat[]
+  tarifs_exceptionnels TarifExceptionnel[]
 
   @@map("partenaires")
   @@index([type_partenaire])
@@ -165,15 +167,16 @@ model Produit {
   code_taxe_vente                   String?   @db.VarChar(10)
   code_taxe_achat                   String?   @db.VarChar(10)
 
-  // Relations
-  categorie              CategorieProduit?     @relation(fields: [id_categorie], references: [id_categorie])
-  fournisseur_principal  Partenaire?           @relation("FournisseurPrincipal", fields: [id_fournisseur_principal], references: [id_partenaire])
-  niveaux_stock          NiveauStock[]
-  lignes_documents       LigneDocument[]
-  tarifs_fournisseurs    TarifFournisseur[]
-  historique_prix        HistoriquePrixAchat[]
-  mouvements_stock       MouvementStock[]
-  lots_serie             LotSerie[]
+// Relations
+  categorie CategorieProduit? @relation(fields: [id_categorie], references: [id_categorie])
+  fournisseur_principal Partenaire? @relation("FournisseurPrincipal", fields: [id_fournisseur_principal], references: [id_partenaire])
+  niveaux_stock NiveauStock[]
+  lignes_documents LigneDocument[]
+  tarifs_fournisseurs TarifFournisseur[]
+  historique_prix HistoriquePrixAchat[]
+  mouvements_stock MouvementStock[]
+  lots_serie LotSerie[]
+  tarifs_exceptionnels TarifExceptionnel[]
 
   @@map("produits")
   @@index([id_categorie])
@@ -181,6 +184,7 @@ model Produit {
   @@index([id_fournisseur_principal])
   @@index([est_actif])
   @@index([code_produit])
+  @@index([est_actif, en_sommeil])
 }
 
 model TarifFournisseur {
@@ -312,6 +316,8 @@ model DocVente {
   @@index([id_affaire])
   @@index([date_document])
   @@index([statut_document])
+  @@index([domaine_document, date_document])
+  @@index([domaine_document, type_document])
 }
 
 model LigneDocument {
@@ -394,6 +400,7 @@ model MouvementStock {
   @@index([id_produit])
   @@index([id_entrepot])
   @@index([date_mouvement])
+  @@index([id_produit, id_entrepot, date_mouvement])
 }
 
 model LotSerie {
@@ -417,16 +424,21 @@ model LotSerie {
 }
 
 model TarifExceptionnel {
-  id_tarif_ex            Int       @id @default(autoincrement())
-  id_produit             Int?
-  id_client              Int?
-  quantite_min           Int?      @default(1)
-  prix_vente_fixe        Decimal?  @db.Decimal(15, 4)
-  remise_pourcentage     Decimal?  @db.Decimal(5, 2)
-  date_debut             DateTime? @db.Date
-  date_fin               DateTime? @db.Date
-  priorite               Int?      @default(0)
-  date_creation          DateTime  @default(now())
+  id_tarif_ex    Int             @id @default(autoincrement())
+  id_produit     Int?
+  id_client      Int?
+  quantite_min   Int?            @default(1)
+  prix_vente_fixe Decimal?       @db.Decimal(15, 4)
+  remise_pourcentage Decimal?    @db.Decimal(5, 2)
+  date_debut     DateTime?       @db.Date
+  date_fin       DateTime?       @db.Date
+  priorite       Int?            @default(0)
+  date_creation  DateTime        @default(now())
+
+  produit        Produit?        @relation(fields: [id_produit], references: [id_produit], onDelete: Cascade)
+  client         Partenaire?     @relation(fields: [id_client], references: [id_partenaire], onDelete: Cascade)
 
   @@map("tarifs_exceptionnels")
+  @@index([id_produit])
+  @@index([id_client])
 }

@@ -6,8 +6,8 @@ import { getDocLinesSchema } from '@/lib/validation'
 import type { DocumentWithComputed, DocumentLine } from '@/lib/types'
 import { Prisma } from '@/lib/generated/prisma/client'
 
-export type DocumentWithPartner = NonNullable<Awaited<ReturnType<typeof getDocuments>>>[0]
-export type DocumentLineType = NonNullable<Awaited<ReturnType<typeof getDocLines>>>[0]
+export type DocumentWithPartner = NonNullable<Awaited<ReturnType<typeof getDocuments>>>['data'][0]
+export type DocumentLineType = NonNullable<Awaited<ReturnType<typeof getDocLines>>>['data'][0]
 
 function mapDocumentToComputed(doc: {
   id_document: number
@@ -65,92 +65,151 @@ function mapDocumentToComputed(doc: {
   }
 }
 
-export async function getDocuments(): Promise<DocumentWithComputed[]> {
+export async function getDocuments(page: number = 1, limit: number = 50): Promise<{ data: DocumentWithComputed[]; meta: { total: number; page: number; limit: number; totalPages: number }; error?: string }> {
   await requireAuth()
 
-  try {
-    const documents = await prisma.docVente.findMany({
-      include: {
-        partenaire: {
-          select: {
-            nom_partenaire: true,
-            type_partenaire: true
-          }
-        }
-      },
-      orderBy: {
-        date_document: 'desc'
-      }
-    })
+  const skip = (page - 1) * limit
 
-    return documents.map(mapDocumentToComputed)
+  try {
+    const [documents, total] = await Promise.all([
+      prisma.docVente.findMany({
+        skip,
+        take: limit,
+        include: {
+          partenaire: {
+            select: {
+              nom_partenaire: true,
+              type_partenaire: true
+            }
+          }
+        },
+        orderBy: {
+          date_document: 'desc'
+        }
+      }),
+      prisma.docVente.count()
+    ])
+
+    return {
+      data: documents.map(mapDocumentToComputed),
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      }
+    }
   } catch (error) {
     console.error('Failed to fetch documents:', error)
-    return []
+    return { 
+      data: [], 
+      meta: { total: 0, page, limit, totalPages: 0 },
+      error: 'Failed to fetch documents'
+    }
   }
 }
 
-export async function getSalesDocuments(): Promise<DocumentWithComputed[]> {
+export async function getSalesDocuments(page: number = 1, limit: number = 50): Promise<{ data: DocumentWithComputed[]; meta: { total: number; page: number; limit: number; totalPages: number }; error?: string }> {
   await requireAuth()
-  try {
-    const documents = await prisma.docVente.findMany({
-      where: {
-        domaine_document: 'VENTE'
-      },
-      include: {
-        partenaire: {
-          select: {
-            nom_partenaire: true,
-            type_partenaire: true
-          }
-        }
-      },
-      orderBy: {
-        date_document: 'desc'
-      }
-    })
+  
+  const skip = (page - 1) * limit
 
-    return documents.map(mapDocumentToComputed)
+  try {
+    const [documents, total] = await Promise.all([
+      prisma.docVente.findMany({
+        skip,
+        take: limit,
+        where: {
+          domaine_document: 'VENTE'
+        },
+        include: {
+          partenaire: {
+            select: {
+              nom_partenaire: true,
+              type_partenaire: true
+            }
+          }
+        },
+        orderBy: {
+          date_document: 'desc'
+        }
+      }),
+      prisma.docVente.count({ where: { domaine_document: 'VENTE' } })
+    ])
+
+    return {
+      data: documents.map(mapDocumentToComputed),
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      }
+    }
   } catch (error) {
     console.error('Failed to fetch sales documents:', error)
-    return []
+    return { 
+      data: [], 
+      meta: { total: 0, page, limit, totalPages: 0 },
+      error: 'Failed to fetch sales documents'
+    }
   }
 }
 
-export async function getPurchasesDocuments(): Promise<DocumentWithComputed[]> {
+export async function getPurchasesDocuments(page: number = 1, limit: number = 50): Promise<{ data: DocumentWithComputed[]; meta: { total: number; page: number; limit: number; totalPages: number }; error?: string }> {
   await requireAuth()
-  try {
-    const documents = await prisma.docVente.findMany({
-      where: {
-        domaine_document: 'ACHAT'
-      },
-      include: {
-        partenaire: {
-          select: {
-            nom_partenaire: true,
-            type_partenaire: true
-          }
-        }
-      },
-      orderBy: {
-        date_document: 'desc'
-      }
-    })
+  
+  const skip = (page - 1) * limit
 
-    return documents.map(mapDocumentToComputed)
+  try {
+    const [documents, total] = await Promise.all([
+      prisma.docVente.findMany({
+        skip,
+        take: limit,
+        where: {
+          domaine_document: 'ACHAT'
+        },
+        include: {
+          partenaire: {
+            select: {
+              nom_partenaire: true,
+              type_partenaire: true
+            }
+          }
+        },
+        orderBy: {
+          date_document: 'desc'
+        }
+      }),
+      prisma.docVente.count({ where: { domaine_document: 'ACHAT' } })
+    ])
+
+    return {
+      data: documents.map(mapDocumentToComputed),
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      }
+    }
   } catch (error) {
     console.error('Failed to fetch purchases documents:', error)
-    return []
+    return { 
+      data: [], 
+      meta: { total: 0, page, limit, totalPages: 0 },
+      error: 'Failed to fetch purchases documents'
+    }
   }
 }
 
-export async function getDocLines(docId: number): Promise<DocumentLine[]> {
+export async function getDocLines(docId: number): Promise<{ data: DocumentLine[]; error?: string }> {
   await requireAuth()
 
   const validationResult = getDocLinesSchema.safeParse({ docId })
   if (!validationResult.success) {
     console.error('Invalid docId:', validationResult.error)
-    return []
+    return { data: [], error: 'Invalid document ID' }
   }
 
   try {
@@ -164,19 +223,21 @@ export async function getDocLines(docId: number): Promise<DocumentLine[]> {
       orderBy: { numero_ligne: 'asc' }
     })
 
-    return lines.map((line): DocumentLine => ({
-      ...line,
-      quantite: Number(line.quantite_commandee || 0),
-      prix_unitaire: Number(line.prix_unitaire_ht || 0),
-      montant_ht_num: Number(line.montant_ht || 0),
-      montant_ttc_num: Number(line.montant_ttc || 0),
-      designation: line.nom_produit_snapshot || line.produit?.nom_produit || null,
-      reference_article: line.code_produit_snapshot || null,
-      ordre: line.numero_ligne,
-      code_taxe: null
-    }))
+    return {
+      data: lines.map((line): DocumentLine => ({
+        ...line,
+        quantite: Number(line.quantite_commandee || 0),
+        prix_unitaire: Number(line.prix_unitaire_ht || 0),
+        montant_ht_num: Number(line.montant_ht || 0),
+        montant_ttc_num: Number(line.montant_ttc || 0),
+        designation: line.nom_produit_snapshot || line.produit?.nom_produit || null,
+        reference_article: line.code_produit_snapshot || null,
+        ordre: line.numero_ligne,
+        code_taxe: null
+      }))
+    }
   } catch (error) {
     console.error('Failed to fetch document lines:', error)
-    return []
+    return { data: [], error: 'Failed to fetch document lines' }
   }
 }

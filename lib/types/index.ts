@@ -15,10 +15,13 @@ export type AuthUser = {
 
 export interface PaginatedResult<T> {
   data: T[]
-  total: number
-  page: number
-  pageSize: number
-  totalPages: number
+  meta: {
+    total: number
+    page: number
+    limit: number
+    totalPages: number
+  }
+  error?: string
 }
 
 export interface PaginationParams {
@@ -257,7 +260,7 @@ export type PartnerWithComputed = {
   numero_rc: string | null
   delai_paiement_jours: number | null
   limite_credit: Prisma.Decimal | null
-  pourcentage_remise: Prisma.Decimal
+  pourcentage_remise: number
   numero_compte_bancaire: string | null
   code_banque: string | null
   numero_iban: string | null

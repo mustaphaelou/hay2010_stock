@@ -79,6 +79,16 @@ export async function logout(): Promise<void> {
 
 export async function register(email: string, password: string, name: string): Promise<{ error?: string; success?: boolean }> {
   try {
+    const currentUser = await getCurrentUser()
+    if (!currentUser) {
+      return { error: 'Unauthorized: Admin access required for user creation' }
+    }
+    
+    const allowedRoles = ['ADMIN', 'MANAGER']
+    if (!allowedRoles.includes(currentUser.role)) {
+      return { error: 'Forbidden: Only admins and managers can create users' }
+    }
+
     const validationResult = registerSchema.safeParse({ email, password, name })
     if (!validationResult.success) {
       return { error: 'Invalid input: ' + validationResult.error.issues.map((e: { message: string }) => e.message).join(', ') }
@@ -102,22 +112,6 @@ export async function register(email: string, password: string, name: string): P
         name,
         role: 'USER'
       }
-    })
-
-    const sessionId = await createSession(user.id, user.email, user.name, user.role)
-    const token = await generateToken({
-      userId: user.id,
-      email: user.email,
-      role: user.role,
-      sessionId
-    })
-
-    const cookieStore = await cookies()
-    cookieStore.set(COOKIE_NAME, token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 7
     })
 
     return { success: true }

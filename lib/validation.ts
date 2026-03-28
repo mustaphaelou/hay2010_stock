@@ -15,11 +15,7 @@ export const loginSchema = z.object({
 export const registerSchema = z.object({
   email: z.string().email('Adresse email invalide'),
   password: passwordSchema,
-  name: z.string().min(2, 'Le nom doit contenir au moins 2 caractères'),
-  confirmPassword: z.string()
-}).refine(data => data.password === data.confirmPassword, {
-  message: 'Les mots de passe ne correspondent pas',
-  path: ['confirmPassword']
+  name: z.string().min(2, 'Le nom doit contenir au moins 2 caractères')
 })
 
 export const toggleArticleStatusSchema = z.object({
@@ -36,7 +32,14 @@ export const getDocumentsByAffaireSchema = z.object({
 })
 
 export const getPartnersSchema = z.object({
-  type: z.enum(['CLIENT', 'FOURNISSEUR', 'all']).optional()
+  type: z.enum(['CLIENT', 'FOURNISSEUR', 'LES_DEUX', 'all']).optional(),
+  page: z.number().int().min(1).default(1).optional(),
+  limit: z.number().int().min(1).max(100).default(50).optional()
+})
+
+export const paginationSchema = z.object({
+  page: z.number().int().min(1).default(1).optional(),
+  limit: z.number().int().min(1).max(100).default(50).optional()
 })
 
 export type LoginInput = z.infer<typeof loginSchema>
@@ -45,3 +48,4 @@ export type ToggleArticleStatusInput = z.infer<typeof toggleArticleStatusSchema>
 export type GetDocLinesInput = z.infer<typeof getDocLinesSchema>
 export type GetDocumentsByAffaireInput = z.infer<typeof getDocumentsByAffaireSchema>
 export type GetPartnersInput = z.infer<typeof getPartnersSchema>
+export type PaginationInput = z.infer<typeof paginationSchema>

@@ -17,7 +17,8 @@ export default async function ArticlesPage() {
     redirect("/login")
   }
   
-  const articlesWithStock = await getArticlesWithStock()
+  const articlesResult = await getArticlesWithStock()
+  const articlesWithStock = articlesResult.data || []
 
     return (
         <SidebarProvider
