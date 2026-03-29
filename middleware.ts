@@ -30,16 +30,32 @@ function isPublicPath(pathname: string): boolean {
   return publicPaths.some(publicPath => pathname.startsWith(publicPath))
 }
 
+const securityHeaders = {
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+  'X-XSS-Protection': '1; mode=block',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+}
+
+function addSecurityHeaders(response: NextResponse): NextResponse {
+  Object.entries(securityHeaders).forEach(([key, value]) => {
+    response.headers.set(key, value)
+  })
+  return response
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   const rateLimitResponse = await rateLimitMiddleware(request)
   if (rateLimitResponse) {
-    return rateLimitResponse
+    return addSecurityHeaders(rateLimitResponse)
   }
 
   if (isPublicPath(pathname)) {
-    return NextResponse.next()
+    const response = NextResponse.next()
+    return addSecurityHeaders(response)
   }
 
   const token = request.cookies.get('auth_token')?.value
@@ -47,7 +63,8 @@ export async function middleware(request: NextRequest) {
   if (!token) {
     const loginUrl = new URL('/login', request.url)
     loginUrl.searchParams.set('redirect', pathname)
-    return NextResponse.redirect(loginUrl)
+    const response = NextResponse.redirect(loginUrl)
+    return addSecurityHeaders(response)
   }
 
   try {
@@ -59,13 +76,13 @@ export async function middleware(request: NextRequest) {
     response.headers.set('x-user-email', payload.email as string)
     response.headers.set('x-user-role', payload.role as string)
 
-    return response
+    return addSecurityHeaders(response)
   } catch {
     const loginUrl = new URL('/login', request.url)
     loginUrl.searchParams.set('redirect', pathname)
     const response = NextResponse.redirect(loginUrl)
     response.cookies.delete('auth_token')
-    return response
+    return addSecurityHeaders(response)
   }
 }
 

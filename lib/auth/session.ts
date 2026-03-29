@@ -22,18 +22,41 @@ export interface SessionData {
   createdAt: number
 }
 
-/**
- * Try to get Redis client, returns null if unavailable
- */
+let cachedRedis: typeof import('@/lib/db/redis') | null = null
+let redisCheckComplete = false
+let redisAvailable = false
+
 async function getRedis() {
+  if (redisCheckComplete) {
+    if (!redisAvailable || !cachedRedis) return null
+    return cachedRedis.redis
+  }
+
   try {
-    const { redis } = await import('@/lib/db/redis')
-    // Test connection with a ping
-    await redis.ping()
-    return redis
+    cachedRedis = await import('@/lib/db/redis')
+    const { isRedisReady } = cachedRedis
+    
+    if (isRedisReady()) {
+      redisAvailable = true
+      redisCheckComplete = true
+      return cachedRedis.redis
+    }
+    
+    await cachedRedis.redis.ping()
+    redisAvailable = true
+    redisCheckComplete = true
+    return cachedRedis.redis
   } catch {
+    console.warn('[Session] Redis unavailable, using in-memory session store')
+    redisAvailable = false
+    redisCheckComplete = true
     return null
   }
+}
+
+export function resetRedisCheck(): void {
+  redisCheckComplete = false
+  redisAvailable = false
 }
 
 export async function createSession(userId: string, email: string, name: string, role: string): Promise<string> {

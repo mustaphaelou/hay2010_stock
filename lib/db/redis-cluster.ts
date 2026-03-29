@@ -9,14 +9,15 @@ import Redis, { Cluster } from 'ioredis'
 
 // Configuration types
 interface RedisClusterConfig {
-    nodes: string[]
-    maxRetriesPerRequest: number
-    enableReadyCheck: boolean
-    scaleReads: 'master' | 'slave' | 'all'
-    lazyConnect: boolean
-    keepAlive: number
-    connectTimeout: number
-    commandTimeout: number
+  nodes: string[]
+  maxRetriesPerRequest: number
+  enableReadyCheck: boolean
+  scaleReads: 'master' | 'slave' | 'all'
+  lazyConnect: boolean
+  keepAlive: number
+  connectTimeout: number
+  commandTimeout: number
+  password?: string
 }
 
 // Parse Redis cluster nodes from environment
@@ -30,14 +31,15 @@ const parseClusterNodes = (): string[] => {
 
 // Default configuration
 const config: RedisClusterConfig = {
-    nodes: parseClusterNodes(),
-    maxRetriesPerRequest: 3,
-    enableReadyCheck: false,
-    scaleReads: 'slave',
-    lazyConnect: true,
-    keepAlive: 30000,
-    connectTimeout: 10000,
-    commandTimeout: 5000,
+  nodes: parseClusterNodes(),
+  maxRetriesPerRequest: 3,
+  enableReadyCheck: false,
+  scaleReads: 'slave',
+  lazyConnect: true,
+  keepAlive: 30000,
+  connectTimeout: 10000,
+  commandTimeout: 5000,
+  password: process.env.REDIS_PASSWORD || undefined,
 }
 
 // Global type for hot-reload prevention
@@ -50,59 +52,73 @@ const globalForRedis = global as unknown as {
  * Create Redis cluster client
  */
 function createRedisCluster(): Cluster {
-    const nodes = config.nodes.map(node => {
-        const [host, portStr] = node.split(':')
-        return {
-            host,
-            port: parseInt(portStr || '6379', 10),
-        }
-    })
+  const nodes = config.nodes.map(node => {
+    const [host, portStr] = node.split(':')
+    return {
+      host,
+      port: parseInt(portStr || '6379', 10),
+    }
+  })
 
-    return new Redis.Cluster(nodes, {
-        scaleReads: config.scaleReads,
-        maxRedirections: 16,
-        retryDelayOnFailover: 100,
-        retryDelayOnClusterDown: 100,
-        enableReadyCheck: config.enableReadyCheck,
-        slotsRefreshTimeout: 1000,
-        lazyConnect: config.lazyConnect,
-        clusterRetryStrategy: (times: number) => {
-            if (times > 10) {
-                console.error('Redis cluster connection failed after 10 retries')
-                return null
-            }
-            const delay = Math.min(times * 100, 2000)
-            console.log(`Redis cluster retry attempt ${times}, delay: ${delay}ms`)
-            return delay
-        },
-        redisOptions: {
-            maxRetriesPerRequest: config.maxRetriesPerRequest,
-            keepAlive: config.keepAlive,
-            connectTimeout: config.connectTimeout,
-            commandTimeout: config.commandTimeout,
-        },
-    })
+  const redisOptions: Redis.RedisOptions = {
+    maxRetriesPerRequest: config.maxRetriesPerRequest,
+    keepAlive: config.keepAlive,
+    connectTimeout: config.connectTimeout,
+    commandTimeout: config.commandTimeout,
+  }
+  
+  if (config.password) {
+    redisOptions.password = config.password
+  }
+
+  return new Redis.Cluster(nodes, {
+    scaleReads: config.scaleReads,
+    maxRedirections: 16,
+    retryDelayOnFailover: 100,
+    retryDelayOnClusterDown: 100,
+    enableReadyCheck: config.enableReadyCheck,
+    slotsRefreshTimeout: 1000,
+    lazyConnect: config.lazyConnect,
+    clusterRetryStrategy: (times: number) => {
+      if (times > 10) {
+        console.error('Redis cluster connection failed after 10 retries')
+        return null
+      }
+      const delay = Math.min(times * 100, 2000)
+      console.log(`Redis cluster retry attempt ${times}, delay: ${delay}ms`)
+      return delay
+    },
+    redisOptions,
+  })
 }
 
 /**
  * Create single Redis client (fallback for development)
  */
 function createRedisSingle(): Redis {
-    const url = process.env.REDIS_URL || 'redis://localhost:6379'
-    return new Redis(url, {
-        maxRetriesPerRequest: config.maxRetriesPerRequest,
-        lazyConnect: config.lazyConnect,
-        keepAlive: config.keepAlive,
-        connectTimeout: config.connectTimeout,
-        commandTimeout: config.commandTimeout,
-        retryStrategy: (times: number) => {
-            if (times > 3) {
-                console.error('Redis connection failed after 3 retries')
-                return null
-            }
-            return Math.min(times * 50, 2000)
-        },
-    })
+  const url = process.env.REDIS_URL || 'redis://localhost:6379'
+  const password = process.env.REDIS_PASSWORD
+  
+  const options: Redis.RedisOptions = {
+    maxRetriesPerRequest: config.maxRetriesPerRequest,
+    lazyConnect: config.lazyConnect,
+    keepAlive: config.keepAlive,
+    connectTimeout: config.connectTimeout,
+    commandTimeout: config.commandTimeout,
+    retryStrategy: (times: number) => {
+      if (times > 10) {
+        console.error('[Redis] Connection failed after 10 retries')
+        return null
+      }
+      return Math.min(times * 50, 2000)
+    },
+  }
+  
+  if (password) {
+    options.password = password
+  }
+  
+  return new Redis(url, options)
 }
 
 /**

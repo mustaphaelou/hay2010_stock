@@ -3,6 +3,8 @@
 import { prisma, withTransaction } from '@/lib/db/prisma'
 import { requireRole } from './auth'
 import { revalidatePath } from 'next/cache'
+import { CacheService } from '@/lib/db/redis-cluster'
+import { CacheInvalidationService } from '@/lib/cache/invalidation'
 
 export type MovementType = 'ENTREE' | 'SORTIE' | 'TRANSFERT' | 'INVENTAIRE'
 
@@ -25,8 +27,15 @@ export interface MovementResult {
   }
 }
 
-export async function createStockMovement(input: CreateMovementInput): Promise<MovementResult> {
+export async function createStockMovement(input: CreateMovementInput, csrfToken: string): Promise<MovementResult> {
   const user = await requireRole(['ADMIN', 'MANAGER'])
+
+  try {
+    const { requireCsrfToken } = await import('@/lib/security/csrf')
+    await requireCsrfToken(user.id, csrfToken)
+  } catch {
+    return { error: 'Invalid security token. Please refresh the page and try again.' }
+  }
 
   if (input.quantity <= 0) {
     return { error: 'Quantity must be positive' }
@@ -34,6 +43,12 @@ export async function createStockMovement(input: CreateMovementInput): Promise<M
 
   if (input.type === 'TRANSFERT' && !input.destinationWarehouseId) {
     return { error: 'Destination warehouse required for transfer' }
+  }
+
+  const lockKey = `stock:${input.productId}:${input.warehouseId}`
+  const lockToken = await CacheService.acquireLock(lockKey, 30)
+  if (!lockToken) {
+    return { error: 'Stock operation in progress, please retry' }
   }
 
   try {
@@ -144,6 +159,9 @@ export async function createStockMovement(input: CreateMovementInput): Promise<M
       }
     })
 
+    await CacheInvalidationService.invalidateProduct(input.productId)
+    await CacheInvalidationService.invalidateStock(input.productId, input.warehouseId)
+
     revalidatePath('/stock')
     return { success: true, data: result }
   } catch (error) {
@@ -151,6 +169,8 @@ export async function createStockMovement(input: CreateMovementInput): Promise<M
     return {
       error: error instanceof Error ? error.message : 'Failed to create stock movement',
     }
+  } finally {
+    await CacheService.releaseLock(lockKey, lockToken)
   }
 }
 
