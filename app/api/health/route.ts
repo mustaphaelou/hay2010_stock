@@ -47,12 +47,12 @@ export async function GET() {
     checks.redis = redisHealth.connected
 
     // Schema validation - check Role enum
-    const roleCheck = await prisma.$queryRaw`
-      SELECT COUNT(*) as count 
-      FROM pg_enum 
+    const roleCheck = await prisma.$queryRaw<Array<{ count: bigint }>>`
+      SELECT COUNT(*) as count
+      FROM pg_enum
       WHERE enumtypid = 'Role'::regtype
     `
-    checks.schema = Number((roleCheck[0] as { count: bigint }).count) === 4
+    checks.schema = Number(roleCheck[0].count) === 4
 
     if (isAuthenticated) {
       const dbStart = Date.now()

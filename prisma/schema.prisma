@@ -1,6 +1,6 @@
 generator client {
   provider = "prisma-client-js"
-  output = "../lib/generated/prisma"
+  output    = "../lib/generated/prisma"
 }
 
 datasource db {
@@ -8,30 +8,8 @@ datasource db {
 }
 
 // =====================================================
-// AUTHENTICATION MODELS
+// ENUMS
 // =====================================================
-
-model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String
-  name      String
-  role      Role     @default(USER)
-  createdAt DateTime @default(now())
-
-  // Reverse relations for audit fields
-  createdPartenaires  Partenaire[]  @relation("CreatedByPartenaire")
-  updatedPartenaires  Partenaire[]  @relation("UpdatedByPartenaire")
-  createdProduits     Produit[]     @relation("CreatedByProduit")
-  updatedProduits     Produit[]     @relation("UpdatedByProduit")
-  createdDocuments    DocVente[]    @relation("CreatedByDocument")
-  updatedDocuments    DocVente[]    @relation("UpdatedByDocument")
-  createdAffaires     Affaire[]     @relation("CreatedByAffaire")
-  updatedAffaires     Affaire[]     @relation("UpdatedByAffaire")
-  createdMouvements   MouvementStock[] @relation("CreatedByMouvement")
-
-  @@map("users")
-}
 
 enum Role {
   ADMIN
@@ -47,154 +25,195 @@ enum TypePartenaire {
 }
 
 // =====================================================
-// STOCK ERP MODELS (Sage 100 Commercial Clone)
+// AUTHENTICATION MODELS
+// =====================================================
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique @db.VarChar(255)
+  password  String   @db.VarChar(255)
+  name      String   @db.VarChar(255)
+  role      Role     @default(USER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Reverse relations for audit fields
+  createdPartenaires  Partenaire[]     @relation("CreatedByPartenaire")
+  updatedPartenaires  Partenaire[]     @relation("UpdatedByPartenaire")
+  createdProduits     Produit[]        @relation("CreatedByProduit")
+  updatedProduits     Produit[]        @relation("UpdatedByProduit")
+  createdDocuments    DocVente[]       @relation("CreatedByDocument")
+  updatedDocuments    DocVente[]       @relation("UpdatedByDocument")
+  createdAffaires     Affaire[]        @relation("CreatedByAffaire")
+  updatedAffaires     Affaire[]        @relation("UpdatedByAffaire")
+  createdMouvements   MouvementStock[] @relation("CreatedByMouvement")
+
+  @@map("users")
+}
+
+// =====================================================
+// PARTNER MODEL
 // =====================================================
 
 model Partenaire {
-  id_partenaire          Int       @id @default(autoincrement())
-  code_partenaire        String    @unique @db.VarChar(50)
-  nom_partenaire         String    @db.VarChar(255)
-type_partenaire TypePartenaire @default(CLIENT)
-  adresse_email          String?   @db.VarChar(255)
-  numero_telephone       String?   @db.VarChar(50)
-  numero_fax             String?   @db.VarChar(50)
-  url_site_web           String?   @db.VarChar(255)
+  id_partenaire          Int                   @id @default(autoincrement())
+  code_partenaire        String                @unique @db.VarChar(50)
+  nom_partenaire         String                @db.VarChar(255)
+  type_partenaire        TypePartenaire        @default(CLIENT)
+  adresse_email          String?               @db.VarChar(255)
+  numero_telephone       String?               @db.VarChar(50)
+  numero_fax             String?               @db.VarChar(50)
+  url_site_web           String?               @db.VarChar(255)
   adresse_rue            String?
-  code_postal            String?   @db.VarChar(20)
-  ville                  String?   @db.VarChar(100)
-  pays                   String?   @default("Maroc") @db.VarChar(100)
-  numero_tva             String?   @db.VarChar(50)
-  numero_ice             String?   @db.VarChar(50)
-  numero_rc              String?   @db.VarChar(50)
-  delai_paiement_jours   Int?      @default(30)
-  limite_credit          Decimal?  @db.Decimal(15, 2)
-  pourcentage_remise     Decimal?  @default(0) @db.Decimal(5, 2)
-  numero_compte_bancaire String?   @db.VarChar(50)
-  code_banque            String?   @db.VarChar(20)
-  numero_iban            String?   @db.VarChar(50)
-  code_swift             String?   @db.VarChar(20)
-  est_actif              Boolean   @default(true)
-  est_bloque             Boolean   @default(false)
-  date_creation          DateTime  @default(now())
-  date_modification      DateTime  @default(now()) @updatedAt
-  cree_par      String?   @db.Uuid
-  modifie_par   String?   @db.Uuid
-  compte_collectif   String?   @db.VarChar(20)
-  compte_auxiliaire  String?   @db.VarChar(20)
+  code_postal            String?               @db.VarChar(20)
+  ville                  String?               @db.VarChar(100)
+  pays                   String?               @default("Maroc") @db.VarChar(100)
+  numero_tva             String?               @db.VarChar(50)
+  numero_ice             String?               @db.VarChar(50)
+  numero_rc              String?               @db.VarChar(50)
+  delai_paiement_jours   Int?                  @default(30)
+  limite_credit          Decimal?              @db.Decimal(15, 2)
+  pourcentage_remise     Decimal?              @default(0) @db.Decimal(5, 2)
+  numero_compte_bancaire String?               @db.VarChar(50)
+  code_banque            String?               @db.VarChar(20)
+  numero_iban            String?               @db.VarChar(50)
+  code_swift             String?               @db.VarChar(20)
+  est_actif              Boolean               @default(true)
+  est_bloque             Boolean               @default(false)
+  date_creation          DateTime              @default(now())
+  date_modification      DateTime              @default(now()) @updatedAt
+  cree_par               String?               @db.Uuid
+  modifie_par            String?               @db.Uuid
+  compte_collectif       String?               @db.VarChar(20)
+  compte_auxiliaire      String?               @db.VarChar(20)
 
   // User relations for audit fields
-  createdBy  User?  @relation("CreatedByPartenaire", fields: [cree_par], references: [id])
-  updatedBy  User?  @relation("UpdatedByPartenaire", fields: [modifie_par], references: [id])
+  createdBy User? @relation("CreatedByPartenaire", fields: [cree_par], references: [id], onDelete: SetNull)
+  updatedBy User? @relation("UpdatedByPartenaire", fields: [modifie_par], references: [id], onDelete: SetNull)
 
   // Relations
-  produits             Produit[]             @relation("FournisseurPrincipal")
-  documents_vente      DocVente[]
-  affaires_client      Affaire[]
-  tarifs_fournisseurs  TarifFournisseur[]
-  historique_prix      HistoriquePrixAchat[]
-  tarifs_exceptionnels TarifExceptionnel[]
+  produits           Produit[]            @relation("FournisseurPrincipal")
+  documents_vente    DocVente[]
+  affaires_client    Affaire[]
+  tarifs_fournisseurs    TarifFournisseur[]
+  historique_prix    HistoriquePrixAchat[]
+  tarifs_exceptionnels   TarifExceptionnel[]
 
   @@map("partenaires")
   @@index([type_partenaire])
   @@index([est_actif])
+  @@index([type_partenaire, est_actif])
+  @@index([nom_partenaire])
 }
 
+// =====================================================
+// PRODUCT CATEGORY MODEL
+// =====================================================
+
 model CategorieProduit {
-  id_categorie           Int       @id @default(autoincrement())
-  code_categorie         String    @unique @db.VarChar(50)
-  nom_categorie          String    @db.VarChar(255)
-  id_categorie_parent    Int?
-  description_categorie  String?
-  est_actif              Boolean   @default(true)
-  date_creation          DateTime  @default(now())
-  date_modification      DateTime  @default(now()) @updatedAt
+  id_categorie        Int      @id @default(autoincrement())
+  code_categorie      String   @unique @db.VarChar(50)
+  nom_categorie       String   @db.VarChar(255)
+  id_categorie_parent Int?
+  description_categorie String?
+  est_actif           Boolean  @default(true)
+  date_creation       DateTime @default(now())
+  date_modification   DateTime @default(now()) @updatedAt
 
   // Self-relation
-  parent                 CategorieProduit?  @relation("CategorieHierarchie", fields: [id_categorie_parent], references: [id_categorie])
-  enfants                CategorieProduit[] @relation("CategorieHierarchie")
+  parent   CategorieProduit?  @relation("CategorieHierarchie", fields: [id_categorie_parent], references: [id_categorie], onDelete: SetNull)
+  enfants  CategorieProduit[] @relation("CategorieHierarchie")
 
   // Relations
-  produits               Produit[]
+  produits Produit[]
 
   @@map("categories_produits")
   @@index([id_categorie_parent])
 }
 
+// =====================================================
+// WAREHOUSE MODEL
+// =====================================================
+
 model Entrepot {
-  id_entrepot            Int       @id @default(autoincrement())
-  code_entrepot          String    @unique @db.VarChar(50)
-  nom_entrepot           String    @db.VarChar(255)
+  id_entrepot            Int      @id @default(autoincrement())
+  code_entrepot          String   @unique @db.VarChar(50)
+  nom_entrepot           String   @db.VarChar(255)
   adresse_entrepot       String?
-  ville_entrepot         String?   @db.VarChar(100)
-  code_postal_entrepot   String?   @db.VarChar(20)
+  ville_entrepot         String?  @db.VarChar(100)
+  code_postal_entrepot   String?  @db.VarChar(20)
   capacite_totale_unites Int?
-  nom_responsable        String?   @db.VarChar(255)
-  email_responsable      String?   @db.VarChar(255)
-  telephone_responsable  String?   @db.VarChar(50)
-  est_actif              Boolean   @default(true)
-  est_entrepot_principal Boolean   @default(false)
-  date_creation          DateTime  @default(now())
-  date_modification      DateTime  @default(now()) @updatedAt
+  nom_responsable        String?  @db.VarChar(255)
+  email_responsable      String?  @db.VarChar(255)
+  telephone_responsable  String?  @db.VarChar(50)
+  est_actif              Boolean  @default(true)
+  est_entrepot_principal Boolean  @default(false)
+  date_creation          DateTime @default(now())
+  date_modification      DateTime @default(now()) @updatedAt
 
   // Relations
-  niveaux_stock          NiveauStock[]
-  mouvements_stock       MouvementStock[]
-  documents_entrepot     DocVente[]
+  niveaux_stock    NiveauStock[]
+  mouvements_stock MouvementStock[]
+  documents_entrepot DocVente[]
 
   @@map("entrepots")
 }
 
+// =====================================================
+// PRODUCT MODEL
+// =====================================================
+
 model Produit {
-  id_produit                        Int       @id @default(autoincrement())
-  code_produit                      String    @unique @db.VarChar(100)
-  nom_produit                       String    @db.VarChar(500)
-  id_categorie                      Int?
-  famille                           String?   @db.VarChar(100)
-  description_produit               String?
-  code_barre_ean                    String?   @db.VarChar(50)
-  unite_mesure                      String    @default("U") @db.VarChar(20)
-  poids_kg                          Decimal?  @db.Decimal(10, 3)
-  volume_m3                         Decimal?  @db.Decimal(10, 6)
-  prix_achat                        Decimal?  @db.Decimal(15, 4)
-  prix_dernier_achat                Decimal?  @db.Decimal(15, 4)
-  coefficient                       Decimal?  @default(1.0) @db.Decimal(8, 4)
-  prix_vente                        Decimal?  @db.Decimal(15, 4)
-  prix_gros                         Decimal?  @db.Decimal(15, 4)
-  taux_tva                          Decimal?  @default(20.00) @db.Decimal(5, 2)
-  type_suivi_stock                  String?   @default("AUCUN") @db.VarChar(20)
-  quantite_min_commande             Int?      @default(1)
-  niveau_reappro_quantite           Int?      @default(0)
-  stock_minimum                     Int?      @default(0)
-  stock_maximum                     Int?
-  activer_suivi_stock               Boolean   @default(true)
-  id_fournisseur_principal          Int?
-  reference_fournisseur             String?   @db.VarChar(100)
+  id_produit                     Int      @id @default(autoincrement())
+  code_produit                   String   @unique @db.VarChar(100)
+  nom_produit                    String   @db.VarChar(500)
+  id_categorie                   Int?
+  famille                        String?  @db.VarChar(100)
+  description_produit            String?
+  code_barre_ean                 String?  @db.VarChar(50)
+  unite_mesure                   String   @default("U") @db.VarChar(20)
+  poids_kg                       Decimal? @db.Decimal(10, 3)
+  volume_m3                      Decimal? @db.Decimal(10, 6)
+  prix_achat                     Decimal? @db.Decimal(15, 4)
+  prix_dernier_achat             Decimal? @db.Decimal(15, 4)
+  coefficient                    Decimal? @default(1.0) @db.Decimal(8, 4)
+  prix_vente                     Decimal? @db.Decimal(15, 4)
+  prix_gros                      Decimal? @db.Decimal(15, 4)
+  taux_tva                       Decimal? @default(20.00) @db.Decimal(5, 2)
+  type_suivi_stock               String?  @default("AUCUN") @db.VarChar(20)
+  quantite_min_commande          Int?     @default(1)
+  niveau_reappro_quantite        Int?     @default(0)
+  stock_minimum                  Int?     @default(0)
+  stock_maximum                  Int?
+  activer_suivi_stock            Boolean  @default(true)
+  id_fournisseur_principal       Int?
+  reference_fournisseur          String?  @db.VarChar(100)
   delai_livraison_fournisseur_jours Int?
-  est_actif                         Boolean   @default(true)
-  en_sommeil                        Boolean   @default(false)
-  est_abandonne                     Boolean   @default(false)
-  date_creation                     DateTime  @default(now())
-  date_modification                 DateTime  @default(now()) @updatedAt
-  cree_par                String?   @db.Uuid
-  modifie_par             String?   @db.Uuid
-  compte_general_vente    String?   @db.VarChar(20)
-  compte_general_achat    String?   @db.VarChar(20)
-  code_taxe_vente         String?   @db.VarChar(10)
-  code_taxe_achat         String?   @db.VarChar(10)
+  est_actif                      Boolean  @default(true)
+  en_sommeil                     Boolean  @default(false)
+  est_abandonne                  Boolean  @default(false)
+  date_creation                  DateTime @default(now())
+  date_modification              DateTime @default(now()) @updatedAt
+  cree_par                       String?  @db.Uuid
+  modifie_par                    String?  @db.Uuid
+  compte_general_vente           String?  @db.VarChar(20)
+  compte_general_achat           String?  @db.VarChar(20)
+  code_taxe_vente                String?  @db.VarChar(10)
+  code_taxe_achat                String?  @db.VarChar(10)
 
   // User relations for audit fields
-  createdBy  User?  @relation("CreatedByProduit", fields: [cree_par], references: [id])
-  updatedBy  User?  @relation("UpdatedByProduit", fields: [modifie_par], references: [id])
+  createdBy User? @relation("CreatedByProduit", fields: [cree_par], references: [id], onDelete: SetNull)
+  updatedBy User? @relation("UpdatedByProduit", fields: [modifie_par], references: [id], onDelete: SetNull)
 
   // Relations
-  categorie           CategorieProduit?  @relation(fields: [id_categorie], references: [id_categorie])
-  fournisseur_principal Partenaire?      @relation("FournisseurPrincipal", fields: [id_fournisseur_principal], references: [id_partenaire])
-  niveaux_stock       NiveauStock[]
-  lignes_documents    LigneDocument[]
+  categorie          CategorieProduit?  @relation(fields: [id_categorie], references: [id_categorie], onDelete: SetNull)
+  fournisseur_principal Partenaire?     @relation("FournisseurPrincipal", fields: [id_fournisseur_principal], references: [id_partenaire], onDelete: SetNull)
+  niveaux_stock      NiveauStock[]
+  lignes_documents   LigneDocument[]
   tarifs_fournisseurs TarifFournisseur[]
-  historique_prix     HistoriquePrixAchat[]
-  mouvements_stock    MouvementStock[]
-  lots_serie          LotSerie[]
+  historique_prix    HistoriquePrixAchat[]
+  mouvements_stock   MouvementStock[]
+  lots_serie         LotSerie[]
   tarifs_exceptionnels TarifExceptionnel[]
 
   @@map("produits")
@@ -202,28 +221,31 @@ model Produit {
   @@index([famille])
   @@index([id_fournisseur_principal])
   @@index([est_actif])
-  @@index([code_produit])
   @@index([est_actif, en_sommeil])
 }
 
+// =====================================================
+// SUPPLIER TARIFF MODEL
+// =====================================================
+
 model TarifFournisseur {
-  id_tarif               Int       @id @default(autoincrement())
+  id_tarif               Int      @id @default(autoincrement())
   id_produit             Int
   id_fournisseur         Int
-  reference_fournisseur  String?   @db.VarChar(100)
-  prix_achat             Decimal   @db.Decimal(15, 4)
-  devise                 String    @default("MAD") @db.VarChar(3)
-  date_tarif             DateTime  @default(now()) @db.Date
-  quantite_min           Int?      @default(1)
+  reference_fournisseur  String?  @db.VarChar(100)
+  prix_achat             Decimal  @db.Decimal(15, 4)
+  devise                 String   @default("MAD") @db.VarChar(3)
+  date_tarif             DateTime @default(now()) @db.Date
+  quantite_min           Int?     @default(1)
   delai_livraison_jours  Int?
   est_fournisseur_principal Boolean @default(false)
-  est_actif              Boolean   @default(true)
-  date_creation          DateTime  @default(now())
-  date_modification      DateTime  @default(now()) @updatedAt
+  est_actif              Boolean  @default(true)
+  date_creation          DateTime @default(now())
+  date_modification      DateTime @default(now()) @updatedAt
 
   // Relations
-  produit                Produit    @relation(fields: [id_produit], references: [id_produit], onDelete: Cascade)
-  fournisseur            Partenaire @relation(fields: [id_fournisseur], references: [id_partenaire], onDelete: Cascade)
+  produit    Produit   @relation(fields: [id_produit], references: [id_produit], onDelete: Cascade)
+  fournisseur Partenaire @relation(fields: [id_fournisseur], references: [id_partenaire], onDelete: Cascade)
 
   @@unique([id_produit, id_fournisseur])
   @@map("tarifs_fournisseurs")
@@ -231,21 +253,25 @@ model TarifFournisseur {
   @@index([id_fournisseur])
 }
 
+// =====================================================
+// STOCK LEVEL MODEL
+// =====================================================
+
 model NiveauStock {
   id_stock               Int       @id @default(autoincrement())
   id_produit             Int
   id_entrepot            Int
-  quantite_en_stock      Decimal   @default(0) @db.Decimal(15, 3)
-  quantite_reservee      Decimal   @default(0) @db.Decimal(15, 3)
-  quantite_commandee     Decimal   @default(0) @db.Decimal(15, 3)
+  quantite_en_stock      Decimal   @default(0) @db.Decimal(12, 3)
+  quantite_reservee      Decimal   @default(0) @db.Decimal(12, 3)
+  quantite_commandee     Decimal   @default(0) @db.Decimal(12, 3)
   date_dernier_mouvement DateTime?
   type_dernier_mouvement String?   @db.VarChar(50)
   date_creation          DateTime  @default(now())
   date_modification      DateTime  @default(now()) @updatedAt
 
   // Relations
-  produit                Produit   @relation(fields: [id_produit], references: [id_produit], onDelete: Cascade)
-  entrepot               Entrepot  @relation(fields: [id_entrepot], references: [id_entrepot], onDelete: Cascade)
+  produit   Produit  @relation(fields: [id_produit], references: [id_produit], onDelete: Cascade)
+  entrepot  Entrepot @relation(fields: [id_entrepot], references: [id_entrepot], onDelete: Cascade)
 
   @@unique([id_produit, id_entrepot])
   @@map("niveaux_stock")
@@ -253,37 +279,41 @@ model NiveauStock {
   @@index([id_entrepot])
 }
 
+// =====================================================
+// BUSINESS AFFAIR MODEL
+// =====================================================
+
 model Affaire {
-  id_affaire             Int       @id @default(autoincrement())
-  code_affaire           String    @unique @db.VarChar(50)
-  intitule_affaire       String    @db.VarChar(500)
-  type_affaire           String    @default("Proposition") @db.VarChar(30)
-  statut_affaire         String?   @default("En cours") @db.VarChar(30)
-  abrege                 String?   @db.VarChar(100)
-  id_client              Int?
-  date_debut             DateTime? @db.Date
-  date_fin_prevue        DateTime? @db.Date
-  date_fin_reelle        DateTime? @db.Date
-  budget_prevu           Decimal?  @db.Decimal(15, 2)
-  chiffre_affaires       Decimal?  @default(0) @db.Decimal(15, 2)
-  marge                  Decimal?  @default(0) @db.Decimal(15, 2)
-  taux_remise_moyen      Decimal?  @default(0) @db.Decimal(5, 2)
-  notes                  String?
-  est_actif              Boolean   @default(true)
-  en_sommeil             Boolean   @default(false)
-  date_creation          DateTime  @default(now())
-  date_modification      DateTime  @default(now()) @updatedAt
-  cree_par      String?   @db.Uuid
-  modifie_par   String?   @db.Uuid
+  id_affaire          Int       @id @default(autoincrement())
+  code_affaire        String    @unique @db.VarChar(50)
+  intitule_affaire    String    @db.VarChar(500)
+  type_affaire        String    @default("Proposition") @db.VarChar(30)
+  statut_affaire      String?   @default("En cours") @db.VarChar(30)
+  abrege              String?   @db.VarChar(100)
+  id_client           Int?
+  date_debut          DateTime? @db.Date
+  date_fin_prevue     DateTime? @db.Date
+  date_fin_reelle     DateTime? @db.Date
+  budget_prevu        Decimal?  @db.Decimal(15, 2)
+  chiffre_affaires    Decimal?  @default(0) @db.Decimal(15, 2)
+  marge               Decimal?  @default(0) @db.Decimal(15, 2)
+  taux_remise_moyen   Decimal?  @default(0) @db.Decimal(5, 2)
+  notes               String?
+  est_actif           Boolean   @default(true)
+  en_sommeil          Boolean   @default(false)
+  date_creation       DateTime  @default(now())
+  date_modification   DateTime  @default(now()) @updatedAt
+  cree_par            String?   @db.Uuid
+  modifie_par         String?   @db.Uuid
 
   // User relations for audit fields
-  createdBy  User?  @relation("CreatedByAffaire", fields: [cree_par], references: [id])
-  updatedBy  User?  @relation("UpdatedByAffaire", fields: [modifie_par], references: [id])
+  createdBy User? @relation("CreatedByAffaire", fields: [cree_par], references: [id], onDelete: SetNull)
+  updatedBy User? @relation("UpdatedByAffaire", fields: [modifie_par], references: [id], onDelete: SetNull)
 
   // Relations
-  client           Partenaire?      @relation(fields: [id_client], references: [id_partenaire])
+  client          Partenaire?  @relation(fields: [id_client], references: [id_partenaire], onDelete: SetNull)
   documents_affaire DocVente[]
-  lignes_documents  LigneDocument[]
+  lignes_documents LigneDocument[]
 
   @@map("affaires")
   @@index([type_affaire])
@@ -291,50 +321,55 @@ model Affaire {
   @@index([est_actif])
 }
 
+// =====================================================
+// SALES DOCUMENT MODEL
+// =====================================================
+
 model DocVente {
-  id_document            Int       @id @default(autoincrement())
-  numero_document        String    @unique @db.VarChar(50)
-  type_document          String    @db.VarChar(30)
-  domaine_document       String    @default("VENTE") @db.VarChar(10)
-  etat_document          String    @default("Saisi") @db.VarChar(30)
-  id_partenaire          Int
+  id_document           Int       @id @default(autoincrement())
+  numero_document       String    @unique @db.VarChar(50)
+  type_document         String    @db.VarChar(30)
+  domaine_document      String    @default("VENTE") @db.VarChar(10)
+  etat_document         String    @default("Saisi") @db.VarChar(30)
+  id_partenaire         Int
   nom_partenaire_snapshot String?  @db.VarChar(255)
-  id_affaire             Int?
-  numero_affaire         String?   @db.VarChar(50)
-  date_document          DateTime  @default(now()) @db.Date
-  date_echeance          DateTime? @db.Date
-  date_livraison         DateTime? @db.Date
-  date_livraison_prevue  DateTime? @db.Date
-  montant_ht             Decimal   @default(0) @db.Decimal(15, 2)
-  montant_remise_total   Decimal   @default(0) @db.Decimal(15, 2)
-  montant_tva_total      Decimal   @default(0) @db.Decimal(15, 2)
-  montant_ttc            Decimal   @default(0) @db.Decimal(15, 2)
-  solde_du               Decimal   @default(0) @db.Decimal(15, 2)
-  code_devise            String    @default("MAD") @db.VarChar(3)
-  taux_change            Decimal   @default(1) @db.Decimal(10, 6)
-  statut_document        String    @default("BROUILLON") @db.VarChar(20)
-  est_entierement_paye   Boolean   @default(false)
-  id_entrepot            Int?
-  notes_internes         String?
-  notes_client           String?
-  reference_externe      String?   @db.VarChar(100)
-  date_creation          DateTime  @default(now())
-  date_modification      DateTime  @default(now()) @updatedAt
-  cree_par          String?   @db.Uuid
-  modifie_par       String?   @db.Uuid
-  mode_expedition   String?   @db.VarChar(50)
-  poids_total_brut  Decimal?  @db.Decimal(10, 3)
-  nombre_colis      Int?
+  id_affaire            Int?
+  numero_affaire        String?   @db.VarChar(50)
+  date_document         DateTime  @default(now()) @db.Date
+  date_echeance         DateTime? @db.Date
+  date_livraison        DateTime? @db.Date
+  date_livraison_prevue DateTime? @db.Date
+  montant_ht            Decimal   @default(0) @db.Decimal(15, 2)
+  montant_remise_total  Decimal   @default(0) @db.Decimal(15, 2)
+  montant_tva_total     Decimal   @default(0) @db.Decimal(15, 2)
+  montant_ttc           Decimal   @default(0) @db.Decimal(15, 2)
+  solde_du              Decimal   @default(0) @db.Decimal(15, 2)
+  code_devise           String    @default("MAD") @db.VarChar(3)
+  taux_change           Decimal   @default(1) @db.Decimal(10, 6)
+  statut_document       String    @default("BROUILLON") @db.VarChar(20)
+  est_entierement_paye  Boolean   @default(false)
+  id_entrepot           Int?
+  notes_internes        String?
+  notes_client          String?
+  reference_externe     String?   @db.VarChar(100)
+  date_creation         DateTime  @default(now())
+  date_modification     DateTime  @default(now()) @updatedAt
+  cree_par              String?   @db.Uuid
+  modifie_par           String?   @db.Uuid
+  mode_expedition       String?   @db.VarChar(50)
+  poids_total_brut      Decimal?  @db.Decimal(10, 3)
+  nombre_colis          Int?
 
   // User relations for audit fields
-  createdBy  User?  @relation("CreatedByDocument", fields: [cree_par], references: [id])
-  updatedBy  User?  @relation("UpdatedByDocument", fields: [modifie_par], references: [id])
+  createdBy User? @relation("CreatedByDocument", fields: [cree_par], references: [id], onDelete: SetNull)
+  updatedBy User? @relation("UpdatedByDocument", fields: [modifie_par], references: [id], onDelete: SetNull)
 
   // Relations
-  partenaire  Partenaire        @relation(fields: [id_partenaire], references: [id_partenaire])
-  affaire     Affaire?          @relation(fields: [id_affaire], references: [id_affaire])
-  entrepot    Entrepot?         @relation(fields: [id_entrepot], references: [id_entrepot])
-  lignes      LigneDocument[]
+  partenaire Partenaire  @relation(fields: [id_partenaire], references: [id_partenaire], onDelete: Restrict)
+  affaire    Affaire?    @relation(fields: [id_affaire], references: [id_affaire], onDelete: SetNull)
+  entrepot   Entrepot?   @relation(fields: [id_entrepot], references: [id_entrepot], onDelete: SetNull)
+  lignes     LigneDocument[]
+  mouvements MouvementStock[]
 
   @@map("documents")
   @@index([type_document])
@@ -345,65 +380,80 @@ model DocVente {
   @@index([statut_document])
   @@index([domaine_document, date_document])
   @@index([domaine_document, type_document])
+  @@index([id_partenaire, date_document])
 }
 
+// =====================================================
+// DOCUMENT LINE MODEL
+// =====================================================
+
 model LigneDocument {
-  id_ligne               Int       @id @default(autoincrement())
-  id_document            Int
-  numero_ligne           Int
-  id_affaire             Int?
-  numero_affaire         String?   @db.VarChar(50)
-  id_produit             Int
-  code_produit_snapshot  String?   @db.VarChar(100)
-  nom_produit_snapshot   String?   @db.VarChar(500)
-  quantite_commandee     Decimal   @default(0) @db.Decimal(15, 3)
-  quantite_livree        Decimal   @default(0) @db.Decimal(15, 3)
-  quantite_facturee      Decimal   @default(0) @db.Decimal(15, 3)
-  prix_unitaire_ht       Decimal   @db.Decimal(15, 4)
-  pourcentage_remise     Decimal   @default(0) @db.Decimal(5, 2)
-  taux_tva               Decimal   @default(20.00) @db.Decimal(5, 2)
-  montant_remise         Decimal   @default(0) @db.Decimal(15, 2)
-  montant_ht             Decimal   @default(0) @db.Decimal(15, 2)
-  montant_tva            Decimal   @default(0) @db.Decimal(15, 2)
-  montant_ttc            Decimal   @default(0) @db.Decimal(15, 2)
-  statut_ligne           String    @default("EN_ATTENTE") @db.VarChar(20)
-  notes_ligne            String?
-  id_lot                 Int?
-  date_creation          DateTime  @default(now())
-  date_modification      DateTime  @default(now()) @updatedAt
+  id_ligne              Int       @id @default(autoincrement())
+  id_document           Int
+  numero_ligne          Int
+  id_affaire            Int?
+  numero_affaire        String?   @db.VarChar(50)
+  id_produit            Int
+  code_produit_snapshot String?   @db.VarChar(100)
+  nom_produit_snapshot  String?   @db.VarChar(500)
+  quantite_commandee    Decimal   @default(0) @db.Decimal(12, 3)
+  quantite_livree       Decimal   @default(0) @db.Decimal(12, 3)
+  quantite_facturee     Decimal   @default(0) @db.Decimal(12, 3)
+  prix_unitaire_ht      Decimal   @db.Decimal(15, 4)
+  pourcentage_remise    Decimal   @default(0) @db.Decimal(5, 2)
+  taux_tva              Decimal   @default(20.00) @db.Decimal(5, 2)
+  montant_remise        Decimal   @default(0) @db.Decimal(15, 2)
+  montant_ht            Decimal   @default(0) @db.Decimal(15, 2)
+  montant_tva           Decimal   @default(0) @db.Decimal(15, 2)
+  montant_ttc           Decimal   @default(0) @db.Decimal(15, 2)
+  statut_ligne          String    @default("EN_ATTENTE") @db.VarChar(20)
+  notes_ligne           String?
+  id_lot                Int?
+  date_creation         DateTime  @default(now())
+  date_modification     DateTime  @default(now()) @updatedAt
 
   // Relations
-  document    DocVente        @relation(fields: [id_document], references: [id_document], onDelete: Cascade)
-  produit     Produit         @relation(fields: [id_produit], references: [id_produit])
-  affaire     Affaire?        @relation(fields: [id_affaire], references: [id_affaire])
-  lot         LotSerie?       @relation(fields: [id_lot], references: [id_lot])
-  mouvements  MouvementStock[]
+  document     DocVente   @relation(fields: [id_document], references: [id_document], onDelete: Cascade)
+  produit      Produit    @relation(fields: [id_produit], references: [id_produit], onDelete: Restrict)
+  affaire      Affaire?   @relation(fields: [id_affaire], references: [id_affaire], onDelete: SetNull)
+  lot          LotSerie?  @relation(fields: [id_lot], references: [id_lot], onDelete: SetNull)
+  mouvements   MouvementStock[]
 
   @@map("lignes_documents")
   @@index([id_document])
   @@index([id_produit])
   @@index([id_affaire])
+  @@index([id_document, numero_ligne])
 }
 
+// =====================================================
+// PRICE HISTORY MODEL
+// =====================================================
+
 model HistoriquePrixAchat {
-  id_historique          Int       @id @default(autoincrement())
-  id_produit             Int
-  id_fournisseur         Int?
-  id_document            Int?
-  prix_achat             Decimal   @db.Decimal(15, 4)
-  quantite               Decimal?  @db.Decimal(15, 3)
-  date_achat             DateTime  @default(now()) @db.Date
-  notes                  String?
-  date_creation          DateTime  @default(now())
+  id_historique  Int       @id @default(autoincrement())
+  id_produit     Int
+  id_fournisseur Int?
+  id_document    Int?
+  prix_achat     Decimal   @db.Decimal(15, 4)
+  quantite       Decimal?  @db.Decimal(12, 3)
+  date_achat     DateTime  @default(now()) @db.Date
+  notes          String?
+  date_creation  DateTime  @default(now())
+  date_modification DateTime @default(now()) @updatedAt
 
   // Relations
-  produit                Produit    @relation(fields: [id_produit], references: [id_produit], onDelete: Cascade)
-  fournisseur            Partenaire? @relation(fields: [id_fournisseur], references: [id_partenaire])
+  produit    Produit   @relation(fields: [id_produit], references: [id_produit], onDelete: Cascade)
+  fournisseur Partenaire? @relation(fields: [id_fournisseur], references: [id_partenaire], onDelete: SetNull)
 
   @@map("historique_prix_achats")
   @@index([id_produit])
   @@index([date_achat])
 }
+
+// =====================================================
+// STOCK MOVEMENT MODEL
+// =====================================================
 
 model MouvementStock {
   id_mouvement      Int       @id @default(autoincrement())
@@ -412,7 +462,7 @@ model MouvementStock {
   id_document       Int?
   id_ligne_document Int?
   type_mouvement    String    @db.VarChar(30)
-  quantite          Decimal   @db.Decimal(15, 3)
+  quantite          Decimal   @db.Decimal(12, 3)
   date_mouvement    DateTime  @default(now())
   reference_document String?  @db.VarChar(50)
   motif             String?
@@ -421,12 +471,13 @@ model MouvementStock {
   date_creation     DateTime  @default(now())
 
   // User relation for audit field
-  createdBy  User?  @relation("CreatedByMouvement", fields: [cree_par], references: [id])
+  createdBy User? @relation("CreatedByMouvement", fields: [cree_par], references: [id], onDelete: SetNull)
 
   // Relations
-  produit        Produit        @relation(fields: [id_produit], references: [id_produit])
-  entrepot       Entrepot       @relation(fields: [id_entrepot], references: [id_entrepot])
-  ligneDocument  LigneDocument? @relation(fields: [id_ligne_document], references: [id_ligne])
+  produit      Produit       @relation(fields: [id_produit], references: [id_produit], onDelete: Restrict)
+  entrepot     Entrepot      @relation(fields: [id_entrepot], references: [id_entrepot], onDelete: Restrict)
+  document     DocVente?     @relation(fields: [id_document], references: [id_document], onDelete: SetNull)
+  ligneDocument LigneDocument? @relation(fields: [id_ligne_document], references: [id_ligne], onDelete: SetNull)
 
   @@map("mouvements_stock")
   @@index([id_produit])
@@ -435,42 +486,52 @@ model MouvementStock {
   @@index([id_produit, id_entrepot, date_mouvement])
 }
 
+// =====================================================
+// LOT/SERIE MODEL
+// =====================================================
+
 model LotSerie {
-  id_lot              Int       @id @default(autoincrement())
-  code_lot            String    @db.VarChar(50)
-  id_produit          Int
-  date_fabrication    DateTime? @db.Date
-  date_peremption     DateTime? @db.Date
-  numero_serie_unique String?   @unique @db.VarChar(100)
-  quantite_initiale   Decimal?  @db.Decimal(15, 3)
-  quantite_actuelle   Decimal   @default(0) @db.Decimal(15, 3)
-  est_actif           Boolean   @default(true)
-  date_creation       DateTime  @default(now())
+  id_lot             Int       @id @default(autoincrement())
+  code_lot           String    @db.VarChar(50)
+  id_produit         Int
+  date_fabrication   DateTime? @db.Date
+  date_peremption    DateTime? @db.Date
+  numero_serie_unique String?  @unique @db.VarChar(100)
+  quantite_initiale  Decimal?  @db.Decimal(12, 3)
+  quantite_actuelle  Decimal   @default(0) @db.Decimal(12, 3)
+  est_actif          Boolean   @default(true)
+  date_creation      DateTime  @default(now())
 
   // Relations
-  produit         Produit         @relation(fields: [id_produit], references: [id_produit], onDelete: Cascade)
+  produit        Produit       @relation(fields: [id_produit], references: [id_produit], onDelete: Cascade)
   lignes_documents LigneDocument[]
 
   @@unique([code_lot, id_produit])
   @@map("lots_serie")
 }
 
-model TarifExceptionnel {
-  id_tarif_ex    Int             @id @default(autoincrement())
-  id_produit     Int?
-  id_client      Int?
-  quantite_min   Int?            @default(1)
-  prix_vente_fixe Decimal?       @db.Decimal(15, 4)
-  remise_pourcentage Decimal?    @db.Decimal(5, 2)
-  date_debut     DateTime?       @db.Date
-  date_fin       DateTime?       @db.Date
-  priorite       Int?            @default(0)
-  date_creation  DateTime        @default(now())
+// =====================================================
+// EXCEPTIONAL TARIFF MODEL
+// =====================================================
 
-  produit        Produit?        @relation(fields: [id_produit], references: [id_produit], onDelete: Cascade)
-  client         Partenaire?     @relation(fields: [id_client], references: [id_partenaire], onDelete: Cascade)
+model TarifExceptionnel {
+  id_tarif_ex        Int       @id @default(autoincrement())
+  id_produit         Int?
+  id_client          Int?
+  quantite_min       Int?      @default(1)
+  prix_vente_fixe    Decimal?  @db.Decimal(15, 4)
+  remise_pourcentage Decimal?  @db.Decimal(5, 2)
+  date_debut         DateTime? @db.Date
+  date_fin           DateTime? @db.Date
+  priorite           Int?      @default(0)
+  date_creation      DateTime  @default(now())
+  date_modification  DateTime  @default(now()) @updatedAt
+
+  produit Produit?   @relation(fields: [id_produit], references: [id_produit], onDelete: Cascade)
+  client  Partenaire? @relation(fields: [id_client], references: [id_partenaire], onDelete: Cascade)
 
   @@map("tarifs_exceptionnels")
   @@index([id_produit])
   @@index([id_client])
+  @@index([date_debut, date_fin])
 }

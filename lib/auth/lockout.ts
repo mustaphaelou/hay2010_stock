@@ -40,7 +40,8 @@ export async function clearFailedAttempts(email: string): Promise<void> {
 }
 
 export async function isAccountLocked(email: string): Promise<boolean> {
-  return redis.exists(`${LOCKOUT_PREFIX}${email}`)
+  const result = await redis.exists(`${LOCKOUT_PREFIX}${email}`)
+  return result === 1
 }
 
 export async function getLockoutTimeRemaining(email: string): Promise<number> {

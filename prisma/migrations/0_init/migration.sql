@@ -2,7 +2,10 @@
 CREATE SCHEMA IF NOT EXISTS "public";
 
 -- CreateEnum
-CREATE TYPE "Role" AS ENUM ('ADMIN', 'HR', 'USER');
+CREATE TYPE "Role" AS ENUM ('ADMIN', 'MANAGER', 'USER', 'VIEWER');
+
+-- CreateEnum
+CREATE TYPE "TypePartenaire" AS ENUM ('CLIENT', 'FOURNISSEUR', 'LES_DEUX');
 
 -- CreateTable
 CREATE TABLE "users" (
@@ -10,7 +13,7 @@ CREATE TABLE "users" (
     "email" TEXT NOT NULL,
     "password" TEXT NOT NULL,
     "name" TEXT NOT NULL,
-    "role" "Role" NOT NULL DEFAULT 'HR',
+    "role" "Role" NOT NULL DEFAULT 'USER',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "users_pkey" PRIMARY KEY ("id")
@@ -21,7 +24,7 @@ CREATE TABLE "partenaires" (
     "id_partenaire" SERIAL NOT NULL,
     "code_partenaire" VARCHAR(50) NOT NULL,
     "nom_partenaire" VARCHAR(255) NOT NULL,
-    "type_partenaire" VARCHAR(20) NOT NULL,
+    "type_partenaire" "TypePartenaire" NOT NULL,
     "adresse_email" VARCHAR(255),
     "numero_telephone" VARCHAR(50),
     "numero_fax" VARCHAR(50),
@@ -361,9 +364,6 @@ CREATE INDEX "produits_id_fournisseur_principal_idx" ON "produits"("id_fournisse
 CREATE INDEX "produits_est_actif_idx" ON "produits"("est_actif");
 
 -- CreateIndex
-CREATE INDEX "produits_code_produit_idx" ON "produits"("code_produit");
-
--- CreateIndex
 CREATE INDEX "tarifs_fournisseurs_id_produit_idx" ON "tarifs_fournisseurs"("id_produit");
 
 -- CreateIndex
@@ -500,4 +500,3 @@ ALTER TABLE "mouvements_stock" ADD CONSTRAINT "mouvements_stock_id_entrepot_fkey
 
 -- AddForeignKey
 ALTER TABLE "lots_serie" ADD CONSTRAINT "lots_serie_id_produit_fkey" FOREIGN KEY ("id_produit") REFERENCES "produits"("id_produit") ON DELETE CASCADE ON UPDATE CASCADE;
-

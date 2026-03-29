@@ -40,7 +40,7 @@ export type Permission = keyof typeof RESOURCE_PERMISSIONS
 
 export function hasPermission(userRole: UserRole, permission: Permission): boolean {
   const allowedRoles = RESOURCE_PERMISSIONS[permission]
-  return allowedRoles.includes(userRole)
+  return (allowedRoles as readonly string[]).includes(userRole)
 }
 
 export function hasRole(userRole: UserRole, minRole: UserRole): boolean {
