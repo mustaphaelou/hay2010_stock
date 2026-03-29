@@ -3,16 +3,17 @@ import { cookies } from 'next/headers'
 import { prisma } from '@/lib/db/prisma'
 import { redis } from '@/lib/db/redis'
 import { verifyToken } from '@/lib/auth/jwt'
+import { checkRedisHealth } from '@/lib/db/redis-cluster'
 
 const COOKIE_NAME = 'auth_token'
 
 export async function GET() {
   const cookieStore = await cookies()
   const token = cookieStore.get(COOKIE_NAME)?.value
-  
+
   let isAuthenticated = false
   let isAdmin = false
-  
+
   if (token) {
     try {
       const payload = await verifyToken(token)
@@ -30,25 +31,47 @@ export async function GET() {
     timestamp: new Date().toISOString()
   }
 
+  const checks = {
+    database: false,
+    redis: false,
+    schema: false,
+  }
+
   try {
+    // Database check
     await prisma.$queryRaw`SELECT 1`
-    await redis.ping()
-    
+    checks.database = true
+
+    // Redis check
+    const redisHealth = await checkRedisHealth()
+    checks.redis = redisHealth.connected
+
+    // Schema validation - check Role enum
+    const roleCheck = await prisma.$queryRaw`
+      SELECT COUNT(*) as count 
+      FROM pg_enum 
+      WHERE enumtypid = 'Role'::regtype
+    `
+    checks.schema = Number((roleCheck[0] as { count: bigint }).count) === 4
+
     if (isAuthenticated) {
       const dbStart = Date.now()
       await prisma.$queryRaw`SELECT 1`
       const dbLatency = Date.now() - dbStart
-      
+
       const redisStart = Date.now()
       await redis.ping()
       const redisLatency = Date.now() - redisStart
-      
+
+      const allHealthy = Object.values(checks).every(Boolean)
+
       return NextResponse.json({
         ...basicHealth,
-        status: 'ok',
+        status: allHealthy ? 'ok' : 'degraded',
+        checks,
         services: {
-          database: 'connected',
-          redis: 'connected',
+          database: checks.database ? 'connected' : 'disconnected',
+          redis: checks.redis ? 'connected' : 'disconnected',
           app: 'running'
         },
         latency: {
@@ -56,15 +79,26 @@ export async function GET() {
           redis: redisLatency
         },
         version: process.env.npm_package_version || '1.0.0',
-        environment: process.env.NODE_ENV
+        environment: process.env.NODE_ENV,
+        isAdmin
       })
     }
-    
-    return NextResponse.json(basicHealth)
+
+    const allHealthy = Object.values(checks).every(Boolean)
+    return NextResponse.json({
+      ...basicHealth,
+      status: allHealthy ? 'ok' : 'degraded',
+      checks
+    })
   } catch (error) {
     console.error('Health check failed:', error)
     return NextResponse.json(
-      { status: 'error', timestamp: new Date().toISOString() },
+      { 
+        status: 'error', 
+        timestamp: new Date().toISOString(),
+        checks,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 503 }
     )
   }

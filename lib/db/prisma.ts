@@ -24,10 +24,26 @@ function createPrismaClient(): PrismaClient {
     })
 
     const adapter = new PrismaPg(pool)
-    return new PrismaClient({
+    const client = new PrismaClient({
       adapter,
-      log: process.env.NODE_ENV === 'development' ? ['query', 'error'] : ['error'],
+      log: process.env.NODE_ENV === 'development' 
+        ? ['query', 'error', 'warn'] 
+        : ['error'],
+      transactionOptions: {
+        maxWait: 5000,
+        timeout: 10000,
+      },
     })
+
+    if (process.env.NODE_ENV === 'production') {
+      client.$on('query', (e) => {
+        if (e.duration > 1000) {
+          console.warn(`[Prisma] Slow query (${e.duration}ms):`, e.query.substring(0, 200))
+        }
+      })
+    }
+
+    return client
   } catch (error) {
     console.error('Failed to create Prisma client:', error)
     throw error
@@ -37,3 +53,9 @@ function createPrismaClient(): PrismaClient {
 export const prisma = globalForPrisma.prisma ?? createPrismaClient()
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+
+export async function withTransaction<T>(
+  fn: (tx: Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>) => Promise<T>
+): Promise<T> {
+  return prisma.$transaction(fn)
+}

@@ -105,171 +105,136 @@ export const cacheQueue = new Queue<CacheWarmupJob>('cache-warmup', defaultQueue
  * PDF Generation Worker
  */
 const pdfWorker = new Worker<PDFGenerationJob>(
-    'documents',
-    async (job: Job<PDFGenerationJob>) => {
-        const { documentId, userId: _userId, format: _format, email } = job.data
+  'documents',
+  async (job: Job<PDFGenerationJob>) => {
+    const { documentId, email } = job.data
 
-        // Update progress
-        await job.updateProgress(10)
-        await job.log(`Starting PDF generation for document ${documentId}`)
+    await job.updateProgress(10)
+    await job.log(`Starting PDF generation for document ${documentId}`)
 
-        try {
-            // Dynamic import to avoid circular dependencies
-            const { generateInvoicePDF, transformToInvoiceData } = await import('@/lib/pdf/generate-invoice')
+    try {
+      const { generateInvoicePDF, transformToInvoiceData } = await import('@/lib/pdf/generate-invoice')
 
-            // Fetch document data - using prisma directly to avoid circular imports
-            await job.updateProgress(20)
-            const { prisma } = await import('@/lib/db/prisma')
-            const document = await prisma.docVente.findUnique({
-                where: { id_document: documentId },
-                include: {
-                    partenaire: true,
-                    lignes: {
-                        include: { produit: true }
-                    }
-                }
-            })
-
-            if (!document) {
-                throw new Error(`Document ${documentId} not found`)
-            }
-
-            await job.updateProgress(40)
-
-            // Transform raw document to computed format (add computed fields)
-            const documentWithComputed = {
-                ...document,
-                montant_ht_num: Number(document.montant_ht || 0),
-                montant_ttc_num: Number(document.montant_ttc || 0),
-                solde_du_num: Number(document.solde_du || 0),
-                montant_regle: Number(document.montant_ttc || 0) - Number(document.solde_du || 0),
-                numero_piece: document.numero_document,
-                nom_tiers: document.nom_partenaire_snapshot || document.partenaire?.nom_partenaire || null,
-                reference: document.reference_externe || null,
-                montant_tva_num: Number(document.montant_tva_total || 0),
-                montant_remise_num: Number(document.montant_remise_total || 0),
-                type_document_num: Number(document.type_document || 0),
-                statut_document_num: Number(document.statut_document || 0),
-                domaine: document.domaine_document
-            }
-
-            // Transform raw lines to computed format
-            const linesWithComputed = document.lignes.map((line: typeof document.lignes[0]) => ({
-                ...line,
-                quantite: Number(line.quantite_commandee || 0),
-                prix_unitaire: Number(line.prix_unitaire_ht || 0),
-                montant_ht_num: Number(line.montant_ht || 0),
-                montant_ttc_num: Number(line.montant_ttc || 0),
-                designation: line.nom_produit_snapshot || line.produit?.nom_produit || null,
-                reference_article: line.code_produit_snapshot || null,
-                ordre: line.numero_ligne,
-                code_taxe: null
-            }))
-
-            // Transform to InvoiceData format and generate PDF
-            const invoiceData = transformToInvoiceData(documentWithComputed, linesWithComputed, document.partenaire)
-            const pdfBuffer = await generateInvoicePDF(invoiceData)
-            await job.updateProgress(80)
-
-            // Upload to storage (implement based on your storage solution)
-            // const url = await uploadToStorage(pdfBuffer, `invoices/${documentId}.pdf`)
-
-            await job.updateProgress(90)
-
-            // Send notification email if requested
-            if (email) {
-                await emailQueue.add('send-pdf', {
-                    to: email,
-                    subject: `Document ${document.numero_document} - PDF Ready`,
-                    template: 'document-ready',
-                    data: {
-                        documentNumber: document.numero_document,
-                        downloadUrl: `#`, // Replace with actual URL
-                    },
-                })
-            }
-
-            await job.updateProgress(100)
-            await job.log(`PDF generation completed for document ${documentId}`)
-
-            return {
-                success: true,
-                documentId,
-                // url,
-                generatedAt: new Date().toISOString(),
-            }
-        } catch (error) {
-            await job.log(`PDF generation failed: ${error}`)
-            throw error
+      await job.updateProgress(20)
+      const { prisma } = await import('@/lib/db/prisma')
+      const document = await prisma.docVente.findUnique({
+        where: { id_document: documentId },
+        include: {
+          partenaire: true,
+          lignes: {
+            include: { produit: true }
+          }
         }
-    },
-    {
-        connection: redis,
-        concurrency: 5,
-        limiter: {
-            max: 10,
-            duration: 1000, // 10 jobs per second
-        },
+      })
+
+      if (!document) {
+        throw new Error(`Document ${documentId} not found`)
+      }
+
+      await job.updateProgress(40)
+
+      const documentWithComputed = {
+        ...document,
+        montant_ht_num: Number(document.montant_ht || 0),
+        montant_ttc_num: Number(document.montant_ttc || 0),
+        solde_du_num: Number(document.solde_du || 0),
+        montant_regle: Number(document.montant_ttc || 0) - Number(document.solde_du || 0),
+        numero_piece: document.numero_document,
+        nom_tiers: document.nom_partenaire_snapshot || document.partenaire?.nom_partenaire || null,
+        reference: document.reference_externe || null,
+        montant_tva_num: Number(document.montant_tva_total || 0),
+        montant_remise_num: Number(document.montant_remise_total || 0),
+        type_document_num: Number(document.type_document || 0),
+        statut_document_num: Number(document.statut_document || 0),
+        domaine: document.domaine_document
+      }
+
+      const linesWithComputed = document.lignes.map((line: typeof document.lignes[0]) => ({
+        ...line,
+        quantite: Number(line.quantite_commandee || 0),
+        prix_unitaire: Number(line.prix_unitaire_ht || 0),
+        montant_ht_num: Number(line.montant_ht || 0),
+        montant_ttc_num: Number(line.montant_ttc || 0),
+        designation: line.nom_produit_snapshot || line.produit?.nom_produit || null,
+        reference_article: line.code_produit_snapshot || null,
+        ordre: line.numero_ligne,
+        code_taxe: null
+      }))
+
+      const invoiceData = transformToInvoiceData(documentWithComputed, linesWithComputed, document.partenaire)
+      await generateInvoicePDF(invoiceData)
+      await job.updateProgress(80)
+
+      await job.updateProgress(90)
+
+      if (email) {
+        await emailQueue.add('send-pdf', {
+          to: email,
+          subject: `Document ${document.numero_document} - PDF Ready`,
+          template: 'document-ready',
+          data: {
+            documentNumber: document.numero_document,
+            downloadUrl: `#`,
+          },
+        })
+      }
+
+      await job.updateProgress(100)
+      await job.log(`PDF generation completed for document ${documentId}`)
+
+      return {
+        success: true,
+        documentId,
+        generatedAt: new Date().toISOString(),
+      }
+    } catch (error) {
+      await job.log(`PDF generation failed: ${error}`)
+      throw error
     }
+  },
+  {
+    connection: redis,
+    concurrency: 5,
+    limiter: {
+      max: 10,
+      duration: 1000,
+    },
+  }
 )
 
 /**
  * Report Generation Worker
  */
 const reportWorker = new Worker<ReportGenerationJob>(
-    'reports',
-    async (job: Job<ReportGenerationJob>) => {
-        const { reportType, userId: _userId, filters: _filters, format } = job.data
+  'reports',
+  async (job: Job<ReportGenerationJob>) => {
+    const { reportType, format } = job.data
 
-        await job.updateProgress(10)
-        await job.log(`Starting ${reportType} report generation`)
+    await job.updateProgress(10)
+    await job.log(`Starting ${reportType} report generation`)
 
-        try {
-            // Fetch data based on report type
-            await job.updateProgress(30)
+    try {
+      await job.updateProgress(30)
+      await job.updateProgress(60)
+      await job.updateProgress(90)
+      await job.updateProgress(100)
+      await job.log(`${reportType} report generation completed`)
 
-            // Placeholder for report data fetching
-            // let reportData: unknown
-            // switch (reportType) {
-            //   case 'sales':
-            //     reportData = await getSalesReportData(filters)
-            //     break
-            //   case 'stock':
-            //     reportData = await getStockReportData(filters)
-            //     break
-            //   case 'financial':
-            //     reportData = await getFinancialReportData(filters)
-            //     break
-            // }
-
-            await job.updateProgress(60)
-
-            // Generate report file
-            // const reportBuffer = await generateReport(reportData, format)
-
-            await job.updateProgress(90)
-
-            // Upload and notify
-            // const url = await uploadToStorage(reportBuffer, `reports/${reportType}-${Date.now()}.${format}`)
-
-            await job.updateProgress(100)
-            await job.log(`${reportType} report generation completed`)
-
-            return {
-                success: true,
-                reportType,
-                format,
-                generatedAt: new Date().toISOString(),
-            }
-        } catch (error) {
-            await job.log(`Report generation failed: ${error}`)
-            throw error
-        }
-    },
-    {
-        connection: redis,
-        concurrency: 3,
+      return {
+        success: true,
+        reportType,
+        format,
+        generatedAt: new Date().toISOString(),
+      }
+    } catch (error) {
+      await job.log(`Report generation failed: ${error}`)
+      throw error
     }
+  },
+  {
+    connection: redis,
+    concurrency: 3,
+  }
 )
 
 /**

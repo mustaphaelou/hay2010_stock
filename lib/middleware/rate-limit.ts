@@ -6,7 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { redis, CacheKeys, CacheTTL } from '@/lib/db/redis-cluster'
+import { redis, CacheKeys } from '@/lib/db/redis-cluster'
 
 // Rate limit configuration by endpoint type
 interface RateLimitConfig {

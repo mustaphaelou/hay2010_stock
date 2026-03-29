@@ -7,11 +7,17 @@ import { generateToken, verifyToken } from '@/lib/auth/jwt'
 import { createSession, getSession, deleteSession } from '@/lib/auth/session'
 import { loginSchema, registerSchema } from '@/lib/validation'
 import { redirect } from 'next/navigation'
+import { recordFailedAttempt, clearFailedAttempts, isAccountLocked } from '@/lib/auth/lockout'
 
 const COOKIE_NAME = 'auth_token'
 
 export async function login(email: string, password: string, rememberMe: boolean = false): Promise<{ error?: string; success?: boolean }> {
   try {
+    const locked = await isAccountLocked(email)
+    if (locked) {
+      return { error: 'Account is temporarily locked due to too many failed attempts. Please try again in 15 minutes.' }
+    }
+
     const validationResult = loginSchema.safeParse({ email, password })
     if (!validationResult.success) {
       return { error: 'Invalid input: ' + validationResult.error.issues.map((e: { message: string }) => e.message).join(', ') }
@@ -22,14 +28,21 @@ export async function login(email: string, password: string, rememberMe: boolean
     })
 
     if (!user) {
+      await recordFailedAttempt(email)
       return { error: 'Invalid email or password' }
     }
 
     const isValid = await verifyPassword(password, user.password)
 
     if (!isValid) {
-      return { error: 'Invalid email or password' }
+      const result = await recordFailedAttempt(email)
+      if (result.locked) {
+        return { error: 'Account locked due to too many failed attempts. Please try again in 15 minutes.' }
+      }
+      return { error: `Invalid email or password. ${result.remaining} attempt${result.remaining !== 1 ? 's' : ''} remaining.` }
     }
+
+    await clearFailedAttempts(email)
 
     const sessionId = await createSession(user.id, user.email, user.name, user.role)
     const token = await generateToken({
@@ -39,7 +52,7 @@ export async function login(email: string, password: string, rememberMe: boolean
       sessionId
     })
 
-    const maxAge = rememberMe ? 60 * 60 * 24 * 30 : 60 * 60 * 24 * 7 // 30 days if remember me, else 7 days
+    const maxAge = rememberMe ? 60 * 60 * 24 * 30 : 60 * 60 * 24 * 7
 
     const cookieStore = await cookies()
     cookieStore.set(COOKIE_NAME, token, {
