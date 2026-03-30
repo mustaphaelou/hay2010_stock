@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { jwtVerify } from 'jose'
-import { rateLimitMiddleware } from '@/lib/middleware/rate-limit'
+import { rateLimitMiddleware } from '@/lib/middleware/edge-rate-limit'
 
 function getJwtSecret(): Uint8Array {
   const secret = process.env.JWT_SECRET

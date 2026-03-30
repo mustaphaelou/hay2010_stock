@@ -8,7 +8,6 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { HugeiconsIcon } from "@hugeicons/react"
 import type { IconSvgElement } from "@hugeicons/react"
 import {
-  File01Icon,
   Clock01Icon,
   PackageIcon,
 } from "@hugeicons/core-free-icons"

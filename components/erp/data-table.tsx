@@ -248,18 +248,44 @@ export function DataTable<TData, TValue>({
                             <TableHeader className="bg-muted/40">
                                 {table.getHeaderGroups().map((headerGroup) => (
                                     <TableRow key={headerGroup.id} className="hover:bg-transparent border-b">
-                                        {headerGroup.headers.map((header) => {
-                                            return (
-                                                <TableHead key={header.id} className="h-12 px-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                                                    {header.isPlaceholder
-                                                        ? null
-                                                        : flexRender(
-                                                            header.column.columnDef.header,
-                                                            header.getContext()
-                                                        )}
-                                                </TableHead>
-                                            )
-                                        })}
+{headerGroup.headers.map((header) => {
+                const canSort = header.column.getCanSort()
+                const sorted = header.column.getIsSorted()
+                return (
+                  <TableHead
+                    key={header.id}
+                    scope="col"
+                    aria-sort={sorted ? (sorted === "asc" ? "ascending" : "descending") : undefined}
+                    className="h-12 px-4 text-xs font-bold uppercase tracking-wider text-muted-foreground"
+                  >
+                    {header.isPlaceholder
+                      ? null
+                      : canSort ? (
+                        <button
+                          onClick={header.column.getToggleSortingHandler()}
+                          aria-label={
+                            sorted
+                              ? sorted === "asc"
+                                ? "Trié par ordre croissant, cliquez pour trier par ordre décroissant"
+                                : "Trié par ordre décroissant, cliquez pour annuler le tri"
+                              : "Non trié, cliquez pour trier par ordre croissant"
+                          }
+                          className="flex items-center gap-2 w-full text-left hover:text-foreground transition-colors"
+                        >
+                          {flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
+                        </button>
+                      ) : (
+                        flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )
+                      )}
+                  </TableHead>
+                )
+              })}
                                     </TableRow>
                                 ))}
                             </TableHeader>

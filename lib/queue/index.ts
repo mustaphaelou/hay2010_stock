@@ -243,7 +243,7 @@ const reportWorker = new Worker<ReportGenerationJob>(
 const stockImportWorker = new Worker<StockImportJob>(
     'stock-imports',
     async (job: Job<StockImportJob>) => {
-        const { fileUrl, userId: _userId, options: _options } = job.data
+        const { fileUrl } = job.data
 
         await job.updateProgress(5)
         await job.log(`Starting stock import from ${fileUrl}`)
@@ -292,15 +292,15 @@ const stockImportWorker = new Worker<StockImportJob>(
 const emailWorker = new Worker<EmailJob>(
     'emails',
     async (job: Job<EmailJob>) => {
-        const { to, subject, template, data } = job.data
+const { to } = job.data
 
-        await job.log(`Sending email to ${to}`)
+await job.log(`Sending email to ${to}`)
 
-        try {
-            // Integrate with your email provider (SendGrid, AWS SES, etc.)
-            // await sendEmail({ to, subject, template, data })
+try {
+  // Integrate with your email provider (SendGrid, AWS SES, etc.)
+  // await sendEmail({ to, subject, template, data })
 
-            await job.log(`Email sent successfully to ${to}`)
+  await job.log(`Email sent successfully to ${to}`)
 
             return {
                 success: true,

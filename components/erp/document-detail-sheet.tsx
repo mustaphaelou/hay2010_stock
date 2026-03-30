@@ -26,7 +26,7 @@ import {
   Calendar03Icon,
   CheckmarkCircle01Icon,
 } from "@hugeicons/core-free-icons"
-import { getDocuments, getDocLines } from "@/app/actions/documents"
+import { getDocLines } from "@/app/actions/documents"
 import type { DocumentWithComputed, DocumentLine as DocumentLineType } from '@/lib/types'
 
 type DocumentWithPartner = DocumentWithComputed

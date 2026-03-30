@@ -57,16 +57,40 @@ export async function getDashboardData(): Promise<DashboardDataResult> {
   await requireAuth()
 
   try {
-    // Fetch products with categories
-    const productsRaw = await prisma.produit.findMany({
-      where: { est_actif: true },
-      include: {
-        categorie: {
-          select: { nom_categorie: true }
-        }
-      },
-      orderBy: { nom_produit: 'asc' }
-    })
+    // Fetch all data in parallel for better performance
+    const [productsRaw, partnersRaw, documentsRaw, lignesRaw] = await Promise.all([
+      prisma.produit.findMany({
+        where: { est_actif: true },
+        include: {
+          categorie: {
+            select: { nom_categorie: true }
+          }
+        },
+        orderBy: { nom_produit: 'asc' },
+        take: 100
+      }),
+      prisma.partenaire.findMany({
+        orderBy: { nom_partenaire: 'asc' },
+        take: 100
+      }),
+      prisma.docVente.findMany({
+        include: {
+          partenaire: {
+            select: { nom_partenaire: true }
+          }
+        },
+        orderBy: { date_document: 'desc' },
+        take: 100
+      }),
+      prisma.ligneDocument.findMany({
+        include: {
+          produit: { select: { nom_produit: true, code_produit: true } },
+          document: { select: { numero_document: true, date_document: true, type_document: true } }
+        },
+        orderBy: { id_ligne: 'desc' },
+        take: 20
+      })
+    ])
 
     const products: DashboardProductData[] = productsRaw.map(p => ({
       id_produit: p.id_produit,
@@ -79,11 +103,6 @@ export async function getDashboardData(): Promise<DashboardDataResult> {
       categories_produits: p.categorie ? { nom_categorie: p.categorie.nom_categorie } : null
     }))
 
-    // Fetch partners
-    const partnersRaw = await prisma.partenaire.findMany({
-      orderBy: { nom_partenaire: 'asc' }
-    })
-
     const partners: DashboardPartnerData[] = partnersRaw.map(p => ({
       id_partenaire: p.id_partenaire,
       code_partenaire: p.code_partenaire,
@@ -92,16 +111,6 @@ export async function getDashboardData(): Promise<DashboardDataResult> {
       ville: p.ville,
       est_actif: p.est_actif
     }))
-
-    // Fetch documents with partners
-    const documentsRaw = await prisma.docVente.findMany({
-      include: {
-        partenaire: {
-          select: { nom_partenaire: true }
-        }
-      },
-      orderBy: { date_document: 'desc' }
-    })
 
     const documents: DashboardDocumentData[] = documentsRaw.map(d => ({
       id_document: d.id_document,
@@ -115,16 +124,6 @@ export async function getDashboardData(): Promise<DashboardDataResult> {
       nom_partenaire_snapshot: d.nom_partenaire_snapshot,
       partenaire: d.partenaire ? { nom_partenaire: d.partenaire.nom_partenaire } : null
     }))
-
-    // Fetch stock movements from lignes_documents
-    const lignesRaw = await prisma.ligneDocument.findMany({
-      include: {
-        produit: { select: { nom_produit: true, code_produit: true } },
-        document: { select: { numero_document: true, date_document: true, type_document: true } }
-      },
-      orderBy: { id_ligne: 'desc' },
-      take: 20
-    })
 
     const movements: DashboardMovementData[] = lignesRaw.map(m => {
       const doc = m.document

@@ -1,5 +1,11 @@
+import { Metadata } from 'next'
 import * as React from "react"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
+
+export const metadata: Metadata = {
+  title: 'Articles | HAY2010',
+  description: 'Gestion des articles et produits'
+}
 import { AppSidebar } from "@/components/erp/app-sidebar"
 import { SiteHeader } from "@/components/erp/site-header"
 import { BottomNav } from "@/components/erp/bottom-nav"

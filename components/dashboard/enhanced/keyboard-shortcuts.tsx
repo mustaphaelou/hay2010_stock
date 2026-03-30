@@ -10,13 +10,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Badge } from "@/components/ui/badge"
 import { HugeiconsIcon } from "@hugeicons/react"
-import {
-  KeyboardIcon,
-  CommandIcon,
-  ArrowRightIcon,
-} from "@hugeicons/core-free-icons"
+import { KeyboardIcon } from "@hugeicons/core-free-icons"
 
 interface ShortcutConfig {
   id: string
@@ -305,7 +300,6 @@ function KeyboardShortcutsHelpDialog({
 export function KeyboardShortcuts({
   shortcuts = defaultShortcuts,
   children,
-  className,
 }: KeyboardShortcutsProps) {
   const [showHelp, setShowHelp] = React.useState(false)
 

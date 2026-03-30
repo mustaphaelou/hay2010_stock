@@ -39,11 +39,11 @@ import {
 import { Separator } from "@/components/ui/separator"
 import { formatDate } from "@/lib/utils"
 import {
-    Card,
-    CardHeader,
-    CardTitle,
-    CardDescription,
-    CardContent,
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
 } from "@/components/ui/card"
 
 type Partner = Awaited<ReturnType<typeof getPartners>>['data'][0]
@@ -106,17 +106,17 @@ interface PartnersViewProps {
     title: string
 }
 
-export function PartnersView({ type, title }: PartnersViewProps) {
-    const [data, setData] = React.useState<Partner[]>([])
-    const [selectedPartner, setSelectedPartner] = React.useState<Partner | null>(null)
-    const [isDetailsOpen, setIsDetailsOpen] = React.useState(false)
+function PartnersView({ type, title }: PartnersViewProps) {
+  const [data, setData] = React.useState<Partner[]>([])
+  const [selectedPartner, setSelectedPartner] = React.useState<Partner | null>(null)
+  const [isDetailsOpen, setIsDetailsOpen] = React.useState(false)
 
-    const handleViewDetails = (partner: Partner) => {
-        setSelectedPartner(partner)
-        setIsDetailsOpen(true)
-    }
+  const handleViewDetails = React.useCallback((partner: Partner) => {
+    setSelectedPartner(partner)
+    setIsDetailsOpen(true)
+  }, [])
 
-    const columns = React.useMemo(() => createColumns(handleViewDetails), [])
+  const columns = React.useMemo(() => createColumns(handleViewDetails), [handleViewDetails])
 
   React.useEffect(() => {
     async function fetchData() {
@@ -348,7 +348,9 @@ Historique
                         </div>
                     </div>
                 </SheetContent>
-            </Sheet>
-        </div>
-    )
+      </Sheet>
+    </div>
+  )
 }
+
+export default React.memo(PartnersView)

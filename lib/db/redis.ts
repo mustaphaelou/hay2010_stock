@@ -1,4 +1,4 @@
-import Redis from 'ioredis'
+import Redis, { RedisOptions } from 'ioredis'
 
 const globalForRedis = global as unknown as { redis: Redis }
 
@@ -6,13 +6,13 @@ const REDIS_MAX_RETRIES = 10
 const REDIS_RETRY_DELAY_MAX = 2000
 
 function createRedisClient(): Redis {
-  const baseOptions: Redis.RedisOptions = {
+  const baseOptions: RedisOptions = {
     maxRetriesPerRequest: 3,
     lazyConnect: true,
     connectTimeout: 10000,
     commandTimeout: 5000,
     keepAlive: 30000,
-    retryStrategy(times) {
+    retryStrategy(times: number) {
       if (times > REDIS_MAX_RETRIES) {
         console.error('[Redis] Max retries reached, stopping connection attempts')
         return null
@@ -37,7 +37,7 @@ export const redis = globalForRedis.redis || createRedisClient()
 let redisReady = false
 let lastError: string | null = null
 
-redis.on('error', (err) => {
+redis.on('error', (err: Error) => {
   lastError = err.message
   console.warn('[Redis] Connection error (Redis may not be running):', err.message)
 })

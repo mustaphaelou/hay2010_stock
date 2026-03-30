@@ -2,9 +2,8 @@
 
 import * as React from "react"
 import { type ComponentType } from "react"
-import { cn } from "@/lib/utils"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import type { InteractiveChartCardProps } from "./interactive-chart-card"
 import type { EnhancedDataTableProps } from "./enhanced-data-table"
 

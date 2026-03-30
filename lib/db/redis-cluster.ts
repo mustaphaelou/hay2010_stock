@@ -5,7 +5,7 @@
  * connection pooling, and distributed caching capabilities.
  */
 
-import Redis, { Cluster } from 'ioredis'
+import Redis, { Cluster, RedisOptions } from 'ioredis'
 
 // Configuration types
 interface RedisClusterConfig {
@@ -60,7 +60,7 @@ function createRedisCluster(): Cluster {
     }
   })
 
-  const redisOptions: Redis.RedisOptions = {
+  const redisOptions: RedisOptions = {
     maxRetriesPerRequest: config.maxRetriesPerRequest,
     keepAlive: config.keepAlive,
     connectTimeout: config.connectTimeout,
@@ -71,7 +71,7 @@ function createRedisCluster(): Cluster {
     redisOptions.password = config.password
   }
 
-  return new Redis.Cluster(nodes, {
+	return new Cluster(nodes, {
     scaleReads: config.scaleReads,
     maxRedirections: 16,
     retryDelayOnFailover: 100,
@@ -99,26 +99,26 @@ function createRedisSingle(): Redis {
   const url = process.env.REDIS_URL || 'redis://localhost:6379'
   const password = process.env.REDIS_PASSWORD
   
-  const options: Redis.RedisOptions = {
-    maxRetriesPerRequest: config.maxRetriesPerRequest,
-    lazyConnect: config.lazyConnect,
-    keepAlive: config.keepAlive,
-    connectTimeout: config.connectTimeout,
-    commandTimeout: config.commandTimeout,
-    retryStrategy: (times: number) => {
-      if (times > 10) {
-        console.error('[Redis] Connection failed after 10 retries')
-        return null
-      }
-      return Math.min(times * 50, 2000)
-    },
-  }
-  
-  if (password) {
-    options.password = password
-  }
-  
-  return new Redis(url, options)
+	const options: RedisOptions = {
+		maxRetriesPerRequest: config.maxRetriesPerRequest,
+		lazyConnect: config.lazyConnect,
+		keepAlive: config.keepAlive,
+		connectTimeout: config.connectTimeout,
+		commandTimeout: config.commandTimeout,
+		retryStrategy: (times: number) => {
+			if (times > 10) {
+				console.error('[Redis] Connection failed after 10 retries')
+				return null
+			}
+			return Math.min(times * 50, 2000)
+		},
+	}
+
+	if (password) {
+		options.password = password
+	}
+
+	return new Redis(url, options)
 }
 
 /**

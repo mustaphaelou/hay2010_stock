@@ -91,7 +91,6 @@ const themePresets: ThemePreset[] = [
 ]
 
 interface ThemeCustomizerProps {
-  className?: string
   onThemeChange?: (theme: ThemePreset & { mode: "light" | "dark" }) => void
   trigger?: React.ReactNode
 }
@@ -228,7 +227,6 @@ function ThemePreview({ theme, mode }: { theme: ThemePreset; mode: "light" | "da
 }
 
 export function ThemeCustomizer({
-  className,
   onThemeChange,
   trigger,
 }: ThemeCustomizerProps) {

@@ -23,35 +23,36 @@ async function validateMigration() {
     {
       name: 'Role enum values',
       query: async () => {
-        const result = await prisma.$queryRaw`
+        const result = await prisma.$queryRaw<Array<{ enumlabel: string }>>`
           SELECT enumlabel FROM pg_enum 
           WHERE enumtypid = (SELECT oid FROM pg_type WHERE typname = 'Role')
           ORDER BY enumsortorder
         `
-        const roles = result.map((r: { enumlabel: string }) => r.enumlabel)
-        const expected = ['ADMIN', 'MANAGER', 'USER', 'VIEWER']
-        return {
-          pass: JSON.stringify(roles) === JSON.stringify(expected),
-          actual: roles,
-          expected,
-        }
+const roles = result.map((r: { enumlabel: string }) => r.enumlabel)
+		const expected = ['ADMIN', 'MANAGER', 'USER', 'VIEWER']
+		const validationResult: { pass: boolean; expected?: string[]; actual?: string[] } = {
+			pass: JSON.stringify(roles) === JSON.stringify(expected),
+			actual: roles,
+			expected,
+		}
+		return validationResult
       },
     },
     {
       name: 'TypePartenaire enum exists',
       query: async () => {
-        const result = await prisma.$queryRaw`
+        const result = await prisma.$queryRaw<Array<{ exists: boolean }>>`
           SELECT EXISTS (
             SELECT 1 FROM pg_type WHERE typname = 'TypePartenaire'
           ) as exists
         `
-        return { pass: (result[0] as { exists: boolean }).exists }
+        return { pass: (result[0] as { exists: boolean }).exists } as { pass: boolean }
       },
     },
     {
       name: 'All tables exist',
       query: async () => {
-        const tables = await prisma.$queryRaw`
+        const tables = await prisma.$queryRaw<Array<{ table_name: string }>>`
           SELECT table_name FROM information_schema.tables 
           WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
           ORDER BY table_name
@@ -81,21 +82,21 @@ async function validateMigration() {
     {
       name: 'Foreign key constraints',
       query: async () => {
-        const result = await prisma.$queryRaw`
+        const result = await prisma.$queryRaw<Array<{ count: bigint }>>`
           SELECT COUNT(*) as count
           FROM information_schema.table_constraints
           WHERE constraint_type = 'FOREIGN KEY'
           AND table_schema = 'public'
         `
-        const count = Number((result[0] as { count: bigint }).count)
-        return { pass: count >= 10, actual: count }
+const count = Number((result[0] as { count: bigint }).count)
+		return { pass: count >= 10, actual: count } as { pass: boolean; actual?: number }
       },
     },
     {
       name: 'Database connection',
       query: async () => {
-        const result = await prisma.$queryRaw`SELECT 1 as test`
-        return { pass: (result[0] as { test: number }).test === 1 }
+        const result = await prisma.$queryRaw<Array<{ test: number }>>`SELECT 1 as test`
+        return { pass: (result[0] as { test: number }).test === 1 } as { pass: boolean }
       },
     },
   ]
@@ -105,7 +106,7 @@ async function validateMigration() {
 
   for (const check of checks) {
     try {
-      const result = await check.query()
+      const result = await check.query() as { pass: boolean; expected?: unknown; actual?: unknown; missing?: string[] }
       if (result.pass) {
         console.log(`✅ ${check.name}: PASS`)
         passed++

@@ -29,14 +29,10 @@ interface RealtimeDashboardReturn {
 
 // Stub implementation - Realtime features disabled (Supabase removed)
 // To re-enable realtime, implement WebSocket connection or polling mechanism
-export function useRealtimeDashboard({
-  onStatsUpdate,
-  onDocumentInsert,
-  onDocumentUpdate,
-  onPartnerInsert,
-  onProductInsert,
-  enabled = true,
-}: RealtimeDashboardOptions = {}): RealtimeDashboardReturn {
+export function useRealtimeDashboard(
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	_options: RealtimeDashboardOptions = {}
+): RealtimeDashboardReturn {
   const [isConnected] = React.useState(false)
   const [lastUpdate] = React.useState<Date | null>(null)
   const [error] = React.useState<Error | null>(null)
@@ -55,7 +51,10 @@ export function useRealtimeDashboard({
 }
 
 // Stub implementation for presence - Realtime features disabled
-export function useDashboardPresence(roomId: string = "dashboard") {
+export function useDashboardPresence(
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	_roomId: string = "dashboard"
+) {
   const [activeUsers] = React.useState<
     Array<{ id: string; name: string; avatar?: string }>
   >([])

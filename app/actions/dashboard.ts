@@ -3,7 +3,6 @@
 import { prisma } from '@/lib/db/prisma'
 import { requireAuth } from './auth'
 import type { DashboardData, DashboardStats, SalesInvoice, DocumentBase } from '@/lib/types'
-import { Prisma } from '@/lib/generated/prisma/client'
 
 export async function getDashboardStats(): Promise<DashboardData> {
   await requireAuth()
@@ -19,8 +18,8 @@ export async function getDashboardStats(): Promise<DashboardData> {
       recentDocs,
       salesInvoices
     ] = await Promise.all([
-      prisma.partenaire.count({ where: { type_partenaire: { contains: 'CLIENT' } } }),
-      prisma.partenaire.count({ where: { type_partenaire: { contains: 'FOURNISSEUR' } } }),
+prisma.partenaire.count({ where: { type_partenaire: { in: ['CLIENT', 'LES_DEUX'] } } }),
+		prisma.partenaire.count({ where: { type_partenaire: { in: ['FOURNISSEUR', 'LES_DEUX'] } } }),
       prisma.produit.count(),
       prisma.categorieProduit.count(),
       prisma.docVente.count({ where: { domaine_document: 'VENTE' } }),

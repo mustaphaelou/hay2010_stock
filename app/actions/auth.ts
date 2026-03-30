@@ -6,13 +6,20 @@ import { hashPassword, verifyPassword } from '@/lib/auth/password'
 import { generateToken, verifyToken } from '@/lib/auth/jwt'
 import { createSession, getSession, deleteSession } from '@/lib/auth/session'
 import { loginSchema, registerSchema } from '@/lib/validation'
-import { redirect } from 'next/navigation'
 import { recordFailedAttempt, clearFailedAttempts, isAccountLocked } from '@/lib/auth/lockout'
 
 const COOKIE_NAME = 'auth_token'
 
-export async function login(email: string, password: string, rememberMe: boolean = false): Promise<{ error?: string; success?: boolean }> {
+export async function login(email: string, password: string, rememberMe: boolean = false, csrfToken?: string): Promise<{ error?: string; success?: boolean }> {
   try {
+    if (csrfToken) {
+      const { validateCsrfToken } = await import('@/lib/security/csrf')
+      const valid = await validateCsrfToken('anonymous', csrfToken)
+      if (!valid) {
+        return { error: 'Invalid security token. Please refresh the page and try again.' }
+      }
+    }
+
     const locked = await isAccountLocked(email)
     if (locked) {
       return { error: 'Account is temporarily locked due to too many failed attempts. Please try again in 15 minutes.' }
@@ -70,8 +77,16 @@ export async function login(email: string, password: string, rememberMe: boolean
   }
 }
 
-export async function logout(): Promise<void> {
+export async function logout(csrfToken?: string): Promise<{ error?: string; success?: boolean }> {
   try {
+    if (csrfToken) {
+      const { validateCsrfToken } = await import('@/lib/security/csrf')
+      const valid = await validateCsrfToken('anonymous', csrfToken)
+      if (!valid) {
+        return { error: 'Invalid security token. Please refresh the page and try again.' }
+      }
+    }
+
     const cookieStore = await cookies()
     const token = cookieStore.get(COOKIE_NAME)?.value
 
@@ -83,20 +98,28 @@ export async function logout(): Promise<void> {
     }
 
     cookieStore.delete(COOKIE_NAME)
+    return { success: true }
   } catch (error) {
     console.error('Logout error:', error)
+    return { error: 'Logout failed' }
   }
-
-  redirect('/login')
 }
 
-export async function register(email: string, password: string, name: string): Promise<{ error?: string; success?: boolean }> {
+export async function register(email: string, password: string, name: string, csrfToken?: string): Promise<{ error?: string; success?: boolean; message?: string }> {
   try {
     const currentUser = await getCurrentUser()
     if (!currentUser) {
       return { error: 'Unauthorized: Admin access required for user creation' }
     }
-    
+
+    if (csrfToken) {
+      const { validateCsrfToken } = await import('@/lib/security/csrf')
+      const valid = await validateCsrfToken(currentUser.id, csrfToken)
+      if (!valid) {
+        return { error: 'Invalid security token. Please refresh the page and try again.' }
+      }
+    }
+
     const allowedRoles = ['ADMIN', 'MANAGER']
     if (!allowedRoles.includes(currentUser.role)) {
       return { error: 'Forbidden: Only admins and managers can create users' }
@@ -112,13 +135,12 @@ export async function register(email: string, password: string, name: string): P
     })
 
     if (existingUser) {
-      console.warn('Registration attempt with existing email:', email)
-      return { error: 'If this email is valid, you will receive a confirmation email' }
+      return { success: true, message: 'If this email is not registered, you will receive a verification email.' }
     }
 
     const hashedPassword = await hashPassword(password)
 
-    const user = await prisma.user.create({
+    await prisma.user.create({
       data: {
         email,
         password: hashedPassword,
@@ -127,7 +149,7 @@ export async function register(email: string, password: string, name: string): P
       }
     })
 
-    return { success: true }
+    return { success: true, message: 'If this email is not registered, you will receive a verification email.' }
   } catch (error) {
     console.error('Register error:', error)
     return { error: 'An unexpected error occurred' }

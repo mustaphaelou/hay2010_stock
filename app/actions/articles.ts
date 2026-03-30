@@ -59,16 +59,55 @@ export async function getArticlesWithStock(page: number = 1, limit: number = 50)
     const productIds = result.map(a => a.id_produit)
     const stockMap = await getStockAggregates(productIds)
 
-    const data = result.map((article) => {
-      return {
-        ...article,
-        stock_global: stockMap.get(article.id_produit) || 0,
-        prix_vente: article.prix_vente,
-        prix_achat: article.prix_achat,
-        coefficient: article.coefficient,
-        famille: article.famille || article.categorie?.nom_categorie || null
-      }
-    })
+const data = result.map((article) => {
+		return {
+			id_produit: article.id_produit,
+			code_produit: article.code_produit,
+			nom_produit: article.nom_produit,
+			famille: article.famille || article.categorie?.nom_categorie || null,
+			id_categorie: article.id_categorie,
+			description_produit: article.description_produit,
+			code_barre_ean: article.code_barre_ean,
+			unite_mesure: article.unite_mesure,
+			poids_kg: article.poids_kg,
+			volume_m3: article.volume_m3,
+			prix_achat: article.prix_achat,
+			prix_dernier_achat: article.prix_dernier_achat,
+			coefficient: article.coefficient,
+			prix_vente: article.prix_vente,
+			prix_gros: article.prix_gros,
+			taux_tva: article.taux_tva,
+			type_suivi_stock: article.type_suivi_stock,
+			quantite_min_commande: article.quantite_min_commande,
+			niveau_reappro_quantite: article.niveau_reappro_quantite,
+			stock_minimum: article.stock_minimum,
+			stock_maximum: article.stock_maximum,
+			activer_suivi_stock: article.activer_suivi_stock,
+			id_fournisseur_principal: article.id_fournisseur_principal,
+			reference_fournisseur: article.reference_fournisseur,
+			delai_livraison_fournisseur_jours: article.delai_livraison_fournisseur_jours,
+			est_actif: article.est_actif,
+			en_sommeil: article.en_sommeil,
+			est_abandonne: article.est_abandonne,
+			date_creation: article.date_creation,
+			date_modification: article.date_modification,
+			cree_par: article.cree_par,
+			modifie_par: article.modifie_par,
+			compte_general_vente: article.compte_general_vente,
+			compte_general_achat: article.compte_general_achat,
+			code_taxe_vente: article.code_taxe_vente,
+			code_taxe_achat: article.code_taxe_achat,
+			categorie: article.categorie ? {
+				id_categorie: article.categorie.id_categorie,
+				code_categorie: article.categorie.code_categorie,
+				nom_categorie: article.categorie.nom_categorie,
+				description_categorie: article.categorie.description_categorie,
+				est_actif: article.categorie.est_actif,
+			} : null,
+			niveaux_stock: [],
+			stock_global: stockMap.get(article.id_produit) || 0,
+		}
+	})
 
     const response = {
       data,

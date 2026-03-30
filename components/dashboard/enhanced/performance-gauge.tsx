@@ -20,7 +20,6 @@ interface PerformanceGaugeProps {
   unit?: string
   thresholds?: Threshold[]
   size?: "sm" | "md" | "lg"
-  variant?: "default" | "success" | "warning" | "danger"
   showValue?: boolean
   showPercentage?: boolean
   animated?: boolean
@@ -89,7 +88,6 @@ export function PerformanceGauge({
   unit = "",
   thresholds = defaultThresholds,
   size = "md",
-  variant = "default",
   showValue = true,
   showPercentage = true,
   animated = true,

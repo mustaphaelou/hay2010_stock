@@ -101,13 +101,14 @@ const [mounted, setMounted] = React.useState(false)
                                 render={<DropdownMenuTrigger />}
                             >
                                 <div className="flex aspect-square size-8 items-center justify-center rounded-lg overflow-hidden bg-white">
-                                    <Image
-                                        src={activeCompany.logo}
-                                        alt={activeCompany.name}
-                                        width={32}
-                                        height={32}
-                                        className="object-contain"
-                                    />
+<Image
+              src={activeCompany.logo}
+              alt={activeCompany.name}
+              width={32}
+              height={32}
+              priority
+              className="object-contain"
+            />
                                 </div>
                                 <div className="grid flex-1 text-left text-sm leading-tight">
                                     <span className="truncate font-semibold">{activeCompany.name}</span>

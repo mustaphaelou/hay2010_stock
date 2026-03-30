@@ -4,7 +4,7 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/erp/app-sidebar"
 import { SiteHeader } from "@/components/erp/site-header"
 import { BottomNav } from "@/components/erp/bottom-nav"
-import { PartnersView } from "@/components/erp/partners-view"
+import PartnersView from "@/components/erp/partners-view"
 import { Suspense } from "react"
 
 export default function CustomersPage() {

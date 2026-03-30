@@ -59,13 +59,14 @@ export function LoginForm({
         <div className="flex flex-col items-center gap-1 text-center">
           <div className="relative mb-2">
             <div className="size-14 rounded-xl bg-gradient-to-br from-primary to-violet-600 flex items-center justify-center shadow-lg shadow-primary/25">
-              <Image
-                src="/hay2010-logo.png"
-                alt="HAY2010"
-                width={32}
-                height={32}
-                className="object-contain"
-              />
+<Image
+            src="/hay2010-logo.png"
+            alt="HAY2010"
+            width={32}
+            height={32}
+            priority
+            className="object-contain"
+          />
             </div>
           </div>
           <h1 className="text-2xl font-bold">Connexion</h1>
@@ -74,24 +75,28 @@ export function LoginForm({
           </p>
         </div>
 
-        {error && (
-          <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
-            {error}
-          </div>
-        )}
+{error && (
+        <div id="form-error" role="alert" aria-live="polite" className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
+          {error}
+        </div>
+      )}
 
-        <Field>
-          <FieldLabel htmlFor="email">Email</FieldLabel>
-          <Input
-            id="email"
-            type="email"
-            placeholder="admin@hay2010.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            disabled={loading}
-          />
-        </Field>
+<Field>
+        <FieldLabel htmlFor="email">Email</FieldLabel>
+        <Input
+          id="email"
+          type="email"
+          placeholder="admin@hay2010.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+          disabled={loading}
+          aria-required="true"
+          aria-invalid={!!error}
+          aria-describedby={error ? "form-error" : undefined}
+          autoComplete="email"
+        />
+      </Field>
 
         <Field>
           <div className="flex items-center justify-between">
@@ -103,40 +108,47 @@ export function LoginForm({
               Mot de passe oublié ?
             </Link>
           </div>
-          <div className="relative">
-            <Input
-              id="password"
-              type={showPassword ? 'text' : 'password'}
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              disabled={loading}
-              className="pr-10"
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-              disabled={loading}
-            >
-              <HugeiconsIcon icon={showPassword ? ViewOffIcon : ViewIcon} className="size-5" />
-            </button>
-          </div>
+<div className="relative">
+          <Input
+            id="password"
+            type={showPassword ? 'text' : 'password'}
+            placeholder="••••••••"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            disabled={loading}
+            className="pr-10"
+            aria-required="true"
+            aria-invalid={!!error}
+            aria-describedby={error ? "form-error" : undefined}
+            autoComplete="current-password"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+            disabled={loading}
+            aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+          >
+            <HugeiconsIcon icon={showPassword ? ViewOffIcon : ViewIcon} className="size-5" />
+          </button>
+        </div>
         </Field>
 
         <Field>
           <div className="flex items-center gap-2">
-            <Checkbox
-              id="remember"
-              checked={rememberMe}
-              onCheckedChange={(checked) => setRememberMe(checked as boolean)}
-              disabled={loading}
-            />
-            <label
-              htmlFor="remember"
-              className="text-sm text-muted-foreground cursor-pointer peer-disabled:opacity-50"
-            >
+<Checkbox
+            id="remember"
+            checked={rememberMe}
+            onCheckedChange={(checked) => setRememberMe(checked as boolean)}
+            disabled={loading}
+            aria-describedby="remember-label"
+          />
+<label
+            htmlFor="remember"
+            id="remember-label"
+            className="text-sm text-muted-foreground cursor-pointer peer-disabled:opacity-50"
+          >
               Se souvenir de moi
             </label>
           </div>

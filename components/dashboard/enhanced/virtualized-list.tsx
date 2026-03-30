@@ -226,7 +226,7 @@ function InfiniteScrollListInner<T>({
   className,
   getItemKey,
 }: InfiniteScrollListProps<T>) {
-  const [scrollTop, setScrollTop] = React.useState(0)
+  const [, setScrollTop] = React.useState(0)
   const containerRef = React.useRef<HTMLDivElement>(null)
 
   const handleScroll = React.useCallback(

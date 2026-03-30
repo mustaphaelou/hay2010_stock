@@ -24,6 +24,7 @@ import { formatPrice } from "@/lib/utils"
 import { cn } from "@/lib/utils"
 import { toggleArticleStatus } from "@/app/actions/articles"
 import type { ArticleWithStock } from "@/lib/types"
+import { useCsrf } from "@/components/csrf-provider"
 
 interface ArticleDetailsSheetProps {
     article: ArticleWithStock | null
@@ -39,13 +40,18 @@ export function ArticleDetailsSheet({
     onStatusChange,
 }: ArticleDetailsSheetProps) {
     const [isUpdating, setIsUpdating] = React.useState(false)
+    const { csrfToken } = useCsrf()
 
     const handleToggleStatus = async () => {
         if (!article) return
+        if (!csrfToken) {
+            console.error("No CSRF token available")
+            return
+        }
         setIsUpdating(true)
         try {
             const newStatus = !article.en_sommeil
-            const res = await toggleArticleStatus(article.id_produit, newStatus)
+            const res = await toggleArticleStatus(article.id_produit, newStatus, csrfToken)
             if (res.error) throw new Error(res.error)
 
             if (onStatusChange) {
