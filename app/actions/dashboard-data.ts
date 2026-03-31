@@ -1,7 +1,7 @@
 'use server'
 
 import { prisma } from '@/lib/db/prisma'
-import { requireAuth } from './auth'
+import { requireAuth } from '@/lib/auth/user-utils'
 
 export type DashboardProductData = {
   id_produit: number

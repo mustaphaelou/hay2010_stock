@@ -10,7 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Field, FieldGroup, FieldLabel, FieldDescription, FieldSeparator } from "@/components/ui/field"
 import { SafeIcon as HugeiconsIcon } from "@/components/ui/safe-icon"
 import { Login01Icon, ViewIcon, ViewOffIcon, Loading02Icon, GoogleIcon, GithubIcon, CheckmarkCircle02Icon } from "@hugeicons/core-free-icons"
-import { login } from "@/app/actions/auth"
+import { login } from "../app/actions/auth"
 
 export function LoginForm({
   className,

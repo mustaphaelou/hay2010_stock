@@ -1,6 +1,6 @@
 import { getDashboardStats } from "@/app/actions/dashboard"
 import { redirect } from "next/navigation"
-import { getCurrentUser } from "@/app/actions/auth"
+import { getCurrentUser } from "@/lib/auth/user-utils"
 import { DashboardClient } from "./dashboard-client"
 
 export default async function Page() {

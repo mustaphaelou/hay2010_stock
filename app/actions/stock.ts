@@ -1,7 +1,7 @@
 'use server'
 
 import { prisma } from '@/lib/db/prisma'
-import { requireAuth } from './auth'
+import { requireAuth } from '@/lib/auth/user-utils'
 import type { StockLevelWithProduct, Depot } from '@/lib/types'
 
 export async function getStockLevels(page: number = 1, limit: number = 50): Promise<{ data: StockLevelWithProduct[]; meta: { total: number; page: number; limit: number; totalPages: number }; error?: string }> {

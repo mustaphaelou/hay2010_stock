@@ -1,7 +1,7 @@
 'use server'
 
 import { prisma, withTransaction } from '@/lib/db/prisma'
-import { requireRole } from './auth'
+import { requireRole } from '@/lib/auth/user-utils'
 import { revalidatePath } from 'next/cache'
 import { CacheService } from '@/lib/db/redis-cluster'
 import { CacheInvalidationService } from '@/lib/cache/invalidation'

@@ -1,7 +1,7 @@
 'use server'
 
 import { prisma } from '@/lib/db/prisma'
-import { requireAuth } from './auth'
+import { requireAuth } from '@/lib/auth/user-utils'
 import { getDocumentsByAffaireSchema } from '@/lib/validation'
 import type { DocumentBase } from '@/lib/types'
 

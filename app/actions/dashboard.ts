@@ -1,7 +1,7 @@
 'use server'
 
 import { prisma } from '@/lib/db/prisma'
-import { requireAuth } from './auth'
+import { requireAuth } from '@/lib/auth/user-utils'
 import type { DashboardData, DashboardStats, SalesInvoice, DocumentBase } from '@/lib/types'
 
 export async function getDashboardStats(): Promise<DashboardData> {

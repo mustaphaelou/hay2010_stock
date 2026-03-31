@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Field, FieldGroup, FieldLabel, FieldDescription } from "@/components/ui/field"
 import { UserAdd01Icon, ViewIcon, ViewOffIcon, Loading02Icon, CheckmarkCircle02Icon } from "@hugeicons/core-free-icons"
 import { SafeIcon } from "@/components/ui/safe-icon"
-import { publicRegister } from "@/app/actions/registration"
+import { publicRegister } from "../app/actions/registration"
 
 export function RegisterForm({
   className,

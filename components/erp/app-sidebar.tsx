@@ -37,7 +37,7 @@ import {
   ProductLoadingIcon,
   FolderOpenIcon,
 } from "@hugeicons/core-free-icons"
-import { logout } from "@/app/actions/auth"
+import { logout } from "../../app/actions/auth"
 
 // Company switcher data
 const companies = [
