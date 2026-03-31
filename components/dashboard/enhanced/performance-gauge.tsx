@@ -120,6 +120,7 @@ export function PerformanceGauge({
     } else {
       setAnimatedValue(value)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, animated])
 
   if (loading) {

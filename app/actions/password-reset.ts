@@ -2,7 +2,6 @@
 
 import { prisma } from '@/lib/db/prisma'
 import { hashPassword } from '@/lib/auth/password'
-import { generateToken, verifyToken } from '@/lib/auth/jwt'
 import { registerSchema } from '@/lib/validation'
 import crypto from 'crypto'
 

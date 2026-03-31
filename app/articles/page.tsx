@@ -1,19 +1,21 @@
 import { Metadata } from 'next'
 import * as React from "react"
+import { Suspense } from "react"
+import { redirect } from "next/navigation"
+
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
+import { AppSidebar } from "@/components/erp/app-sidebar"
+import { SiteHeader } from "@/components/erp/site-header"
+import { BottomNav } from "@/components/erp/bottom-nav"
+import { ArticlesView } from "@/components/erp/articles-view"
+
+import { getArticlesWithStock } from "@/app/actions/articles"
+import { getCurrentUser } from "@/app/actions/auth"
 
 export const metadata: Metadata = {
   title: 'Articles | HAY2010',
   description: 'Gestion des articles et produits'
 }
-import { AppSidebar } from "@/components/erp/app-sidebar"
-import { SiteHeader } from "@/components/erp/site-header"
-import { BottomNav } from "@/components/erp/bottom-nav"
-import { ArticlesView } from "@/components/erp/articles-view"
-import { Suspense } from "react"
-import { getArticlesWithStock } from "@/app/actions/articles"
-import { redirect } from "next/navigation"
-import { getCurrentUser } from "@/app/actions/auth"
 
 export const dynamic = 'force-dynamic'
 
@@ -25,8 +27,8 @@ export default async function ArticlesPage() {
   
   const articlesResult = await getArticlesWithStock()
   const articlesWithStock = articlesResult.data || []
-
-    return (
+  
+  return (
         <SidebarProvider
             style={
                 {

@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 'use client'
 
 import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react'
@@ -62,8 +63,4 @@ export function useCsrf(): CsrfContextType {
   return context
 }
 
-export function getCsrfHeaders(token: string): HeadersInit {
-  return {
-    'X-CSRF-Token': token,
-  }
-}
+

@@ -400,5 +400,5 @@ const AlertsWidget = React.memo(function AlertsWidget({
   )
 })
 
-export { AlertsWidget, AlertItemComponent, severityConfig, typeConfig }
+export { AlertsWidget, AlertItemComponent }
 export type { AlertsWidgetProps, AlertItem, AlertSeverity, AlertType }

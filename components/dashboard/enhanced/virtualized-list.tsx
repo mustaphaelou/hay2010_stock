@@ -89,7 +89,7 @@ function VirtualizedListInner<T>({
     }
 
     return { start: Math.max(0, start), end: Math.min(items.length - 1, end) }
-  }, [scrollTop, containerHeight, items.length, itemPositions, overscan, itemHeight, getItemHeight])
+  }, [scrollTop, containerHeight, items, itemPositions, overscan, itemHeight, getItemHeight])
 
   const handleScroll = React.useCallback((e: React.UIEvent<HTMLDivElement>) => {
     setScrollTop(e.currentTarget.scrollTop)

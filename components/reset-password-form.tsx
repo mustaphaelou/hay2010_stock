@@ -19,7 +19,6 @@ export function ResetPasswordForm({
   const searchParams = useSearchParams()
   const [token, setToken] = useState<string | null>(null)
   const [isValidating, setIsValidating] = useState(true)
-  const [tokenValid, setTokenValid] = useState(false)
   const [tokenError, setTokenError] = useState<string | null>(null)
   
   const [password, setPassword] = useState('')
@@ -43,7 +42,7 @@ export function ResetPasswordForm({
     validateResetToken(tokenParam).then(result => {
       setIsValidating(false)
       if (result.valid) {
-        setTokenValid(true)
+        // Token is valid
       } else {
         setTokenError(result.error || 'Invalid reset token')
       }
