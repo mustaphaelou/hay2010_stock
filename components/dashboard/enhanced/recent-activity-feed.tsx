@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { cn } from "@/lib/utils"
+import { cn, isValidIcon } from "@/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -208,67 +208,67 @@ export function RecentActivityFeed({
                       <span className="text-xs text-muted-foreground">
                         {formatTimestamp(item.timestamp)}
                       </span>
-                    </div>
-                  </div>
-                  {item.icon && (
-                    <div className="size-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                      <HugeiconsIcon
-                        icon={item.icon}
-                        strokeWidth={2}
-                        className="size-5 text-primary"
-                      />
-                    </div>
-                  )}
-                </a>
-              ) : (
-                <div className="flex items-start gap-3 p-3 rounded-lg">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium truncate">
-                        {item.title}
-                      </span>
-                      {item.status && item.status !== "default" && (
-                        <Badge
-                          variant={statusVariants[item.status]}
-                          className="shrink-0"
-                        >
-                          {item.status}
-                        </Badge>
-                      )}
-                    </div>
-                    {item.description && (
-                      <p className="text-xs text-muted-foreground truncate mt-0.5">
-                        {item.description}
-                      </p>
-                    )}
-                    <div className="flex items-center gap-1 mt-1">
-                      <HugeiconsIcon
-                        icon={Clock01Icon}
-                        strokeWidth={2}
-                        className="size-3 text-muted-foreground"
-                      />
-                      <span className="text-xs text-muted-foreground">
-                        {formatTimestamp(item.timestamp)}
-                      </span>
-                    </div>
-                  </div>
-                  {item.icon && (
-                    <div className="size-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                      <HugeiconsIcon
-                        icon={item.icon}
-                        strokeWidth={2}
-                        className="size-5 text-primary"
-                      />
-                    </div>
-                  )}
-                </div>
-              )}
-            </li>
-          ))}
+</div>
+      </div>
+      {isValidIcon(item.icon) && (
+        <div className="size-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+          <HugeiconsIcon
+            icon={item.icon}
+            strokeWidth={2}
+            className="size-5 text-primary"
+          />
+        </div>
+      )}
+    </a>
+  ) : (
+    <div className="flex items-start gap-3 p-3 rounded-lg">
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium truncate">
+            {item.title}
+          </span>
+          {item.status && item.status !== "default" && (
+            <Badge
+              variant={statusVariants[item.status]}
+              className="shrink-0"
+            >
+              {item.status}
+            </Badge>
+          )}
+        </div>
+        {item.description && (
+          <p className="text-xs text-muted-foreground truncate mt-0.5">
+            {item.description}
+          </p>
+        )}
+        <div className="flex items-center gap-1 mt-1">
+          <HugeiconsIcon
+            icon={Clock01Icon}
+            strokeWidth={2}
+            className="size-3 text-muted-foreground"
+          />
+<span className="text-xs text-muted-foreground">
+        {formatTimestamp(item.timestamp)}
+        </span>
+        </div>
+        </div>
+        {isValidIcon(item.icon) && (
+        <div className="size-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+        <HugeiconsIcon
+        icon={item.icon}
+        strokeWidth={2}
+        className="size-5 text-primary"
+        />
+        </div>
+        )}
+        </div>
+        )}
+        </li>
+        ))}
         </ul>
-      </CardContent>
-    </Card>
-  )
-}
+        </CardContent>
+        </Card>
+        )
+        }
 
-export type { RecentActivityFeedProps, ActivityItem }
+        export type { RecentActivityFeedProps, ActivityItem }

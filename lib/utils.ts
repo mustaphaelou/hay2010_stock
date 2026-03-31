@@ -5,6 +5,16 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+/**
+ * Type guard to check if a value is a valid Hugeicons icon (IconSvgElement)
+ * IconSvgElement is a readonly array of readonly [string, object] tuples
+ */
+export function isValidIcon(icon: unknown): icon is readonly (readonly [string, { [key: string]: string | number }])[] {
+  return Array.isArray(icon) && icon.length > 0 && icon.every(
+    item => Array.isArray(item) && item.length === 2 && typeof item[0] === 'string' && typeof item[1] === 'object'
+  )
+}
+
 const currencyFormatter = new Intl.NumberFormat('fr-MA', {
   style: 'currency',
   currency: 'MAD',

@@ -24,24 +24,31 @@ function createPrismaClient(): PrismaClient {
     })
 
     const adapter = new PrismaPg(pool)
-    const client = new PrismaClient({
-      adapter,
-      log: process.env.NODE_ENV === 'development' 
-        ? ['query', 'error', 'warn'] 
-        : ['error'],
-      transactionOptions: {
-        maxWait: 5000,
-        timeout: 10000,
-      },
-    })
+const client = new PrismaClient({
+  adapter,
+  log: process.env.NODE_ENV === 'development'
+    ? [
+      { emit: 'stdout', level: 'query' },
+      { emit: 'stdout', level: 'error' },
+      { emit: 'stdout', level: 'warn' },
+    ]
+    : [
+      { emit: 'event', level: 'query' },
+      { emit: 'stdout', level: 'error' },
+    ],
+  transactionOptions: {
+    maxWait: 5000,
+    timeout: 10000,
+  },
+})
 
-    if (process.env.NODE_ENV === 'production') {
-      client.$on('query', (e) => {
-        if (e.duration > 1000) {
-          console.warn(`[Prisma] Slow query (${e.duration}ms):`, e.query.substring(0, 200))
-        }
-      })
+if (process.env.NODE_ENV === 'production') {
+  client.$on('query', (e) => {
+    if (e.duration > 1000) {
+      console.warn(`[Prisma] Slow query (${e.duration}ms):`, e.query.substring(0, 200))
     }
+  })
+}
 
     return client
   } catch (error) {

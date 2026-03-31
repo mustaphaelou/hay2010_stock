@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Field, FieldGroup, FieldLabel, FieldDescription, FieldSeparator } from "@/components/ui/field"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { Login01Icon, ViewIcon, ViewOffIcon, Loading02Icon, GoogleIcon, GithubIcon } from "@hugeicons/core-free-icons"
+import { Login01Icon, ViewIcon, ViewOffIcon, Loading02Icon, GoogleIcon, GithubIcon, CheckmarkCircle02Icon } from "@hugeicons/core-free-icons"
 import { login } from "@/app/actions/auth"
 
 export function LoginForm({
@@ -24,6 +24,11 @@ export function LoginForm({
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  
+  // Success messages from redirect
+  const registered = searchParams.get('registered')
+  const reset = searchParams.get('reset')
+  const successMessage = registered ? 'Account created successfully! Please log in.' : reset ? 'Password reset successfully! Please log in.' : null
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -73,13 +78,20 @@ export function LoginForm({
           <p className="text-sm text-balance text-muted-foreground">
             Entrez vos identifiants pour accéder à votre compte
           </p>
-        </div>
+</div>
+
+{successMessage && (
+  <div id="form-success" role="alert" aria-live="polite" className="p-3 rounded-lg bg-green-500/10 border border-green-500/20 text-green-700 text-sm flex items-center gap-2">
+    <HugeiconsIcon icon={CheckmarkCircle02Icon} className="size-5" />
+    {successMessage}
+  </div>
+)}
 
 {error && (
-        <div id="form-error" role="alert" aria-live="polite" className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
-          {error}
-        </div>
-      )}
+  <div id="form-error" role="alert" aria-live="polite" className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
+    {error}
+  </div>
+)}
 
 <Field>
         <FieldLabel htmlFor="email">Email</FieldLabel>
@@ -101,12 +113,12 @@ export function LoginForm({
         <Field>
           <div className="flex items-center justify-between">
             <FieldLabel htmlFor="password">Mot de passe</FieldLabel>
-            <Link
-              href="#"
-              className="text-sm text-muted-foreground underline-offset-4 hover:text-primary hover:underline"
-            >
-              Mot de passe oublié ?
-            </Link>
+        <Link
+          href="/forgot-password"
+          className="text-sm text-muted-foreground underline-offset-4 hover:text-primary hover:underline"
+        >
+          Mot de passe oublié ?
+        </Link>
           </div>
 <div className="relative">
           <Input

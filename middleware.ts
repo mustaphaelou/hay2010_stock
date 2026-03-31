@@ -14,6 +14,8 @@ function getJwtSecret(): Uint8Array {
 const publicPaths = [
   '/login',
   '/register',
+  '/forgot-password',
+  '/reset-password',
   '/api/auth',
   '/api/health',
   '/_next',

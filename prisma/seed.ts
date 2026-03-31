@@ -41,14 +41,11 @@ async function main() {
       console.warn('WARNING: Set SEED_ADMIN_PASSWORD environment variable for production deployments')
     }
 
-    await prisma.user.create({
-      data: {
-        email: 'admin@hay2010.com',
-        password: hashedPassword,
-        name: 'Admin',
-        role: 'ADMIN'
-      }
-    })
+    const newId = crypto.randomUUID();
+    await prisma.$executeRawUnsafe(`
+      INSERT INTO "users" ("id", "email", "password", "name", "role", "createdAt", "updatedAt") 
+      VALUES ($1, $2, $3, $4, 'ADMIN', NOW(), NOW())
+    `, newId, 'admin@hay2010.com', hashedPassword, 'Admin');
     console.log('Created admin user')
   } else {
     console.log('Admin user already exists')

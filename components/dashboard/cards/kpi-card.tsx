@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { HugeiconsIcon } from "@hugeicons/react"
 import type { IconSvgElement } from "@hugeicons/react"
-import { cn } from "@/lib/utils"
+import { cn, isValidIcon } from "@/lib/utils"
 
 const kpiCardVariants = cva(
     "relative overflow-hidden transition-all duration-300 group",
@@ -147,20 +147,20 @@ export function KPICard({
                 <CardTitle className="text-sm font-medium text-muted-foreground">
                     {title}
                 </CardTitle>
-                {icon && (
-                    <div
-                        className={cn(
-                            "p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors",
-                            "animate-pulse-once"
-                        )}
-                    >
-                        <HugeiconsIcon
-                            icon={icon}
-                            strokeWidth={2}
-                            className={cn("size-4", iconColor)}
-                        />
-                    </div>
-                )}
+{isValidIcon(icon) && (
+      <div
+        className={cn(
+          "p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors",
+          "animate-pulse-once"
+        )}
+      >
+        <HugeiconsIcon
+          icon={icon}
+          strokeWidth={2}
+          className={cn("size-4", iconColor)}
+        />
+      </div>
+    )}
             </CardHeader>
 
             <CardContent className="relative">

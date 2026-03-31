@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { cva, type VariantProps } from "class-variance-authority"
-import { cn } from "@/lib/utils"
+import { cn, isValidIcon } from "@/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { HugeiconsIcon } from "@hugeicons/react"
@@ -247,20 +247,20 @@ export function StatsOverviewCard({
         <CardTitle className="text-sm font-medium text-muted-foreground">
           {title}
         </CardTitle>
-        {icon && (
-          <div
-            className={cn(
-              "p-2.5 rounded-xl bg-primary/10 group-hover:bg-primary/20 transition-all duration-300",
-              "group-hover:scale-110 group-hover:shadow-lg"
-            )}
-          >
-            <HugeiconsIcon
-              icon={icon}
-              strokeWidth={2}
-              className={cn("size-5", iconColor)}
-            />
-          </div>
+{isValidIcon(icon) && (
+      <div
+        className={cn(
+          "p-2.5 rounded-xl bg-primary/10 group-hover:bg-primary/20 transition-all duration-300",
+          "group-hover:scale-110 group-hover:shadow-lg"
         )}
+      >
+        <HugeiconsIcon
+          icon={icon}
+          strokeWidth={2}
+          className={cn("size-5", iconColor)}
+        />
+      </div>
+    )}
       </CardHeader>
 
       <CardContent className="relative">
