@@ -1,11 +1,11 @@
 "use client"
 
 import * as React from "react"
-import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
+import { type IconSvgElement, HugeiconsIcon } from "@hugeicons/react"
 import { isValidIcon } from "@/lib/utils"
 
 interface SafeIconProps extends Omit<React.ComponentProps<typeof HugeiconsIcon>, 'icon'> {
-  icon: IconSvgElement | undefined | null
+  icon: IconSvgElement | undefined | null | unknown
   fallback?: IconSvgElement
 }
 
@@ -21,7 +21,7 @@ export function SafeIcon({ icon, fallback, ...props }: SafeIconProps) {
     return null
   }
   
-  return <HugeiconsIcon icon={icon} {...props} />
+  return <HugeiconsIcon icon={icon as IconSvgElement} {...props} />
 }
 
 export type { SafeIconProps }

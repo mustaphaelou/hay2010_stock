@@ -22,7 +22,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { HugeiconsIcon } from "@hugeicons/react"
+import { SafeIcon as HugeiconsIcon } from "@/components/ui/safe-icon"
 import {
   DashboardSquare01Icon,
   Invoice01Icon,

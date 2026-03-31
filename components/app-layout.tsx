@@ -45,7 +45,7 @@ import {
     SidebarTrigger,
     SidebarRail,
 } from "@/components/ui/sidebar"
-import { HugeiconsIcon } from "@hugeicons/react"
+import { SafeIcon as HugeiconsIcon } from "@/components/ui/safe-icon"
 import type { IconSvgElement } from "@hugeicons/react"
 import {
   LayersIcon,

@@ -24,7 +24,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { useIsMobile } from "@/hooks/use-mobile"
-import { HugeiconsIcon } from "@hugeicons/react"
+import { SafeIcon as HugeiconsIcon } from "@/components/ui/safe-icon"
 import { SidebarLeftIcon } from "@hugeicons/core-free-icons"
 
 const SIDEBAR_COOKIE_NAME = "sidebar_state"

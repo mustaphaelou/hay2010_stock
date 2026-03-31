@@ -9,7 +9,7 @@ import { RealtimeMetricsGrid } from "./realtime-metrics-grid"
 import { DashboardHeader, type BreadcrumbItemType } from "./dashboard-header"
 import { RecentActivityFeed, type ActivityItem } from "./recent-activity-feed"
 import { PerformanceGauge, type Threshold } from "./performance-gauge"
-import { HugeiconsIcon } from "@hugeicons/react"
+import { SafeIcon as HugeiconsIcon } from "@/components/ui/safe-icon"
 import {
   LayoutGridIcon,
   LayoutIcon,

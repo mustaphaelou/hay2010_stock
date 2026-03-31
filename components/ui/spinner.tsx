@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils"
-import { HugeiconsIcon } from "@hugeicons/react"
+import { SafeIcon as HugeiconsIcon } from "@/components/ui/safe-icon"
 import { Loading03Icon } from "@hugeicons/core-free-icons"
 
 interface SpinnerProps extends React.HTMLAttributes<SVGSVGElement> {

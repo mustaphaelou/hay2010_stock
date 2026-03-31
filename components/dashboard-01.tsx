@@ -6,7 +6,7 @@ import { ModeToggle } from "@/components/mode-toggle"
 import { LanguageToggle } from "@/components/language-toggle"
 import { useState, useEffect, useMemo } from "react"
 import { Bar, BarChart, Pie, PieChart, Cell, YAxis, Legend, CartesianGrid, XAxis } from "recharts"
-import { HugeiconsIcon } from "@hugeicons/react"
+import { SafeIcon as HugeiconsIcon } from "@/components/ui/safe-icon"
 import type { IconSvgElement } from "@hugeicons/react"
 import {
   Tabs,

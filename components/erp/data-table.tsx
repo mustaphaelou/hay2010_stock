@@ -39,7 +39,7 @@ import {
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Empty } from "@/components/ui/empty"
-import { HugeiconsIcon } from "@hugeicons/react"
+import { SafeIcon as HugeiconsIcon } from "@/components/ui/safe-icon"
 import { Settings01Icon, ArrowLeft01Icon, ArrowRight01Icon, Menu01Icon, GridIcon } from "@hugeicons/core-free-icons"
 import { useIsMobile } from "@/hooks/use-mobile"
 

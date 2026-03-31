@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { HugeiconsIcon } from '@hugeicons/react'
+import { SafeIcon as HugeiconsIcon } from "@/components/ui/safe-icon"
 import { FileDownloadIcon, Loading01Icon } from '@hugeicons/core-free-icons'
 import { downloadInvoicePDF } from '@/lib/pdf'
 import type { DocumentWithPartner } from '@/app/actions/documents'

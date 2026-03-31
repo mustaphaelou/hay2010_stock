@@ -11,7 +11,7 @@ import {
   BreadcrumbSeparator 
 } from "@/components/ui/breadcrumb"
 import { DateRangePicker, type DateRangePickerProps } from "@/components/ui/date-range-picker"
-import { HugeiconsIcon } from "@hugeicons/react"
+import { SafeIcon as HugeiconsIcon } from "@/components/ui/safe-icon"
 import {
   RefreshIcon,
   Download02Icon,

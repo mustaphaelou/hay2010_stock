@@ -7,7 +7,7 @@ import { SiteHeader } from "@/components/erp/site-header"
 import { BottomNav } from "@/components/erp/bottom-nav"
 import PartnersView from "@/components/erp/partners-view"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { HugeiconsIcon } from "@hugeicons/react"
+import { SafeIcon as HugeiconsIcon } from "@/components/ui/safe-icon"
 import { UserGroupIcon, TruckDeliveryIcon } from "@hugeicons/core-free-icons"
 
 import { useSearchParams } from "next/navigation"

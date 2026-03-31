@@ -8,7 +8,7 @@ import { PaymentStatusChart } from "@/components/erp/dashboard-charts"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { useRealtimeDashboard } from "@/hooks/use-realtime-dashboard"
-import { HugeiconsIcon } from "@hugeicons/react"
+import { SafeIcon as HugeiconsIcon } from "@/components/ui/safe-icon"
 import {
     UserGroupIcon,
     TruckDeliveryIcon,

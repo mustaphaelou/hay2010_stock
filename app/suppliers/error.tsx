@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react'
 import { Button } from '@/components/ui/button'
-import { HugeiconsIcon } from '@hugeicons/react'
+import { SafeIcon as HugeiconsIcon } from "@/components/ui/safe-icon"
 import { RefreshIcon, AlertCircleIcon } from '@hugeicons/core-free-icons'
 
 export default function SuppliersError({

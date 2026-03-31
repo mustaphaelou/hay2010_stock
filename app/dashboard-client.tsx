@@ -10,7 +10,7 @@ import { ClientSidebar as AppSidebar } from "@/components/erp/client-sidebar"
 import type { DocumentWithComputed } from "@/lib/types"
 import { EnhancedDashboardView } from "@/components/dashboard/enhanced"
 import { Button } from "@/components/ui/button"
-import { HugeiconsIcon } from "@hugeicons/react"
+import { SafeIcon as HugeiconsIcon } from "@/components/ui/safe-icon"
 import {
   LayoutIcon,
   SparklesIcon,

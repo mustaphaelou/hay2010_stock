@@ -7,8 +7,8 @@ import Image from 'next/image'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Field, FieldGroup, FieldLabel, FieldDescription } from "@/components/ui/field"
-import { HugeiconsIcon } from "@hugeicons/react"
 import { UserAdd01Icon, ViewIcon, ViewOffIcon, Loading02Icon, CheckmarkCircle02Icon } from "@hugeicons/core-free-icons"
+import { SafeIcon } from "@/components/ui/safe-icon"
 import { publicRegister } from "@/app/actions/registration"
 
 export function RegisterForm({
@@ -76,7 +76,7 @@ export function RegisterForm({
     return (
       <div className="flex flex-col items-center gap-4 text-center py-8">
         <div className="size-16 rounded-full bg-green-500/10 flex items-center justify-center">
-          <HugeiconsIcon icon={CheckmarkCircle02Icon} className="size-10 text-green-500" />
+          <SafeIcon icon={CheckmarkCircle02Icon} className="size-10 text-green-500" />
         </div>
         <h2 className="text-2xl font-bold">Account Created!</h2>
         <p className="text-muted-foreground">
@@ -169,7 +169,7 @@ export function RegisterForm({
               disabled={loading}
               aria-label={showPassword ? "Hide password" : "Show password"}
             >
-              <HugeiconsIcon icon={showPassword ? ViewOffIcon : ViewIcon} className="size-5" />
+              <SafeIcon icon={showPassword ? ViewOffIcon : ViewIcon} className="size-5" />
             </button>
           </div>
           <div className="mt-2 space-y-1">
@@ -207,7 +207,7 @@ export function RegisterForm({
               disabled={loading}
               aria-label={showConfirmPassword ? "Hide password" : "Show password"}
             >
-              <HugeiconsIcon icon={showConfirmPassword ? ViewOffIcon : ViewIcon} className="size-5" />
+              <SafeIcon icon={showConfirmPassword ? ViewOffIcon : ViewIcon} className="size-5" />
             </button>
           </div>
           {confirmPassword && !passwordsMatch && (
@@ -223,12 +223,12 @@ export function RegisterForm({
           >
             {loading ? (
               <>
-                <HugeiconsIcon icon={Loading02Icon} className="mr-2 animate-spin" />
+                <SafeIcon icon={Loading02Icon} className="mr-2 animate-spin" />
                 Creating account...
               </>
             ) : (
               <>
-                <HugeiconsIcon icon={UserAdd01Icon} className="mr-2" />
+                <SafeIcon icon={UserAdd01Icon} className="mr-2" />
                 Create Account
               </>
             )}

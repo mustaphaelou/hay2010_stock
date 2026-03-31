@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/chart"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ChartSkeleton, ChartEmptyState } from "./chart-skeleton"
-import { HugeiconsIcon } from "@hugeicons/react"
+import { SafeIcon as HugeiconsIcon } from "@/components/ui/safe-icon"
 import { Analytics01Icon } from "@hugeicons/core-free-icons"
 import { cn } from "@/lib/utils"
 

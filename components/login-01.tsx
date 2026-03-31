@@ -5,7 +5,7 @@ import Image from 'next/image'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Field, FieldGroup, FieldLabel, FieldDescription } from "@/components/ui/field"
-import { HugeiconsIcon } from "@hugeicons/react"
+import { SafeIcon as HugeiconsIcon } from "@/components/ui/safe-icon"
 import { Login01Icon, ViewIcon, ViewOffIcon, Loading02Icon } from "@hugeicons/core-free-icons"
 import { login } from "@/app/actions/auth"
 

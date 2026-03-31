@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { HugeiconsIcon } from "@hugeicons/react"
+import { SafeIcon as HugeiconsIcon } from "@/components/ui/safe-icon"
 import { cn } from "@/lib/utils"
 import type { IconSvgElement } from "@hugeicons/react"
 

@@ -8,7 +8,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { HugeiconsIcon } from "@hugeicons/react"
+import { SafeIcon as HugeiconsIcon } from "@/components/ui/safe-icon"
 import { Download01Icon, File01Icon, FileIcon, FilesIcon } from "@hugeicons/core-free-icons"
 
 type ExportFormat = "csv" | "pdf" | "xlsx"

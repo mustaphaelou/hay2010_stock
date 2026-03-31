@@ -3,7 +3,8 @@
 import * as React from "react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
+import { type IconSvgElement } from "@hugeicons/react"
+import { SafeIcon as HugeiconsIcon } from "@/components/ui/safe-icon"
 import { Add01Icon, Cancel01Icon } from "@hugeicons/core-free-icons"
 
 interface FABAction {

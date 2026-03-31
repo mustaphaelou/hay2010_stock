@@ -12,6 +12,7 @@ import { ArticlesView } from "@/components/erp/articles-view"
 import { getArticlesWithStock } from "@/app/actions/articles"
 import { getCurrentUser } from "@/app/actions/auth"
 
+/* eslint-disable react-refresh/only-export-components */
 export const metadata: Metadata = {
   title: 'Articles | HAY2010',
   description: 'Gestion des articles et produits'

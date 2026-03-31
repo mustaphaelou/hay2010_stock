@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { Globe02Icon } from "@hugeicons/core-free-icons"
-import { HugeiconsIcon } from "@hugeicons/react"
+import { SafeIcon as HugeiconsIcon } from "@/components/ui/safe-icon"
 
 import { Button } from "@/components/ui/button"
 import {

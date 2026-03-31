@@ -10,7 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
-import { HugeiconsIcon } from "@hugeicons/react"
+import { SafeIcon as HugeiconsIcon } from "@/components/ui/safe-icon"
 import { UserAccountIcon, Building01Icon, UserGroupIcon, Search01Icon } from "@hugeicons/core-free-icons"
 
 export interface PartnerFilterProps {

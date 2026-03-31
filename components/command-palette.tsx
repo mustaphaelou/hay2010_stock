@@ -12,7 +12,7 @@ import {
     CommandSeparator,
     CommandShortcut,
 } from "@/components/ui/command"
-import { HugeiconsIcon } from "@hugeicons/react"
+import { SafeIcon as HugeiconsIcon } from "@/components/ui/safe-icon"
 import {
     DashboardSquare01Icon,
     PackageIcon,
