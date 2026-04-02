@@ -55,8 +55,8 @@ RUN --mount=type=cache,target=/app/.next/cache \
 FROM node:20-alpine@sha256:f598378b5240225e6beab68fa9f356db1fb8efe55173e6d4d8153113bb8f333c AS runner
 WORKDIR /app
 
-# Install runtime dependencies (removed netcat-openbsd - using pure TCP check)
-RUN apk add --no-cache openssl curl && \
+# Install runtime dependencies (curl for healthcheck, netcat for db check)
+RUN apk add --no-cache openssl curl netcat-openbsd && \
     apk upgrade --no-cache
 
 # OCI Image Labels

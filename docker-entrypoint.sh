@@ -57,7 +57,7 @@ db_host="${DB_HOST:-postgres}"
 db_port="${DB_PORT:-5432}"
 
 while [ $retry_count -lt $max_retries ]; do
-    # Use BusyBox nc for TCP check (Alpine default)
+    # Use netcat for TCP check
     if nc -z -w1 "$db_host" "$db_port" 2>/dev/null; then
         echo "✓ Database connection verified (attempt $((retry_count + 1))/$max_retries)"
         break
