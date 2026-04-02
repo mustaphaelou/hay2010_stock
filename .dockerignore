@@ -61,12 +61,14 @@ Desktop.ini
 .gitattributes
 
 # Docker (prevent recursive builds)
+# Note: We DO NOT ignore Dockerfile.coolify - needed for Coolify builds
 Dockerfile
 docker-compose*.yml
+docker-compose*.yaml
 .docker
 # Note: docker-entrypoint.sh is NOT ignored - needed for container startup
 
-# Documentation
+# Documentation (keep COOLIFY_DEPLOYMENT.md)
 README.md
 CHANGELOG.md
 SETUP.md
@@ -74,7 +76,7 @@ DEPLOY.md
 TROUBLESHOOTING.md
 docs/
 plans/
-*.md
+!COOLIFY_DEPLOYMENT.md
 
 # CI/CD
 .github

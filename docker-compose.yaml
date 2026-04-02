@@ -1,21 +1,20 @@
 # ============================================
 # HAY2010 Stock Application - Coolify Deployment
-# Version: 2.1
+# Version: 3.0
 # ============================================
 # This compose file is designed for Coolify deployment.
 # Coolify manages PostgreSQL and Redis as separate services.
 # Only the application service is defined here.
+#
+# IMPORTANT: Use Dockerfile.coolify for Coolify deployments
+# to prevent Coolify's ARG injection from breaking the build.
+# ============================================
 
 services:
   app:
     build:
       context: .
-      dockerfile: Dockerfile
-      target: runner
-      args:
-        - PORT=3000
-        - GIT_SHA=${GIT_SHA:-unknown}
-        - BUILD_DATE=${BUILD_DATE:-unknown}
+      dockerfile: Dockerfile.coolify
     image: hay2010_stock:latest
     container_name: hay2010_stock
     restart: always
@@ -31,7 +30,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s
+      start_period: 90s
     # Security context
     security_opt:
       - no-new-privileges:true
