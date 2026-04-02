@@ -220,6 +220,13 @@ DROP INDEX IF EXISTS produits_code_produit_idx;
 -- 10. UPDATE USER TABLE DEFAULT FOR ROLE
 -- =====================================================
 
--- Ensure the default role is USER, not HR
--- This is handled by the schema, but let's ensure data consistency
-UPDATE users SET role = 'USER' WHERE role = 'HR' AND role != 'USER';
+-- Ensure the default role is USER
+-- Note: The 'HR' role was removed from the enum, update any invalid roles to 'USER'
+-- Only update if the row exists and has an invalid role
+DO $$
+BEGIN
+    -- Check if there are any users with invalid roles
+    IF EXISTS (SELECT 1 FROM users WHERE role NOT IN ('ADMIN', 'MANAGER', 'USER', 'VIEWER')) THEN
+        UPDATE users SET role = 'USER' WHERE role NOT IN ('ADMIN', 'MANAGER', 'USER', 'VIEWER');
+    END IF;
+END $$;

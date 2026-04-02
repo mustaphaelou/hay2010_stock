@@ -1,4 +1,4 @@
-import { requireAuth } from '@/app/actions/auth'
+import { requireAuth } from '@/lib/auth/user-utils'
 import { AuthUser } from '@/lib/types'
 
 export type UserRole = 'ADMIN' | 'MANAGER' | 'USER' | 'VIEWER'

@@ -1,21 +1,39 @@
+# ============================================
+# HAY2010 Stock Application - Production Dockerfile
+# Version: 2.0
+# Last Updated: 2026-04-01
+# Security: Hardened with digest pinning, healthcheck, minimal packages
+# ============================================
+
 # Stage 1: Install dependencies
-FROM node:20-alpine AS deps
+# node:20-alpine (tracking)
+FROM node:20-alpine@sha256:f598378b5240225e6beab68fa9f356db1fb8efe55173e6d4d8153113bb8f333c AS deps
 WORKDIR /app
 
-# Install build dependencies
-RUN apk add --no-cache openssl libc6-compat
+# Install build dependencies and apply security updates
+RUN apk add --no-cache openssl libc6-compat && \
+    apk upgrade --no-cache
 
-COPY package*.json ./
+COPY package.json package-lock.json ./
 
-# Use npm ci for faster, reproducible builds
-RUN npm ci --prefer-offline --no-audit
+# Verify lock file exists
+RUN test -f package-lock.json || (echo "package-lock.json required" && exit 1)
+
+# Run security audit (warn only, don't fail build)
+RUN npm audit --audit-level=high || echo "Warning: Security vulnerabilities found in dependencies"
+
+# Mount cache for npm (BuildKit enabled)
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --prefer-offline
 
 # Stage 2: Build the application
-FROM node:20-alpine AS builder
+# node:20-alpine (tracking)
+FROM node:20-alpine@sha256:f598378b5240225e6beab68fa9f356db1fb8efe55173e6d4d8153113bb8f333c AS builder
 WORKDIR /app
 
-# Install OpenSSL for Prisma
-RUN apk add --no-cache openssl
+# Install OpenSSL for Prisma and apply security updates
+RUN apk add --no-cache openssl && \
+    apk upgrade --no-cache
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -24,16 +42,36 @@ COPY . .
 RUN npx prisma generate
 
 # Build the application with dummy database URL (will be replaced at runtime)
+ARG DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy?connection_limit=1"
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy?connection_limit=1"
-RUN npm run build
+ENV DATABASE_URL=${DATABASE_URL}
+
+# Mount cache for Next.js build (BuildKit enabled)
+RUN --mount=type=cache,target=/app/.next/cache \
+    npm run build
 
 # Stage 3: Runner
-FROM node:20-alpine AS runner
+# node:20-alpine (tracking)
+FROM node:20-alpine@sha256:f598378b5240225e6beab68fa9f356db1fb8efe55173e6d4d8153113bb8f333c AS runner
 WORKDIR /app
 
-# Install runtime dependencies (netcat-openbsd for database health check)
-RUN apk add --no-cache openssl curl netcat-openbsd
+# Install runtime dependencies (removed netcat-openbsd - using pure TCP check)
+RUN apk add --no-cache openssl curl && \
+    apk upgrade --no-cache
+
+# OCI Image Labels
+LABEL org.opencontainers.image.title="HAY2010 Stock Application" \
+      org.opencontainers.image.description="Enterprise stock management system for HAY2010" \
+      org.opencontainers.image.version="1.0.0" \
+      org.opencontainers.image.revision="${GIT_SHA:-unknown}" \
+      org.opencontainers.image.created="${BUILD_DATE:-unknown}" \
+      org.opencontainers.image.authors="HAY2010 Team" \
+      org.opencontainers.image.vendor="HAY2010" \
+      org.opencontainers.image.licenses="MIT" \
+      org.opencontainers.image.url="https://github.com/hay2010/stock-app" \
+      org.opencontainers.image.source="https://github.com/hay2010/stock-app" \
+      org.opencontainers.image.documentation="https://docs.hay2010.com" \
+      org.opencontainers.image.base.name="node:20-alpine"
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -58,23 +96,31 @@ RUN chmod +x /app/docker-entrypoint.sh
 
 USER nextjs
 
-EXPOSE 3000
-
-ENV PORT=3000
+# Parameterized port
+ARG PORT=3000
+ENV PORT=${PORT}
 ENV HOSTNAME="0.0.0.0"
+
+EXPOSE ${PORT}
+
+# Health check configuration
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:${PORT}/api/health || exit 1
 
 ENTRYPOINT ["/app/docker-entrypoint.sh"]
 
 # Stage 4: Migration runner (for running migrations separately)
-FROM node:20-alpine AS migrator
+# node:20-alpine (tracking)
+FROM node:20-alpine@sha256:f598378b5240225e6beab68fa9f356db1fb8efe55173e6d4d8153113bb8f333c AS migrator
 WORKDIR /app
 
-# Install OpenSSL for Prisma
-RUN apk add --no-cache openssl
+# Install OpenSSL for Prisma and apply security updates
+RUN apk add --no-cache openssl && \
+    apk upgrade --no-cache
 
-# Copy package files and install all dependencies (including devDependencies for prisma CLI)
-COPY package*.json ./
-RUN npm ci --prefer-offline --no-audit
+# Copy node_modules from deps stage (optimized - no reinstall)
+COPY --from=deps /app/node_modules ./node_modules
+COPY package.json package-lock.json ./
 
 # Copy prisma schema and generate client
 COPY prisma ./prisma

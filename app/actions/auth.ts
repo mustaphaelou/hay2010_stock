@@ -108,3 +108,29 @@ export async function logout(csrfToken?: string): Promise<{ error?: string; succ
     return { error: 'Logout failed' }
   }
 }
+
+export async function getCurrentUser(): Promise<{ id: string; email: string; name: string; role: string } | null> {
+  try {
+    const cookieStore = await cookies()
+    const token = cookieStore.get(COOKIE_NAME)?.value
+
+    if (!token) {
+      return null
+    }
+
+    const payload = await verifyToken(token)
+    if (!payload || !payload.userId) {
+      return null
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: payload.userId },
+      select: { id: true, email: true, name: true, role: true }
+    })
+
+    return user
+  } catch (error) {
+    console.error('Get current user error:', error)
+    return null
+  }
+}

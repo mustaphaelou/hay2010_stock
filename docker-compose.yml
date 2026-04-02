@@ -14,6 +14,14 @@ services:
       postgres:
         condition: service_healthy
     restart: "no"
+    # Security context
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp
     networks:
       - backend
 
@@ -22,6 +30,10 @@ services:
       context: .
       dockerfile: Dockerfile
       target: runner
+      args:
+        - PORT=3000
+        - GIT_SHA=${GIT_SHA:-unknown}
+        - BUILD_DATE=${BUILD_DATE:-unknown}
     image: hay2010_stock:latest
     container_name: hay2010_stock
     ports:
@@ -30,8 +42,9 @@ services:
       - .env.docker
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-hay2010_db}?connection_limit=5&pool_timeout=10
-      - REDIS_URL=redis://redis:6379/0
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-redis}@redis:6379/0
       - NODE_ENV=production
+      - NEXT_TELEMETRY_DISABLED=1
     restart: always
     depends_on:
       postgres:
@@ -46,11 +59,22 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    # Security context
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /app/.next/cache
     deploy:
       resources:
         limits:
+          cpus: '2'
           memory: 1G
         reservations:
+          cpus: '0.5'
           memory: 512M
     networks:
       - frontend
@@ -76,6 +100,25 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+    # Security context
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+      - DAC_OVERRIDE
+      - FOWNER
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
     networks:
       - backend
 
@@ -88,20 +131,46 @@ services:
     volumes:
       - redis_data:/data
     restart: always
-    command: redis-server --appendonly yes --appendfsync everysec --maxmemory 256mb --maxmemory-policy allkeys-lru --save 60 1000
+    command: >
+      redis-server
+      --appendonly yes
+      --appendfsync everysec
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --save 60 1000
+      --requirepass ${REDIS_PASSWORD:-redis}
     healthcheck:
-      test: [ "CMD", "redis-cli", "ping" ]
+      test: [ "CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redis}", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
+    # Security context - Redis needs SETUID/SETGID for user switching
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - SETUID
+      - SETGID
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
     networks:
       - backend
 
 volumes:
   postgres_data:
   redis_data:
+  next_cache:
 
-
+# Network Segmentation:
+# - frontend: Exposed to external traffic via port 3000
+# - backend: Internal only, protects database and redis from direct external access
 networks:
   frontend:
     driver: bridge

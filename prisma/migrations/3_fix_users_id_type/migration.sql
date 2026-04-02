@@ -14,49 +14,49 @@
 -- First, update any existing foreign key references to valid UUID format
 -- Using gen_random_uuid() to create valid UUIDs from existing TEXT values
 
--- Update partenaires.cree_par
+-- Update partenaires.cree_par (cast to uuid, not text)
 UPDATE partenaires
-SET cree_par = gen_random_uuid()::text
+SET cree_par = gen_random_uuid()
 WHERE cree_par IS NOT NULL AND cree_par::text !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$';
 
 -- Update partenaires.modifie_par
 UPDATE partenaires
-SET modifie_par = gen_random_uuid()::text
+SET modifie_par = gen_random_uuid()
 WHERE modifie_par IS NOT NULL AND modifie_par::text !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$';
 
 -- Update produits.cree_par
 UPDATE produits
-SET cree_par = gen_random_uuid()::text
+SET cree_par = gen_random_uuid()
 WHERE cree_par IS NOT NULL AND cree_par::text !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$';
 
 -- Update produits.modifie_par
 UPDATE produits
-SET modifie_par = gen_random_uuid()::text
+SET modifie_par = gen_random_uuid()
 WHERE modifie_par IS NOT NULL AND modifie_par::text !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$';
 
 -- Update affaires.cree_par
 UPDATE affaires
-SET cree_par = gen_random_uuid()::text
+SET cree_par = gen_random_uuid()
 WHERE cree_par IS NOT NULL AND cree_par::text !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$';
 
 -- Update affaires.modifie_par
 UPDATE affaires
-SET modifie_par = gen_random_uuid()::text
+SET modifie_par = gen_random_uuid()
 WHERE modifie_par IS NOT NULL AND modifie_par::text !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$';
 
 -- Update documents.cree_par
 UPDATE documents
-SET cree_par = gen_random_uuid()::text
+SET cree_par = gen_random_uuid()
 WHERE cree_par IS NOT NULL AND cree_par::text !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$';
 
 -- Update documents.modifie_par
 UPDATE documents
-SET modifie_par = gen_random_uuid()::text
+SET modifie_par = gen_random_uuid()
 WHERE modifie_par IS NOT NULL AND modifie_par::text !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$';
 
 -- Update mouvements_stock.cree_par
 UPDATE mouvements_stock
-SET cree_par = gen_random_uuid()::text
+SET cree_par = gen_random_uuid()
 WHERE cree_par IS NOT NULL AND cree_par::text !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$';
 
 -- =====================================================
@@ -113,37 +113,37 @@ ALTER TABLE users ADD PRIMARY KEY (id);
 -- =====================================================
 
 ALTER TABLE partenaires
-    ADD CONSTRAINT partenaires_cree_par_fkey
-    FOREIGN KEY (cree_par) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE;
+ADD CONSTRAINT partenaires_cree_par_fkey
+FOREIGN KEY (cree_par) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE;
 
 ALTER TABLE partenaires
-    ADD CONSTRAINT partenaires_modifie_par_fkey
-    FOREIGN KEY (modifie_par) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE;
+ADD CONSTRAINT partenaires_modifie_par_fkey
+FOREIGN KEY (modifie_par) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE;
 
 ALTER TABLE produits
-    ADD CONSTRAINT produits_cree_par_fkey
-    FOREIGN KEY (cree_par) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE;
+ADD CONSTRAINT produits_cree_par_fkey
+FOREIGN KEY (cree_par) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE;
 
 ALTER TABLE produits
-    ADD CONSTRAINT produits_modifie_par_fkey
-    FOREIGN KEY (modifie_par) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE;
+ADD CONSTRAINT produits_modifie_par_fkey
+FOREIGN KEY (modifie_par) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE;
 
 ALTER TABLE affaires
-    ADD CONSTRAINT affaires_cree_par_fkey
-    FOREIGN KEY (cree_par) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE;
+ADD CONSTRAINT affaires_cree_par_fkey
+FOREIGN KEY (cree_par) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE;
 
 ALTER TABLE affaires
-    ADD CONSTRAINT affaires_modifie_par_fkey
-    FOREIGN KEY (modifie_par) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE;
+ADD CONSTRAINT affaires_modifie_par_fkey
+FOREIGN KEY (modifie_par) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE;
 
 ALTER TABLE documents
-    ADD CONSTRAINT documents_cree_par_fkey
-    FOREIGN KEY (cree_par) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE;
+ADD CONSTRAINT documents_cree_par_fkey
+FOREIGN KEY (cree_par) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE;
 
 ALTER TABLE documents
-    ADD CONSTRAINT documents_modifie_par_fkey
-    FOREIGN KEY (modifie_par) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE;
+ADD CONSTRAINT documents_modifie_par_fkey
+FOREIGN KEY (modifie_par) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE;
 
 ALTER TABLE mouvements_stock
-    ADD CONSTRAINT mouvements_stock_cree_par_fkey
-    FOREIGN KEY (cree_par) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE;
+ADD CONSTRAINT mouvements_stock_cree_par_fkey
+FOREIGN KEY (cree_par) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE;

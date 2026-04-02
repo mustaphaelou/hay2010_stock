@@ -46,11 +46,11 @@ export async function GET() {
     const redisHealth = await checkRedisHealth()
     checks.redis = redisHealth.connected
 
-    // Schema validation - check Role enum
+    // Schema validation - check Role enum (use quoted name for case sensitivity)
     const roleCheck = await prisma.$queryRaw<Array<{ count: bigint }>>`
       SELECT COUNT(*) as count
       FROM pg_enum
-      WHERE enumtypid = 'Role'::regtype
+      WHERE enumtypid = '"Role"'::regtype
     `
     checks.schema = Number(roleCheck[0].count) === 4
 

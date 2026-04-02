@@ -1,13 +1,24 @@
+# ============================================
+# HAY2010 Stock Application - Docker Ignore
+# Version: 2.0
+# Last Updated: 2026-04-01
+# ============================================
+
 # Dependencies
 node_modules
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
+yarn.lock
+pnpm-lock.yaml
+bun.lockb
 
-# Next.js
+# Next.js build output
 .next
 out
 build
+dist
 
 # Testing
 coverage
@@ -29,49 +40,82 @@ jest.config.*
 .env
 .env.*
 !.env.example
+!.env.docker.example
 
 # IDE
 .idea
 .vscode
 *.swp
 *.swo
+.cursor
 
 # OS files
 .DS_Store
 Thumbs.db
+ehthumbs.db
+Desktop.ini
 
 # Git
 .git
 .gitignore
+.gitattributes
 
-# Docker
+# Docker (prevent recursive builds)
 Dockerfile
 docker-compose*.yml
 .docker
+# Note: docker-entrypoint.sh is NOT ignored - needed for container startup
 
 # Documentation
 README.md
 CHANGELOG.md
 SETUP.md
 DEPLOY.md
+TROUBLESHOOTING.md
 docs/
+plans/
+*.md
 
 # CI/CD
 .github
+.gitlab-ci.yml
+.travis.yml
+Jenkinsfile
 
-# Prisma generated files - keep them for Docker build
-# lib/generated/prisma/
+# Prisma generated (regenerate in container)
+lib/generated/prisma/
 
-# Misc
+# Logs
+logs
 *.log
 *.pid
 *.seed
 *.pid.lock
+
+# Build artifacts
 .turbo
+.cache
 errors.txt
 tsc_errors.log
 
-# Plans and documentation
-plans/
-*.md
-!README.md
+# Scripts not needed in production
+scripts/
+deploy.sh
+
+# Secrets directory
+secrets/
+
+# Temporary files
+tmp
+temp
+.tmp
+
+# Kubernetes configs (if present)
+k8s/
+helm/
+.helm/
+
+# Terraform (if present)
+.terraform
+*.tfstate
+*.tfvars

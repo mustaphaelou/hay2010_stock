@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db/prisma'
 import { requireAuth } from '@/lib/auth/user-utils'
 import { getPartnersSchema } from '@/lib/validation'
 import type { PartnerWithComputed } from '@/lib/types'
+import { TypePartenaire } from '@/lib/generated/prisma/client'
 
 export async function getPartners(type?: string, page: number = 1, limit: number = 50): Promise<{ data: PartnerWithComputed[]; meta: { total: number; page: number; limit: number; totalPages: number }; error?: string }> {
   await requireAuth()
@@ -17,7 +18,9 @@ export async function getPartners(type?: string, page: number = 1, limit: number
   const skip = (page - 1) * limit
 
   try {
-    const whereClause = type && type !== 'all' ? { type_partenaire: type } : {}
+    const whereClause = type && type !== 'all' && Object.values(TypePartenaire).includes(type as TypePartenaire) 
+      ? { type_partenaire: type as TypePartenaire } 
+      : {}
     const [partners, total] = await Promise.all([
       prisma.partenaire.findMany({
         skip,

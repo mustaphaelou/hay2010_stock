@@ -13,6 +13,14 @@ services:
       postgres:
         condition: service_healthy
     restart: "no"
+    # Security context
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp
     networks:
       - backend
 
@@ -21,6 +29,10 @@ services:
       context: .
       dockerfile: Dockerfile
       target: runner
+      args:
+        - PORT=3000
+        - GIT_SHA=${GIT_SHA:-unknown}
+        - BUILD_DATE=${BUILD_DATE:-unknown}
     image: hay2010_stock:latest
     container_name: hay2010_stock
     restart: always
@@ -30,8 +42,13 @@ services:
       - .env.docker
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?connection_limit=5&pool_timeout=10
-      - REDIS_URL=redis://redis:6379/0
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
       - NODE_ENV=production
+      - NEXT_TELEMETRY_DISABLED=1
+      # Docker Secrets support (uncomment when using secrets)
+      # - JWT_SECRET_FILE=/run/secrets/jwt_secret
+      # - POSTGRES_PASSWORD_FILE=/run/secrets/db_password
+      # - REDIS_PASSWORD_FILE=/run/secrets/redis_password
     depends_on:
       postgres:
         condition: service_healthy
@@ -45,17 +62,33 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
+    # Security context
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /app/.next/cache
     deploy:
       resources:
         limits:
+          cpus: '2'
           memory: 1G
         reservations:
+          cpus: '0.5'
           memory: 512M
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
+    # Docker Secrets (uncomment to enable)
+    # secrets:
+    #   - jwt_secret
+    #   - db_password
+    #   - redis_password
     networks:
       - frontend
       - backend
@@ -68,6 +101,8 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
+      # Docker Secrets support (uncomment when using secrets)
+      # POSTGRES_PASSWORD_FILE: /run/secrets/db_password
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
@@ -77,15 +112,33 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+    # Security context
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+      - DAC_OVERRIDE
+      - FOWNER
     deploy:
       resources:
         limits:
+          cpus: '1'
           memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
+    # Docker Secrets (uncomment to enable)
+    # secrets:
+    #   - db_password
     networks:
       - backend
 
@@ -95,28 +148,64 @@ services:
     restart: always
     volumes:
       - redis_data:/data
-    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    command: >
+      redis-server
+      --appendonly yes
+      --appendfsync everysec
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --save 60 1000
+      --requirepass ${REDIS_PASSWORD}
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
+    # Security context - Redis needs SETUID/SETGID for user switching
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - SETUID
+      - SETGID
     deploy:
       resources:
         limits:
+          cpus: '0.5'
           memory: 300M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
     logging:
       driver: "json-file"
       options:
         max-size: "5m"
         max-file: "3"
+    # Docker Secrets (uncomment to enable)
+    # secrets:
+    #   - redis_password
     networks:
       - backend
 
 volumes:
   postgres_data:
   redis_data:
+  next_cache:
 
+# Docker Secrets (uncomment to enable)
+# secrets:
+#   jwt_secret:
+#     file: ./secrets/jwt_secret.txt
+#   db_password:
+#     file: ./secrets/postgres_password.txt
+#   redis_password:
+#     file: ./secrets/redis_password.txt
+
+# Network Segmentation:
+# - frontend: Exposed to external traffic via port 3000
+# - backend: Internal only (internal: true), protects database and redis
+#   from direct external access
 networks:
   frontend:
     driver: bridge
