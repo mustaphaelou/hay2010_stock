@@ -1,77 +1,90 @@
-import { CacheService, CacheKeys } from '@/lib/db/redis-cluster'
+import { CacheVersionService, VersionedCacheService, CacheNamespaces, CacheTTLSeconds } from './versioned'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('cache-invalidation')
 
 export class CacheInvalidationService {
   static async invalidateProduct(productId: number): Promise<void> {
     try {
-      await Promise.all([
-        CacheService.delete(`${CacheKeys.PRODUCT}${productId}`),
-        CacheService.deletePattern(`${CacheKeys.PRODUCT}list:*`),
-        CacheService.deletePattern(`${CacheKeys.STOCK}*:${productId}:*`),
-      ])
+      await CacheVersionService.invalidateNamespace(CacheNamespaces.PRODUCT)
+      await CacheVersionService.invalidateNamespace(CacheNamespaces.STOCK)
+      log.info({ productId }, 'Product cache invalidated')
     } catch (error) {
-      console.error('[Cache] Failed to invalidate product:', error)
+      log.error({ productId, error }, 'Failed to invalidate product')
     }
   }
 
   static async invalidatePartner(partnerId: number): Promise<void> {
     try {
-      await Promise.all([
-        CacheService.delete(`${CacheKeys.PARTNER}${partnerId}`),
-        CacheService.deletePattern(`${CacheKeys.PARTNER}list:*`),
-      ])
+      await CacheVersionService.invalidateNamespace(CacheNamespaces.PARTNER)
+      log.info({ partnerId }, 'Partner cache invalidated')
     } catch (error) {
-      console.error('[Cache] Failed to invalidate partner:', error)
+      log.error({ partnerId, error }, 'Failed to invalidate partner')
     }
   }
 
   static async invalidateDocument(documentId: number): Promise<void> {
     try {
-      await Promise.all([
-        CacheService.delete(`${CacheKeys.DOCUMENT}${documentId}`),
-        CacheService.deletePattern(`${CacheKeys.DOCUMENT}list:*`),
-      ])
+      await CacheVersionService.invalidateNamespace(CacheNamespaces.DOCUMENT)
+      log.info({ documentId }, 'Document cache invalidated')
     } catch (error) {
-      console.error('[Cache] Failed to invalidate document:', error)
+      log.error({ documentId, error }, 'Failed to invalidate document')
     }
   }
 
   static async invalidateUser(userId: string): Promise<void> {
     try {
-      await CacheService.delete(`${CacheKeys.USER}${userId}`)
+      await VersionedCacheService.delete(CacheNamespaces.USER, userId)
+      log.info({ userId }, 'User cache invalidated')
     } catch (error) {
-      console.error('[Cache] Failed to invalidate user:', error)
+      log.error({ userId, error }, 'Failed to invalidate user')
     }
   }
 
   static async invalidateStock(productId: number, warehouseId: number): Promise<void> {
     try {
-      const key = `${CacheKeys.STOCK}${productId}:${warehouseId}`
-      await CacheService.delete(key)
-      await CacheService.deletePattern(`${CacheKeys.STOCK}list:*`)
+      await CacheVersionService.invalidateNamespace(CacheNamespaces.STOCK)
+      log.info({ productId, warehouseId }, 'Stock cache invalidated')
     } catch (error) {
-      console.error('[Cache] Failed to invalidate stock:', error)
+      log.error({ productId, warehouseId, error }, 'Failed to invalidate stock')
+    }
+  }
+
+  static async invalidateDashboard(): Promise<void> {
+    try {
+      await CacheVersionService.invalidateNamespace(CacheNamespaces.DASHBOARD)
+      log.info('Dashboard cache invalidated')
+    } catch (error) {
+      log.error({ error }, 'Failed to invalidate dashboard')
     }
   }
 
   static async invalidateAll(): Promise<void> {
     try {
-      await CacheService.deletePattern('*')
-      console.log('[Cache] All caches invalidated')
+      await Promise.all([
+        CacheVersionService.invalidateNamespace(CacheNamespaces.PRODUCT),
+        CacheVersionService.invalidateNamespace(CacheNamespaces.STOCK),
+        CacheVersionService.invalidateNamespace(CacheNamespaces.PARTNER),
+        CacheVersionService.invalidateNamespace(CacheNamespaces.DOCUMENT),
+        CacheVersionService.invalidateNamespace(CacheNamespaces.USER),
+        CacheVersionService.invalidateNamespace(CacheNamespaces.DASHBOARD),
+      ])
+      log.info('All caches invalidated')
     } catch (error) {
-      console.error('[Cache] Failed to invalidate all caches:', error)
+      log.error({ error }, 'Failed to invalidate all caches')
     }
   }
 
   static async warmupProductList(): Promise<void> {
-    console.log('[Cache] Warming up product list cache...')
+    log.info('Product list cache warmup started')
   }
 
   static async warmupPartnerList(): Promise<void> {
-    console.log('[Cache] Warming up partner list cache...')
+    log.info('Partner list cache warmup started')
   }
 
   static async warmupStockLevels(): Promise<void> {
-    console.log('[Cache] Warming up stock levels cache...')
+    log.info('Stock levels cache warmup started')
   }
 }
 
@@ -80,8 +93,10 @@ export async function withCacheInvalidation<T>(
   invalidations: Array<() => Promise<void>>
 ): Promise<T> {
   const result = await operation()
-  
+
   await Promise.all(invalidations.map(fn => fn()))
-  
+
   return result
 }
+
+export { CacheNamespaces, CacheTTLSeconds, VersionedCacheService }

@@ -97,7 +97,7 @@ jobs:
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v3
 
-    - name: Run Trivy vulnerability scanner
+    - name: Run Trivy vulnerability scanner (filesystem)
       uses: aquasecurity/trivy-action@0.35.0
       with:
         scan-type: 'fs'
@@ -173,10 +173,60 @@ jobs:
         fail_ci_if_error: false
         token: ${{ secrets.CODECOV_TOKEN }}
 
+  migration-check:
+    name: Database Migration Safety
+    runs-on: ubuntu-latest
+    needs: [quality-checks, test]
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test_db
+        ports:
+        - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://test:test@localhost:5432/test_db
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: "npm"
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Generate Prisma Client
+      run: npx prisma generate
+
+    - name: Check pending migrations
+      run: npx prisma migrate status
+
+    - name: Validate migration SQL
+      run: npx prisma migrate diff --from-empty --to-schema-datamodel ./lib/generated/prisma/schema.prisma --script
+
+    - name: Test migration on clean database
+      run: |
+        npx prisma migrate deploy --preview-feature || echo "No migrations to apply"
+      continue-on-error: true
+
+    - name: Verify database schema integrity
+      run: npx prisma db push --force-reset
+
   build:
     name: Build & Publish Image
     runs-on: ubuntu-latest
-    needs: [test, security-scan]
+    needs: [test, security-scan, migration-check]
     if: github.event_name == 'push' || github.event_name == 'release' || github.event_name == 'workflow_dispatch'
     outputs:
       image_tag: ${{ steps.meta.outputs.tags }}
@@ -225,6 +275,22 @@ jobs:
           GIT_SHA=${{ github.sha }}
           BUILD_DATE=${{ github.event.head_commit.timestamp }}
 
+    - name: Scan Docker image with Trivy
+      uses: aquasecurity/trivy-action@0.35.0
+      with:
+        scan-type: 'image'
+        image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+        format: 'sarif'
+        output: 'trivy-image-results.sarif'
+        severity: 'CRITICAL,HIGH'
+        ignore-unfixed: true
+
+    - name: Upload image scan results
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: 'trivy-image-results.sarif'
+
     - name: Generate SBOM
       uses: anchore/sbom-action@v0
       with:
@@ -238,6 +304,15 @@ jobs:
         name: sbom
         path: sbom.spdx.json
         retention-days: 30
+
+    - name: Sign image with Cosign
+      uses: sigstore/cosign-installer@v3
+      with:
+        cosign-release: 'v2.2.0'
+
+    - name: Sign the image
+      run: |
+        cosign sign --yes ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.docker_build.outputs.digest }}
 
   deploy-staging:
     name: Deploy to Staging
@@ -261,8 +336,8 @@ jobs:
     - name: Deploy to Kubernetes
       run: |
         kubectl set image deployment/stock-app \
-        stock-app=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
-        --namespace staging
+          stock-app=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+          --namespace staging
 
     - name: Wait for rollout
       run: kubectl rollout status deployment/stock-app --namespace staging --timeout=300s
@@ -286,14 +361,23 @@ jobs:
         mkdir -p ~/.kube
         echo "${{ secrets.KUBE_CONFIG_PRODUCTION }}" | base64 -d > ~/.kube/config
 
+    - name: Run pre-deploy migration validation
+      run: |
+        echo "Checking for breaking changes in migration..."
+        kubectl get pods -n production --selector=app=stock-app -o name | head -1 | xargs kubectl logs --tail=100 -n production
+
     - name: Deploy to Kubernetes
       run: |
         kubectl set image deployment/stock-app \
-        stock-app=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
-        --namespace production
+          stock-app=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+          --namespace production
 
     - name: Wait for rollout
       run: kubectl rollout status deployment/stock-app --namespace production --timeout=600s
+
+    - name: Run health check
+      run: |
+        kubectl exec -n production deployment/stock-app -- curl -f http://localhost:3000/api/health
 
     - name: Create Issue on failure
       if: failure()

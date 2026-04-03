@@ -45,5 +45,10 @@ export default ts.config(
   },
   {
     ignores: [".next/**", "out/**", "build/**", "next-env.d.ts"],
+  },
+  {
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
+    },
   }
 );

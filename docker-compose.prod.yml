@@ -13,7 +13,6 @@ services:
       postgres:
         condition: service_healthy
     restart: "no"
-    # Security context
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -45,10 +44,6 @@ services:
       - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
       - NODE_ENV=production
       - NEXT_TELEMETRY_DISABLED=1
-      # Docker Secrets support (uncomment when using secrets)
-      # - JWT_SECRET_FILE=/run/secrets/jwt_secret
-      # - POSTGRES_PASSWORD_FILE=/run/secrets/db_password
-      # - REDIS_PASSWORD_FILE=/run/secrets/redis_password
     depends_on:
       postgres:
         condition: service_healthy
@@ -62,7 +57,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
-    # Security context
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -84,11 +78,6 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-    # Docker Secrets (uncomment to enable)
-    # secrets:
-    #   - jwt_secret
-    #   - db_password
-    #   - redis_password
     networks:
       - frontend
       - backend
@@ -101,8 +90,6 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
-      # Docker Secrets support (uncomment when using secrets)
-      # POSTGRES_PASSWORD_FILE: /run/secrets/db_password
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
@@ -112,7 +99,6 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
-    # Security context
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -136,9 +122,6 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-    # Docker Secrets (uncomment to enable)
-    # secrets:
-    #   - db_password
     networks:
       - backend
 
@@ -161,7 +144,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    # Security context - Redis needs SETUID/SETGID for user switching
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -182,30 +164,134 @@ services:
       options:
         max-size: "5m"
         max-file: "3"
-    # Docker Secrets (uncomment to enable)
-    # secrets:
-    #   - redis_password
     networks:
       - backend
+
+  prometheus:
+    image: prom/prometheus:v2.48.0
+    container_name: hay2010_prometheus
+    restart: always
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    ports:
+      - "9090:9090"
+    networks:
+      - backend
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+
+  grafana:
+    image: grafana/grafana:10.2.0
+    container_name: hay2010_grafana
+    restart: always
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    ports:
+      - "3001:3000"
+    networks:
+      - backend
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+
+  backup:
+    image: postgres:16-alpine
+    container_name: hay2010_backup
+    restart: always
+    volumes:
+      - ./scripts/backup.sh:/backup.sh:ro
+      - ./backups:/backups
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL:-}
+    command: >
+      sh -c "while true; do /backup.sh; sleep 86400; done"
+    networks:
+      - backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runner
+    container_name: hay2010_worker
+    restart: always
+    env_file:
+      - .env.docker
+    environment:
+      - NODE_ENV=production
+      - WORKER_MODE=true
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: ["node", "dist/lib/workers/index.js"]
+    networks:
+      - backend
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+
+  postgres-exporter:
+    image: prom/postgres-exporter:v0.12.0
+    container_name: hay2010_postgres_exporter
+    environment:
+      - DATA_SOURCE_NAME=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
+    ports:
+      - "9187:9187"
+    networks:
+      - backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  redis-exporter:
+    image: redis/redis-exporter:v1.55.0
+    container_name: hay2010_redis_exporter
+    environment:
+      - REDIS_ADDR=redis://:${REDIS_PASSWORD}@redis:6379
+    ports:
+      - "9121:9121"
+    networks:
+      - backend
+    depends_on:
+      redis:
+        condition: service_healthy
 
 volumes:
   postgres_data:
   redis_data:
   next_cache:
+  prometheus_data:
+  grafana_data:
 
-# Docker Secrets (uncomment to enable)
-# secrets:
-#   jwt_secret:
-#     file: ./secrets/jwt_secret.txt
-#   db_password:
-#     file: ./secrets/postgres_password.txt
-#   redis_password:
-#     file: ./secrets/redis_password.txt
-
-# Network Segmentation:
-# - frontend: Exposed to external traffic via port 3000
-# - backend: Internal only (internal: true), protects database and redis
-#   from direct external access
 networks:
   frontend:
     driver: bridge

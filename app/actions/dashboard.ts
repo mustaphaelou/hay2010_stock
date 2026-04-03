@@ -8,56 +8,61 @@ export async function getDashboardStats(): Promise<DashboardData> {
   await requireAuth()
 
   try {
-    const [
-      clientsCount,
-      suppliersCount,
-      productsCount,
-      familiesCount,
-      salesCount,
-      purchasesCount,
-      recentDocs,
-      salesInvoices
-    ] = await Promise.all([
-prisma.partenaire.count({ where: { type_partenaire: { in: ['CLIENT', 'LES_DEUX'] } } }),
-		prisma.partenaire.count({ where: { type_partenaire: { in: ['FOURNISSEUR', 'LES_DEUX'] } } }),
-      prisma.produit.count(),
-      prisma.categorieProduit.count(),
-      prisma.docVente.count({ where: { domaine_document: 'VENTE' } }),
-      prisma.docVente.count({ where: { domaine_document: 'ACHAT' } }),
-      prisma.docVente.findMany({
-        include: {
-          partenaire: {
-            select: {
-              nom_partenaire: true,
-              type_partenaire: true
-            }
+  const MAX_RECORDS = 100
+  
+  const [
+    clientsCount,
+    suppliersCount,
+    productsCount,
+    familiesCount,
+    salesCount,
+    purchasesCount,
+    recentDocs,
+    salesInvoices
+  ] = await Promise.all([
+    prisma.partenaire.count({ where: { type_partenaire: { in: ['CLIENT', 'LES_DEUX'] } } }),
+    prisma.partenaire.count({ where: { type_partenaire: { in: ['FOURNISSEUR', 'LES_DEUX'] } } }),
+    prisma.produit.count(),
+    prisma.categorieProduit.count(),
+    prisma.docVente.count({ where: { domaine_document: 'VENTE' } }),
+    prisma.docVente.count({ where: { domaine_document: 'ACHAT' } }),
+    prisma.docVente.findMany({
+      include: {
+        partenaire: {
+          select: {
+            nom_partenaire: true,
+            type_partenaire: true
           }
-        },
-        orderBy: {
-          date_creation: 'desc'
-        },
-        take: 5
-      }),
-      prisma.docVente.findMany({
-        where: {
-          domaine_document: 'VENTE',
-          type_document: { in: ['Facture', 'Avoir'] }
-        },
-        select: {
-          id_document: true,
-          numero_document: true,
-          type_document: true,
-          domaine_document: true,
-          montant_ttc: true,
-          solde_du: true,
-          date_document: true,
-          montant_ht: true,
-          montant_remise_total: true,
-          montant_tva_total: true
-        },
-        take: 500
-      })
-    ])
+        }
+      },
+      orderBy: {
+        date_creation: 'desc'
+      },
+      take: 5
+    }),
+    prisma.docVente.findMany({
+      where: {
+        domaine_document: 'VENTE',
+        type_document: { in: ['Facture', 'Avoir'] }
+      },
+      select: {
+        id_document: true,
+        numero_document: true,
+        type_document: true,
+        domaine_document: true,
+        montant_ttc: true,
+        solde_du: true,
+        date_document: true,
+        montant_ht: true,
+        montant_remise_total: true,
+        montant_tva_total: true
+      },
+      orderBy: {
+        date_document: 'desc'
+      },
+      take: MAX_RECORDS
+    })
+  ])
 
     const stats: DashboardStats = {
       clients: clientsCount,

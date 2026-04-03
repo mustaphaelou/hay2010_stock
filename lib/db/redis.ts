@@ -1,24 +1,33 @@
 import Redis, { RedisOptions } from 'ioredis'
+import { createLogger } from '@/lib/logger'
 
-const globalForRedis = global as unknown as { redis: Redis }
+const log = createLogger('redis')
+
+const globalForRedis = global as unknown as { 
+  redis: Redis
+  redisCache: Redis
+  redisSession: Redis
+}
 
 const REDIS_MAX_RETRIES = 10
 const REDIS_RETRY_DELAY_MAX = 2000
 
-function createRedisClient(): Redis {
+function createRedisClient(name: string): Redis {
   const baseOptions: RedisOptions = {
     maxRetriesPerRequest: 3,
     lazyConnect: true,
     connectTimeout: 10000,
     commandTimeout: 5000,
     keepAlive: 30000,
+    enableReadyCheck: true,
+    enableOfflineQueue: true,
     retryStrategy(times: number) {
       if (times > REDIS_MAX_RETRIES) {
-        console.error('[Redis] Max retries reached, stopping connection attempts')
+        log.error({ name, times }, 'Max retries reached, stopping connection attempts')
         return null
       }
       const delay = Math.min(times * 50, REDIS_RETRY_DELAY_MAX)
-      console.log(`[Redis] Retry attempt ${times}, delay: ${delay}ms`)
+      log.info({ name, times, delay }, 'Retry attempt')
       return delay
     },
   }
@@ -29,32 +38,43 @@ function createRedisClient(): Redis {
   }
 
   const url = process.env.REDIS_URL || 'redis://localhost:6379'
-  return new Redis(url, baseOptions)
+  const client = new Redis(url, baseOptions)
+  
+  client.on('error', (err: Error) => {
+    log.warn({ name, error: err.message }, 'Connection error')
+  })
+
+  client.on('ready', () => {
+    log.info({ name }, 'Connected and ready')
+  })
+
+  client.on('close', () => {
+    log.info({ name }, 'Connection closed')
+  })
+
+  client.on('reconnecting', () => {
+    log.info({ name }, 'Reconnecting...')
+  })
+
+  return client
 }
 
-export const redis = globalForRedis.redis || createRedisClient()
+export const redis = globalForRedis.redis || createRedisClient('default')
 
 let redisReady = false
 let lastError: string | null = null
 
 redis.on('error', (err: Error) => {
   lastError = err.message
-  console.warn('[Redis] Connection error (Redis may not be running):', err.message)
 })
 
 redis.on('ready', () => {
   redisReady = true
   lastError = null
-  console.log('[Redis] Connected and ready')
 })
 
 redis.on('close', () => {
   redisReady = false
-  console.log('[Redis] Connection closed')
-})
-
-redis.on('reconnecting', () => {
-  console.log('[Redis] Reconnecting...')
 })
 
 export function isRedisReady(): boolean {
@@ -65,4 +85,37 @@ export function getRedisError(): string | null {
   return lastError
 }
 
-if (process.env.NODE_ENV !== 'production') globalForRedis.redis = redis
+export const redisCache = globalForRedis.redisCache || createRedisClient('cache')
+export const redisSession = globalForRedis.redisSession || createRedisClient('session')
+
+export function getClients() {
+  return {
+    default: redis,
+    cache: redisCache,
+    session: redisSession,
+  }
+}
+
+export async function healthCheck(): Promise<{ 
+  default: boolean
+  cache: boolean
+  session: boolean 
+}> {
+  const results = await Promise.all([
+    redis.ping().then(() => true).catch(() => false),
+    redisCache.ping().then(() => true).catch(() => false),
+    redisSession.ping().then(() => true).catch(() => false),
+  ])
+
+  return {
+    default: results[0],
+    cache: results[1],
+    session: results[2],
+  }
+}
+
+if (process.env.NODE_ENV !== 'production') {
+  globalForRedis.redis = redis
+  globalForRedis.redisCache = redisCache
+  globalForRedis.redisSession = redisSession
+}

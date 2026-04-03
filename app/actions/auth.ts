@@ -7,7 +7,7 @@ import { generateToken, verifyToken } from '@/lib/auth/jwt'
 import { createSession, deleteSession } from '@/lib/auth/session'
 import { loginSchema } from '@/lib/validation'
 import { recordFailedAttempt, clearFailedAttempts, isAccountLocked } from '@/lib/auth/lockout'
-import { validateCsrfToken } from '@/lib/security/csrf'
+import { validateCsrfToken } from '@/lib/security/csrf-server'
 import { createLogger } from '@/lib/logger'
 import * as Sentry from '@sentry/nextjs'
 
@@ -16,17 +16,21 @@ const log = createLogger('auth-actions')
 const COOKIE_NAME = 'auth_token'
 
 export async function login(
-  email: string, 
-  password: string, 
-  rememberMe: boolean = false, 
+  email: string,
+  password: string,
+  rememberMe: boolean = false,
   csrfToken?: string
 ): Promise<{ error?: string; success?: boolean }> {
   try {
-    if (csrfToken) {
-      const valid = await validateCsrfToken('anonymous', csrfToken)
-      if (!valid) {
-        return { error: 'Invalid security token. Please refresh the page and try again.' }
-      }
+    if (!csrfToken) {
+      log.warn({ email }, 'CSRF token missing on login')
+      return { error: 'Security token required. Please refresh the page.' }
+    }
+
+    const valid = await validateCsrfToken('anonymous', csrfToken)
+    if (!valid) {
+      log.warn({ email }, 'Invalid CSRF token on login')
+      return { error: 'Invalid security token. Please refresh the page and try again.' }
     }
 
     const locked = await isAccountLocked(email)
@@ -89,15 +93,19 @@ export async function login(
 
 export async function logout(csrfToken?: string): Promise<{ error?: string; success?: boolean }> {
   try {
-    if (csrfToken) {
-      const valid = await validateCsrfToken('anonymous', csrfToken)
-      if (!valid) {
-        return { error: 'Invalid security token. Please refresh the page and try again.' }
-      }
+    if (!csrfToken) {
+      log.warn('CSRF token missing on logout')
+      return { error: 'Security token required. Please refresh the page.' }
+    }
+
+    const valid = await validateCsrfToken('anonymous', csrfToken)
+    if (!valid) {
+      log.warn('Invalid CSRF token on logout')
+      return { error: 'Invalid security token. Please refresh the page and try again.' }
     }
 
     const cookieStore = await cookies()
-    const token = (await cookieStore).get(COOKIE_NAME)?.value
+    const token = cookieStore.get(COOKIE_NAME)?.value
 
     if (token) {
       const payload = await verifyToken(token)
@@ -106,7 +114,7 @@ export async function logout(csrfToken?: string): Promise<{ error?: string; succ
       }
     }
 
-    (await cookieStore).delete(COOKIE_NAME)
+    cookieStore.delete(COOKIE_NAME)
     return { success: true }
   } catch (error) {
     log.error({ error }, 'Logout error')

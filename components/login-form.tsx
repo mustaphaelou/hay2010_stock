@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -11,6 +11,7 @@ import { Field, FieldGroup, FieldLabel, FieldDescription, FieldSeparator } from 
 import { SafeIcon as HugeiconsIcon } from "@/components/ui/safe-icon"
 import { Login01Icon, ViewIcon, ViewOffIcon, Loading02Icon, GoogleIcon, GithubIcon, CheckmarkCircle02Icon } from "@hugeicons/core-free-icons"
 import { login } from "../app/actions/auth"
+import { getCsrfToken } from "@/lib/security/csrf-client"
 
 export function LoginForm({
   className,
@@ -24,11 +25,17 @@ export function LoginForm({
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  
-  // Success messages from redirect
-  const registered = searchParams.get('registered')
-  const reset = searchParams.get('reset')
-  const successMessage = registered ? 'Account created successfully! Please log in.' : reset ? 'Password reset successfully! Please log in.' : null
+  const [csrfToken, setCsrfToken] = useState<string | null>(null)
+
+  useEffect(() => {
+    getCsrfToken().then(setCsrfToken).catch(console.error)
+  }, [])
+
+  const successMessage = searchParams.get('registered') 
+    ? 'Account created successfully! Please log in.' 
+    : searchParams.get('reset') 
+      ? 'Password reset successfully! Please log in.' 
+      : null
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -36,15 +43,14 @@ export function LoginForm({
     setError(null)
 
     try {
-      const result = await login(email, password, rememberMe)
+      const result = await login(email, password, rememberMe, csrfToken || undefined)
 
       if (result.error) {
         setError(result.error)
         setLoading(false)
+        getCsrfToken().then(setCsrfToken).catch(console.error)
       } else {
-        // Get the redirect URL from search params, default to dashboard
         const redirectTo = searchParams.get('redirect') || '/'
-        // Don't redirect to static assets or login page
         const safeRedirect = redirectTo.startsWith('/login') || redirectTo.match(/\.(png|jpg|svg|ico|css|js|map|json)$/)
           ? '/'
           : redirectTo
@@ -55,6 +61,7 @@ export function LoginForm({
       console.error('Login submit error:', err)
       setError('An unexpected error occurred')
       setLoading(false)
+      getCsrfToken().then(setCsrfToken).catch(console.error)
     }
   }
 
@@ -64,103 +71,103 @@ export function LoginForm({
         <div className="flex flex-col items-center gap-1 text-center">
           <div className="relative mb-2">
             <div className="size-14 rounded-xl bg-gradient-to-br from-primary to-violet-600 flex items-center justify-center shadow-lg shadow-primary/25">
-<Image
-            src="/hay2010-logo.png"
-            alt="HAY2010"
-            width={32}
-            height={32}
-            priority
-            className="object-contain"
-          />
+              <Image
+                src="/hay2010-logo.png"
+                alt="HAY2010"
+                width={32}
+                height={32}
+                priority
+                className="object-contain"
+              />
             </div>
           </div>
           <h1 className="text-2xl font-bold">Connexion</h1>
           <p className="text-sm text-balance text-muted-foreground">
             Entrez vos identifiants pour accéder à votre compte
           </p>
-</div>
+        </div>
 
-{successMessage && (
-  <div id="form-success" role="alert" aria-live="polite" className="p-3 rounded-lg bg-green-500/10 border border-green-500/20 text-green-700 text-sm flex items-center gap-2">
-    <HugeiconsIcon icon={CheckmarkCircle02Icon} className="size-5" />
-    {successMessage}
-  </div>
-)}
+        {successMessage && (
+          <div id="form-success" role="alert" aria-live="polite" className="p-3 rounded-lg bg-green-500/10 border border-green-500/20 text-green-700 text-sm flex items-center gap-2">
+            <HugeiconsIcon icon={CheckmarkCircle02Icon} className="size-5" />
+            {successMessage}
+          </div>
+        )}
 
-{error && (
-  <div id="form-error" role="alert" aria-live="polite" className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
-    {error}
-  </div>
-)}
+        {error && (
+          <div id="form-error" role="alert" aria-live="polite" className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
+            {error}
+          </div>
+        )}
 
-<Field>
-        <FieldLabel htmlFor="email">Email</FieldLabel>
-        <Input
-          id="email"
-          type="email"
-          placeholder="admin@hay2010.com"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          disabled={loading}
-          aria-required="true"
-          aria-invalid={!!error}
-          aria-describedby={error ? "form-error" : undefined}
-          autoComplete="email"
-        />
-      </Field>
+        <Field>
+          <FieldLabel htmlFor="email">Email</FieldLabel>
+          <Input
+            id="email"
+            type="email"
+            placeholder="admin@hay2010.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            disabled={loading}
+            aria-required="true"
+            aria-invalid={!!error}
+            aria-describedby={error ? "form-error" : undefined}
+            autoComplete="email"
+          />
+        </Field>
 
         <Field>
           <div className="flex items-center justify-between">
             <FieldLabel htmlFor="password">Mot de passe</FieldLabel>
-        <Link
-          href="/forgot-password"
-          className="text-sm text-muted-foreground underline-offset-4 hover:text-primary hover:underline"
-        >
-          Mot de passe oublié ?
-        </Link>
+            <Link
+              href="/forgot-password"
+              className="text-sm text-muted-foreground underline-offset-4 hover:text-primary hover:underline"
+            >
+              Mot de passe oublié ?
+            </Link>
           </div>
-<div className="relative">
-          <Input
-            id="password"
-            type={showPassword ? 'text' : 'password'}
-            placeholder="••••••••"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            disabled={loading}
-            className="pr-10"
-            aria-required="true"
-            aria-invalid={!!error}
-            aria-describedby={error ? "form-error" : undefined}
-            autoComplete="current-password"
-          />
-          <button
-            type="button"
-            onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-            disabled={loading}
-            aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
-          >
-            <HugeiconsIcon icon={showPassword ? ViewOffIcon : ViewIcon} className="size-5" />
-          </button>
-        </div>
+          <div className="relative">
+            <Input
+              id="password"
+              type={showPassword ? 'text' : 'password'}
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              disabled={loading}
+              className="pr-10"
+              aria-required="true"
+              aria-invalid={!!error}
+              aria-describedby={error ? "form-error" : undefined}
+              autoComplete="current-password"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              disabled={loading}
+              aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+            >
+              <HugeiconsIcon icon={showPassword ? ViewOffIcon : ViewIcon} className="size-5" />
+            </button>
+          </div>
         </Field>
 
         <Field>
           <div className="flex items-center gap-2">
-<Checkbox
-            id="remember"
-            checked={rememberMe}
-            onCheckedChange={(checked) => setRememberMe(checked as boolean)}
-            disabled={loading}
-            aria-describedby="remember-label"
-          />
-<label
-            htmlFor="remember"
-            id="remember-label"
-            className="text-sm text-muted-foreground cursor-pointer peer-disabled:opacity-50"
-          >
+            <Checkbox
+              id="remember"
+              checked={rememberMe}
+              onCheckedChange={(checked) => setRememberMe(checked as boolean)}
+              disabled={loading}
+              aria-describedby="remember-label"
+            />
+            <label
+              htmlFor="remember"
+              id="remember-label"
+              className="text-sm text-muted-foreground cursor-pointer peer-disabled:opacity-50"
+            >
               Se souvenir de moi
             </label>
           </div>
