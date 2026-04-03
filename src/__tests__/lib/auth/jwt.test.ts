@@ -1,28 +1,15 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import type { JWTPayload } from '@/lib/auth/jwt'
-
-const originalEnv = process.env
+/**
+ * @vitest-environment node
+ */
+import { describe, it, expect } from 'vitest'
 
 describe('JWT Token', () => {
-  const validPayload: JWTPayload = {
+  const validPayload = {
     userId: 'test-user-id',
     email: 'test@example.com',
     role: 'USER',
     sessionId: 'test-session-id',
   }
-
-  beforeEach(async () => {
-    process.env = {
-      ...originalEnv,
-      JWT_SECRET: 'test-secret-key-for-testing-minimum-32-chars',
-      JWT_EXPIRES_IN: '1h',
-    }
-    vi.resetModules()
-  })
-
-  afterEach(() => {
-    process.env = originalEnv
-  })
 
   describe('generateToken', () => {
     it('should generate a valid JWT token', async () => {

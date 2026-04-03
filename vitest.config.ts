@@ -15,6 +15,8 @@ export default defineConfig({
       exclude: [
         'node_modules/',
         'src/__tests__/',
+        '.next/',
+        'lib/generated/',
       ],
       thresholds: {
         lines: 50,
@@ -25,9 +27,9 @@ export default defineConfig({
     },
   },
   resolve: {
-alias: {
-    '@': path.resolve(__dirname, './'),
-    '@app': path.resolve(__dirname, './app'),
-  },
+    alias: {
+      '@': path.resolve(__dirname, './'),
+      '@app': path.resolve(__dirname, './app'),
+    },
   },
 })

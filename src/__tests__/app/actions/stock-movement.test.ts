@@ -1,44 +1,43 @@
-import { describe, it, expect, beforeEach, jest } from '@jest/globals'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { prisma } from '@/lib/db/prisma'
+import { CacheService } from '@/lib/db/redis-cluster'
 
-jest.mock('@/lib/db/prisma', () => ({
+vi.mock('@/lib/db/prisma', () => ({
   prisma: {
     niveauStock: {
-      findUnique: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn(),
+      findUnique: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
     },
     mouvementStock: {
-      create: jest.fn(),
-      findMany: jest.fn(),
+      create: vi.fn(),
+      findMany: vi.fn(),
     },
   },
-  withTransaction: jest.fn(),
+  withTransaction: vi.fn(),
 }))
 
-jest.mock('@/lib/db/redis-cluster', () => ({
+vi.mock('@/lib/db/redis-cluster', () => ({
   CacheService: {
-    acquireLock: jest.fn(),
-    releaseLock: jest.fn(),
+    acquireLock: vi.fn(),
+    releaseLock: vi.fn(),
   },
 }))
 
-jest.mock('@/lib/cache/invalidation', () => ({
+vi.mock('@/lib/cache/invalidation', () => ({
   CacheInvalidationService: {
-    invalidateProduct: jest.fn(),
-    invalidateStock: jest.fn(),
+    invalidateProduct: vi.fn(),
+    invalidateStock: vi.fn(),
   },
 }))
 
-jest.mock('@/lib/auth/user-utils', () => ({
-  requireRole: jest.fn().mockResolvedValue({ id: 'user-1', role: 'ADMIN' }),
+vi.mock('@/lib/auth/user-utils', () => ({
+  requireRole: vi.fn().mockResolvedValue({ id: 'user-1', role: 'ADMIN' }),
 }))
 
-jest.mock('@/lib/security/csrf', () => ({
-  requireCsrfToken: jest.fn().mockResolvedValue(undefined),
+vi.mock('@/lib/security/csrf', () => ({
+  requireCsrfToken: vi.fn().mockResolvedValue(undefined),
 }))
-
-const { prisma } = require('@/lib/db/prisma')
-const { CacheService } = require('@/lib/db/redis-cluster')
 
 describe('Stock Movement Actions', () => {
   const validInput = {
@@ -49,7 +48,7 @@ describe('Stock Movement Actions', () => {
   }
 
   beforeEach(() => {
-    jest.clearAllMocks()
+    vi.clearAllMocks()
   })
 
   describe('createStockMovement', () => {
@@ -73,8 +72,8 @@ describe('Stock Movement Actions', () => {
       expect(result.error).toContain('Destination warehouse required')
     })
 
-    it('should reject if lock acquisition fails', async () => {
-      CacheService.acquireLock.mockResolvedValue(null)
+  it('should reject if lock acquisition fails', async () => {
+    ;(CacheService.acquireLock as ReturnType<typeof vi.fn>).mockResolvedValue(null)
 
       const { createStockMovement } = await import('@/app/actions/stock-movement')
       const result = await createStockMovement(validInput, 'valid-csrf-token')
@@ -98,7 +97,7 @@ describe('Stock Movement Actions', () => {
         },
       ]
 
-      prisma.prisma.mouvementStock.findMany.mockResolvedValue(mockMovements)
+      ;(prisma.mouvementStock.findMany as ReturnType<typeof vi.fn>).mockResolvedValue(mockMovements)
 
       const { getStockMovements } = await import('@/app/actions/stock-movement')
       const result = await getStockMovements()
@@ -108,12 +107,12 @@ describe('Stock Movement Actions', () => {
     })
 
     it('should cap limit at 500', async () => {
-      prisma.prisma.mouvementStock.findMany.mockResolvedValue([])
+      ;(prisma.mouvementStock.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([])
 
       const { getStockMovements } = await import('@/app/actions/stock-movement')
       await getStockMovements(undefined, undefined, 600)
 
-      expect(prisma.prisma.mouvementStock.findMany).toHaveBeenCalledWith(
+      expect(prisma.mouvementStock.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           take: 500,
         })

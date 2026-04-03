@@ -1,21 +1,21 @@
-import { describe, it, expect, beforeEach, jest } from '@jest/globals'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import * as documentsModule from '@/app/actions/documents'
 import { prisma } from '@/lib/db/prisma'
 
-jest.mock('@/lib/db/prisma', () => ({
+vi.mock('@/lib/db/prisma', () => ({
   prisma: {
     docVente: {
-      findMany: jest.fn(),
-      count: jest.fn(),
+      findMany: vi.fn(),
+      count: vi.fn(),
     },
     ligneDocument: {
-      findMany: jest.fn(),
+      findMany: vi.fn(),
     },
   },
 }))
 
-jest.mock('@/lib/auth/user-utils', () => ({
-  requireAuth: jest.fn().mockResolvedValue({ id: 'user-1', role: 'USER' }),
+vi.mock('@/lib/auth/user-utils', () => ({
+  requireAuth: vi.fn().mockResolvedValue({ id: 'user-1', role: 'USER' }),
 }))
 
 describe('Document Actions', () => {
@@ -78,13 +78,13 @@ describe('Document Actions', () => {
   }
 
   beforeEach(() => {
-    jest.clearAllMocks()
+    vi.clearAllMocks()
   })
 
   describe('getDocuments', () => {
     it('should fetch paginated documents', async () => {
-      ;(prisma.docVente.findMany as jest.Mock).mockResolvedValue([mockDocument])
-      ;(prisma.docVente.count as jest.Mock).mockResolvedValue(1)
+      ;(prisma.docVente.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([mockDocument])
+      ;(prisma.docVente.count as ReturnType<typeof vi.fn>).mockResolvedValue(1)
 
       const result = await documentsModule.getDocuments(1, 50)
 
@@ -93,8 +93,8 @@ describe('Document Actions', () => {
     })
 
     it('should calculate correct pagination skip', async () => {
-      ;(prisma.docVente.findMany as jest.Mock).mockResolvedValue([])
-      ;(prisma.docVente.count as jest.Mock).mockResolvedValue(100)
+      ;(prisma.docVente.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([])
+      ;(prisma.docVente.count as ReturnType<typeof vi.fn>).mockResolvedValue(100)
 
       await documentsModule.getDocuments(3, 20)
 
@@ -107,8 +107,8 @@ describe('Document Actions', () => {
     })
 
     it('should map document to computed fields', async () => {
-      ;(prisma.docVente.findMany as jest.Mock).mockResolvedValue([mockDocument])
-      ;(prisma.docVente.count as jest.Mock).mockResolvedValue(1)
+      ;(prisma.docVente.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([mockDocument])
+      ;(prisma.docVente.count as ReturnType<typeof vi.fn>).mockResolvedValue(1)
 
       const result = await documentsModule.getDocuments(1, 50)
 
@@ -118,7 +118,7 @@ describe('Document Actions', () => {
     })
 
     it('should handle errors gracefully', async () => {
-      ;(prisma.docVente.findMany as jest.Mock).mockRejectedValue(new Error('DB error'))
+      ;(prisma.docVente.findMany as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('DB error'))
 
       const result = await documentsModule.getDocuments(1, 50)
 
@@ -129,8 +129,8 @@ describe('Document Actions', () => {
 
   describe('getSalesDocuments', () => {
     it('should filter by domaine_document VENTE', async () => {
-      ;(prisma.docVente.findMany as jest.Mock).mockResolvedValue([mockDocument])
-      ;(prisma.docVente.count as jest.Mock).mockResolvedValue(1)
+      ;(prisma.docVente.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([mockDocument])
+      ;(prisma.docVente.count as ReturnType<typeof vi.fn>).mockResolvedValue(1)
 
       await documentsModule.getSalesDocuments(1, 50)
 
@@ -144,8 +144,8 @@ describe('Document Actions', () => {
 
   describe('getPurchasesDocuments', () => {
     it('should filter by domaine_document ACHAT', async () => {
-      ;(prisma.docVente.findMany as jest.Mock).mockResolvedValue([mockDocument])
-      ;(prisma.docVente.count as jest.Mock).mockResolvedValue(1)
+      ;(prisma.docVente.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([mockDocument])
+      ;(prisma.docVente.count as ReturnType<typeof vi.fn>).mockResolvedValue(1)
 
       await documentsModule.getPurchasesDocuments(1, 50)
 
@@ -159,7 +159,7 @@ describe('Document Actions', () => {
 
   describe('getDocLines', () => {
     it('should fetch document lines for valid docId', async () => {
-      ;(prisma.ligneDocument.findMany as jest.Mock).mockResolvedValue([mockDocumentLine])
+      ;(prisma.ligneDocument.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([mockDocumentLine])
 
       const result = await documentsModule.getDocLines(1)
 
