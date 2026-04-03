@@ -39,9 +39,6 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  # =====================================================
-  # QUALITY & SECURITY CHECKS
-  # =====================================================
   quality-checks:
     name: Lint & Validation
     runs-on: ubuntu-latest
@@ -77,6 +74,14 @@ jobs:
         format: 'github'
         failure-threshold: 'error'
 
+    - name: Run npm audit
+      run: npm audit --audit-level=high
+
+    - name: Secret scan with Gitleaks
+      uses: gitleaks/gitleaks-action@v2
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   security-scan:
     name: Security Scanning
     runs-on: ubuntu-latest
@@ -92,8 +97,8 @@ jobs:
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v3
 
-    - name: Run Trivy vulnerability scanner (pinned version)
-      uses: aquasecurity/trivy-action@0.28.0
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@0.35.0
       with:
         scan-type: 'fs'
         scan-ref: '.'
@@ -107,9 +112,6 @@ jobs:
       with:
         sarif_file: 'trivy-results.sarif'
 
-  # =====================================================
-  # TESTING
-  # =====================================================
   test:
     name: Run Tests
     runs-on: ubuntu-latest
@@ -171,9 +173,6 @@ jobs:
         fail_ci_if_error: false
         token: ${{ secrets.CODECOV_TOKEN }}
 
-  # =====================================================
-  # BUILD & PUBLISH
-  # =====================================================
   build:
     name: Build & Publish Image
     runs-on: ubuntu-latest
@@ -240,9 +239,6 @@ jobs:
         path: sbom.spdx.json
         retention-days: 30
 
-  # =====================================================
-  # DEPLOYMENT
-  # =====================================================
   deploy-staging:
     name: Deploy to Staging
     runs-on: ubuntu-latest
@@ -265,8 +261,8 @@ jobs:
     - name: Deploy to Kubernetes
       run: |
         kubectl set image deployment/stock-app \
-          stock-app=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
-          --namespace staging
+        stock-app=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+        --namespace staging
 
     - name: Wait for rollout
       run: kubectl rollout status deployment/stock-app --namespace staging --timeout=300s
@@ -293,8 +289,8 @@ jobs:
     - name: Deploy to Kubernetes
       run: |
         kubectl set image deployment/stock-app \
-          stock-app=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
-          --namespace production
+        stock-app=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+        --namespace production
 
     - name: Wait for rollout
       run: kubectl rollout status deployment/stock-app --namespace production --timeout=600s
@@ -331,9 +327,6 @@ jobs:
     - name: Rollback deployment
       run: kubectl rollout undo deployment/stock-app --namespace production
 
-  # =====================================================
-  # NOTIFICATIONS
-  # =====================================================
   notify:
     name: Notifications
     runs-on: ubuntu-latest

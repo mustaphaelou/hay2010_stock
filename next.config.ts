@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
   // =====================================================
@@ -201,4 +202,19 @@ headers: [
   poweredByHeader: false,
 };
 
-export default nextConfig;
+const sentryConfig = {
+  org: process.env.SENTRY_ORG || "hay2010",
+  project: process.env.SENTRY_PROJECT || "stock-app",
+  silent: process.env.NODE_ENV === "development",
+  widenClientFilesUpload: true,
+  reactComponentAnnotation: {
+    enabled: true,
+  },
+  sourcemaps: {
+    disable: process.env.NODE_ENV === "development",
+  },
+};
+
+export default process.env.SENTRY_DSN || process.env.NEXT_PUBLIC_SENTRY_DSN
+  ? withSentryConfig(nextConfig, sentryConfig)
+  : nextConfig;

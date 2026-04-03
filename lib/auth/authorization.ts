@@ -1,5 +1,8 @@
 import { cookies } from 'next/headers'
 import { verifyToken } from './jwt'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('authorization')
 
 export type UserRole = 'ADMIN' | 'MANAGER' | 'USER' | 'VIEWER'
 
@@ -14,23 +17,23 @@ export const RESOURCE_PERMISSIONS = {
   'stock:read': ['ADMIN', 'MANAGER', 'USER', 'VIEWER'],
   'stock:write': ['ADMIN', 'MANAGER', 'USER'],
   'stock:delete': ['ADMIN', 'MANAGER'],
-  
+
   'documents:read': ['ADMIN', 'MANAGER', 'USER', 'VIEWER'],
   'documents:write': ['ADMIN', 'MANAGER', 'USER'],
   'documents:delete': ['ADMIN'],
   'documents:export': ['ADMIN', 'MANAGER'],
-  
+
   'partners:read': ['ADMIN', 'MANAGER', 'USER', 'VIEWER'],
   'partners:write': ['ADMIN', 'MANAGER'],
   'partners:delete': ['ADMIN'],
-  
+
   'users:read': ['ADMIN', 'MANAGER'],
   'users:write': ['ADMIN'],
   'users:delete': ['ADMIN'],
-  
+
   'reports:view': ['ADMIN', 'MANAGER'],
   'reports:export': ['ADMIN', 'MANAGER'],
-  
+
   'affairs:read': ['ADMIN', 'MANAGER', 'USER', 'VIEWER'],
   'affairs:write': ['ADMIN', 'MANAGER', 'USER'],
   'affairs:delete': ['ADMIN'],
@@ -62,6 +65,7 @@ export async function requirePermission(permission: Permission): Promise<{ id: s
 
   const userRole = payload.role as UserRole
   if (!hasPermission(userRole, permission)) {
+    log.warn({ userId: payload.userId, role: userRole, permission }, 'Permission denied')
     throw new Error(`Forbidden: ${permission} permission required`)
   }
 
@@ -87,7 +91,9 @@ export async function getUserFromToken(): Promise<{ id: string; email: string; r
       email: payload.email,
       role: payload.role as UserRole,
     }
-  } catch {
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    log.debug({ error: errorMessage }, 'Failed to get user from token')
     return null
   }
 }

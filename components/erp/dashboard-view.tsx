@@ -32,13 +32,15 @@ import { Empty } from "@/components/ui/empty"
 import { PaymentStatusChart } from "@/components/erp/dashboard-charts"
 
 interface RecentDocType {
-    id_document: number
-    numero_piece: string
-    date_document: Date
-    partenaire?: { nom_partenaire: string } | null
-    nom_tiers?: string | null
-    montant_regle?: number | null
-    montant_ttc?: number | null
+  id_document: number
+  numero_piece: string
+  date_document: Date
+  partenaire?: { nom_partenaire: string } | null
+  nom_tiers?: string | null
+  montant_regle?: number | null
+  montant_ttc?: number | null
+  type_document?: string
+  domaine_document?: string
 }
 
 interface DashboardViewProps {

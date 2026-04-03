@@ -302,3 +302,9 @@ export type DashboardData = {
   recentDocs: DocumentBase[]
   salesInvoices: SalesInvoice[]
 }
+
+export type DashboardDataWithComputed = {
+  stats: DashboardStats
+  recentDocs: DocumentWithComputed[]
+  salesInvoices: SalesInvoice[]
+}

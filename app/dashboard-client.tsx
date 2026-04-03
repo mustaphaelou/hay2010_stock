@@ -7,7 +7,7 @@ import { SiteHeader } from "@/components/erp/site-header"
 import { DashboardView } from "@/components/erp/dashboard-view"
 import { BottomNav } from "@/components/erp/bottom-nav"
 import { ClientSidebar as AppSidebar } from "@/components/erp/client-sidebar"
-import type { DocumentWithComputed } from "@/lib/types"
+import type { DocumentWithComputed, DashboardStats, SalesInvoice } from "@/lib/types"
 import { EnhancedDashboardView } from "@/components/dashboard/enhanced"
 import { Button } from "@/components/ui/button"
 import { SafeIcon as HugeiconsIcon } from "@/components/ui/safe-icon"
@@ -18,15 +18,24 @@ import {
 } from "@hugeicons/core-free-icons"
 
 interface DashboardClientProps {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  stats: Record<string, unknown> | any;
-  recentDocs: unknown[];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  salesInvoices: any[];
+  stats: DashboardStats
+  recentDocs: DocumentWithComputed[]
+  salesInvoices: SalesInvoice[]
 }
 
 export function DashboardClient({ stats, recentDocs, salesInvoices }: DashboardClientProps) {
   const [viewMode, setViewMode] = React.useState<"classic" | "enhanced">("classic")
+  const processedDocs = recentDocs.map(doc => ({
+    id_document: doc.id_document,
+    numero_piece: doc.numero_piece,
+    date_document: doc.date_document,
+    partenaire: doc.partenaire,
+    nom_tiers: doc.nom_tiers,
+    montant_regle: doc.montant_regle,
+    montant_ttc: doc.montant_ttc_num,
+    type_document: doc.type_document,
+    domaine_document: doc.domaine
+  }))
 
   const {
     kpiCards,
@@ -38,8 +47,8 @@ export function DashboardClient({ stats, recentDocs, salesInvoices }: DashboardC
   } = React.useMemo(() => {
     let regle = 0, partiel = 0, encours = 0
     salesInvoices.forEach((inv) => {
-      const montant_regle = Number(inv.montant_regle || 0)
-      const montant_ttc = Number(inv.montant_ttc || 0)
+      const montant_regle = inv.montant_regle
+      const montant_ttc = Number(inv.montant_ttc)
 
       const isPaid = montant_regle > 0 && montant_regle >= montant_ttc
       const isPartial = montant_regle > 0 && montant_regle < montant_ttc
@@ -128,7 +137,7 @@ export function DashboardClient({ stats, recentDocs, salesInvoices }: DashboardC
       },
     ]
 
-    const activities = (recentDocs as DocumentWithComputed[]).slice(0, 5).map((doc) => ({
+    const activities = recentDocs.slice(0, 5).map((doc) => ({
       id: String(doc.id_document),
       title: doc.numero_piece || doc.numero_document || `Document #${doc.id_document}`,
       description: doc.partenaire?.nom_partenaire || "N/A",
@@ -251,12 +260,12 @@ export function DashboardClient({ stats, recentDocs, salesInvoices }: DashboardC
               showViewToggle
             />
           ) : (
-            <DashboardView
-              initialStats={stats}
-              initialRecentDocs={recentDocs as never}
-              paymentData={paymentData}
-              monthlyData={monthlyData}
-            />
+      <DashboardView
+        initialStats={stats}
+        initialRecentDocs={processedDocs}
+        paymentData={paymentData}
+        monthlyData={monthlyData}
+      />
           )}
         </div>
         <BottomNav />

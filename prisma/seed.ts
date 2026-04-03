@@ -26,19 +26,18 @@ async function main() {
 
   if (!existingAdmin) {
     const adminPassword = process.env.SEED_ADMIN_PASSWORD
-    let hashedPassword: string
-    
-    if (adminPassword) {
-      hashedPassword = await bcrypt.hash(adminPassword, 12)
-      console.log('Using password from SEED_ADMIN_PASSWORD environment variable')
+
+    if (!adminPassword && process.env.NODE_ENV === 'production') {
+      throw new Error('SEED_ADMIN_PASSWORD must be set in production environment')
+    }
+
+    const passwordToUse = adminPassword || crypto.randomUUID()
+    const hashedPassword = await bcrypt.hash(passwordToUse, 12)
+
+    if (!adminPassword) {
+      console.log('Admin user created. Check SEED_ADMIN_PASSWORD or reset password after first login.')
     } else {
-      const randomPassword = Math.random().toString(36).slice(-12) + Math.random().toString(36).slice(-12)
-      hashedPassword = await bcrypt.hash(randomPassword, 12)
-      console.log('\n===========================================')
-      console.log('GENERATED ADMIN PASSWORD (SAVE THIS):')
-      console.log(randomPassword)
-      console.log('===========================================\n')
-      console.warn('WARNING: Set SEED_ADMIN_PASSWORD environment variable for production deployments')
+      console.log('Using password from SEED_ADMIN_PASSWORD environment variable')
     }
 
     const newId = crypto.randomUUID();

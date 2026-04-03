@@ -8,6 +8,10 @@ import { createSession, deleteSession } from '@/lib/auth/session'
 import { loginSchema } from '@/lib/validation'
 import { recordFailedAttempt, clearFailedAttempts, isAccountLocked } from '@/lib/auth/lockout'
 import { validateCsrfToken } from '@/lib/security/csrf'
+import { createLogger } from '@/lib/logger'
+import * as Sentry from '@sentry/nextjs'
+
+const log = createLogger('auth-actions')
 
 const COOKIE_NAME = 'auth_token'
 
@@ -77,7 +81,8 @@ export async function login(
 
     return { success: true }
   } catch (error) {
-    console.error('Login error:', error)
+    log.error({ email, error }, 'Login error')
+    Sentry.captureException(error, { tags: { action: 'login' } })
     return { error: 'An unexpected error occurred during login' }
   }
 }
@@ -104,7 +109,8 @@ export async function logout(csrfToken?: string): Promise<{ error?: string; succ
     (await cookieStore).delete(COOKIE_NAME)
     return { success: true }
   } catch (error) {
-    console.error('Logout error:', error)
+    log.error({ error }, 'Logout error')
+    Sentry.captureException(error, { tags: { action: 'logout' } })
     return { error: 'Logout failed' }
   }
 }
@@ -130,7 +136,7 @@ export async function getCurrentUser(): Promise<{ id: string; email: string; nam
 
     return user
   } catch (error) {
-    console.error('Get current user error:', error)
+    log.error({ error }, 'Get current user error')
     return null
   }
 }

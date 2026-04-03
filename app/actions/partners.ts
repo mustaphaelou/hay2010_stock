@@ -4,14 +4,17 @@ import { prisma } from '@/lib/db/prisma'
 import { requireAuth } from '@/lib/auth/user-utils'
 import { getPartnersSchema } from '@/lib/validation'
 import type { PartnerWithComputed } from '@/lib/types'
-import { TypePartenaire } from '@/lib/generated/prisma/client'
+import { TypePartenaire } from '@/lib/generated/prisma'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('partners-actions')
 
 export async function getPartners(type?: string, page: number = 1, limit: number = 50): Promise<{ data: PartnerWithComputed[]; meta: { total: number; page: number; limit: number; totalPages: number }; error?: string }> {
   await requireAuth()
 
   const validationResult = getPartnersSchema.safeParse({ type })
   if (!validationResult.success) {
-    console.error('Invalid partners filter:', validationResult.error)
+    log.error({ error: validationResult.error }, 'Invalid partners filter')
     return { data: [], meta: { total: 0, page, limit, totalPages: 0 }, error: 'Invalid filter parameters' }
   }
 

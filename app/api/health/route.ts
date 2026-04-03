@@ -4,7 +4,9 @@ import { prisma } from '@/lib/db/prisma'
 import { redis } from '@/lib/db/redis'
 import { verifyToken } from '@/lib/auth/jwt'
 import { checkRedisHealth } from '@/lib/db/redis-cluster'
+import { createLogger } from '@/lib/logger'
 
+const log = createLogger('health-api')
 const COOKIE_NAME = 'auth_token'
 
 export async function GET() {
@@ -21,8 +23,9 @@ export async function GET() {
         isAuthenticated = true
         isAdmin = payload.role === 'ADMIN'
       }
-    } catch {
-      // Token invalid, proceed with basic health check
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      log.debug({ error: errorMessage }, 'Token verification failed in health check')
     }
   }
 
@@ -38,15 +41,12 @@ export async function GET() {
   }
 
   try {
-    // Database check
     await prisma.$queryRaw`SELECT 1`
     checks.database = true
 
-    // Redis check
     const redisHealth = await checkRedisHealth()
     checks.redis = redisHealth.connected
 
-    // Schema validation - check Role enum (use quoted name for case sensitivity)
     const roleCheck = await prisma.$queryRaw<Array<{ count: bigint }>>`
       SELECT COUNT(*) as count
       FROM pg_enum
@@ -91,13 +91,14 @@ export async function GET() {
       checks
     })
   } catch (error) {
-    console.error('Health check failed:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    log.error({ error: errorMessage, checks }, 'Health check failed')
     return NextResponse.json(
-      { 
-        status: 'error', 
+      {
+        status: 'error',
         timestamp: new Date().toISOString(),
         checks,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: errorMessage
       },
       { status: 503 }
     )
