@@ -1,6 +1,9 @@
 import { PrismaClient } from '@/lib/generated/prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { Pool } from 'pg'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('prisma')
 
 const globalForPrisma = global as unknown as { prisma: PrismaClient | undefined }
 
@@ -19,9 +22,9 @@ function createPrismaClient(): PrismaClient {
       connectionTimeoutMillis: 2000,
     })
 
-    pool.on('error', (err) => {
-      console.error('PostgreSQL pool error:', err)
-    })
+	pool.on('error', (err) => {
+		log.error({ error: err }, 'PostgreSQL pool error')
+	})
 
     const adapter = new PrismaPg(pool)
 const client = new PrismaClient({
@@ -42,18 +45,18 @@ const client = new PrismaClient({
   },
 })
 
-if (process.env.NODE_ENV === 'production') {
-  client.$on('query', (e) => {
-    if (e.duration > 1000) {
-      console.warn(`[Prisma] Slow query (${e.duration}ms):`, e.query.substring(0, 200))
-    }
-  })
-}
+	if (process.env.NODE_ENV === 'production') {
+		client.$on('query', (e) => {
+			if (e.duration > 1000) {
+				log.warn({ duration: e.duration, query: e.query.substring(0, 200) }, 'Slow query detected')
+			}
+		})
+	}
 
     return client
-  } catch (error) {
-    console.error('Failed to create Prisma client:', error)
-    throw error
+	} catch (error) {
+		log.error({ error }, 'Failed to create Prisma client')
+		throw error
   }
 }
 

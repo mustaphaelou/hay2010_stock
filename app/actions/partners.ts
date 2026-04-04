@@ -78,9 +78,9 @@ export async function getPartners(type?: string, page: number = 1, limit: number
         totalPages: Math.ceil(total / limit)
       }
     }
-  } catch (error) {
-    console.error('Failed to fetch partners:', error)
-    return { 
+	} catch (error) {
+		log.error({ error, type }, 'Failed to fetch partners')
+		return {
       data: [], 
       meta: { total: 0, page, limit, totalPages: 0 },
       error: 'Failed to fetch partners'

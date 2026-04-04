@@ -4,6 +4,9 @@ import { prisma } from '@/lib/db/prisma'
 import { hashPassword } from '@/lib/auth/password'
 import { registerSchema } from '@/lib/validation'
 import crypto from 'crypto'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('password-reset-actions')
 
 const TOKEN_EXPIRY = 60 * 60 * 1000 // 1 hour in milliseconds
 
@@ -57,25 +60,15 @@ export async function requestPasswordReset(email: string): Promise<{ error?: str
       expires: Date.now() + TOKEN_EXPIRY
     })
 
-    // In production, send email with reset link
-    // For now, we'll log it and return the token for testing
-    console.log(`
-============================================
-PASSWORD RESET REQUEST
-Email: ${normalizedEmail}
-Reset Token: ${resetToken}
-Reset URL: ${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}
-Expires in: 1 hour
-============================================
-    `)
+	log.info({ email: normalizedEmail }, 'Password reset token generated (development mode)')
 
-    // TODO: Send email with reset link
+		// TODO: Send email with reset link
     // await sendPasswordResetEmail(normalizedEmail, resetToken)
 
     return { success: true, message: successMessage }
-  } catch (error) {
-    console.error('Password reset request error:', error)
-    return { error: 'An unexpected error occurred' }
+	} catch (error) {
+		log.error({ error, email }, 'Password reset request error')
+		return { error: 'An unexpected error occurred' }
   }
 }
 
@@ -98,9 +91,9 @@ export async function validateResetToken(token: string): Promise<{ valid: boolea
     }
 
     return { valid: true, email: storedToken.email }
-  } catch (error) {
-    console.error('Token validation error:', error)
-    return { valid: false, error: 'An unexpected error occurred' }
+	} catch (error) {
+		log.error({ error }, 'Token validation error')
+		return { valid: false, error: 'An unexpected error occurred' }
   }
 }
 
@@ -137,8 +130,8 @@ export async function resetPassword(token: string, newPassword: string): Promise
     resetTokens.delete(hashedToken)
 
   return { success: true, message: 'Your password has been reset successfully. You can now log in with your new password.' }
-  } catch (error) {
-    console.error('Password reset error:', error)
-    return { error: 'An unexpected error occurred' }
+	} catch (error) {
+		log.error({ error }, 'Password reset error')
+		return { error: 'An unexpected error occurred' }
   }
 }

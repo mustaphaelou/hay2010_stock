@@ -3,6 +3,9 @@
 import { prisma } from '@/lib/db/prisma'
 import { hashPassword } from '@/lib/auth/password'
 import { registerSchema } from '@/lib/validation'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('registration-actions')
 
 export async function publicRegister(
   email: string,
@@ -40,8 +43,8 @@ export async function publicRegister(
     })
 
     return { success: true, message: 'Account created successfully! You can now log in.' }
-  } catch (error) {
-    console.error('Registration error:', error)
-    return { error: 'An unexpected error occurred during registration' }
+	} catch (error) {
+		log.error({ error, email }, 'Registration error')
+		return { error: 'An unexpected error occurred during registration' }
   }
 }

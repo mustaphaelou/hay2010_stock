@@ -8,6 +8,9 @@ import type { ArticleWithStock } from '@/lib/types'
 import { CacheService, CacheKeys, CacheTTL } from '@/lib/db/redis-cluster'
 import { CacheInvalidationService } from '@/lib/cache/invalidation'
 import { Prisma } from '@/lib/generated/prisma/client'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('articles-actions')
 
 async function getStockAggregates(productIds: number[]): Promise<Map<number, number>> {
   if (productIds.length === 0) return new Map()
@@ -122,9 +125,9 @@ const data = result.map((article) => {
     await CacheService.set(cacheKey, response, CacheTTL.PRODUCT)
 
     return response
-  } catch (error) {
-    console.error('Failed to fetch articles:', error)
-    return {
+	} catch (error) {
+		log.error({ error }, 'Failed to fetch articles')
+		return {
       data: [],
       meta: { total: 0, page, limit, totalPages: 0 },
       error: 'Failed to fetch articles'
@@ -168,9 +171,9 @@ export async function toggleArticleStatus(
 
     revalidatePath('/articles')
     return { success: true }
-  } catch (error) {
-    console.error('Failed to toggle article status:', error)
-    return { error: 'Failed to update status' }
+	} catch (error) {
+		log.error({ error, id_produit }, 'Failed to toggle article status')
+		return { error: 'Failed to update status' }
   } finally {
     await CacheService.releaseLock(`article:${id_produit}`, lockToken)
   }

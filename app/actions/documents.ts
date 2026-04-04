@@ -5,6 +5,9 @@ import { requireAuth } from '@/lib/auth/user-utils'
 import { getDocLinesSchema } from '@/lib/validation'
 import type { DocumentWithComputed, DocumentLine } from '@/lib/types'
 import { Prisma } from '@/lib/generated/prisma/client'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('documents-actions')
 
 export type DocumentWithPartner = NonNullable<Awaited<ReturnType<typeof getDocuments>>>['data'][0]
 export type DocumentLineType = NonNullable<Awaited<ReturnType<typeof getDocLines>>>['data'][0]
@@ -99,9 +102,9 @@ export async function getDocuments(page: number = 1, limit: number = 50): Promis
         totalPages: Math.ceil(total / limit)
       }
     }
-  } catch (error) {
-    console.error('Failed to fetch documents:', error)
-    return { 
+	} catch (error) {
+		log.error({ error }, 'Failed to fetch documents')
+		return {
       data: [], 
       meta: { total: 0, page, limit, totalPages: 0 },
       error: 'Failed to fetch documents'
@@ -146,9 +149,9 @@ export async function getSalesDocuments(page: number = 1, limit: number = 50): P
         totalPages: Math.ceil(total / limit)
       }
     }
-  } catch (error) {
-    console.error('Failed to fetch sales documents:', error)
-    return { 
+	} catch (error) {
+		log.error({ error }, 'Failed to fetch sales documents')
+		return {
       data: [], 
       meta: { total: 0, page, limit, totalPages: 0 },
       error: 'Failed to fetch sales documents'
@@ -193,9 +196,9 @@ export async function getPurchasesDocuments(page: number = 1, limit: number = 50
         totalPages: Math.ceil(total / limit)
       }
     }
-  } catch (error) {
-    console.error('Failed to fetch purchases documents:', error)
-    return { 
+	} catch (error) {
+		log.error({ error }, 'Failed to fetch purchases documents')
+		return {
       data: [], 
       meta: { total: 0, page, limit, totalPages: 0 },
       error: 'Failed to fetch purchases documents'
@@ -206,10 +209,10 @@ export async function getPurchasesDocuments(page: number = 1, limit: number = 50
 export async function getDocLines(docId: number): Promise<{ data: DocumentLine[]; error?: string }> {
   await requireAuth()
 
-  const validationResult = getDocLinesSchema.safeParse({ docId })
-  if (!validationResult.success) {
-    console.error('Invalid docId:', validationResult.error)
-    return { data: [], error: 'Invalid document ID' }
+	const validationResult = getDocLinesSchema.safeParse({ docId })
+	if (!validationResult.success) {
+		log.error({ error: validationResult.error, docId }, 'Invalid docId')
+		return { data: [], error: 'Invalid document ID' }
   }
 
   try {
@@ -236,8 +239,8 @@ export async function getDocLines(docId: number): Promise<{ data: DocumentLine[]
         code_taxe: null
       }))
     }
-  } catch (error) {
-    console.error('Failed to fetch document lines:', error)
-    return { data: [], error: 'Failed to fetch document lines' }
+	} catch (error) {
+		log.error({ error, docId }, 'Failed to fetch document lines')
+		return { data: [], error: 'Failed to fetch document lines' }
   }
 }

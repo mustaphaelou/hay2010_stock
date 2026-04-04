@@ -4,6 +4,9 @@ import { prisma } from '@/lib/db/prisma'
 import { requireAuth } from '@/lib/auth/user-utils'
 import { getDocumentsByAffaireSchema } from '@/lib/validation'
 import type { DocumentBase } from '@/lib/types'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('affaires-actions')
 
 export async function getAffaires(): Promise<string[]> {
   await requireAuth()
@@ -21,19 +24,19 @@ export async function getAffaires(): Promise<string[]> {
       }
     })
     return affaires.map((a: { code_affaire: string }) => a.code_affaire)
-  } catch (error) {
-    console.error('Failed to fetch affaires:', error)
-    return []
+	} catch (error) {
+		log.error({ error }, 'Failed to fetch affaires')
+		return []
   }
 }
 
 export async function getDocumentsByAffaire(code_affaire: string): Promise<DocumentBase[]> {
   await requireAuth()
 
-  const validationResult = getDocumentsByAffaireSchema.safeParse({ code_affaire })
-  if (!validationResult.success) {
-    console.error('Invalid affaire code:', validationResult.error)
-    return []
+	const validationResult = getDocumentsByAffaireSchema.safeParse({ code_affaire })
+	if (!validationResult.success) {
+		log.error({ error: validationResult.error, code_affaire }, 'Invalid affaire code')
+		return []
   }
 
   try {
@@ -61,8 +64,8 @@ export async function getDocumentsByAffaire(code_affaire: string): Promise<Docum
       montant_ttc: doc.montant_ttc,
       solde_du: doc.solde_du
     }))
-  } catch (error) {
-    console.error('Failed to fetch documents for affaire:', error)
-    return []
+	} catch (error) {
+		log.error({ error, code_affaire }, 'Failed to fetch documents for affaire')
+		return []
   }
 }

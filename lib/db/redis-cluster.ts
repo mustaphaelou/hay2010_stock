@@ -1,11 +1,14 @@
 /**
  * Redis Cluster Configuration
- * 
+ *
  * This module provides Redis cluster support with automatic failover,
  * connection pooling, and distributed caching capabilities.
  */
 
 import Redis, { Cluster, RedisOptions } from 'ioredis'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('redis')
 
 // Configuration types
 interface RedisClusterConfig {
@@ -79,14 +82,14 @@ function createRedisCluster(): Cluster {
     enableReadyCheck: config.enableReadyCheck,
     slotsRefreshTimeout: 1000,
     lazyConnect: config.lazyConnect,
-    clusterRetryStrategy: (times: number) => {
-      if (times > 10) {
-        console.error('Redis cluster connection failed after 10 retries')
-        return null
-      }
-      const delay = Math.min(times * 100, 2000)
-      console.log(`Redis cluster retry attempt ${times}, delay: ${delay}ms`)
-      return delay
+	clusterRetryStrategy: (times: number) => {
+		if (times > 10) {
+			log.error('Redis cluster connection failed after 10 retries')
+			return null
+		}
+		const delay = Math.min(times * 100, 2000)
+		log.debug({ attempt: times, delay }, 'Redis cluster retry')
+		return delay
     },
     redisOptions,
   })
@@ -105,12 +108,12 @@ function createRedisSingle(): Redis {
 		keepAlive: config.keepAlive,
 		connectTimeout: config.connectTimeout,
 		commandTimeout: config.commandTimeout,
-		retryStrategy: (times: number) => {
-			if (times > 10) {
-				console.error('[Redis] Connection failed after 10 retries')
-				return null
-			}
-			return Math.min(times * 50, 2000)
+	retryStrategy: (times: number) => {
+		if (times > 10) {
+			log.error('Connection failed after 10 retries')
+			return null
+		}
+		return Math.min(times * 50, 2000)
 		},
 	}
 
@@ -149,23 +152,23 @@ if (process.env.NODE_ENV !== 'production') {
 
 // Error handling
 redis.on('error', (err: Error) => {
-    console.error('[Redis] Connection error:', err.message)
+	log.error({ error: err.message }, 'Connection error')
 })
 
 redis.on('connect', () => {
-    console.log('[Redis] Connected successfully')
+	log.info('Connected successfully')
 })
 
 redis.on('ready', () => {
-    console.log('[Redis] Ready to accept commands')
+	log.info('Ready to accept commands')
 })
 
 redis.on('close', () => {
-    console.log('[Redis] Connection closed')
+	log.info('Connection closed')
 })
 
 redis.on('reconnecting', () => {
-    console.log('[Redis] Reconnecting...')
+	log.info('Reconnecting...')
 })
 
 /**
@@ -210,9 +213,9 @@ export class CacheService {
             const data = await redis.get(key)
             if (!data) return null
             return JSON.parse(data) as T
-        } catch (error) {
-            console.error(`[Cache] Get error for key ${key}:`, error)
-            return null
+	} catch (error) {
+		log.error({ error, key }, 'Cache get error')
+		return null
         }
     }
 
@@ -223,9 +226,9 @@ export class CacheService {
         try {
             await redis.setex(key, ttl, JSON.stringify(value))
             return true
-        } catch (error) {
-            console.error(`[Cache] Set error for key ${key}:`, error)
-            return false
+	} catch (error) {
+		log.error({ error, key }, 'Cache set error')
+		return false
         }
     }
 
@@ -236,9 +239,9 @@ export class CacheService {
         try {
             await redis.del(key)
             return true
-        } catch (error) {
-            console.error(`[Cache] Delete error for key ${key}:`, error)
-            return false
+	} catch (error) {
+		log.error({ error, key }, 'Cache delete error')
+		return false
         }
     }
 
@@ -263,9 +266,9 @@ export class CacheService {
             } while (cursor !== '0')
 
             return count
-        } catch (error) {
-            console.error(`[Cache] Delete pattern error for ${pattern}:`, error)
-            return 0
+	} catch (error) {
+		log.error({ error, pattern }, 'Cache delete pattern error')
+		return 0
         }
     }
 
@@ -300,9 +303,9 @@ export class CacheService {
             await writer(value)
             await this.set(key, value, ttl)
             return true
-        } catch (error) {
-            console.error(`[Cache] Write-through error for key ${key}:`, error)
-            return false
+	} catch (error) {
+		log.error({ error, key }, 'Cache write-through error')
+		return false
         }
     }
 
@@ -463,9 +466,9 @@ export async function checkRedisHealth(): Promise<{
                 nodes: clusterNodes ? parseInt(clusterNodes[1], 10) : 0,
             }
         }
-    } catch (error) {
-        console.error('[Redis] Health check failed:', error)
-    }
+	} catch (error) {
+		log.error({ error }, 'Health check failed')
+	}
 
     return result
 }

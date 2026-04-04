@@ -2,6 +2,9 @@
 
 import { prisma } from '@/lib/db/prisma'
 import { requireAuth } from '@/lib/auth/user-utils'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('dashboard-data-actions')
 
 export type DashboardProductData = {
   id_produit: number
@@ -150,8 +153,8 @@ export async function getDashboardData(): Promise<DashboardDataResult> {
     })
 
     return { products, partners, documents, movements }
-  } catch (error) {
-    console.error('Failed to fetch dashboard data:', error)
-    return { products: [], partners: [], documents: [], movements: [] }
+	} catch (error) {
+		log.error({ error }, 'Failed to fetch dashboard data')
+		return { products: [], partners: [], documents: [], movements: [] }
   }
 }

@@ -1,12 +1,15 @@
 /**
  * Rate Limiting Middleware
- * 
+ *
  * Provides tiered rate limiting for different endpoint types
  * using Redis as the backing store.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
 import { redis, CacheKeys } from '@/lib/db/redis-cluster'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('rate-limit')
 
 // Rate limit configuration by endpoint type
 interface RateLimitConfig {
@@ -152,10 +155,10 @@ async function checkRateLimit(
             reset,
             retryAfter: count > config.requests ? config.window : undefined,
         }
-    } catch (error) {
-        console.error('[Rate Limit] Error checking rate limit:', error)
-        // On error, allow the request through (fail open)
-        return {
+	} catch (error) {
+		log.error({ error, identifier, path }, 'Error checking rate limit')
+		// On error, allow the request through (fail open)
+		return {
             allowed: true,
             limit: config.requests,
             remaining: config.requests,
@@ -192,9 +195,9 @@ async function checkRateLimitSimple(
             reset: now + ttl * 1000,
             retryAfter: current > config.requests ? ttl : undefined,
         }
-    } catch (error) {
-        console.error('[Rate Limit] Error checking rate limit:', error)
-        return {
+	} catch (error) {
+		log.error({ error, identifier, path }, 'Error checking rate limit')
+		return {
             allowed: true,
             limit: config.requests,
             remaining: config.requests,
@@ -280,8 +283,8 @@ export function withRateLimit<T extends (...args: unknown[]) => Promise<unknown>
             if (error instanceof Error && error.message.includes('Rate limit')) {
                 throw error
             }
-            // Log but don't block on Redis errors
-            console.error('[Rate Limit] Error:', error)
+		// Log but don't block on Redis errors
+		log.error({ error }, 'Rate limit check error')
         }
 
         return action(...args)

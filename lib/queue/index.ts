@@ -1,12 +1,15 @@
 /**
  * Background Job Processing with BullMQ
- * 
+ *
  * Provides queue-based job processing for heavy operations
  * like PDF generation, report creation, and bulk imports.
  */
 
 import { Queue, Worker, Job } from 'bullmq'
 import { redis } from '@/lib/db/redis-cluster'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('queue')
 
 // =====================================================
 // QUEUE DEFINITIONS
@@ -371,29 +374,29 @@ const cacheWarmupWorker = new Worker<CacheWarmupJob>(
 
 // PDF Worker Events
 pdfWorker.on('completed', (job: Job<PDFGenerationJob>) => {
-    console.log(`[Queue] PDF job ${job.id} completed`)
+	log.info({ jobId: job.id }, 'PDF job completed')
 })
 
 pdfWorker.on('failed', (job: Job<PDFGenerationJob> | undefined, err: Error) => {
-    console.error(`[Queue] PDF job ${job?.id} failed:`, err.message)
+	log.error({ jobId: job?.id, error: err.message }, 'PDF job failed')
 })
 
 // Report Worker Events
 reportWorker.on('completed', (job: Job<ReportGenerationJob>) => {
-    console.log(`[Queue] Report job ${job.id} completed`)
+	log.info({ jobId: job.id }, 'Report job completed')
 })
 
 reportWorker.on('failed', (job: Job<ReportGenerationJob> | undefined, err: Error) => {
-    console.error(`[Queue] Report job ${job?.id} failed:`, err.message)
+	log.error({ jobId: job?.id, error: err.message }, 'Report job failed')
 })
 
 // Email Worker Events
 emailWorker.on('completed', (job: Job<EmailJob>) => {
-    console.log(`[Queue] Email job ${job.id} sent to ${job.data.to}`)
+	log.info({ jobId: job.id, to: job.data.to }, 'Email job sent')
 })
 
 emailWorker.on('failed', (job: Job<EmailJob> | undefined, err: Error) => {
-    console.error(`[Queue] Email job ${job?.id} failed:`, err.message)
+	log.error({ jobId: job?.id, error: err.message }, 'Email job failed')
 })
 
 // =====================================================
@@ -517,22 +520,22 @@ export async function getQueueStats(): Promise<{
  * Graceful shutdown
  */
 export async function shutdownQueues(): Promise<void> {
-    console.log('[Queue] Shutting down queues...')
+	log.info('Shutting down queues...')
 
-    await Promise.all([
-        pdfWorker.close(),
-        reportWorker.close(),
-        stockImportWorker.close(),
-        emailWorker.close(),
-        cacheWarmupWorker.close(),
-        documentQueue.close(),
-        reportQueue.close(),
-        stockImportQueue.close(),
-        emailQueue.close(),
-        cacheQueue.close(),
-    ])
+	await Promise.all([
+		pdfWorker.close(),
+		reportWorker.close(),
+		stockImportWorker.close(),
+		emailWorker.close(),
+		cacheWarmupWorker.close(),
+		documentQueue.close(),
+		reportQueue.close(),
+		stockImportQueue.close(),
+		emailQueue.close(),
+		cacheQueue.close(),
+	])
 
-    console.log('[Queue] All queues shut down')
+	log.info('All queues shut down')
 }
 
 // Handle process termination - only in non-serverless environments

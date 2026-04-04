@@ -5,6 +5,9 @@ import { requireRole } from '@/lib/auth/user-utils'
 import { revalidatePath } from 'next/cache'
 import { CacheService } from '@/lib/db/redis-cluster'
 import { CacheInvalidationService } from '@/lib/cache/invalidation'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('stock-movement-actions')
 
 export type MovementType = 'ENTREE' | 'SORTIE' | 'TRANSFERT' | 'INVENTAIRE'
 
@@ -164,9 +167,9 @@ export async function createStockMovement(input: CreateMovementInput, csrfToken:
 
     revalidatePath('/stock')
     return { success: true, data: result }
-  } catch (error) {
-    console.error('Stock movement failed:', error)
-    return {
+	} catch (error) {
+		log.error({ error, input }, 'Stock movement failed')
+		return {
       error: error instanceof Error ? error.message : 'Failed to create stock movement',
     }
   } finally {
@@ -224,8 +227,8 @@ export async function getStockMovements(
         entrepot: m.entrepot,
       })),
     }
-  } catch (error) {
-    console.error('Failed to fetch stock movements:', error)
-    return { error: 'Failed to fetch stock movements' }
+	} catch (error) {
+		log.error({ error, productId, warehouseId }, 'Failed to fetch stock movements')
+		return { error: 'Failed to fetch stock movements' }
   }
 }

@@ -3,6 +3,9 @@
 import { prisma } from '@/lib/db/prisma'
 import { requireAuth } from '@/lib/auth/user-utils'
 import type { StockLevelWithProduct, Depot } from '@/lib/types'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('stock-actions')
 
 export async function getStockLevels(page: number = 1, limit: number = 50): Promise<{ data: StockLevelWithProduct[]; meta: { total: number; page: number; limit: number; totalPages: number }; error?: string }> {
   await requireAuth()
@@ -80,9 +83,9 @@ export async function getStockLevels(page: number = 1, limit: number = 50): Prom
         totalPages: Math.ceil(total / limit)
       }
     }
-  } catch (error) {
-    console.error('Failed to fetch stock levels:', error)
-    return { 
+	} catch (error) {
+		log.error({ error }, 'Failed to fetch stock levels')
+		return {
       data: [], 
       meta: { total: 0, page, limit, totalPages: 0 },
       error: 'Failed to fetch stock levels'
@@ -102,8 +105,8 @@ export async function getDepots(): Promise<Depot[]> {
       id_depot: depot.id_entrepot,
       nom_depot: depot.nom_entrepot
     }))
-  } catch (error) {
-    console.error('Failed to fetch depots:', error)
-    return []
-  }
+	} catch (error) {
+		log.error({ error }, 'Failed to fetch depots')
+		return []
+	}
 }

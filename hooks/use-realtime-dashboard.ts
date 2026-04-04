@@ -37,10 +37,9 @@ export function useRealtimeDashboard(
   const [lastUpdate] = React.useState<Date | null>(null)
   const [error] = React.useState<Error | null>(null)
 
-  const reconnect = React.useCallback(() => {
-    // No-op - realtime disabled
-    console.log('Realtime features are disabled. Reconnect is a no-op.')
-  }, [])
+	const reconnect = React.useCallback(() => {
+		// No-op - realtime disabled
+	}, [])
 
   return {
     isConnected,

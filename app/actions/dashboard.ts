@@ -3,6 +3,9 @@
 import { prisma } from '@/lib/db/prisma'
 import { requireAuth } from '@/lib/auth/user-utils'
 import type { DashboardData, DashboardStats, SalesInvoice, DocumentBase } from '@/lib/types'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('dashboard-actions')
 
 export async function getDashboardStats(): Promise<DashboardData> {
   await requireAuth()
@@ -122,9 +125,9 @@ export async function getDashboardStats(): Promise<DashboardData> {
       recentDocs: processedRecentDocs,
       salesInvoices: processedSalesInvoices
     }
-  } catch (error) {
-    console.error('Failed to fetch dashboard stats:', error)
-    return {
+	} catch (error) {
+		log.error({ error }, 'Failed to fetch dashboard stats')
+		return {
       stats: {
         clients: 0,
         suppliers: 0,
