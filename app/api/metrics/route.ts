@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import client from 'prom-client'
+import { requireAuth } from '@/lib/auth/user-utils'
 
 const collectDefaultMetrics = client.collectDefaultMetrics
 const Registry = client.Registry
@@ -59,7 +60,16 @@ function getMetrics() {
 }
 
 export async function GET() {
-  const { registry: reg } = getMetrics()
+    try {
+        await requireAuth()
+    } catch {
+        return NextResponse.json(
+            { status: 'error', error: 'Unauthorized' },
+            { status: 401 }
+        )
+    }
+
+    const { registry: reg } = getMetrics()
 
   try {
     const metrics = await reg.metrics()

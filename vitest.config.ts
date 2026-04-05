@@ -18,12 +18,12 @@ export default defineConfig({
         '.next/',
         'lib/generated/',
       ],
-      thresholds: {
-        lines: 50,
-        functions: 50,
-        branches: 50,
-        statements: 50,
-      },
+        thresholds: {
+            lines: 70,
+            functions: 70,
+            branches: 60,
+            statements: 70,
+        },
     },
   },
   resolve: {

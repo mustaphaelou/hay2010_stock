@@ -1,15 +1,62 @@
 /**
- * Rate Limiting Middleware
- *
- * Provides tiered rate limiting for different endpoint types
- * using Redis as the backing store.
- */
+* Rate Limiting Middleware
+*
+* Provides tiered rate limiting for different endpoint types
+* using Redis as the backing store.
+* 
+* Circuit breaker pattern prevents cascading failures when Redis is unavailable.
+*/
 
 import { NextRequest, NextResponse } from 'next/server'
 import { redis, CacheKeys } from '@/lib/db/redis-cluster'
 import { createLogger } from '@/lib/logger'
 
 const log = createLogger('rate-limit')
+
+// Circuit breaker state
+interface CircuitBreakerState {
+    failures: number
+    lastFailureTime: number
+    isOpen: boolean
+}
+
+const circuitBreaker: CircuitBreakerState = {
+    failures: 0,
+    lastFailureTime: 0,
+    isOpen: false
+}
+
+const CIRCUIT_BREAKER_THRESHOLD = 5
+const CIRCUIT_BREAKER_RESET_TIME = 60 * 1000 // 60 seconds
+
+function isCircuitBreakerOpen(): boolean {
+    if (!circuitBreaker.isOpen) {
+        return false
+    }
+    
+    const now = Date.now()
+    if (now - circuitBreaker.lastFailureTime > CIRCUIT_BREAKER_RESET_TIME) {
+        log.info('Circuit breaker entering half-open state')
+        return false
+    }
+    
+    return true
+}
+
+function recordCircuitBreakerFailure(): void {
+    circuitBreaker.failures++
+    circuitBreaker.lastFailureTime = Date.now()
+    
+    if (circuitBreaker.failures >= CIRCUIT_BREAKER_THRESHOLD) {
+        circuitBreaker.isOpen = true
+        log.warn({ failures: circuitBreaker.failures }, 'Circuit breaker opened due to repeated failures')
+    }
+}
+
+function recordCircuitBreakerSuccess(): void {
+    circuitBreaker.failures = 0
+    circuitBreaker.isOpen = false
+}
 
 // Rate limit configuration by endpoint type
 interface RateLimitConfig {
@@ -155,16 +202,30 @@ async function checkRateLimit(
             reset,
             retryAfter: count > config.requests ? config.window : undefined,
         }
-	} catch (error) {
-		log.error({ error, identifier, path }, 'Error checking rate limit')
-		// On error, allow the request through (fail open)
-		return {
+    } catch (error) {
+        log.error({ error, identifier, path }, 'Error checking rate limit')
+        recordCircuitBreakerFailure()
+        
+        if (isCircuitBreakerOpen()) {
+            log.warn('Circuit breaker is open, rejecting request')
+            return {
+                allowed: false,
+                limit: config.requests,
+                remaining: 0,
+                reset: now + config.window * 1000,
+                retryAfter: Math.ceil((circuitBreaker.lastFailureTime + CIRCUIT_BREAKER_RESET_TIME - now) / 1000)
+            }
+        }
+        
+        return {
             allowed: true,
             limit: config.requests,
             remaining: config.requests,
             reset: now + config.window * 1000,
         }
     }
+    
+    recordCircuitBreakerSuccess()
 }
 
 /**
@@ -195,15 +256,30 @@ async function checkRateLimitSimple(
             reset: now + ttl * 1000,
             retryAfter: current > config.requests ? ttl : undefined,
         }
-	} catch (error) {
-		log.error({ error, identifier, path }, 'Error checking rate limit')
-		return {
+    } catch (error) {
+        log.error({ error, identifier, path }, 'Error checking rate limit (simple)')
+        recordCircuitBreakerFailure()
+        
+        if (isCircuitBreakerOpen()) {
+            log.warn('Circuit breaker is open, rejecting request')
+            return {
+                allowed: false,
+                limit: config.requests,
+                remaining: 0,
+                reset: now + config.window * 1000,
+                retryAfter: Math.ceil((circuitBreaker.lastFailureTime + CIRCUIT_BREAKER_RESET_TIME - now) / 1000)
+            }
+        }
+        
+        return {
             allowed: true,
             limit: config.requests,
             remaining: config.requests,
             reset: now + config.window * 1000,
         }
     }
+    
+    recordCircuitBreakerSuccess()
 }
 
 /**

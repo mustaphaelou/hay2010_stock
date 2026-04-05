@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { SafeIcon as HugeiconsIcon } from "@/components/ui/safe-icon"
 import { Key02Icon, ViewIcon, ViewOffIcon, Loading02Icon, CheckmarkCircle02Icon, ArrowLeft02Icon } from "@hugeicons/core-free-icons"
-import { resetPassword, validateResetToken } from "@/app/actions/password-reset"
+import { resetPassword, validateResetTokenAction } from "@/app/actions/password-reset"
 
 export function ResetPasswordForm({
   className,
@@ -39,13 +39,12 @@ export function ResetPasswordForm({
     setToken(tokenParam)
     
     // Validate token
-    validateResetToken(tokenParam).then(result => {
-      setIsValidating(false)
-      if (result.valid) {
-        // Token is valid
-      } else {
-        setTokenError(result.error || 'Invalid reset token')
-      }
+    validateResetTokenAction(tokenParam).then((result: { valid: boolean; email?: string; error?: string }) => {
+        setIsValidating(false)
+        if (result.valid) {
+        } else {
+            setTokenError(result.error || 'Invalid reset token')
+        }
     })
   }, [searchParams])
 
