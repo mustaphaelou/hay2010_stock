@@ -1,3 +1,38 @@
+# ============================================
+# HAY2010 Stock Application - Production Deployment
+# Version: 3.0
+# ============================================
+# Purpose: Full production stack with monitoring and backup
+# Use case: Production deployments with observability
+#
+# Usage:
+#   docker-compose -f docker-compose.prod.yml up -d
+#   docker-compose -f docker-compose.prod.yml logs -f
+#   docker-compose -f docker-compose.prod.yml down
+#
+# Requirements:
+#   - .env.docker file with production secrets
+#   - SSL certificates for ingress (if using)
+#   - Configure Grafana password in .env.docker
+#
+# Services included:
+#   - migrate: Database migration runner
+#   - app: Next.js application (port 3000)
+#   - postgres: PostgreSQL 16 database
+#   - redis: Redis 7 cache
+#   - prometheus: Metrics collection (port 9090)
+#   - alertmanager: Alert routing (port 9093)
+#   - grafana: Metrics visualization (port 3001)
+#   - backup: Automated daily database backups
+#   - worker: Background job processor
+#   - postgres-exporter: PostgreSQL metrics (port 9187)
+#   - redis-exporter: Redis metrics (port 9121)
+#
+# Network topology:
+#   - frontend: Exposed services (app)
+#   - backend: Internal services (database, monitoring) - isolated
+# ============================================
+
 services:
   migrate:
     build:
@@ -168,11 +203,12 @@ services:
       - backend
 
   prometheus:
-    image: prom/prometheus:v2.48.0
+    image: prom/prometheus:v2.48.0@sha256:b440bc0e8aa5bab44a782952c09516b6a50f9d7b2325c1ffafac7bc833298e2e
     container_name: hay2010_prometheus
     restart: always
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
       - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
@@ -189,8 +225,29 @@ services:
           cpus: '0.25'
           memory: 256M
 
+  alertmanager:
+    image: prom/alertmanager:v0.26.0@sha256:361db356b33041437517f1cd298462055580585f26555c317df1a3caf2868552
+    container_name: hay2010_alertmanager
+    restart: always
+    volumes:
+      - ./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager_data:/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+      - '--web.external-url=http://localhost:9093'
+    ports:
+      - "9093:9093"
+    networks:
+      - backend
+    deploy:
+      resources:
+        limits:
+          cpus: '0.1'
+          memory: 64M
+
   grafana:
-    image: grafana/grafana:10.2.0
+    image: grafana/grafana:10.2.0@sha256:1ee0c54286b8ca09a3dd1419ff8653e7780a148a006ac088544203bb0affe550
     container_name: hay2010_grafana
     restart: always
     volumes:
@@ -291,6 +348,7 @@ volumes:
   next_cache:
   prometheus_data:
   grafana_data:
+  alertmanager_data:
 
 networks:
   frontend:

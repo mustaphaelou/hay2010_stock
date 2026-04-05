@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: stock-app-config
+  labels:
+    app: stock-app
+data:
+  NODE_ENV: "production"
+  nextauth-url: "https://app.hay2010.com"
+  cors-origins: "https://app.hay2010.com,https://hay2010.com"

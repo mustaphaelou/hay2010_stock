@@ -1,3 +1,27 @@
+# ============================================
+# HAY2010 Stock Application - Standard Deployment
+# Version: 3.0
+# ============================================
+# Purpose: Full-stack deployment with app + PostgreSQL + Redis
+# Use case: Development, testing, and standard production deployments
+#
+# Usage:
+#   docker-compose up -d           # Start all services
+#   docker-compose logs -f app     # Follow app logs
+#   docker-compose down            # Stop and remove containers
+#   docker-compose down -v         # Stop and remove containers + volumes
+#
+# Requirements:
+#   - .env.docker file with environment variables
+#   - Docker Engine 20.10+ with BuildKit
+#
+# Services included:
+#   - migrate: One-time database migration runner
+#   - app: Next.js application (port 3000)
+#   - postgres: PostgreSQL 16 database (port 5432, localhost only)
+#   - redis: Redis 7 cache (port 6379, localhost only)
+# ============================================
+
 services:
   # Migration service - runs once to apply migrations
   migrate:

@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stock-app
+spec:
+  replicas: 1
+  template:
+    spec:
+      containers:
+        - name: stock-app
+          env:
+            - name: NEXTAUTH_URL
+              value: "https://staging.hay2010.com"
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "128Mi"
+            limits:
+              cpu: "250m"
+              memory: "256Mi"

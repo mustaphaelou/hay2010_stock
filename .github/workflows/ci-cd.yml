@@ -74,10 +74,15 @@ jobs:
         format: 'github'
         failure-threshold: 'error'
 
-    - name: Run npm audit
-      run: npm audit --audit-level=high
+      - name: Run npm audit
+        run: npm audit --audit-level=high
 
-    - name: Secret scan with Gitleaks
+      - name: Validate Docker Compose files
+        run: |
+          docker-compose -f docker-compose.yml config --quiet
+          docker-compose -f docker-compose.prod.yml config --quiet
+
+      - name: Secret scan with Gitleaks
       uses: gitleaks/gitleaks-action@v2
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

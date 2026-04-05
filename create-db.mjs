@@ -1,23 +1,39 @@
 import pg from 'pg';
+import 'dotenv/config';
 
 const { Client } = pg;
 
 async function createDb() {
+  const databaseUrl = process.env.DATABASE_URL;
+
+  if (!databaseUrl) {
+    console.error('ERROR: DATABASE_URL environment variable is required');
+    console.error('Set it in .env file or export it:');
+    console.error('  export DATABASE_URL="postgresql://user:password@host:5432/postgres"');
+    process.exit(1);
+  }
+
   const client = new Client({
-    connectionString: 'postgresql://postgres:o0UY4XeESKjZwilUBAGmfST01uhw3u24TWWbNPTSmaLtIQoliOCkaqVxACvfUDoP@130.110.247.238:5432/postgres'
+    connectionString: databaseUrl
   });
 
   try {
     await client.connect();
-    const res = await client.query("SELECT 1 FROM pg_database WHERE datname='hay2010_db'");
+    const dbName = process.env.POSTGRES_DB || 'hay2010_db';
+    const res = await client.query(
+      'SELECT 1 FROM pg_database WHERE datname = $1',
+      [dbName]
+    );
+
     if (res.rowCount === 0) {
-      await client.query('CREATE DATABASE hay2010_db');
-      console.log('Database hay2010_db created successfully.');
+      await client.query(`CREATE DATABASE "${dbName}"`);
+      console.log(`Database ${dbName} created successfully.`);
     } else {
-      console.log('Database hay2010_db already exists.');
+      console.log(`Database ${dbName} already exists.`);
     }
   } catch (err) {
     console.error('Error creating database:', err);
+    process.exit(1);
   } finally {
     await client.end();
   }
