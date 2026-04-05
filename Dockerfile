@@ -1,8 +1,13 @@
 # ============================================
 # HAY2010 Stock Application - Production Dockerfile
-# Version: 2.0
-# Last Updated: 2026-04-01
+# Version: 3.0
+# Last Updated: 2026-04-05
 # Security: Hardened with digest pinning, healthcheck, minimal packages
+# ============================================
+# IMPORTANT: The `runner` stage MUST be the LAST stage in this file.
+# Coolify and other CI systems that run `docker build` without `--target`
+# will build the last stage by default. If `migrator` is last, the
+# resulting image has no HEALTHCHECK and deployments will fail.
 # ============================================
 
 # Stage 1: Install dependencies
@@ -44,13 +49,49 @@ RUN npx prisma generate
 # Build the application with dummy database URL (will be replaced at runtime)
 ARG DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy?connection_limit=1"
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=production
 ENV DATABASE_URL=${DATABASE_URL}
 
 # Mount cache for Next.js build (BuildKit enabled)
 RUN --mount=type=cache,target=/app/.next/cache \
     npm run build
 
-# Stage 3: Runner
+# Stage 3: Migration runner (for running migrations separately)
+# NOTE: This stage is intentionally BEFORE the runner stage.
+# node:20-alpine (tracking)
+FROM node:20-alpine@sha256:f598378b5240225e6beab68fa9f356db1fb8efe55173e6d4d8153113bb8f333c AS migrator
+WORKDIR /app
+
+# Install OpenSSL for Prisma and apply security updates
+RUN apk add --no-cache openssl && \
+    apk upgrade --no-cache
+
+# Copy node_modules from deps stage (optimized - no reinstall)
+COPY --from=deps /app/node_modules ./node_modules
+COPY package.json package-lock.json ./
+
+# Copy prisma schema and generate client
+COPY prisma ./prisma
+COPY prisma.config.ts ./
+
+# Copy migrations
+COPY prisma/migrations ./prisma/migrations
+
+# Generate Prisma client (requires prisma.config.ts for Prisma 7.x)
+RUN npx prisma generate
+
+# Set up non-root user
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 migrator && \
+    chown -R migrator:nodejs /app
+
+USER migrator
+
+# Default command runs migrations with explicit database URL
+# The DATABASE_URL should be passed via environment variable
+CMD ["sh", "-c", "npx prisma migrate deploy"]
+
+# Stage 4: Runner (MUST be the LAST stage - default build target)
 # node:20-alpine (tracking)
 FROM node:20-alpine@sha256:f598378b5240225e6beab68fa9f356db1fb8efe55173e6d4d8153113bb8f333c AS runner
 WORKDIR /app
@@ -104,41 +145,7 @@ ENV HOSTNAME="0.0.0.0"
 EXPOSE ${PORT}
 
 # Health check configuration
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:${PORT}/api/health || exit 1
 
 ENTRYPOINT ["/app/docker-entrypoint.sh"]
-
-# Stage 4: Migration runner (for running migrations separately)
-# node:20-alpine (tracking)
-FROM node:20-alpine@sha256:f598378b5240225e6beab68fa9f356db1fb8efe55173e6d4d8153113bb8f333c AS migrator
-WORKDIR /app
-
-# Install OpenSSL for Prisma and apply security updates
-RUN apk add --no-cache openssl && \
-    apk upgrade --no-cache
-
-# Copy node_modules from deps stage (optimized - no reinstall)
-COPY --from=deps /app/node_modules ./node_modules
-COPY package.json package-lock.json ./
-
-# Copy prisma schema and generate client
-COPY prisma ./prisma
-COPY prisma.config.ts ./
-
-# Copy migrations
-COPY prisma/migrations ./prisma/migrations
-
-# Generate Prisma client (requires prisma.config.ts for Prisma 7.x)
-RUN npx prisma generate
-
-# Set up non-root user
-RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 migrator && \
-    chown -R migrator:nodejs /app
-
-USER migrator
-
-# Default command runs migrations with explicit database URL
-# The DATABASE_URL should be passed via environment variable
-CMD ["sh", "-c", "npx prisma migrate deploy"]
