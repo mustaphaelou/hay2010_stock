@@ -60,9 +60,9 @@ jobs:
           name: Release v${{ env.NEW_VERSION }}
           body: |
             ## Changes
-            
+
             Release version ${{ env.NEW_VERSION }}
-            
+
             Previous version: ${{ steps.current_version.outputs.version }}
           draft: false
           prerelease: false
