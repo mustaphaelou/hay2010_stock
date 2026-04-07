@@ -16,7 +16,7 @@ FROM node:20-alpine@sha256:f598378b5240225e6beab68fa9f356db1fb8efe55173e6d4d8153
 WORKDIR /app
 
 # Install build dependencies and apply security updates
-RUN apk add --no-cache openssl libc6-compat && \
+RUN apk add --no-cache openssl=3.0.13-r0 libc6-compat=1.2.3-r10 && \
     apk upgrade --no-cache
 
 COPY package.json package-lock.json ./
@@ -37,7 +37,7 @@ FROM node:20-alpine@sha256:f598378b5240225e6beab68fa9f356db1fb8efe55173e6d4d8153
 WORKDIR /app
 
 # Install OpenSSL for Prisma and apply security updates
-RUN apk add --no-cache openssl && \
+RUN apk add --no-cache openssl=3.0.13-r0 && \
     apk upgrade --no-cache
 
 COPY --from=deps /app/node_modules ./node_modules
@@ -63,7 +63,7 @@ FROM node:20-alpine@sha256:f598378b5240225e6beab68fa9f356db1fb8efe55173e6d4d8153
 WORKDIR /app
 
 # Install OpenSSL for Prisma and apply security updates
-RUN apk add --no-cache openssl && \
+RUN apk add --no-cache openssl=3.0.13-r0 && \
     apk upgrade --no-cache
 
 # Copy node_modules from deps stage (optimized - no reinstall)
@@ -97,7 +97,7 @@ FROM node:20-alpine@sha256:f598378b5240225e6beab68fa9f356db1fb8efe55173e6d4d8153
 WORKDIR /app
 
 # Install runtime dependencies (curl for healthcheck, netcat for db check)
-RUN apk add --no-cache openssl curl netcat-openbsd && \
+RUN apk add --no-cache openssl=3.0.13-r0 curl=8.4.0-r0 netcat-openbsd=1.10-r1 && \
     apk upgrade --no-cache
 
 # OCI Image Labels
