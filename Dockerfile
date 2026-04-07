@@ -25,7 +25,7 @@ COPY package.json package-lock.json ./
 RUN test -f package-lock.json || (echo "package-lock.json required" && exit 1)
 
 # Run security audit (warn only, don't fail build)
-RUN npm audit --audit-level=high || echo "Warning: Security vulnerabilities found in dependencies"
+RUN npm audit --audit-level=high || true
 
 # Mount cache for npm (BuildKit enabled)
 RUN --mount=type=cache,target=/root/.npm \
@@ -35,6 +35,9 @@ RUN --mount=type=cache,target=/root/.npm \
 # node:20-alpine (tracking)
 FROM node:20-alpine@sha256:f598378b5240225e6beab68fa9f356db1fb8efe55173e6d4d8153113bb8f333c AS builder
 WORKDIR /app
+
+# Build the application with dummy database URL (will be replaced at runtime)
+ARG DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy?connection_limit=1"
 
 # Install OpenSSL for Prisma and apply security updates
 RUN apk add --no-cache openssl=3.0.13-r0 && \
@@ -47,7 +50,6 @@ COPY . .
 RUN npx prisma generate
 
 # Build the application with dummy database URL (will be replaced at runtime)
-ARG DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy?connection_limit=1"
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 ENV DATABASE_URL=${DATABASE_URL}
