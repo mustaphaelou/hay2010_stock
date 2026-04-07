@@ -79,8 +79,8 @@ jobs:
 
     - name: Validate Docker Compose files
       run: |
-        docker-compose -f docker-compose.yml config --quiet
-        docker-compose -f docker-compose.prod.yml config --quiet
+        docker compose -f docker-compose.yml config --quiet
+        docker compose -f docker-compose.prod.yml config --quiet
 
     - name: Secret scan with Gitleaks
       uses: gitleaks/gitleaks-action@v2
