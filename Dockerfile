@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.4
 # ============================================
 # HAY2010 Stock Application - Production Dockerfile
 # Version: 3.0
@@ -15,9 +16,8 @@
 FROM node:20-alpine@sha256:f598378b5240225e6beab68fa9f356db1fb8efe55173e6d4d8153113bb8f333c AS deps
 WORKDIR /app
 
-# Install build dependencies and apply security updates
-RUN apk add --no-cache openssl=3.0.13-r0 libc6-compat=1.2.3-r10 && \
-    apk upgrade --no-cache
+# Install build dependencies with pinned versions
+RUN apk add --no-cache openssl=3.0.13-r0 libc6-compat=1.2.3-r10
 
 COPY package.json package-lock.json ./
 
@@ -39,9 +39,8 @@ WORKDIR /app
 # Build the application with dummy database URL (will be replaced at runtime)
 ARG DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy?connection_limit=1"
 
-# Install OpenSSL for Prisma and apply security updates
-RUN apk add --no-cache openssl=3.0.13-r0 && \
-    apk upgrade --no-cache
+# Install OpenSSL for Prisma with pinned version
+RUN apk add --no-cache openssl=3.0.13-r0
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -64,9 +63,8 @@ RUN --mount=type=cache,target=/app/.next/cache \
 FROM node:20-alpine@sha256:f598378b5240225e6beab68fa9f356db1fb8efe55173e6d4d8153113bb8f333c AS migrator
 WORKDIR /app
 
-# Install OpenSSL for Prisma and apply security updates
-RUN apk add --no-cache openssl=3.0.13-r0 && \
-    apk upgrade --no-cache
+# Install OpenSSL for Prisma with pinned version
+RUN apk add --no-cache openssl=3.0.13-r0
 
 # Copy node_modules from deps stage (optimized - no reinstall)
 COPY --from=deps /app/node_modules ./node_modules
@@ -99,8 +97,7 @@ FROM node:20-alpine@sha256:f598378b5240225e6beab68fa9f356db1fb8efe55173e6d4d8153
 WORKDIR /app
 
 # Install runtime dependencies (curl for healthcheck, netcat for db check)
-RUN apk add --no-cache openssl=3.0.13-r0 curl=8.4.0-r0 netcat-openbsd=1.10-r1 && \
-    apk upgrade --no-cache
+RUN apk add --no-cache openssl=3.0.13-r0 curl=8.4.0-r0 netcat-openbsd=1.10-r1
 
 # OCI Image Labels
 LABEL org.opencontainers.image.title="HAY2010 Stock Application" \

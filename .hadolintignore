@@ -1,0 +1,6 @@
+# Hadolint ignore rules
+# 
+# DL3009: Delete apt-get lists after installing (for Alpine with apk, not applicable)
+# This rule applies to Debian/Ubuntu images, not Alpine Linux which uses apk.
+# We use pinned versions to ensure reproducible builds.
+DL3009

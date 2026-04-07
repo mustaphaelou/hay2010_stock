@@ -72,7 +72,8 @@ jobs:
       with:
         dockerfile: Dockerfile
         format: 'github'
-        failure-threshold: 'error'
+        failure-threshold: 'warning'
+        ignore: 'DL3009'
 
     - name: Run npm audit
       run: npm audit --audit-level=high
