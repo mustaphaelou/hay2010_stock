@@ -3,10 +3,12 @@ import { createLogger } from '@/lib/logger'
 
 const log = createLogger('redis')
 
-const globalForRedis = global as unknown as { 
+const globalForRedis = global as unknown as {
   redis: Redis
   redisCache: Redis
   redisSession: Redis
+  redisReady: boolean
+  redisLastError: string | null
 }
 
 const REDIS_MAX_RETRIES = 10
@@ -39,21 +41,21 @@ function createRedisClient(name: string): Redis {
 
   const url = process.env.REDIS_URL || 'redis://localhost:6379'
   const client = new Redis(url, baseOptions)
-  
+
   client.on('error', (err: Error) => {
     log.warn({ name, error: err.message }, 'Connection error')
+    globalForRedis.redisLastError = err.message
   })
 
   client.on('ready', () => {
     log.info({ name }, 'Connected and ready')
+    globalForRedis.redisReady = true
+    globalForRedis.redisLastError = null
   })
 
   client.on('close', () => {
     log.info({ name }, 'Connection closed')
-  })
-
-  client.on('reconnecting', () => {
-    log.info({ name }, 'Reconnecting...')
+    globalForRedis.redisReady = false
   })
 
   return client
@@ -61,28 +63,18 @@ function createRedisClient(name: string): Redis {
 
 export const redis = globalForRedis.redis || createRedisClient('default')
 
-let redisReady = false
-let lastError: string | null = null
-
-redis.on('error', (err: Error) => {
-  lastError = err.message
-})
-
-redis.on('ready', () => {
-  redisReady = true
-  lastError = null
-})
-
-redis.on('close', () => {
-  redisReady = false
-})
+// Initialize global state if not already set
+if (typeof globalForRedis.redisReady === 'undefined') {
+  globalForRedis.redisReady = false
+  globalForRedis.redisLastError = null
+}
 
 export function isRedisReady(): boolean {
-  return redisReady
+  return globalForRedis.redisReady === true
 }
 
 export function getRedisError(): string | null {
-  return lastError
+  return globalForRedis.redisLastError || null
 }
 
 export const redisCache = globalForRedis.redisCache || createRedisClient('cache')

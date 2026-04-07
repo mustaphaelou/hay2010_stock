@@ -47,8 +47,10 @@ const config: RedisClusterConfig = {
 
 // Global type for hot-reload prevention
 const globalForRedis = global as unknown as {
-    redisCluster: Cluster | undefined
-    redisSingle: Redis | undefined
+  redisCluster: Cluster | undefined
+  redisSingle: Redis | undefined
+  redisReady: boolean | undefined
+  redisLastError: string | null
 }
 
 /**
@@ -152,7 +154,8 @@ if (process.env.NODE_ENV !== 'production') {
 
 // Error handling
 redis.on('error', (err: Error) => {
-	log.error({ error: err.message }, 'Connection error')
+  log.error({ error: err.message }, 'Connection error')
+  globalForRedis.redisLastError = err.message
 })
 
 redis.on('connect', () => {
@@ -160,11 +163,14 @@ redis.on('connect', () => {
 })
 
 redis.on('ready', () => {
-	log.info('Ready to accept commands')
+  log.info('Ready to accept commands')
+  globalForRedis.redisReady = true
+  globalForRedis.redisLastError = null
 })
 
 redis.on('close', () => {
-	log.info('Connection closed')
+  log.info('Connection closed')
+  globalForRedis.redisReady = false
 })
 
 redis.on('reconnecting', () => {
