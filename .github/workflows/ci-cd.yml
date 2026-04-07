@@ -242,7 +242,7 @@ jobs:
       continue-on-error: true
 
     - name: Verify database schema integrity
-      run: npx prisma db push --force-reset
+      run: npx prisma validate
 
   build:
     name: Build & Publish Image
