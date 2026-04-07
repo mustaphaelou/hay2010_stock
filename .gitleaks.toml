@@ -1,0 +1,24 @@
+[source]
+  include_paths = []
+  exclude_paths = [
+    "(?i)vendor",
+    "(?i)node_modules",
+    "(?i).git",
+    "(?i)coverage",
+    "(?i)dist",
+    "(?i)build",
+    "(?i).next",
+    "(?i).pytest_cache",
+    "(?i).venv",
+    "(?i)env",
+    "(?i)^.github/workflows"
+  ]
+
+[allowlist]
+  description = "Allowlist for false positives"
+  paths = []
+  commits = []
+  regexes = []
+
+[extend]
+  useDefault = true

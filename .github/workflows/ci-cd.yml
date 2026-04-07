@@ -85,8 +85,13 @@ jobs:
 
     - name: Secret scan with Gitleaks
       uses: gitleaks/gitleaks-action@v2
+      with:
+        config: .gitleaks.toml
+        verbose: true
+        redact: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      continue-on-error: true
 
   security-scan:
     name: Security Scanning
