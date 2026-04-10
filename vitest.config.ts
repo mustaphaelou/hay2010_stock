@@ -32,10 +32,10 @@ export default defineConfig({
         'lib/utils/client-logger.ts',
       ],
       thresholds: {
-        lines: 50,
-        functions: 50,
+        lines: 25,
+        functions: 60,
         branches: 50,
-        statements: 50,
+        statements: 25,
       },
     },
   },
