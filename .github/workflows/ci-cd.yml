@@ -230,16 +230,14 @@ jobs:
     - name: Generate Prisma Client
       run: npx prisma generate
 
-    - name: Check pending migrations
+    - name: Deploy migrations to clean database
+      run: npx prisma migrate deploy
+
+    - name: Verify migration status is clean
       run: npx prisma migrate status
 
     - name: Validate migration SQL
       run: npx prisma migrate diff --from-empty --to-schema-datamodel ./prisma/schema.prisma --script
-
-    - name: Test migration on clean database
-      run: |
-        npx prisma migrate deploy --preview-feature || echo "No migrations to apply"
-      continue-on-error: true
 
     - name: Verify database schema integrity
       run: npx prisma validate
