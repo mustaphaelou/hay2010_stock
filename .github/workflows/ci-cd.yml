@@ -172,7 +172,7 @@ jobs:
       run: npx prisma generate
 
     - name: Push database schema
-      run: npx prisma db push --skip-generate
+      run: npx prisma db push
 
     - name: Run tests with coverage
       run: npm run test:ci
