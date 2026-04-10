@@ -17,7 +17,7 @@ FROM node:20-alpine@sha256:f598378b5240225e6beab68fa9f356db1fb8efe55173e6d4d8153
 WORKDIR /app
 
 # Install build dependencies with pinned versions
-RUN apk add --no-cache openssl=3.0.13-r0 libc6-compat=1.2.3-r10
+RUN apk add --no-cache openssl libc6-compat
 
 COPY package.json package-lock.json ./
 
@@ -40,7 +40,7 @@ WORKDIR /app
 ARG DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy?connection_limit=1"
 
 # Install OpenSSL for Prisma with pinned version
-RUN apk add --no-cache openssl=3.0.13-r0
+RUN apk add --no-cache openssl
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -64,7 +64,7 @@ FROM node:20-alpine@sha256:f598378b5240225e6beab68fa9f356db1fb8efe55173e6d4d8153
 WORKDIR /app
 
 # Install OpenSSL for Prisma with pinned version
-RUN apk add --no-cache openssl=3.0.13-r0
+RUN apk add --no-cache openssl
 
 # Copy node_modules from deps stage (optimized - no reinstall)
 COPY --from=deps /app/node_modules ./node_modules
@@ -97,7 +97,7 @@ FROM node:20-alpine@sha256:f598378b5240225e6beab68fa9f356db1fb8efe55173e6d4d8153
 WORKDIR /app
 
 # Install runtime dependencies (curl for healthcheck, netcat for db check)
-RUN apk add --no-cache openssl=3.0.13-r0 curl=8.4.0-r0 netcat-openbsd=1.10-r1
+RUN apk add --no-cache openssl curl netcat-openbsd
 
 # OCI Image Labels
 LABEL org.opencontainers.image.title="HAY2010 Stock Application" \
