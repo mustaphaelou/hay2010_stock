@@ -237,7 +237,7 @@ jobs:
       run: npx prisma migrate status
 
     - name: Validate migration SQL
-      run: npx prisma migrate diff --from-empty --to-schema-datamodel ./prisma/schema.prisma --script
+      run: npx prisma migrate diff --from-empty --to-schema ./prisma/schema.prisma --script
 
     - name: Verify database schema integrity
       run: npx prisma validate
