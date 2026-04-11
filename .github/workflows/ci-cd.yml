@@ -341,24 +341,11 @@ jobs:
       name: staging
       url: https://staging.hay2010.com
     steps:
-    - name: Configure kubectl
-      uses: azure/setup-kubectl@v3
-      with:
-        version: 'v1.28.0'
-
-    - name: Set kubeconfig
+    - name: Trigger Coolify deployment
       run: |
-        mkdir -p ~/.kube
-        echo "${{ secrets.KUBE_CONFIG_STAGING }}" | base64 -d > ~/.kube/config
-
-    - name: Deploy to Kubernetes
-      run: |
-        kubectl set image deployment/stock-app \
-          stock-app=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
-          --namespace staging
-
-    - name: Wait for rollout
-      run: kubectl rollout status deployment/stock-app --namespace staging --timeout=300s
+        curl -f -s -X GET "${{ secrets.COOLIFY_WEBHOOK_STAGING }}" \
+          -H "Accept: application/json" \
+          --max-time 30 || echo "::warning::Coolify staging webhook not configured or failed"
 
   deploy-production:
     name: Deploy to Production
@@ -369,33 +356,11 @@ jobs:
       name: production
       url: https://app.hay2010.com
     steps:
-    - name: Configure kubectl
-      uses: azure/setup-kubectl@v3
-      with:
-        version: 'v1.28.0'
-
-    - name: Set kubeconfig
+    - name: Trigger Coolify deployment
       run: |
-        mkdir -p ~/.kube
-        echo "${{ secrets.KUBE_CONFIG_PRODUCTION }}" | base64 -d > ~/.kube/config
-
-    - name: Run pre-deploy migration validation
-      run: |
-        echo "Checking for breaking changes in migration..."
-        kubectl get pods -n production --selector=app=stock-app -o name | head -1 | xargs kubectl logs --tail=100 -n production
-
-    - name: Deploy to Kubernetes
-      run: |
-        kubectl set image deployment/stock-app \
-          stock-app=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
-          --namespace production
-
-    - name: Wait for rollout
-      run: kubectl rollout status deployment/stock-app --namespace production --timeout=600s
-
-    - name: Run health check
-      run: |
-        kubectl exec -n production deployment/stock-app -- curl -f http://localhost:3000/api/health
+        curl -f -s -X GET "${{ secrets.COOLIFY_WEBHOOK_PRODUCTION }}" \
+          -H "Accept: application/json" \
+          --max-time 30
 
     - name: Create Issue on failure
       if: failure()
@@ -409,25 +374,6 @@ jobs:
             body: 'Production deployment failed for ref ${{ github.ref }}\n\nView logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}',
             labels: ['deployment', 'production', 'critical']
           })
-
-  rollback:
-    name: Rollback
-    runs-on: ubuntu-latest
-    if: failure() && github.event_name == 'release'
-    needs: deploy-production
-    steps:
-    - name: Configure kubectl
-      uses: azure/setup-kubectl@v3
-      with:
-        version: 'v1.28.0'
-
-    - name: Set kubeconfig
-      run: |
-        mkdir -p ~/.kube
-        echo "${{ secrets.KUBE_CONFIG_PRODUCTION }}" | base64 -d > ~/.kube/config
-
-    - name: Rollback deployment
-      run: kubectl rollout undo deployment/stock-app --namespace production
 
   notify:
     name: Notifications
