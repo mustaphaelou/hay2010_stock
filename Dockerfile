@@ -46,7 +46,9 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # Generate Prisma Client (prisma.config.ts is needed for Prisma 7.x)
-RUN npx prisma generate
+RUN npx prisma generate && \
+    rm -rf node_modules/.prisma/client/runtime/query_engine-*.*.so || true && \
+    rm -rf node_modules/@prisma/client/runtime/query_engine-*.*.so || true
 
 # Build the application with dummy database URL (will be replaced at runtime)
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -57,33 +59,30 @@ ENV DATABASE_URL=${DATABASE_URL}
 RUN --mount=type=cache,target=/app/.next/cache \
     npm run build
 
-# Stage 3: Migration runner (for running migrations separately)
+# Stage 3: Migration runner (MINIMAL - for running migrations separately)
 # NOTE: This stage is intentionally BEFORE the runner stage.
+# Optimized to avoid copying full node_modules from deps stage.
 # node:20-alpine (tracking)
 FROM node:20-alpine@sha256:f598378b5240225e6beab68fa9f356db1fb8efe55173e6d4d8153113bb8f333c AS migrator
 WORKDIR /app
 
-# Install OpenSSL for Prisma with pinned version
+# Install OpenSSL for Prisma query engine
 RUN apk add --no-cache openssl
 
-# Copy node_modules from deps stage (optimized - no reinstall)
-COPY --from=deps /app/node_modules ./node_modules
-COPY package.json package-lock.json ./
-
-# Copy prisma schema and generate client
-COPY prisma ./prisma
-COPY prisma.config.ts ./
-
-# Copy migrations
-COPY prisma/migrations ./prisma/migrations
-
-# Generate Prisma client (requires prisma.config.ts for Prisma 7.x)
-RUN npx prisma generate
-
-# Set up non-root user
+# Set up non-root user FIRST (before COPY and chown operations)
 RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 migrator && \
-    chown -R migrator:nodejs /app
+    adduser --system --uid 1001 migrator
+
+# Copy Prisma schema files only - no source code needed
+COPY --chown=migrator:nodejs prisma ./prisma
+COPY --chown=migrator:nodejs prisma.config.ts ./
+
+# Install ONLY Prisma packages needed for migrate deploy (minimal footprint)
+RUN npm install --omit=dev --no-optional \
+    prisma@7.4.2 \
+    @prisma/client@7.4.2 \
+    && npm cache clean --force \
+    && chown -R migrator:nodejs /app
 
 USER migrator
 
@@ -96,8 +95,8 @@ CMD ["sh", "-c", "npx prisma migrate deploy"]
 FROM node:20-alpine@sha256:f598378b5240225e6beab68fa9f356db1fb8efe55173e6d4d8153113bb8f333c AS runner
 WORKDIR /app
 
-# Install runtime dependencies (curl for healthcheck, netcat for db check)
-RUN apk add --no-cache openssl curl netcat-openbsd
+# Install runtime dependencies (curl for healthcheck, netcat for db connectivity check)
+RUN apk add --no-cache curl netcat-openbsd
 
 # OCI Image Labels
 LABEL org.opencontainers.image.title="HAY2010 Stock Application" \

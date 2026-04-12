@@ -8,7 +8,7 @@
 # ============================================
 
 # Build stage
-FROM node:20-alpine AS builder
+FROM node:20-alpine@sha256:f598378b5240225e6beab68fa9f356db1fb8efe55173e6d4d8153113bb8f333c AS builder
 WORKDIR /app
 
 # Install build dependencies
@@ -33,11 +33,11 @@ ENV NODE_ENV=production
 RUN npm run build
 
 # Production stage
-FROM node:20-alpine AS runner
+FROM node:20-alpine@sha256:f598378b5240225e6beab68fa9f356db1fb8efe55173e6d4d8153113bb8f333c AS runner
 WORKDIR /app
 
-# Install runtime dependencies
-RUN apk add --no-cache openssl curl netcat-openbsd
+# Install runtime dependencies (curl for healthcheck, netcat for db connectivity check)
+RUN apk add --no-cache curl netcat-openbsd
 
 # Set environment variables
 ENV NODE_ENV=production
