@@ -143,7 +143,8 @@ ENV HOSTNAME="0.0.0.0"
 EXPOSE ${PORT}
 
 # Health check configuration
+# Uses public endpoint (no authentication required)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:${PORT}/api/health || exit 1
+  CMD curl -f http://localhost:${PORT}/api/health/public || exit 1
 
 ENTRYPOINT ["/app/docker-entrypoint.sh"]

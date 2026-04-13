@@ -1,0 +1,679 @@
+openapi: 3.0.0
+info:
+  title: HAY2010 Stock Management API
+  description: API for managing stock inventory, movements, and documents
+  version: 0.1.0
+  contact:
+    name: HAY2010 Support
+    email: support@hay2010.com
+  license:
+    name: Proprietary
+    url: https://hay2010.com/terms
+
+servers:
+  - url: http://localhost:3000/api
+    description: Local development server
+  - url: https://api.hay2010.com/api
+    description: Production API server
+
+tags:
+  - name: Authentication
+    description: User authentication and authorization
+  - name: Health
+    description: System health checks
+  - name: Stock
+    description: Stock inventory management
+  - name: Documents
+    description: Document generation and management
+  - name: Products
+    description: Product catalog management
+  - name: Partners
+    description: Business partner management
+
+paths:
+  /health/public:
+    get:
+      tags:
+        - Health
+      summary: Public health check
+      description: Returns basic application status without authentication
+      responses:
+        '200':
+          description: Application is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicHealthResponse'
+        '503':
+          description: Service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Admin health check
+      description: Returns detailed system status including database and Redis connectivity
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Detailed health status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminHealthResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden (insufficient role)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: User login
+      description: Authenticate user and return JWT token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+              description: JWT token in HTTP-only cookie
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RateLimitErrorResponse'
+
+  /auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: User registration
+      description: Register a new user account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Registration successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterResponse'
+        '400':
+          description: Invalid request or user already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RateLimitErrorResponse'
+
+  /stock:
+    get:
+      tags:
+        - Stock
+      summary: Get stock inventory
+      description: Retrieve current stock levels with optional filtering
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: Page number for pagination
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Number of items per page
+        - name: productId
+          in: query
+          schema:
+            type: string
+          description: Filter by product ID
+        - name: warehouseId
+          in: query
+          schema:
+            type: string
+          description: Filter by warehouse ID
+      responses:
+        '200':
+          description: Stock inventory retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockInventoryResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RateLimitErrorResponse'
+
+  /stock/movements:
+    post:
+      tags:
+        - Stock
+      summary: Create stock movement
+      description: Record a stock movement (inbound, outbound, or adjustment)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StockMovementRequest'
+      responses:
+        '201':
+          description: Stock movement created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockMovementResponse'
+        '400':
+          description: Invalid request or insufficient stock
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permissions (requires MANAGER or ADMIN role)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RateLimitErrorResponse'
+
+  /documents/generate-pdf:
+    post:
+      tags:
+        - Documents
+      summary: Generate PDF document
+      description: Generate a PDF document for stock operations
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GeneratePdfRequest'
+      responses:
+        '200':
+          description: PDF generated successfully
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RateLimitErrorResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token from login response (sent in HTTP-only cookie)
+
+  schemas:
+    PublicHealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [ok, error]
+          description: Overall application status
+        timestamp:
+          type: string
+          format: date-time
+          description: Time of health check
+      required:
+        - status
+        - timestamp
+
+    AdminHealthResponse:
+      allOf:
+        - $ref: '#/components/schemas/PublicHealthResponse'
+        - type: object
+          properties:
+            checks:
+              type: object
+              properties:
+                database:
+                  type: boolean
+                  description: Database connectivity status
+                redis:
+                  type: boolean
+                  description: Redis connectivity status
+                schema:
+                  type: boolean
+                  description: Database schema validation status
+            services:
+              type: object
+              properties:
+                database:
+                  type: string
+                  enum: [connected, disconnected]
+                redis:
+                  type: string
+                  enum: [connected, disconnected]
+                app:
+                  type: string
+                  enum: [running, stopped]
+            latency:
+              type: object
+              properties:
+                database:
+                  type: integer
+                  description: Database query latency in milliseconds
+                redis:
+                  type: integer
+                  description: Redis ping latency in milliseconds
+            version:
+              type: string
+              description: Application version
+            environment:
+              type: string
+              description: Current environment (development, production, etc.)
+            isAdmin:
+              type: boolean
+              description: Whether user has admin role
+          required:
+            - checks
+            - services
+            - latency
+            - version
+            - environment
+            - isAdmin
+
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          description: User email address
+        password:
+          type: string
+          format: password
+          description: User password
+      required:
+        - email
+        - password
+
+    LoginResponse:
+      type: object
+      properties:
+        user:
+          type: object
+          properties:
+            id:
+              type: string
+              description: User ID
+            email:
+              type: string
+              format: email
+              description: User email
+            role:
+              type: string
+              enum: [ADMIN, MANAGER, USER, VIEWER]
+              description: User role
+            name:
+              type: string
+              description: User full name
+        message:
+          type: string
+          description: Login success message
+      required:
+        - user
+        - message
+
+    RegisterRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          description: User email address
+        password:
+          type: string
+          format: password
+          minLength: 8
+          description: User password (minimum 8 characters)
+        name:
+          type: string
+          description: User full name
+        role:
+          type: string
+          enum: [USER, VIEWER]
+          default: USER
+          description: User role (only USER or VIEWER allowed for self-registration)
+      required:
+        - email
+        - password
+        - name
+
+    RegisterResponse:
+      type: object
+      properties:
+        user:
+          type: object
+          properties:
+            id:
+              type: string
+              description: User ID
+            email:
+              type: string
+              format: email
+              description: User email
+            role:
+              type: string
+              enum: [USER, VIEWER]
+              description: User role
+            name:
+              type: string
+              description: User full name
+        message:
+          type: string
+          description: Registration success message
+      required:
+        - user
+        - message
+
+    StockInventoryResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/StockItem'
+        pagination:
+          type: object
+          properties:
+            page:
+              type: integer
+              description: Current page number
+            limit:
+              type: integer
+              description: Items per page
+            total:
+              type: integer
+              description: Total number of items
+            pages:
+              type: integer
+              description: Total number of pages
+      required:
+        - items
+        - pagination
+
+    StockItem:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Stock item ID
+        productId:
+          type: string
+          description: Product ID
+        productName:
+          type: string
+          description: Product name
+        warehouseId:
+          type: string
+          description: Warehouse ID
+        warehouseName:
+          type: string
+          description: Warehouse name
+        quantity:
+          type: integer
+          description: Current stock quantity
+        minQuantity:
+          type: integer
+          description: Minimum stock quantity (alert threshold)
+        maxQuantity:
+          type: integer
+          description: Maximum stock quantity
+        lastUpdated:
+          type: string
+          format: date-time
+          description: Last stock update timestamp
+      required:
+        - id
+        - productId
+        - productName
+        - warehouseId
+        - warehouseName
+        - quantity
+        - lastUpdated
+
+    StockMovementRequest:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [INBOUND, OUTBOUND, ADJUSTMENT]
+          description: Type of stock movement
+        productId:
+          type: string
+          description: Product ID
+        warehouseId:
+          type: string
+          description: Warehouse ID
+        quantity:
+          type: integer
+          minimum: 1
+          description: Quantity to move (positive for inbound, negative for outbound)
+        reference:
+          type: string
+          description: Reference number or description
+        notes:
+          type: string
+          description: Additional notes
+      required:
+        - type
+        - productId
+        - warehouseId
+        - quantity
+
+    StockMovementResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Movement ID
+        type:
+          type: string
+          enum: [INBOUND, OUTBOUND, ADJUSTMENT]
+          description: Type of stock movement
+        productId:
+          type: string
+          description: Product ID
+        warehouseId:
+          type: string
+          description: Warehouse ID
+        quantity:
+          type: integer
+          description: Quantity moved
+        previousQuantity:
+          type: integer
+          description: Previous stock quantity
+        newQuantity:
+          type: integer
+          description: New stock quantity
+        reference:
+          type: string
+          description: Reference number or description
+        notes:
+          type: string
+          description: Additional notes
+        createdBy:
+          type: string
+          description: User ID who created the movement
+        createdAt:
+          type: string
+          format: date-time
+          description: Creation timestamp
+      required:
+        - id
+        - type
+        - productId
+        - warehouseId
+        - quantity
+        - previousQuantity
+        - newQuantity
+        - createdBy
+        - createdAt
+
+    GeneratePdfRequest:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [STOCK_REPORT, MOVEMENT_REPORT, INVOICE, DELIVERY_NOTE]
+          description: Type of document to generate
+        data:
+          type: object
+          description: Document data (structure varies by type)
+        template:
+          type: string
+          enum: [DEFAULT, COMPANY_A, COMPANY_B]
+          default: DEFAULT
+          description: Document template to use
+      required:
+        - type
+        - data
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+        code:
+          type: string
+          description: Error code
+        details:
+          type: object
+          description: Additional error details
+        timestamp:
+          type: string
+          format: date-time
+          description: Error timestamp
+      required:
+        - error
+        - code
+        - timestamp
+
+    RateLimitErrorResponse:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+          properties:
+            retryAfter:
+              type: integer
+              description: Seconds to wait before retrying
+            limit:
+              type: integer
+              description: Rate limit maximum requests
+            remaining:
+              type: integer
+              description: Remaining requests (always 0 for error)
+            reset:
+              type: integer
+              description: Unix timestamp when limit resets
+          required:
+            - retryAfter
+            - limit
+            - remaining
+            - reset
+
+security:
+  - bearerAuth: []

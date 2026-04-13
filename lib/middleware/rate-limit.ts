@@ -89,7 +89,7 @@ const RATE_LIMITS: Record<string, RateLimitConfig> = {
 
 // Exempt paths from rate limiting
 const EXEMPT_PATHS = [
-    '/api/health',
+    '/api/health/public',
     '/_next',
     '/favicon.ico',
     '/public',

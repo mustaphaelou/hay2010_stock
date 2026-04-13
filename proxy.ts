@@ -3,7 +3,7 @@ import type { NextRequest } from 'next/server'
 import { jwtVerify } from 'jose'
 import { rateLimitMiddleware } from '@/lib/middleware/rate-limit'
 
-const PUBLIC_PATHS = ['/login', '/register', '/api/auth', '/api/health', '/favicon.ico', '/_next']
+const PUBLIC_PATHS = ['/login', '/register', '/api/auth', '/api/health/public', '/favicon.ico', '/_next']
 const AUTH_COOKIE = 'auth_token'
 const SESSION_REFRESH_THRESHOLD = 24 * 60 * 60 * 1000
 
@@ -32,9 +32,19 @@ function addSecurityHeaders(response: NextResponse): void {
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
   response.headers.set(
     'Content-Security-Policy',
-    "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; font-src 'self' data:; connect-src 'self' https:; frame-ancestors 'none';"
+    process.env.NODE_ENV === 'development'
+      ? "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; font-src 'self' data:; connect-src 'self' https: ws: wss:; frame-ancestors 'none';"
+      : "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none';"
   )
   response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
+  response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload')
+  response.headers.set('X-DNS-Prefetch-Control', 'on')
+  
+  // Add Expect-CT header for certificate transparency
+  response.headers.set('Expect-CT', 'max-age=86400, enforce')
+  
+  // Add Feature-Policy header (legacy, kept for compatibility)
+  response.headers.set('Feature-Policy', "camera 'none'; microphone 'none'; geolocation 'none'")
 }
 
 export async function proxy(request: NextRequest) {

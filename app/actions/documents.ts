@@ -6,7 +6,6 @@ import { getDocLinesSchema } from '@/lib/validation'
 import type { DocumentWithComputed, DocumentLine } from '@/lib/types'
 import { Prisma } from '@/lib/generated/prisma/client'
 import { createLogger } from '@/lib/logger'
-import { UserRole } from '@/lib/auth/authorization'
 
 const log = createLogger('documents-actions')
 

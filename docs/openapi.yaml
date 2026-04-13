@@ -1,0 +1,419 @@
+openapi: 3.0.3
+info:
+  title: HAY2010 Stock Application API
+  description: |
+    Enterprise-grade stock management system API for managing inventory, 
+    sales documents, partners, and business operations.
+    
+    ## Authentication
+    
+    All API endpoints require JWT authentication via HTTP-only cookies, 
+    except for public endpoints (health checks, login, register).
+    
+    ## Rate Limiting
+    
+    The API implements tiered rate limiting:
+    - Authentication endpoints: 10 requests/60s
+    - Document generation: 20 requests/60s
+    - Stock operations: 200 requests/60s
+    - Default: 500 requests/60s
+    
+    ## Security
+    
+    All responses include security headers:
+    - X-Content-Type-Options: nosniff
+    - X-Frame-Options: DENY
+    - X-XSS-Protection: 1; mode=block
+    - Content-Security-Policy
+    - Permissions-Policy
+    
+  version: 1.0.0
+  contact:
+    name: HAY2010 Support
+    email: support@hay2010.com
+    url: https://docs.hay2010.com
+  
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:3000/api
+    description: Development server
+  - url: https://staging.hay2010.com/api
+    description: Staging server
+  - url: https://app.hay2010.com/api
+    description: Production server
+
+tags:
+  - name: Health
+    description: Health check and monitoring endpoints
+  - name: Authentication
+    description: User authentication and session management
+  - name: CSRF
+    description: CSRF token management
+  - name: Metrics
+    description: Prometheus metrics collection
+
+paths:
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Application health check
+      description: |
+        Returns application health status.
+        
+        - **Public access**: Returns basic status and checks
+        - **Authenticated (ADMIN/MANAGER)**: Returns detailed status with latencies and version info
+        
+      operationId: getHealth
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Health check successful
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/HealthPublicResponse'
+                  - $ref: '#/components/schemas/HealthAdminResponse'
+              examples:
+                public:
+                  summary: Public response (unauthenticated)
+                  value:
+                    status: ok
+                    timestamp: '2026-04-13T10:00:00.000Z'
+                    checks:
+                      database: true
+                      redis: true
+                      schema: true
+                admin:
+                  summary: Admin response (authenticated)
+                  value:
+                    status: ok
+                    timestamp: '2026-04-13T10:00:00.000Z'
+                    checks:
+                      database: true
+                      redis: true
+                      schema: true
+                    services:
+                      database: connected
+                      redis: connected
+                      app: running
+                    latency:
+                      database: 5
+                      redis: 2
+                    version: 1.0.0
+                    environment: production
+                    isAdmin: true
+        '503':
+          description: Service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthErrorResponse'
+              example:
+                status: error
+                timestamp: '2026-04-13T10:00:00.000Z'
+                checks:
+                  database: false
+                  redis: true
+                  schema: true
+                error: Connection refused
+
+  /metrics:
+    get:
+      tags:
+        - Metrics
+      summary: Prometheus metrics
+      description: |
+        Returns Prometheus-formatted metrics for monitoring.
+        
+        Requires authentication (any role).
+        
+        Includes:
+        - System metrics (CPU, memory, connections)
+        - HTTP metrics (requests, duration, in-flight)
+        - Database metrics (query duration)
+        - Business metrics (stock movements, documents)
+        
+      operationId: getMetrics
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Metrics in Prometheus format
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: |
+                  # HELP app_info Application information
+                  # TYPE app_info gauge
+                  app_info{version="1.0.0",node_env="production"} 1
+                  
+                  # HELP http_requests_total Total number of HTTP requests
+                  # TYPE http_requests_total counter
+                  http_requests_total{method="GET",path="/api/health",status="200"} 42
+                  
+                  # HELP db_query_duration_seconds Duration of database queries
+                  # TYPE db_query_duration_seconds histogram
+                  db_query_duration_seconds_bucket{query_type="select",table="produits",le="0.01"} 15
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                example: no-cache, no-store, must-revalidate
+            Content-Type:
+              schema:
+                type: string
+                example: text/plain; version=0.0.4; charset=utf-8
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /csrf-token:
+    get:
+      tags:
+        - CSRF
+      summary: Generate CSRF token
+      description: |
+        Generates a new CSRF token for server action protection.
+        
+        The token must be included in subsequent server action calls.
+        Tokens are valid for 1 hour.
+        
+      operationId: getCsrfToken
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: CSRF token generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CsrfTokenResponse'
+              example:
+                token: csrf_a1b2c3d4e5f6g7h8
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: auth_token
+      description: JWT authentication token stored in HTTP-only cookie
+
+  schemas:
+    HealthPublicResponse:
+      type: object
+      required:
+        - status
+        - timestamp
+        - checks
+      properties:
+        status:
+          type: string
+          enum:
+            - ok
+            - degraded
+            - error
+          description: Overall health status
+        timestamp:
+          type: string
+          format: date-time
+          description: Timestamp of health check
+        checks:
+          type: object
+          required:
+            - database
+            - redis
+            - schema
+          properties:
+            database:
+              type: boolean
+              description: Database connectivity status
+            redis:
+              type: boolean
+              description: Redis connectivity status
+            schema:
+              type: boolean
+              description: Database schema validation status
+
+    HealthAdminResponse:
+      allOf:
+        - $ref: '#/components/schemas/HealthPublicResponse'
+        - type: object
+          properties:
+            services:
+              type: object
+              properties:
+                database:
+                  type: string
+                  enum:
+                    - connected
+                    - disconnected
+                redis:
+                  type: string
+                  enum:
+                    - connected
+                    - disconnected
+                app:
+                  type: string
+                  enum:
+                    - running
+                    - stopped
+            latency:
+              type: object
+              properties:
+                database:
+                  type: integer
+                  description: Database query latency in milliseconds
+                redis:
+                  type: integer
+                  description: Redis ping latency in milliseconds
+            version:
+              type: string
+              description: Application version
+            environment:
+              type: string
+              enum:
+                - development
+                - staging
+                - production
+            isAdmin:
+              type: boolean
+              description: Whether user has admin role
+
+    HealthErrorResponse:
+      type: object
+      required:
+        - status
+        - timestamp
+        - error
+      properties:
+        status:
+          type: string
+          enum:
+            - error
+        timestamp:
+          type: string
+          format: date-time
+        checks:
+          type: object
+          properties:
+            database:
+              type: boolean
+            redis:
+              type: boolean
+            schema:
+              type: boolean
+        error:
+          type: string
+          description: Error message
+
+    CsrfTokenResponse:
+      type: object
+      required:
+        - token
+      properties:
+        token:
+          type: string
+          description: CSRF token for server action protection
+          example: csrf_a1b2c3d4e5f6g7h8
+
+    Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: Error message
+        code:
+          type: string
+          description: Error code
+          enum:
+            - VALIDATION_ERROR
+            - AUTHENTICATION_ERROR
+            - AUTHORIZATION_ERROR
+            - NOT_FOUND
+            - RATE_LIMIT_EXCEEDED
+            - INTERNAL_ERROR
+        details:
+          type: object
+          description: Additional error details
+
+  responses:
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: Unauthorized
+            code: AUTHENTICATION_ERROR
+
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: Forbidden
+            code: AUTHORIZATION_ERROR
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: Resource not found
+            code: NOT_FOUND
+
+    RateLimited:
+      description: Rate limit exceeded
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: Rate limit exceeded
+            code: RATE_LIMIT_EXCEEDED
+            retryAfter: 60
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+          description: Seconds until rate limit resets
+        X-RateLimit-Limit:
+          schema:
+            type: integer
+          description: Maximum requests allowed
+        X-RateLimit-Remaining:
+          schema:
+            type: integer
+          description: Remaining requests
+        X-RateLimit-Reset:
+          schema:
+            type: integer
+          description: Unix timestamp when limit resets
+
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: Internal server error
+            code: INTERNAL_ERROR

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import client from 'prom-client'
 import { requireAuth } from '@/lib/auth/user-utils'
+import { getBusinessMetrics } from '@/lib/monitoring/business-metrics'
 
 const collectDefaultMetrics = client.collectDefaultMetrics
 const Registry = client.Registry
@@ -69,15 +70,22 @@ export async function GET() {
         )
     }
 
-    const { registry: reg } = getMetrics()
+    const { registry: systemRegistry } = getMetrics()
 
   try {
-    const metrics = await reg.metrics()
+    // Collect system metrics
+    const systemMetrics = await systemRegistry.metrics()
+    
+    // Collect business metrics
+    const businessMetrics = await getBusinessMetrics()
+    
+    // Combine both metrics
+    const combinedMetrics = `${systemMetrics}\n\n# Business Metrics\n${businessMetrics}`
 
-    return new NextResponse(metrics, {
+    return new NextResponse(combinedMetrics, {
       status: 200,
       headers: {
-        'Content-Type': reg.contentType,
+        'Content-Type': systemRegistry.contentType,
         'Cache-Control': 'no-cache, no-store, must-revalidate',
         'Pragma': 'no-cache',
         'Expires': '0'
