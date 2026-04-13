@@ -4,6 +4,24 @@ import { middleware } from '@/middleware'
 import { rateLimitMiddleware } from '@/lib/middleware/rate-limit'
 import { jwtVerify } from 'jose'
 
+interface JwtPayload {
+    userId: string
+    email: string
+    role: string
+    sessionId: string
+    iat?: number
+    [key: string]: unknown
+}
+
+const createMockJwtResult = (payload: JwtPayload) => {
+    const result = {
+        payload: payload as unknown as import('jose').JWTPayload,
+        protectedHeader: { alg: 'HS256', typ: 'JWT' },
+        key: new Uint8Array(32)
+    }
+    return result as unknown as import('jose').JWTVerifyResult & import('jose').ResolvedKey
+}
+
 // Mock dependencies
 vi.mock('@/lib/middleware/rate-limit', () => ({
   rateLimitMiddleware: vi.fn()
@@ -17,22 +35,20 @@ describe('Security Middleware', () => {
   const mockJwtVerify = vi.mocked(jwtVerify)
   const mockRateLimitMiddleware = vi.mocked(rateLimitMiddleware)
 
-  beforeEach(() => {
+beforeEach(() => {
     vi.clearAllMocks()
     process.env.JWT_SECRET = 'test-secret-key-minimum-32-characters-long'
-    
+
     // Default mock implementations
     mockRateLimitMiddleware.mockResolvedValue(null)
-    mockJwtVerify.mockResolvedValue({
-      payload: {
+    mockJwtVerify.mockResolvedValue(createMockJwtResult({
         userId: 'user-123',
         email: 'user@example.com',
         role: 'USER',
         sessionId: 'session-123',
         iat: Math.floor(Date.now() / 1000)
-      }
-    } as any)
-  })
+    }))
+})
 
   const createMockRequest = (options: {
     url?: string
@@ -181,14 +197,12 @@ describe('Security Middleware', () => {
 
   describe('Role-Based Access Control', () => {
     it('should allow ADMIN access to admin routes', async () => {
-      mockJwtVerify.mockResolvedValue({
-        payload: {
-          userId: 'admin-123',
-          email: 'admin@example.com',
-          role: 'ADMIN',
-          sessionId: 'session-123'
-        }
-      } as any)
+        mockJwtVerify.mockResolvedValue(createMockJwtResult({
+            userId: 'admin-123',
+            email: 'admin@example.com',
+            role: 'ADMIN',
+            sessionId: 'session-123'
+        }))
       
       const request = createMockRequest({
         url: 'http://localhost:3000/api/admin/users',
@@ -201,14 +215,12 @@ describe('Security Middleware', () => {
     })
 
     it('should deny USER access to admin routes', async () => {
-      mockJwtVerify.mockResolvedValue({
-        payload: {
-          userId: 'user-123',
-          email: 'user@example.com',
-          role: 'USER',
-          sessionId: 'session-123'
-        }
-      } as any)
+        mockJwtVerify.mockResolvedValue(createMockJwtResult({
+            userId: 'user-123',
+            email: 'user@example.com',
+            role: 'USER',
+            sessionId: 'session-123'
+        }))
       
       const request = createMockRequest({
         url: 'http://localhost:3000/api/admin/users',
@@ -224,14 +236,12 @@ describe('Security Middleware', () => {
     })
 
     it('should allow MANAGER access to admin routes', async () => {
-      mockJwtVerify.mockResolvedValue({
-        payload: {
-          userId: 'manager-123',
-          email: 'manager@example.com',
-          role: 'MANAGER',
-          sessionId: 'session-123'
-        }
-      } as any)
+        mockJwtVerify.mockResolvedValue(createMockJwtResult({
+            userId: 'manager-123',
+            email: 'manager@example.com',
+            role: 'MANAGER',
+            sessionId: 'session-123'
+        }))
       
       const request = createMockRequest({
         url: 'http://localhost:3000/api/admin/users',
@@ -275,17 +285,17 @@ describe('Security Middleware', () => {
     })
 
     it('should have different CSP for development and production', async () => {
-      // Test development CSP
-      process.env.NODE_ENV = 'development'
-      const devRequest = createMockRequest({ url: 'http://localhost:3000/login' })
-      const devResponse = await middleware(devRequest)
-      const devCsp = devResponse.headers.get('Content-Security-Policy')
-      
-      expect(devCsp).toContain("'unsafe-inline'")
-      expect(devCsp).toContain("'unsafe-eval'")
-      
-      // Test production CSP
-      process.env.NODE_ENV = 'production'
+        // @ts-expect-error - NODE_ENV is read-only but we need to test
+        process.env.NODE_ENV = 'development'
+        const devRequest = createMockRequest({ url: 'http://localhost:3000/login' })
+        const devResponse = await middleware(devRequest)
+        const devCsp = devResponse.headers.get('Content-Security-Policy')
+
+        expect(devCsp).toContain("'unsafe-inline'")
+        expect(devCsp).toContain("'unsafe-eval'")
+
+        // @ts-expect-error - NODE_ENV is read-only but we need to test
+        process.env.NODE_ENV = 'production'
       const prodRequest = createMockRequest({ url: 'http://localhost:3000/login' })
       const prodResponse = await middleware(prodRequest)
       const prodCsp = prodResponse.headers.get('Content-Security-Policy')
@@ -323,16 +333,14 @@ describe('Security Middleware', () => {
     })
 
     it('should handle session refresh logic', async () => {
-      const oldTimestamp = Math.floor((Date.now() - 25 * 60 * 60 * 1000) / 1000) // 25 hours ago
-      mockJwtVerify.mockResolvedValue({
-        payload: {
-          userId: 'user-123',
-          email: 'user@example.com',
-          role: 'USER',
-          sessionId: 'session-123',
-          iat: oldTimestamp
-        }
-      } as any)
+        const oldTimestamp = Math.floor((Date.now() - 25 * 60 * 60 * 1000) / 1000) // 25 hours ago
+        mockJwtVerify.mockResolvedValue(createMockJwtResult({
+            userId: 'user-123',
+            email: 'user@example.com',
+            role: 'USER',
+            sessionId: 'session-123',
+            iat: oldTimestamp
+        }))
       
       const request = createMockRequest({
         url: 'http://localhost:3000/dashboard',

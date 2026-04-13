@@ -1,26 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import client from 'prom-client'
 import {
-  stockMovementCounter,
-  stockMovementValue,
-  stockMovementDuration,
-  stockLevelGauge,
-  lowStockAlertCounter,
-  documentGenerationCounter,
-  documentGenerationDuration,
-  documentGenerationSize,
-  userLoginCounter,
-  userSessionDuration,
-  userActionCounter,
-  orderFulfillmentTime,
-  inventoryTurnoverRate,
-  stockAccuracyRate,
-  revenueCounter,
-  costCounter,
-  profitMarginGauge,
-  apiBusinessRequestCounter,
-  businessTransactionDuration,
-  businessErrorCounter,
   recordStockMovement,
   recordStockLevel,
   recordLowStockAlert,
@@ -43,12 +23,9 @@ import {
 } from '@/lib/monitoring/business-metrics'
 
 describe('Business Metrics', () => {
-  let registry: client.Registry
-
   beforeEach(() => {
-    // Reset metrics before each test
     resetBusinessMetrics()
-    registry = getBusinessRegistry()
+    getBusinessRegistry()
   })
 
   afterEach(() => {
