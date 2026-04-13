@@ -84,4 +84,9 @@ export async function getCsrfCookie(): Promise<string | null> {
   return cookieStore.get(CSRF_COOKIE_NAME)?.value || null
 }
 
+export async function getCsrfTokenFromHeader(): Promise<string | null> {
+  const cookieStore = await cookies()
+  return cookieStore.get(CSRF_COOKIE_NAME)?.value || null
+}
+
 export { CSRF_COOKIE_NAME, CSRF_TOKEN_EXPIRY }

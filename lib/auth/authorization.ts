@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers'
 import { verifyToken } from './jwt'
 import { createLogger } from '@/lib/logger'
+import { AUTH_COOKIE_NAME } from '@/lib/constants/auth'
 
 const log = createLogger('authorization')
 
@@ -52,7 +53,7 @@ export function hasRole(userRole: UserRole, minRole: UserRole): boolean {
 
 export async function requirePermission(permission: Permission): Promise<{ id: string; email: string; role: string }> {
   const cookieStore = await cookies()
-  const token = cookieStore.get('auth_token')?.value
+  const token = cookieStore.get(AUTH_COOKIE_NAME)?.value
 
   if (!token) {
     throw new Error('Unauthorized: Authentication required')
@@ -79,7 +80,7 @@ export async function requirePermission(permission: Permission): Promise<{ id: s
 export async function getUserFromToken(): Promise<{ id: string; email: string; role: UserRole } | null> {
   try {
     const cookieStore = await cookies()
-    const token = cookieStore.get('auth_token')?.value
+    const token = cookieStore.get(AUTH_COOKIE_NAME)?.value
 
     if (!token) return null
 

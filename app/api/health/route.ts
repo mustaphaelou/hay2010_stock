@@ -5,13 +5,13 @@ import { redis } from '@/lib/db/redis'
 import { verifyToken } from '@/lib/auth/jwt'
 import { checkRedisHealth } from '@/lib/db/redis-cluster'
 import { createLogger } from '@/lib/logger'
+import { AUTH_COOKIE_NAME } from '@/lib/constants/auth'
 
 const log = createLogger('health-api')
-const COOKIE_NAME = 'auth_token'
 
 export async function GET() {
   const cookieStore = await cookies()
-  const token = cookieStore.get(COOKIE_NAME)?.value
+  const token = cookieStore.get(AUTH_COOKIE_NAME)?.value
 
   let isAuthenticated = false
   let isAdmin = false

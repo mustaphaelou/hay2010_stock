@@ -6,6 +6,7 @@ import { revalidatePath } from 'next/cache'
 import { CacheService } from '@/lib/db/redis-cluster'
 import { CacheInvalidationService } from '@/lib/cache/invalidation'
 import { createLogger } from '@/lib/logger'
+import { UserRole } from '@/lib/auth/authorization'
 
 const log = createLogger('stock-movement-actions')
 
@@ -31,7 +32,7 @@ export interface MovementResult {
 }
 
 export async function createStockMovement(input: CreateMovementInput, csrfToken: string): Promise<MovementResult> {
-  const user = await requireRole(['ADMIN', 'MANAGER'])
+  const user = await requireRole(['ADMIN', 'MANAGER'] as UserRole[])
 
   try {
     const { requireCsrfToken } = await import('@/lib/security/csrf')
@@ -182,7 +183,7 @@ export async function getStockMovements(
   warehouseId?: number,
   limit: number = 100
 ) {
-  await requireRole(['ADMIN', 'MANAGER', 'USER', 'VIEWER'])
+  await requireRole(['ADMIN', 'MANAGER', 'USER', 'VIEWER'] as UserRole[])
 
   if (limit > 500) limit = 500
 

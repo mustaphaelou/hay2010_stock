@@ -17,6 +17,51 @@ interface LockoutResult {
   error?: string
 }
 
+const LOCKOUT_SCRIPT = `
+local lockoutKey = KEYS[1]
+local attemptsKey = KEYS[2]
+local lockoutDuration = tonumber(ARGV[1])
+local maxAttempts = tonumber(ARGV[2])
+
+local locked = redis.call('EXISTS', lockoutKey)
+if locked == 1 then
+  local ttl = redis.call('TTL', lockoutKey)
+  return {1, 0, ttl}
+end
+
+local attempts = redis.call('INCR', attemptsKey)
+if attempts == 1 then
+  redis.call('EXPIRE', attemptsKey, lockoutDuration)
+end
+
+if attempts >= maxAttempts then
+  redis.call('SETEX', lockoutKey, lockoutDuration, '1')
+  redis.call('DEL', attemptsKey)
+  return {1, 0, 0}
+end
+
+return {0, maxAttempts - attempts, 0}
+`
+
+let lockoutScriptSha: string | null = null
+
+async function executeLockoutScript(email: string): Promise<{ locked: boolean; remaining: number; unlockIn: number }> {
+  const lockoutKey = `${LOCKOUT_PREFIX}${email}`
+  const attemptsKey = `${ATTEMPTS_PREFIX}${email}`
+
+  if (!lockoutScriptSha) {
+    lockoutScriptSha = await redis.script('LOAD', LOCKOUT_SCRIPT) as string
+  }
+
+  const result = await redis.evalsha(lockoutScriptSha, 2, lockoutKey, attemptsKey, String(LOCKOUT_DURATION), String(MAX_ATTEMPTS)) as [number, number, number]
+  
+  return {
+    locked: result[0] === 1,
+    remaining: result[1],
+    unlockIn: result[2]
+  }
+}
+
 async function safeRedisOp<T>(
   op: () => Promise<T>,
   fallback: T,
@@ -49,31 +94,20 @@ export async function recordFailedAttempt(email: string): Promise<LockoutResult>
   const failClosed = true
 
   return safeRedisOp(async () => {
-    const attemptsKey = `${ATTEMPTS_PREFIX}${email}`
-    const lockoutKey = `${LOCKOUT_PREFIX}${email}`
-
-    const isLocked = await redis.exists(lockoutKey)
-    if (isLocked) {
-      const ttl = await redis.ttl(lockoutKey)
-      log.info({ email: email.substring(0, 3) + '***', ttl }, 'Account is locked')
-      return { locked: true, remaining: 0, unlockIn: ttl }
+    const result = await executeLockoutScript(email)
+    
+    if (result.locked) {
+      if (result.unlockIn > 0) {
+        log.info({ email: email.substring(0, 3) + '***', ttl: result.unlockIn }, 'Account is locked')
+      } else {
+        log.warn({ email: email.substring(0, 3) + '***' }, 'Account locked due to too many attempts')
+      }
+    } else {
+      log.info({ email: email.substring(0, 3) + '***', remaining: result.remaining }, 'Failed login attempt recorded')
     }
-
-    const attempts = await redis.incr(attemptsKey)
-    if (attempts === 1) {
-      await redis.expire(attemptsKey, LOCKOUT_DURATION)
-    }
-
-    if (attempts >= MAX_ATTEMPTS) {
-      await redis.setex(lockoutKey, LOCKOUT_DURATION, '1')
-      await redis.del(attemptsKey)
-      log.warn({ email: email.substring(0, 3) + '***' }, 'Account locked due to too many attempts')
-      return { locked: true, remaining: 0 }
-    }
-
-    log.info({ email: email.substring(0, 3) + '***', attempts, remaining: MAX_ATTEMPTS - attempts }, 'Failed login attempt recorded')
-    return { locked: false, remaining: MAX_ATTEMPTS - attempts }
-  }, { locked: false, remaining: MAX_ATTEMPTS }, 'recordFailedAttempt', failClosed)
+    
+    return { locked: result.locked, remaining: result.remaining, unlockIn: result.unlockIn || undefined }
+  }, { locked: false, remaining: MAX_ATTEMPTS, unlockIn: undefined }, 'recordFailedAttempt', failClosed)
 }
 
 export async function clearFailedAttempts(email: string): Promise<void> {

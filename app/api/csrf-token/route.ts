@@ -1,16 +1,16 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { verifyToken } from '@/lib/auth/jwt'
-import { generateCsrfToken, CSRF_COOKIE_NAME } from '@/lib/security/csrf'
+import { generateCsrfToken, CSRF_COOKIE_NAME } from '@/lib/security/csrf-server'
 import { createLogger } from '@/lib/logger'
+import { AUTH_COOKIE_NAME } from '@/lib/constants/auth'
 
 const log = createLogger('csrf-token-route')
-const COOKIE_NAME = 'auth_token'
 
 export async function GET() {
-	try {
-		const cookieStore = await cookies()
-		const token = cookieStore.get(COOKIE_NAME)?.value
+  try {
+    const cookieStore = await cookies()
+    const token = cookieStore.get(AUTH_COOKIE_NAME)?.value
 
 		if (!token) {
 			return NextResponse.json(

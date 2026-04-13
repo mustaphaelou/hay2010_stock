@@ -1,13 +1,12 @@
 import { cookies } from 'next/headers'
 import { verifyToken } from '@/lib/auth/jwt'
 import { getSession } from '@/lib/auth/session'
-
-const COOKIE_NAME = 'auth_token'
+import { AUTH_COOKIE_NAME } from '@/lib/constants/auth'
 
 export async function getCurrentUser(): Promise<{ id: string; email: string; name: string; role: string } | null> {
   try {
     const cookieStore = await cookies()
-    const token = cookieStore.get(COOKIE_NAME)?.value
+    const token = cookieStore.get(AUTH_COOKIE_NAME)?.value
 
     if (!token) return null
 

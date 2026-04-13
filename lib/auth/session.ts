@@ -21,22 +21,16 @@ function generateSessionId(): string {
 async function getRedis() {
   try {
     const { redis, isRedisReady } = await import('@/lib/db/redis')
-    
+
     if (!isRedisReady()) {
       throw new Error('Redis not initialized')
     }
-    
+
     await redis.ping()
     return redis
   } catch (error) {
     log.error({ error }, 'Redis unavailable')
-    
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error('Session service unavailable. Please try again later.')
-    }
-    
-    log.warn('[Session] Development mode: Redis unavailable, sessions will not persist')
-    return null
+    throw new Error('Session service unavailable. Please try again later.')
   }
 }
 
@@ -53,11 +47,7 @@ export async function createSession(userId: string, email: string, name: string,
   const redisClient = await getRedis()
   
   if (!redisClient) {
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error('Session service unavailable')
-    }
-    log.warn('[Session] Development mode: returning session without persistence')
-    return sessionId
+    throw new Error('Session service unavailable. Please try again later.')
   }
 
   await redisClient.setex(
@@ -75,10 +65,7 @@ export async function getSession(sessionId: string): Promise<SessionData | null>
   const redisClient = await getRedis()
   
   if (!redisClient) {
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error('Session service unavailable')
-    }
-    return null
+    throw new Error('Session service unavailable. Please try again later.')
   }
 
   const data = await redisClient.get(key)
@@ -98,12 +85,8 @@ export async function deleteSession(sessionId: string): Promise<void> {
   const redisClient = await getRedis()
   
   if (!redisClient) {
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error('Session service unavailable')
-    }
-    return
+    throw new Error('Session service unavailable. Please try again later.')
   }
-
   await redisClient.del(key)
 }
 
@@ -111,12 +94,9 @@ export async function refreshSession(sessionId: string): Promise<void> {
   const key = `${SESSION_PREFIX}${sessionId}`
 
   const redisClient = await getRedis()
-  
+
   if (!redisClient) {
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error('Session service unavailable')
-    }
-    return
+    throw new Error('Session service unavailable. Please try again later.')
   }
 
   await redisClient.expire(key, SESSION_TTL)

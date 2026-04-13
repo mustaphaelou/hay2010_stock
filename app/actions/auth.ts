@@ -9,11 +9,10 @@ import { loginSchema } from '@/lib/validation'
 import { recordFailedAttempt, clearFailedAttempts, isAccountLocked } from '@/lib/auth/lockout'
 import { validateCsrfToken } from '@/lib/security/csrf-server'
 import { createLogger } from '@/lib/logger'
+import { AUTH_COOKIE_NAME } from '@/lib/constants/auth'
 import * as Sentry from '@sentry/nextjs'
 
 const log = createLogger('auth-actions')
-
-const COOKIE_NAME = 'auth_token'
 
 export async function login(
   email: string,
@@ -74,14 +73,14 @@ export async function login(
 
     const maxAge = rememberMe ? 60 * 60 * 24 * 30 : 60 * 60 * 24 * 7
 
-    const cookieStore = await cookies()
-    cookieStore.set(COOKIE_NAME, token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge,
-      path: '/'
-    })
+  const cookieStore = await cookies()
+  cookieStore.set(AUTH_COOKIE_NAME, token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    maxAge,
+    path: '/'
+  })
 
     return { success: true }
   } catch (error) {
@@ -104,17 +103,17 @@ export async function logout(csrfToken?: string): Promise<{ error?: string; succ
       return { error: 'Invalid security token. Please refresh the page and try again.' }
     }
 
-    const cookieStore = await cookies()
-    const token = cookieStore.get(COOKIE_NAME)?.value
+  const cookieStore = await cookies()
+  const token = cookieStore.get(AUTH_COOKIE_NAME)?.value
 
-    if (token) {
-      const payload = await verifyToken(token)
-      if (payload?.sessionId) {
-        await deleteSession(payload.sessionId)
-      }
+  if (token) {
+    const payload = await verifyToken(token)
+    if (payload?.sessionId) {
+      await deleteSession(payload.sessionId)
     }
+  }
 
-    cookieStore.delete(COOKIE_NAME)
+  cookieStore.delete(AUTH_COOKIE_NAME)
     return { success: true }
   } catch (error) {
     log.error({ error }, 'Logout error')
@@ -126,7 +125,7 @@ export async function logout(csrfToken?: string): Promise<{ error?: string; succ
 export async function getCurrentUser(): Promise<{ id: string; email: string; name: string; role: string } | null> {
   try {
     const cookieStore = await cookies()
-    const token = cookieStore.get(COOKIE_NAME)?.value
+    const token = cookieStore.get(AUTH_COOKIE_NAME)?.value
 
     if (!token) {
       return null

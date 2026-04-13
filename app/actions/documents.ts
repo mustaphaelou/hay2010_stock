@@ -6,6 +6,7 @@ import { getDocLinesSchema } from '@/lib/validation'
 import type { DocumentWithComputed, DocumentLine } from '@/lib/types'
 import { Prisma } from '@/lib/generated/prisma/client'
 import { createLogger } from '@/lib/logger'
+import { UserRole } from '@/lib/auth/authorization'
 
 const log = createLogger('documents-actions')
 
@@ -69,15 +70,17 @@ function mapDocumentToComputed(doc: {
 }
 
 export async function getDocuments(page: number = 1, limit: number = 50): Promise<{ data: DocumentWithComputed[]; meta: { total: number; page: number; limit: number; totalPages: number }; error?: string }> {
-  await requireAuth()
-
+  const user = await requireAuth()
   const skip = (page - 1) * limit
 
   try {
+    const whereClause = user.role === 'ADMIN' ? {} : { cree_par: user.id }
+    
     const [documents, total] = await Promise.all([
       prisma.docVente.findMany({
         skip,
         take: limit,
+        where: whereClause,
         include: {
           partenaire: {
             select: {
@@ -90,7 +93,7 @@ export async function getDocuments(page: number = 1, limit: number = 50): Promis
           date_document: 'desc'
         }
       }),
-      prisma.docVente.count()
+      prisma.docVente.count({ where: whereClause })
     ])
 
     return {
