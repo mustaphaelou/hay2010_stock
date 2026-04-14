@@ -70,7 +70,7 @@ describe('Health Check Endpoints', () => {
     // Mock next/headers cookies
     mockCookies.mockResolvedValue({
       get: vi.fn().mockReturnValue({ value: 'valid-token' })
-    })
+    } as any)
 
     // Mock jwt verification
     mockVerifyToken.mockResolvedValue({
@@ -142,14 +142,14 @@ describe('Health Check Endpoints', () => {
     beforeEach(() => {
       mockCookies.mockResolvedValue({
         get: vi.fn().mockReturnValue({ value: 'valid-token' })
-      })
+      } as any)
       mockVerifyToken.mockResolvedValue(mockTokenPayload)
     })
 
     it('should require authentication', async () => {
       mockCookies.mockResolvedValue({
         get: vi.fn().mockReturnValue(undefined)
-      })
+      } as any)
 
       const response = await getAdminHealth()
       const data = await response.json()
