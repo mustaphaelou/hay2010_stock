@@ -5,15 +5,6 @@ import { rateLimitMiddleware } from '@/lib/middleware/rate-limit'
 import { jwtVerify } from 'jose'
 import * as jose from 'jose'
 
-interface JwtPayload {
-  userId: string
-  email: string
-  role: string
-  sessionId: string
-  iat?: number
-  [key: string]: unknown
-}
-
 // Mock dependencies
 vi.mock('@/lib/middleware/rate-limit', () => ({
   rateLimitMiddleware: vi.fn()
