@@ -68,9 +68,10 @@ describe('Health Check Endpoints', () => {
     vi.mocked((prisma as unknown as { mouvementStock: { count: ReturnType<typeof vi.fn> } }).mouvementStock.count).mockResolvedValue(1000)
 
     // Mock next/headers cookies
+    // @ts-expect-error - Mocking only the required get method
     mockCookies.mockResolvedValue({
       get: vi.fn().mockReturnValue({ value: 'valid-token' })
-    } as any)
+    })
 
     // Mock jwt verification
     mockVerifyToken.mockResolvedValue({
@@ -140,16 +141,18 @@ describe('Health Check Endpoints', () => {
     }
 
     beforeEach(() => {
+      // @ts-expect-error - Mocking only the required get method
       mockCookies.mockResolvedValue({
         get: vi.fn().mockReturnValue({ value: 'valid-token' })
-      } as any)
+      })
       mockVerifyToken.mockResolvedValue(mockTokenPayload)
     })
 
     it('should require authentication', async () => {
+      // @ts-expect-error - Mocking only the required get method
       mockCookies.mockResolvedValue({
         get: vi.fn().mockReturnValue(undefined)
-      } as any)
+      })
 
       const response = await getAdminHealth()
       const data = await response.json()
