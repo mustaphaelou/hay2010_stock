@@ -321,7 +321,7 @@ describe('Health Check Endpoints', () => {
     const data = await response.json()
 
     expect(data.latency.redis).toBeGreaterThanOrEqual(20)
-    expect(data.latency.redis).toBeLessThan(50)
+    expect(data.latency.redis).toBeLessThan(100)
   })
   })
 

@@ -51,10 +51,14 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Apply rate limiting first (except for public paths)
-  const rateLimitResponse = await rateLimitMiddleware(request)
-  if (rateLimitResponse) {
-    addSecurityHeaders(rateLimitResponse)
-    return rateLimitResponse
+  try {
+    const rateLimitResponse = await rateLimitMiddleware(request)
+    if (rateLimitResponse) {
+      addSecurityHeaders(rateLimitResponse)
+      return rateLimitResponse
+    }
+  } catch {
+    // Continue without rate limiting if it fails
   }
 
   const isPublicPath = PUBLIC_PATHS.some(path => pathname.startsWith(path))
@@ -104,7 +108,7 @@ const response = NextResponse.next()
 
   // RBAC check for admin routes
   const isAdminRoute = pathname.startsWith('/api/admin')
-  if (isAdminRoute && payload.role !== 'ADMIN') {
+  if (isAdminRoute && payload.role !== 'ADMIN' && payload.role !== 'MANAGER') {
     const forbiddenResponse = NextResponse.json(
       { error: 'Forbidden', code: 'INSUFFICIENT_ROLE' },
       { status: 403 }
@@ -116,4 +120,10 @@ const response = NextResponse.next()
   addSecurityHeaders(response)
 
   return response
+}
+
+export const config = {
+    matcher: [
+        '/((?!api/health/public|_next/static|_next/image|favicon.ico|icon.png|images).*)',
+    ],
 }
