@@ -11,6 +11,8 @@ vi.mock('@/lib/db/redis', () => ({
     del: vi.fn(),
     get: vi.fn(),
     ttl: vi.fn(),
+    script: vi.fn(),
+    evalsha: vi.fn(),
   },
   isRedisReady: vi.fn(),
 }))
@@ -22,13 +24,15 @@ describe('Account Lockout', () => {
     vi.clearAllMocks()
     vi.mocked(isRedisReady).mockReturnValue(true)
     process.env.LOCKOUT_FAIL_CLOSED = 'false'
+    // Mock script loading
+    vi.mocked(redis.script).mockResolvedValue('script-sha')
   })
 
   describe('recordFailedAttempt', () => {
     it('should return remaining attempts on first failure', async () => {
       vi.mocked(redis.exists).mockResolvedValue(0)
-      vi.mocked(redis.incr).mockResolvedValue(1)
-      vi.mocked(redis.expire).mockResolvedValue(1)
+      // Return format: [locked, remaining, ttl]
+      vi.mocked(redis.evalsha).mockResolvedValue([0, 4, 0])
 
       const result = await recordFailedAttempt(testEmail)
 
@@ -38,9 +42,8 @@ describe('Account Lockout', () => {
 
     it('should lock account after 5 failed attempts', async () => {
       vi.mocked(redis.exists).mockResolvedValue(0)
-      vi.mocked(redis.incr).mockResolvedValue(5)
-      vi.mocked(redis.setex).mockResolvedValue('OK')
-      vi.mocked(redis.del).mockResolvedValue(1)
+      // Return format: [locked, remaining, ttl] - locked=1 means account is locked
+      vi.mocked(redis.evalsha).mockResolvedValue([1, 0, 300])
 
       const result = await recordFailedAttempt(testEmail)
 
@@ -50,7 +53,7 @@ describe('Account Lockout', () => {
 
     it('should return locked status if already locked', async () => {
       vi.mocked(redis.exists).mockResolvedValue(1)
-      vi.mocked(redis.ttl).mockResolvedValue(300)
+      vi.mocked(redis.evalsha).mockResolvedValue([1, 0, 300])
 
       const result = await recordFailedAttempt(testEmail)
 

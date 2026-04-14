@@ -309,9 +309,11 @@ describe('Error Handling System', () => {
         vi.useFakeTimers()
       })
 
-      afterEach(() => {
-        vi.useRealTimers()
-      })
+  afterEach(() => {
+    vi.useRealTimers()
+    // Clear any unhandled rejections
+    vi.clearAllMocks()
+  })
 
       it('should succeed on first attempt', async () => {
         const operation = vi.fn().mockResolvedValue('success')
@@ -338,20 +340,21 @@ describe('Error Handling System', () => {
         expect(operation).toHaveBeenCalledTimes(2)
       })
 
-      it('should fail after max attempts', async () => {
-        const operation = vi.fn().mockRejectedValue(new DatabaseError('Connection failed'))
-        
-        const promise = executeWithRetry(operation, {
-          ...defaultRecoveryStrategy,
-          maxAttempts: 2
-        })
-        
-        // Advance past all retry delays
-        await vi.advanceTimersByTimeAsync(700) // 300 + 400
-        
-        await expect(promise).rejects.toThrow('Connection failed')
-        expect(operation).toHaveBeenCalledTimes(2)
-      })
+  it('should fail after max attempts', async () => {
+    const operation = vi.fn().mockRejectedValueOnce(new DatabaseError('Connection failed'))
+      .mockRejectedValueOnce(new DatabaseError('Connection failed'))
+
+    const promise = executeWithRetry(operation, {
+      ...defaultRecoveryStrategy,
+      maxAttempts: 2
+    })
+
+    // Advance past all retry delays
+    await vi.advanceTimersByTimeAsync(700) // 300 + 400
+
+    await expect(promise).rejects.toThrow('Connection failed')
+    expect(operation).toHaveBeenCalledTimes(2)
+  })
 
       it('should not retry non-retryable errors', async () => {
         const operation = vi.fn().mockRejectedValue(new ValidationError('Invalid input'))
