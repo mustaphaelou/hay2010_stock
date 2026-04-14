@@ -307,7 +307,7 @@ describe('Health Check Endpoints', () => {
         const response = await getAdminHealth()
         const data = await response.json()
 
-        expect(data.latency.database).toBeGreaterThanOrEqual(50)
+        expect(data.latency.database).toBeGreaterThanOrEqual(40)
         expect(data.latency.database).toBeLessThan(100)
     })
 

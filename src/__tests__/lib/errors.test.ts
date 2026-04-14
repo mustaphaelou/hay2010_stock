@@ -349,10 +349,12 @@ describe('Error Handling System', () => {
       maxAttempts: 2
     })
 
+    const expectPromise = expect(promise).rejects.toThrow('Connection failed')
+
     // Advance past all retry delays
     await vi.advanceTimersByTimeAsync(700) // 300 + 400
 
-    await expect(promise).rejects.toThrow('Connection failed')
+    await expectPromise
     expect(operation).toHaveBeenCalledTimes(2)
   })
 
