@@ -8,10 +8,16 @@ const log = createLogger('prisma')
 const globalForPrisma = global as unknown as { prisma: PrismaClient | undefined }
 
 function createPrismaClient(): PrismaClient {
-  const connectionString = process.env.DATABASE_URL
+  let connectionString = process.env.DATABASE_URL
 
   if (!connectionString) {
-    throw new Error('DATABASE_URL environment variable is required')
+    // During Next.js build time, we allow a dummy connection string to prevent crashes during static analysis
+    if (process.env.npm_lifecycle_event === 'build' || process.env.NEXT_PHASE === 'phase-production-build') {
+      log.warn('DATABASE_URL is not set during build. Using a dummy connection string.')
+      connectionString = 'postgresql://dummy:dummy@localhost:5432/dummy'
+    } else {
+      throw new Error('DATABASE_URL environment variable is required')
+    }
   }
 
   try {

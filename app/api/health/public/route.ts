@@ -5,6 +5,8 @@ import { createLogger } from '@/lib/logger'
 
 const log = createLogger('health-public-api')
 
+export const dynamic = 'force-dynamic'
+
 /**
  * Add security headers to public health check response
  */
