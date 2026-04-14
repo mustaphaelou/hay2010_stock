@@ -391,14 +391,14 @@ jobs:
     steps:
     - name: Trigger Coolify deployment
       run: |
-        WEBHOOK_URL="${{ secrets.COOLIFY_WEBHOOK_STAGING }}"
-        if [ -z "$WEBHOOK_URL" ]; then
-          echo "::warning::Coolify staging webhook not configured"
-        else
-          curl -f -s -X GET "$WEBHOOK_URL" \
-            -H "Accept: application/json" \
-            --max-time 30 || echo "::warning::Coolify staging webhook request failed"
-        fi
+      WEBHOOK_URL="${{ secrets.COOLIFY_WEBHOOK_STAGING }}"
+      if [ -z "$WEBHOOK_URL" ]; then
+      echo "::warning::Coolify staging webhook not configured"
+        exit 0
+      fi
+      curl -f -s -X GET "$WEBHOOK_URL" \
+      -H "Accept: application/json" \
+        --max-time 30 || echo "::warning::Coolify staging webhook request failed"
 
   deploy-production:
     name: Deploy to Production
