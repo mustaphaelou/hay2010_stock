@@ -391,9 +391,14 @@ jobs:
     steps:
     - name: Trigger Coolify deployment
       run: |
-        curl -f -s -X GET "${{ secrets.COOLIFY_WEBHOOK_STAGING }}" \
-          -H "Accept: application/json" \
-          --max-time 30 || echo "::warning::Coolify staging webhook not configured or failed"
+        WEBHOOK_URL="${{ secrets.COOLIFY_WEBHOOK_STAGING }}"
+        if [ -z "$WEBHOOK_URL" ]; then
+          echo "::warning::Coolify staging webhook not configured"
+        else
+          curl -f -s -X GET "$WEBHOOK_URL" \
+            -H "Accept: application/json" \
+            --max-time 30 || echo "::warning::Coolify staging webhook request failed"
+        fi
 
   deploy-production:
     name: Deploy to Production
@@ -406,9 +411,15 @@ jobs:
     steps:
     - name: Trigger Coolify deployment
       run: |
-        curl -f -s -X GET "${{ secrets.COOLIFY_WEBHOOK_PRODUCTION }}" \
-          -H "Accept: application/json" \
-          --max-time 30
+        WEBHOOK_URL="${{ secrets.COOLIFY_WEBHOOK_PRODUCTION }}"
+        if [ -z "$WEBHOOK_URL" ]; then
+          echo "::error::Coolify production webhook not configured"
+          exit 1
+        else
+          curl -f -s -X GET "$WEBHOOK_URL" \
+            -H "Accept: application/json" \
+            --max-time 30
+        fi
 
     - name: Create Issue on failure
       if: failure()
