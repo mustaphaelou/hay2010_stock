@@ -90,12 +90,10 @@ jobs:
     # Secret scanning — hard failure to prevent leaked credentials
     - name: Secret scan with Gitleaks
       uses: gitleaks/gitleaks-action@v2
-      with:
-        config: .gitleaks.toml
-        verbose: true
-        redact: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITLEAKS_CONFIG: .gitleaks.toml
+        GITLEAKS_ENABLE_COMMENTS: false
 
   # ============================================
   # Stage 1 (parallel): Static analysis and vulnerability scanning

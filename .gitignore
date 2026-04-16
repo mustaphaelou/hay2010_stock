@@ -30,10 +30,10 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# env files — NEVER commit .env.docker (contains real secrets)
+# Use .env.docker.example as a template: cp .env.docker.example .env.docker
 .env*
 !.env.example
-!.env.docker
 !.env.docker.example
 
 # vercel
