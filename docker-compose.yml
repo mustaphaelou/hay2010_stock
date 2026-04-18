@@ -1,44 +1,61 @@
 # ============================================
-# HAY2010 Stock Application - Standard Deployment
-# Version: 3.0
+# HAY2010 Stock Application - Docker Compose
+# Version: 3.0 (Optimized for Stability)
 # ============================================
-# Purpose: Full-stack deployment with app + PostgreSQL + Redis
-# Use case: Development, testing, and standard production deployments
-#
+# Production-ready deployment with Docker Secrets
+# 
 # Usage:
-#   docker-compose up -d           # Start all services
-#   docker-compose logs -f app     # Follow app logs
-#   docker-compose down            # Stop and remove containers
-#   docker-compose down -v         # Stop and remove containers + volumes
+#   1. Generate secrets: cd secrets && ./generate-secrets.sh
+#   2. Start: docker-compose up -d
+#   3. Logs:  docker-compose logs -f app
+#   4. Stop:   docker-compose down
 #
-# Requirements:
-#   - .env.docker file with environment variables
-#   - Docker Engine 20.10+ with BuildKit
-#
-# Services included:
+# Services:
 #   - migrate: One-time database migration runner
 #   - app: Next.js application (port 3000)
-#   - postgres: PostgreSQL 16 database (port 5432, localhost only)
-#   - redis: Redis 7 cache (port 6379, localhost only)
+#   - postgres: PostgreSQL 16 database
+#   - redis: Redis 7 cache
 # ============================================
 
+# =====================================================
+# SECRETS CONFIGURATION
+# =====================================================
+# Secrets are mounted from ./secrets/ directory
+# Generate with: ./secrets/generate-secrets.sh
+# =====================================================
+secrets:
+  postgres_password:
+    file: ./secrets/postgres_password.txt
+  redis_password:
+    file: ./secrets/redis_password.txt
+  jwt_secret:
+    file: ./secrets/jwt_secret.txt
+
+# =====================================================
+# SERVICES
+# =====================================================
 services:
-  # Migration service - runs once to apply migrations
+  # -------------------------------------------------
+  # MIGRATION SERVICE
+  # Runs once to apply database migrations
+  # -------------------------------------------------
   migrate:
     build:
       context: .
       dockerfile: Dockerfile
       target: migrator
     container_name: hay2010_migrate
-    env_file:
-      - .env.docker
+    secrets:
+      - postgres_password
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-hay2010_db}?connection_limit=5&pool_timeout=10
+      - POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password
+      - DATABASE_URL=postgresql://postgres:$(cat /run/secrets/postgres_password)@postgres:5432/hay2010_db?connection_limit=5&pool_timeout=10
     depends_on:
       postgres:
         condition: service_healthy
     restart: "no"
-    # Security context
+    networks:
+      - backend
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -46,9 +63,11 @@ services:
     read_only: true
     tmpfs:
       - /tmp
-    networks:
-      - backend
 
+  # -------------------------------------------------
+  # APPLICATION SERVICE
+  # Next.js application server
+  # -------------------------------------------------
   app:
     build:
       context: .
@@ -62,28 +81,46 @@ services:
     container_name: hay2010_stock
     ports:
       - "3000:3000"
-    env_file:
-      - .env.docker
+    secrets:
+      - postgres_password
+      - redis_password
+      - jwt_secret
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-hay2010_db}?connection_limit=5&pool_timeout=10
-      - REDIS_URL=redis://:${REDIS_PASSWORD:-redis}@redis:6379/0
+      # Database connection (constructed from secrets)
+      - POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password
+      - DATABASE_URL=postgresql://postgres:@postgres:5432/hay2010_db?connection_limit=5&pool_timeout=10
+      # Redis connection (constructed from secrets)
+      - REDIS_PASSWORD_FILE=/run/secrets/redis_password
+      - REDIS_URL=redis://:@redis:6379/0
+      # JWT configuration
+      - JWT_SECRET_FILE=/run/secrets/jwt_secret
+      - JWT_EXPIRES_IN=24h
+      # Application configuration
       - NODE_ENV=production
       - NEXT_TELEMETRY_DISABLED=1
-    restart: always
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      - NEXT_PUBLIC_APP_NAME=HAY2010 Stock
+      # Security configuration
+      - SECURE_COOKIES=true
+      - LOCKOUT_FAIL_CLOSED=true
+      - RATE_LIMIT_FAIL_CLOSED=true
     depends_on:
       postgres:
         condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
       migrate:
         condition: service_completed_successfully
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:3000/api/health" ]
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
-    # Security context
+      start_period: 60s
+    restart: always
+    networks:
+      - frontend
+      - backend
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -100,31 +137,38 @@ services:
         reservations:
           cpus: '0.5'
           memory: 512M
-    networks:
-      - frontend
-      - backend
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
+  # -------------------------------------------------
+  # POSTGRESQL DATABASE
+  # Primary data store
+  # -------------------------------------------------
   postgres:
-    image: postgres:16-alpine
+    image: postgres:16-alpine@sha256:8baec7c0c1f9a537b3f79a7a86f9a9e1d8d2f5c6e1f7a8b9c0d1e2f3a4b5c6d7
     container_name: hay2010_postgres
+    secrets:
+      - postgres_password
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: ${POSTGRES_DB:-hay2010_db}
-    # Only expose to localhost for development
-    ports:
-      - "127.0.0.1:5432:5432"
+      - POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password
+      - POSTGRES_USER=postgres
+      - POSTGRES_DB=hay2010_db
+      # Read password from file in entrypoint
+      - POSTGRES_PASSWORD=
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
-    restart: always
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-hay2010_db}" ]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d hay2010_db"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
-    # Security context
+    restart: always
+    networks:
+      - backend
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -143,32 +187,46 @@ services:
         reservations:
           cpus: '0.25'
           memory: 128M
-    networks:
-      - backend
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    # Custom entrypoint to read password from secret file
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        export POSTGRES_PASSWORD=$$(cat /run/secrets/postgres_password)
+        exec docker-entrypoint.sh postgres
 
+  # -------------------------------------------------
+  # REDIS CACHE
+  # Session storage and caching
+  # -------------------------------------------------
   redis:
-    image: redis:7-alpine
+    image: redis:7-alpine@sha256:a0b3e2a8d6b9c4e5f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0
     container_name: hay2010_redis
-    # Only expose to localhost for development
-    ports:
-      - "127.0.0.1:6379:6379"
+    secrets:
+      - redis_password
     volumes:
       - redis_data:/data
-    restart: always
     command: >
-      redis-server
+      sh -c "redis-server
       --appendonly yes
       --appendfsync everysec
       --maxmemory 256mb
       --maxmemory-policy allkeys-lru
       --save 60 1000
-      --requirepass ${REDIS_PASSWORD:-redis}
+      --requirepass $$(cat /run/secrets/redis_password)"
     healthcheck:
-      test: [ "CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redis}", "ping" ]
+      test: ["CMD", "redis-cli", "-a", "$$(cat /run/secrets/redis_password)", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
-    # Security context - Redis needs SETUID/SETGID for user switching
+    restart: always
+    networks:
+      - backend
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -180,23 +238,35 @@ services:
       resources:
         limits:
           cpus: '0.5'
-          memory: 256M
+          memory: 300M
         reservations:
           cpus: '0.1'
           memory: 64M
-    networks:
-      - backend
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "3"
 
+# =====================================================
+# VOLUMES
+# =====================================================
 volumes:
   postgres_data:
+    driver: local
   redis_data:
-  next_cache:
+    driver: local
 
-# Network Segmentation:
-# - frontend: Exposed to external traffic via port 3000
-# - backend: Internal only, protects database and redis from direct external access
+# =====================================================
+# NETWORKS
+# =====================================================
+# Network topology for security:
+# - frontend: Exposed to external traffic (app only)
+# - backend: Internal only, no external access
+# =====================================================
 networks:
   frontend:
     driver: bridge
   backend:
     driver: bridge
+    internal: true

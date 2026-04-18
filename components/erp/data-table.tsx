@@ -43,25 +43,37 @@ import { SafeIcon as HugeiconsIcon } from "@/components/ui/safe-icon"
 import { Settings01Icon, ArrowLeft01Icon, ArrowRight01Icon, Menu01Icon, GridIcon } from "@hugeicons/core-free-icons"
 import { useIsMobile } from "@/hooks/use-mobile"
 
+interface PaginationMeta {
+  total: number
+  page: number
+  limit: number
+  hasMore: boolean
+}
+
 interface DataTableProps<TData, TValue> {
-    columns: ColumnDef<TData, TValue>[]
-    data: TData[]
-    searchKey?: string
-    placeholder?: string
-    loading?: boolean
-    pageSize?: number
-    /** Optional render function for mobile card view. If provided, a toggle will appear on mobile. */
-    mobileCardRenderer?: (row: TData, index: number) => React.ReactNode
+  columns: ColumnDef<TData, TValue>[]
+  data: TData[]
+  searchKey?: string
+  placeholder?: string
+  loading?: boolean
+  pageSize?: number
+  mobileCardRenderer?: (row: TData, index: number) => React.ReactNode
+  onPaginationChange?: (page: number, pageSize: number) => void
+  paginationMeta?: PaginationMeta
+  serverSidePagination?: boolean
 }
 
 export function DataTable<TData, TValue>({
-    columns,
-    data,
-    searchKey,
-    placeholder = "Filtrer…",
-    loading = false,
-    pageSize: initialPageSize = 10,
-    mobileCardRenderer,
+  columns,
+  data,
+  searchKey,
+  placeholder = "Filtrer…",
+  loading = false,
+  pageSize: initialPageSize = 10,
+  mobileCardRenderer,
+  onPaginationChange,
+  paginationMeta,
+  serverSidePagination = false,
 }: DataTableProps<TData, TValue>) {
     const isMobile = useIsMobile()
     const [viewMode, setViewMode] = React.useState<"table" | "cards">("table")
@@ -69,12 +81,34 @@ export function DataTable<TData, TValue>({
     const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
     const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
     const [rowSelection, setRowSelection] = React.useState({})
-    const [pagination, setPagination] = React.useState({
-        pageIndex: 0,
-        pageSize: initialPageSize,
-    })
+  const [pagination, setPagination] = React.useState({
+    pageIndex: 0,
+    pageSize: initialPageSize,
+  })
 
-    // Auto-switch to cards on mobile if renderer is provided
+  const handlePaginationChange = React.useCallback(
+    (updaterOrValue: typeof pagination | ((old: typeof pagination) => typeof pagination)) => {
+      const newPagination = typeof updaterOrValue === 'function' ? updaterOrValue(pagination) : updaterOrValue
+      setPagination(newPagination)
+      if (serverSidePagination && onPaginationChange) {
+        onPaginationChange(newPagination.pageIndex + 1, newPagination.pageSize)
+      }
+    },
+    [pagination, serverSidePagination, onPaginationChange]
+  )
+
+  const handlePageSizeChange = React.useCallback(
+    (newPageSize: number) => {
+      const newPagination = { pageIndex: 0, pageSize: newPageSize }
+      setPagination(newPagination)
+      if (serverSidePagination && onPaginationChange) {
+        onPaginationChange(1, newPageSize)
+      }
+    },
+    [serverSidePagination, onPaginationChange]
+  )
+
+  // Auto-switch to cards on mobile if renderer is provided
     React.useEffect(() => {
         if (isMobile && mobileCardRenderer) {
             setViewMode("cards")
@@ -84,18 +118,18 @@ export function DataTable<TData, TValue>({
     }, [isMobile, mobileCardRenderer])
 
 
-    const table = useReactTable({
-        data,
-        columns,
-        getCoreRowModel: getCoreRowModel(),
-        getPaginationRowModel: getPaginationRowModel(),
-        onSortingChange: setSorting,
-        getSortedRowModel: getSortedRowModel(),
-        onColumnFiltersChange: setColumnFilters,
-        getFilteredRowModel: getFilteredRowModel(),
+  const table = useReactTable({
+    data,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: serverSidePagination ? undefined : getPaginationRowModel(),
+    onSortingChange: setSorting,
+    getSortedRowModel: getSortedRowModel(),
+    onColumnFiltersChange: setColumnFilters,
+    getFilteredRowModel: serverSidePagination ? undefined : getFilteredRowModel(),
         onColumnVisibilityChange: setColumnVisibility,
         onRowSelectionChange: setRowSelection,
-        onPaginationChange: setPagination,
+        onPaginationChange: handlePaginationChange,
         state: {
             sorting,
             columnFilters,
@@ -105,11 +139,11 @@ export function DataTable<TData, TValue>({
         },
     })
 
-    const currentPage = table.getState().pagination.pageIndex + 1
-    const totalPages = table.getPageCount()
-    const totalRows = table.getFilteredRowModel().rows.length
-    const startRow = pagination.pageIndex * pagination.pageSize + 1
-    const endRow = Math.min((pagination.pageIndex + 1) * pagination.pageSize, totalRows)
+  const currentPage = serverSidePagination && paginationMeta ? paginationMeta.page : table.getState().pagination.pageIndex + 1
+  const totalPages = serverSidePagination && paginationMeta ? Math.ceil(paginationMeta.total / paginationMeta.limit) : table.getPageCount()
+  const totalRows = serverSidePagination && paginationMeta ? paginationMeta.total : (table.getFilteredRowModel?.()?.rows.length ?? data.length)
+  const startRow = serverSidePagination && paginationMeta ? (paginationMeta.page - 1) * paginationMeta.limit + 1 : pagination.pageIndex * pagination.pageSize + 1
+  const endRow = serverSidePagination && paginationMeta ? Math.min(paginationMeta.page * paginationMeta.limit, paginationMeta.total) : Math.min((pagination.pageIndex + 1) * pagination.pageSize, totalRows)
 
     return (
         <div className="flex flex-col gap-4">
@@ -157,11 +191,11 @@ export function DataTable<TData, TValue>({
                             </Button>
                         </div>
                     )}
-                    <Select
-                        value={pagination.pageSize.toString()}
-                        onValueChange={(value) => {
-                            table.setPageSize(Number(value))
-                        }}
+        <Select
+          value={pagination.pageSize.toString()}
+          onValueChange={(value) => {
+            handlePageSizeChange(Number(value))
+          }}
                     >
                         <SelectTrigger className="w-[110px] sm:w-[130px] h-11 sm:h-9 flex-shrink-0">
                             <SelectValue />
@@ -359,18 +393,18 @@ export function DataTable<TData, TValue>({
                             variant="outline"
                             size="sm"
                             className="size-10 sm:size-9 p-0 rounded-lg hover:bg-primary/5 hover:text-primary transition-all active:scale-95"
-                            onClick={() => table.previousPage()}
-                            disabled={!table.getCanPreviousPage()}
-                            aria-label="Page précédente"
-                        >
-                            <HugeiconsIcon icon={ArrowLeft01Icon} className="size-5 sm:size-4" aria-hidden="true" />
-                        </Button>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            className="size-10 sm:size-9 p-0 rounded-lg hover:bg-primary/5 hover:text-primary transition-all active:scale-95"
-                            onClick={() => table.nextPage()}
-                            disabled={!table.getCanNextPage()}
+          onClick={() => table.previousPage()}
+          disabled={serverSidePagination && paginationMeta ? currentPage <= 1 : !table.getCanPreviousPage()}
+          aria-label="Page précédente"
+        >
+          <HugeiconsIcon icon={ArrowLeft01Icon} className="size-5 sm:size-4" aria-hidden="true" />
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="size-10 sm:size-9 p-0 rounded-lg hover:bg-primary/5 hover:text-primary transition-all active:scale-95"
+          onClick={() => table.nextPage()}
+          disabled={serverSidePagination && paginationMeta ? !paginationMeta.hasMore : !table.getCanNextPage()}
                             aria-label="Page suivante"
                         >
                             <HugeiconsIcon icon={ArrowRight01Icon} className="size-5 sm:size-4" aria-hidden="true" />

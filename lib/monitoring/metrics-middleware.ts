@@ -6,8 +6,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getMetrics } from '@/app/api/metrics/route'
-import { 
+import { getMetrics } from '@/lib/monitoring/metrics-registry'
+import {
   recordApiBusinessRequest,
   recordBusinessTransactionDuration,
   recordBusinessError,
@@ -17,6 +17,9 @@ import {
   recordDocumentGeneration
 } from './business-metrics'
 import { getErrorCode } from '@/lib/errors'
+import { verifyToken } from '@/lib/auth/jwt'
+import { cookies } from 'next/headers'
+import { AUTH_COOKIE_NAME } from '@/lib/constants/auth'
 
 const { httpRequestsTotal, httpRequestDuration, httpRequestsInFlight } = getMetrics()
 
@@ -172,34 +175,44 @@ export function withActionMetrics<T extends (...args: unknown[]) => Promise<unkn
 ): T {
   return (async (...args: unknown[]) => {
     const startTime = Date.now()
-    
+
+    let role = 'anonymous'
+    try {
+      const cookieStore = await cookies()
+      const token = cookieStore.get(AUTH_COOKIE_NAME)?.value
+      if (token) {
+        const payload = await verifyToken(token)
+        if (payload) role = payload.role
+      }
+    } catch {}
+
     try {
       const result = await action(...args)
       const duration = Date.now() - startTime
-      
+
       recordBusinessTransactionDuration({
         transactionType: `action_${actionName}`,
         duration: duration / 1000
       })
-      
+
       recordUserAction({
         actionType: actionName,
-        role: 'USER', // This would come from session in real implementation
+        role,
         status: 'SUCCESS'
       })
-      
+
       return result
     } catch (error) {
       const duration = Date.now() - startTime
-      
+
       recordBusinessTransactionDuration({
         transactionType: `action_${actionName}`,
         duration: duration / 1000
       })
-      
+
       recordUserAction({
         actionType: actionName,
-        role: 'USER', // This would come from session in real implementation
+        role,
         status: 'FAILED'
       })
       

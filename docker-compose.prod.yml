@@ -166,6 +166,8 @@ services:
     restart: always
     volumes:
       - redis_data:/data
+    environment:
+      - REDISCLI_AUTH=${REDIS_PASSWORD}
     command: >
       redis-server
       --appendonly yes
@@ -175,7 +177,7 @@ services:
       --save 60 1000
       --requirepass ${REDIS_PASSWORD}
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -256,7 +258,7 @@ services:
       - grafana_data:/var/lib/grafana
     environment:
       - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
       - GF_USERS_ALLOW_SIGN_UP=false
     ports:
       - "3001:3000"

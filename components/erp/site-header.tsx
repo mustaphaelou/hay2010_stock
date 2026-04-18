@@ -11,7 +11,6 @@ import {
     BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import { ModeToggle } from "@/components/mode-toggle"
-import { LanguageToggle } from "@/components/language-toggle"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 export function SiteHeader() {
@@ -35,8 +34,7 @@ export function SiteHeader() {
             {/* Actions - compact on mobile */}
             <div className="ml-auto flex items-center gap-2 sm:gap-4 flex-shrink-0">
                 <div className="flex items-center gap-1 sm:gap-2">
-                    <ModeToggle />
-                    <LanguageToggle />
+<ModeToggle />
                 </div>
                 <Avatar size="sm" className="size-8 sm:size-9">
                     <AvatarImage src="/hay2010-logo.png" alt="User" />

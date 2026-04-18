@@ -1,0 +1,215 @@
+# ============================================
+# HAY2010 Stock Application - Local Docker Deployment
+# Version: 3.0
+# ============================================
+#
+# PURPOSE:
+#   Complete local deployment using Docker only - no external services required
+#   Uses environment variables instead of Docker secrets for simplicity
+#
+# USAGE:
+#   1. Development:    docker-compose -f docker-compose.local.yml up -d
+#   2. View logs:      docker-compose -f docker-compose.local.yml logs -f
+#   3. Stop:           docker-compose -f docker-compose.local.yml down
+#   4. Rebuild:        docker-compose -f docker-compose.local.yml build --no-cache
+#   5. Reset database: docker-compose -f docker-compose.local.yml exec postgres psql -U postgres -c "DROP DATABASE hay2010_db;" && docker-compose -f docker-compose.local.yml run --rm migrate
+#
+# SERVICES:
+#   - migrate: One-time database migration runner
+#   - app: Next.js application (port 3000)
+#   - postgres: PostgreSQL 16 database (port 5432)
+#   - redis: Redis 7 cache (port 6379)
+#
+# NETWORK:
+#   All services run on a local bridge network with no external exposure
+#
+# ============================================
+
+services:
+  # ============================================
+  # MIGRATION SERVICE
+  # Runs once to apply database migrations on startup
+  # ============================================
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile.local
+      target: migrator
+    container_name: hay2010_migrate
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/hay2010_db?connection_limit=5&pool_timeout=10
+      - NODE_ENV=production
+      - NEXT_TELEMETRY_DISABLED=1
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+    networks:
+      - backend
+    security_opt:
+      - no-new-privileges:true
+    read_only: false
+    volumes:
+      - ./prisma:/app/prisma:ro
+      - ./lib/generated:/app/lib/generated:ro
+
+  # ============================================
+  # APPLICATION SERVICE
+  # Next.js application server
+  # ============================================
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.local
+      target: runner
+      args:
+        - PORT=3000
+        - GIT_SHA=${GIT_SHA:-local}
+        - BUILD_DATE=${BUILD_DATE:-$(date -u '+%Y-%m-%d')}
+    image: hay2010_stock:local
+    container_name: hay2010_stock
+    ports:
+      - "3000:3000"
+    environment:
+      # Database
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/hay2010_db?connection_limit=5&pool_timeout=10
+      # Redis
+      - REDIS_URL=redis://:@redis:6379/0
+      - REDIS_PASSWORD=
+      # Authentication
+      - JWT_SECRET=${JWT_SECRET:-hay2010-local-dev-secret-change-in-production}
+      - JWT_EXPIRES_IN=24h
+      # Application
+      - NODE_ENV=production
+      - NEXT_TELEMETRY_DISABLED=1
+      - NEXT_PUBLIC_APP_URL=http://localhost:3000
+      - NEXT_PUBLIC_APP_NAME=HAY2010 Stock
+      - NEXT_PUBLIC_COMPANY_NAME=HAY2010
+      - NEXT_PUBLIC_APP_VERSION=1.0.0
+      # Security (relaxed for local development)
+      - SECURE_COOKIES=false
+      - LOCKOUT_FAIL_CLOSED=false
+      - RATE_LIMIT_FAIL_CLOSED=false
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: always
+    networks:
+      - backend
+    security_opt:
+      - no-new-privileges:true
+    read_only: false
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ============================================
+  # POSTGRESQL DATABASE
+  # Primary data store
+  # ============================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: hay2010_postgres
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=hay2010_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "5432:5432"  # Exposed for local database access
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d hay2010_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: always
+    networks:
+      - backend
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+      - DAC_OVERRIDE
+      - FOWNER
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ============================================
+  # REDIS CACHE
+  # Session storage and caching
+  # ============================================
+  redis:
+    image: redis:7-alpine
+    container_name: hay2010_redis
+    command: >
+      redis-server
+      --appendonly yes
+      --appendfsync everysec
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --save 60 1000
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"  # Exposed for local Redis access
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: always
+    networks:
+      - backend
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - SETUID
+      - SETGID
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+# ============================================
+# VOLUMES
+# Persistent data storage
+# ============================================
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+# ============================================
+# NETWORKS
+# Isolated network for internal services
+# ============================================
+networks:
+  backend:
+    driver: bridge
+    internal: false  # Set to true for complete isolation

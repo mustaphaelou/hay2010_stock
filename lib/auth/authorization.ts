@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers'
 import { verifyToken } from './jwt'
+import { getSession } from './session'
 import { createLogger } from '@/lib/logger'
 import { AUTH_COOKIE_NAME } from '@/lib/constants/auth'
 
@@ -64,6 +65,11 @@ export async function requirePermission(permission: Permission): Promise<{ id: s
     throw new Error('Unauthorized: Invalid token')
   }
 
+  const session = await getSession(payload.sessionId)
+  if (!session) {
+    throw new Error('Unauthorized: Session expired or revoked')
+  }
+
   const userRole = payload.role as UserRole
   if (!hasPermission(userRole, permission)) {
     log.warn({ userId: payload.userId, role: userRole, permission }, 'Permission denied')
@@ -86,6 +92,9 @@ export async function getUserFromToken(): Promise<{ id: string; email: string; r
 
     const payload = await verifyToken(token)
     if (!payload) return null
+
+    const session = await getSession(payload.sessionId)
+    if (!session) return null
 
     return {
       id: payload.userId,

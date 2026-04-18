@@ -3,11 +3,11 @@
 import { cookies } from 'next/headers'
 import { prisma } from '@/lib/db/prisma'
 import { verifyPassword } from '@/lib/auth/password'
-import { generateToken, verifyToken } from '@/lib/auth/jwt'
+import { generateToken, verifyToken, revokeToken } from '@/lib/auth/jwt'
 import { createSession, deleteSession } from '@/lib/auth/session'
 import { loginSchema } from '@/lib/validation'
-import { recordFailedAttempt, clearFailedAttempts, isAccountLocked } from '@/lib/auth/lockout'
-import { validateCsrfToken } from '@/lib/security/csrf-server'
+import { recordFailedAttempt, clearFailedAttempts, isAccountLocked, isLockedByIp, recordFailedAttemptByIp, clearFailedAttemptsByIp } from '@/lib/auth/lockout'
+import { validateCsrfToken, getCsrfCookie } from '@/lib/security/csrf-server'
 import { createLogger } from '@/lib/logger'
 import { AUTH_COOKIE_NAME } from '@/lib/constants/auth'
 import * as Sentry from '@sentry/nextjs'
@@ -18,7 +18,8 @@ export async function login(
   email: string,
   password: string,
   rememberMe: boolean = false,
-  csrfToken?: string
+  csrfToken?: string,
+  clientIp?: string
 ): Promise<{ error?: string; success?: boolean }> {
   try {
     if (!csrfToken) {
@@ -26,10 +27,16 @@ export async function login(
       return { error: 'Security token required. Please refresh the page.' }
     }
 
-    const valid = await validateCsrfToken('anonymous', csrfToken)
+    const csrfCookie = await getCsrfCookie()
+    const valid = await validateCsrfToken('anonymous', csrfToken, csrfCookie || '')
     if (!valid) {
       log.warn({ email }, 'Invalid CSRF token on login')
       return { error: 'Invalid security token. Please refresh the page and try again.' }
+    }
+
+    const ipLocked = clientIp ? await isLockedByIp(clientIp) : false
+    if (ipLocked) {
+      return { error: 'Too many failed attempts from this location. Please try again in 15 minutes.' }
     }
 
     const locked = await isAccountLocked(email)
@@ -48,6 +55,7 @@ export async function login(
 
     if (!user) {
       await recordFailedAttempt(email)
+      if (clientIp) await recordFailedAttemptByIp(clientIp)
       return { error: 'Invalid email or password' }
     }
 
@@ -55,6 +63,7 @@ export async function login(
 
     if (!isValid) {
       const result = await recordFailedAttempt(email)
+      if (clientIp) await recordFailedAttemptByIp(clientIp)
       if (result.locked) {
         return { error: 'Account locked due to too many failed attempts. Please try again in 15 minutes.' }
       }
@@ -62,6 +71,12 @@ export async function login(
     }
 
     await clearFailedAttempts(email)
+    if (clientIp) await clearFailedAttemptsByIp(clientIp)
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { lastLoginAt: new Date() } as any
+  })
 
     const sessionId = await createSession(user.id, user.email, user.name, user.role)
     const token = await generateToken({
@@ -97,23 +112,27 @@ export async function logout(csrfToken?: string): Promise<{ error?: string; succ
       return { error: 'Security token required. Please refresh the page.' }
     }
 
-    const valid = await validateCsrfToken('anonymous', csrfToken)
+    const csrfCookie = await getCsrfCookie()
+    const valid = await validateCsrfToken('anonymous', csrfToken, csrfCookie || '')
     if (!valid) {
       log.warn('Invalid CSRF token on logout')
       return { error: 'Invalid security token. Please refresh the page and try again.' }
     }
 
-  const cookieStore = await cookies()
-  const token = cookieStore.get(AUTH_COOKIE_NAME)?.value
+    const cookieStore = await cookies()
+    const token = cookieStore.get(AUTH_COOKIE_NAME)?.value
 
-  if (token) {
-    const payload = await verifyToken(token)
-    if (payload?.sessionId) {
-      await deleteSession(payload.sessionId)
+    if (token) {
+      const payload = await verifyToken(token)
+      if (payload?.sessionId) {
+        await deleteSession(payload.sessionId)
+      }
+      if (payload?.jti) {
+        await revokeToken(payload.jti)
+      }
     }
-  }
 
-  cookieStore.delete(AUTH_COOKIE_NAME)
+    cookieStore.delete(AUTH_COOKIE_NAME)
     return { success: true }
   } catch (error) {
     log.error({ error }, 'Logout error')

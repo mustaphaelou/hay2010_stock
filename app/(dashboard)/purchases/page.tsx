@@ -1,0 +1,332 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import type { DocumentWithComputed } from '@/lib/types'
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table"
+import { SafeIcon as HugeiconsIcon } from "@/components/ui/safe-icon"
+import {
+    Search01Icon,
+    RefreshIcon,
+    ShoppingBag01Icon,
+    CheckmarkCircle01Icon,
+} from "@hugeicons/core-free-icons"
+
+import { DocumentDetailSheet } from '@/components/erp/document-detail-sheet'
+import { DateRangePicker } from '@/components/ui/date-range-picker'
+import { PartnerFilter } from '@/components/erp/partner-filter'
+import { DateRange } from 'react-day-picker'
+import { isWithinInterval, startOfDay, endOfDay } from 'date-fns'
+import { DocumentTypeSelector } from '@/components/erp/document-type-selector'
+
+import { getPurchasesDocuments } from '@/app/actions/documents'
+import { formatPrice, formatDate } from '@/lib/utils'
+
+type PurchaseDocument = DocumentWithComputed
+
+const getDocumentTypeName = (type: string | number) => {
+    const typeStr = String(type)
+    switch (typeStr) {
+        case '10': return 'DEMANDE ACHAT'
+        case '11': return 'PRÉPARATION CMD'
+        case '12': return 'BON COMMANDE'
+        case '13': return 'BON RÉCEPTION'
+        case '14': return 'BON RETOUR'
+        case '15': return 'BON D\'AVOIR'
+        case '16': return 'FACTURE'
+        case '17': return 'FACTURE COMPTABILISÉE'
+        case '18': return 'ARCHIVE'
+        default: return `TYPE ${type}`
+    }
+}
+export default function PurchasesPage() {
+    const [documents, setDocuments] = useState<PurchaseDocument[]>([])
+    const [loading, setLoading] = useState(true)
+    const [error, setError] = useState<string | null>(null)
+    const [searchTerm, setSearchTerm] = useState('')
+    const [selectedDocument, setSelectedDocument] = useState<PurchaseDocument | null>(null)
+    const [sheetOpen, setSheetOpen] = useState(false)
+    const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined)
+    const [selectedSupplier, setSelectedSupplier] = useState<string>('all')
+    const [selectedPartnerType, setSelectedPartnerType] = useState<string>('all')
+    const [selectedType, setSelectedType] = useState<string | number>('all')
+    const [mounted, setMounted] = useState(false)
+
+    const fetchDocuments = async () => {
+        setLoading(true)
+        setError(null)
+
+  try {
+      const result = await getPurchasesDocuments()
+      if (result.error) {
+        setError(result.error)
+        setDocuments([])
+      } else {
+        setDocuments(result.data || [])
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors du chargement')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+    useEffect(() => {
+        setMounted(true)
+        fetchDocuments()
+    }, [])
+
+    const uniqueSuppliers = Array.from(new Set(documents.map(doc =>
+        doc.partenaire?.nom_partenaire || doc.nom_tiers
+    ).filter(Boolean))).sort() as string[]
+
+    const filteredDocuments = documents.filter(doc => {
+        const matchesSearch = searchTerm === '' ||
+            doc.numero_piece?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            doc.nom_tiers?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            doc.partenaire?.nom_partenaire?.toLowerCase().includes(searchTerm.toLowerCase())
+
+        let matchesDate = true
+        if (dateRange?.from && doc.date_document) {
+            const docDate = new Date(doc.date_document)
+            const start = startOfDay(dateRange.from)
+            const end = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from)
+            matchesDate = isWithinInterval(docDate, { start, end })
+        }
+
+        const supplierName = doc.partenaire?.nom_partenaire || doc.nom_tiers
+        const matchesSupplier = selectedSupplier === 'all' || supplierName === selectedSupplier
+
+        const matchesPartnerType = selectedPartnerType === 'all' ||
+            (doc.partenaire && doc.partenaire.type_partenaire?.toString() === selectedPartnerType)
+
+        let matchesType = true
+        if (selectedType === 'en_cours') {
+            matchesType = doc.statut_document !== '2'
+        } else if (selectedType !== 'all') {
+            matchesType = String(doc.type_document) === String(selectedType)
+        }
+
+        return matchesSearch && matchesDate && matchesSupplier && matchesPartnerType && matchesType
+    })
+
+    const documentTypeCounts = documents.reduce((acc, doc) => {
+        const type = String(doc.type_document || '0')
+        acc[type] = (acc[type] || 0) + 1
+        return acc
+    }, {} as Record<string, number>)
+
+    const purchaseTypes = [
+        { id: 'en_cours', label: 'Documents en cours', count: documents.filter(d => d.statut_document !== '2').length },
+        { id: '10', label: 'Demande d\'achat', count: documentTypeCounts['10'] || 0 },
+        { id: '11', label: 'Préparation de commande', count: documentTypeCounts['11'] || 0 },
+        { id: '12', label: 'Bon de commande', count: documentTypeCounts['12'] || 0 },
+        { id: '13', label: 'Bon de réception', count: documentTypeCounts['13'] || 0 },
+        { id: '14', label: 'Bon de retour', count: documentTypeCounts['14'] || 0 },
+        { id: '15', label: 'Bon d\'avoir', count: documentTypeCounts['15'] || 0 },
+        { id: '16', label: 'Facture', count: documentTypeCounts['16'] || 0 },
+        { id: '17', label: 'Facture comptabilisée', count: documentTypeCounts['17'] || 0 },
+        { id: '18', label: 'Archive', count: documentTypeCounts['18'] || 0 },
+    ]
+
+    const totalAchats = filteredDocuments
+        .filter(d => String(d.type_document) === '16' || String(d.type_document) === '17')
+        .reduce((acc, d) => acc + (d.montant_ttc_num || 0), 0)
+
+    const totalRegle = filteredDocuments
+        .filter(d => String(d.type_document) === '16' || String(d.type_document) === '17')
+        .reduce((acc, d) => acc + (d.montant_regle || 0), 0)
+
+    const getStatusBadge = (doc: PurchaseDocument) => {
+        const montantTTC = doc.montant_ttc_num
+        const isPaid = doc.montant_regle && montantTTC && doc.montant_regle >= montantTTC
+        const isPartial = doc.montant_regle && montantTTC && doc.montant_regle > 0 && doc.montant_regle < montantTTC
+
+        if (isPaid) {
+            return <Badge variant="success">
+                <HugeiconsIcon icon={CheckmarkCircle01Icon} />
+                RÉGLÉ
+            </Badge>
+        }
+        if (isPartial) {
+            return <Badge variant="warning">PARTIEL</Badge>
+        }
+        return <Badge variant="secondary">EN COURS</Badge>
+    }
+
+  return (
+    <>
+      <div className="flex flex-1 overflow-hidden">
+        <DocumentTypeSelector
+          types={purchaseTypes}
+          selectedType={selectedType}
+          onTypeChange={setSelectedType}
+          className="hidden lg:flex"
+        />
+                    <div className="flex-1 flex flex-col gap-6 p-4 pb-20 md:p-8 md:pb-8 overflow-y-auto">
+                        {/* Header */}
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h1 className="text-3xl font-bold tracking-tight">Achats</h1>
+                                <p className="text-muted-foreground">Gestion des documents d&apos;achat</p>
+                            </div>
+                            <Button onClick={fetchDocuments} disabled={loading}>
+                                <HugeiconsIcon icon={RefreshIcon} className="mr-2 size-4" />
+                                Actualiser
+                            </Button>
+                        </div>
+
+                        {/* Stats */}
+                        <div className="grid gap-4 md:grid-cols-4">
+                            <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                    <CardTitle className="text-sm font-medium">Documents</CardTitle>
+                                    <HugeiconsIcon icon={ShoppingBag01Icon} className="size-4 text-primary" />
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="text-2xl font-bold">{documents.length}</div>
+                                </CardContent>
+                            </Card>
+                            <Card className="bg-gradient-to-br from-orange-500/10 to-orange-500/5 border-orange-500/20">
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                    <CardTitle className="text-sm font-medium">Total Achats</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="text-2xl font-bold">{mounted ? formatPrice(totalAchats) : '...'}</div>
+                                </CardContent>
+                            </Card>
+                            <Card className="bg-gradient-to-br from-green-500/10 to-green-500/5 border-green-500/20">
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                    <CardTitle className="text-sm font-medium">Décaissé</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="text-2xl font-bold">{mounted ? formatPrice(totalRegle) : '...'}</div>
+                                </CardContent>
+                            </Card>
+                            <Card className="bg-gradient-to-br from-red-500/10 to-red-500/5 border-red-500/20">
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                    <CardTitle className="text-sm font-medium">À Payer</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="text-2xl font-bold">{mounted ? formatPrice(totalAchats - totalRegle) : '...'}</div>
+                                </CardContent>
+                            </Card>
+                        </div>
+
+                        {/* Search */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <div className="relative">
+                                <HugeiconsIcon icon={Search01Icon} className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                                <Input
+                                    placeholder="Rechercher par numéro..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="pl-10 h-10"
+                                />
+                            </div>
+                            <DateRangePicker
+                                date={dateRange}
+                                onDateChange={setDateRange}
+                            />
+                            <PartnerFilter
+                                partners={uniqueSuppliers}
+                                selectedPartner={selectedSupplier}
+                                onPartnerChange={setSelectedSupplier}
+                                selectedType={selectedPartnerType}
+                                onTypeChange={setSelectedPartnerType}
+                            />
+                        </div>
+
+                        {/* Table */}
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Documents d&apos;Achat</CardTitle>
+                                <CardDescription>
+                                    {loading ? 'Chargement...' : `${filteredDocuments.length} document(s)`}
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                {error ? (
+                                    <div className="text-center py-10">
+                                        <p className="text-destructive mb-4">{error}</p>
+                                        <Button onClick={fetchDocuments} variant="outline">Réessayer</Button>
+                                    </div>
+                                ) : loading ? (
+                                    <div className="flex items-center justify-center py-10">
+                                        <div className="animate-spin rounded-full size-8 border-b-2 border-primary"></div>
+                                    </div>
+                                ) : (
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>N° Pièce</TableHead>
+                                                <TableHead>Date</TableHead>
+                                                <TableHead>Fournisseur</TableHead>
+                                                <TableHead>Type</TableHead>
+                                                <TableHead className="text-right">Montant TTC</TableHead>
+                                                <TableHead className="text-right">Réglé</TableHead>
+                                                <TableHead className="text-right">Statut</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {filteredDocuments.map((doc) => (
+                                                <TableRow
+                                                    key={doc.id_document}
+                                                    className="hover:bg-muted/50 cursor-pointer"
+                                                    onClick={() => {
+                                                        setSelectedDocument(doc)
+                                                        setSheetOpen(true)
+                                                    }}
+                                                >
+                                                    <TableCell>
+                                                        <Badge variant="outline">{doc.numero_piece}</Badge>
+                                                    </TableCell>
+                                                    <TableCell>{mounted ? formatDate(doc.date_document) : '-'}</TableCell>
+                                                    <TableCell className="font-medium">
+                                                        {doc.partenaire?.nom_partenaire || doc.nom_tiers || '-'}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Badge variant="secondary">{getDocumentTypeName(doc.type_document || 0)}</Badge>
+                                                    </TableCell>
+                                                    <TableCell className="text-right font-semibold">
+                                                        {mounted ? formatPrice(doc.montant_ttc_num) : '-'}
+                                                    </TableCell>
+                                                    <TableCell className="text-right">
+                                                        {mounted ? formatPrice(doc.montant_regle) : '-'}
+                                                    </TableCell>
+                                                    <TableCell className="text-right">
+                                                        {getStatusBadge(doc)}
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                )}
+                            </CardContent>
+                        </Card>
+      </div>
+      </div>
+      <DocumentDetailSheet
+        document={selectedDocument as DocumentWithComputed | null}
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+      />
+    </>
+  )
+}

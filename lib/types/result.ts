@@ -22,18 +22,7 @@ export function failure<T>(error: string): Result<T> {
   return { success: false, error }
 }
 
-/**
- * Paginated result type
- */
-export interface PaginationMeta {
-  page: number
-  limit: number
-  total: number
-  totalPages: number
-  hasMore: boolean
-}
-
-export type PaginatedResult<T> = Result<T[]> & { meta: PaginationMeta }
+export type { PaginationMeta, PaginatedResult } from '@/lib/pagination'
 
 /**
  * Result with optional warnings

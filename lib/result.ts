@@ -56,57 +56,7 @@ export const Result = {
   },
 }
 
-export class AppError extends Error {
-  constructor(
-    public readonly code: string,
-    message: string,
-    public readonly statusCode: number = 500,
-    public readonly details?: Record<string, unknown>
-  ) {
-    super(message)
-    this.name = 'AppError'
-  }
-
-  static badRequest(message: string, details?: Record<string, unknown>): AppError {
-    return new AppError('BAD_REQUEST', message, 400, details)
-  }
-
-  static unauthorized(message: string = 'Unauthorized'): AppError {
-    return new AppError('UNAUTHORIZED', message, 401)
-  }
-
-  static forbidden(message: string = 'Forbidden'): AppError {
-    return new AppError('FORBIDDEN', message, 403)
-  }
-
-  static notFound(message: string = 'Not found'): AppError {
-    return new AppError('NOT_FOUND', message, 404)
-  }
-
-  static conflict(message: string, details?: Record<string, unknown>): AppError {
-    return new AppError('CONFLICT', message, 409, details)
-  }
-
-  static validation(message: string, details?: Record<string, unknown>): AppError {
-    return new AppError('VALIDATION_ERROR', message, 422, details)
-  }
-
-  static internal(message: string = 'Internal server error'): AppError {
-    return new AppError('INTERNAL_ERROR', message, 500)
-  }
-
-  static serviceUnavailable(message: string = 'Service unavailable'): AppError {
-    return new AppError('SERVICE_UNAVAILABLE', message, 503)
-  }
-
-  static rateLimited(retryAfter?: number): AppError {
-    return new AppError('RATE_LIMITED', 'Too many requests', 429, { retryAfter })
-  }
-
-  static csrf(): AppError {
-    return new AppError('CSRF_ERROR', 'Invalid security token', 403)
-  }
-}
+export { AppError } from '@/lib/errors'
 
 export function tryAsync<T>(fn: () => Promise<T>): Promise<Result<T, Error>> {
   return fn()

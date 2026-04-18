@@ -2,21 +2,21 @@ import { PrismaClient } from '@/lib/generated/prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { Pool } from 'pg'
 import { createLogger } from '@/lib/logger'
+import { getRequiredSecret, getOptionalSecret } from '@/lib/config/env-validation'
 
 const log = createLogger('prisma')
 
 const globalForPrisma = global as unknown as { prisma: PrismaClient | undefined }
 
 function createPrismaClient(): PrismaClient {
-  let connectionString = process.env.DATABASE_URL
+  let connectionString = getOptionalSecret('DATABASE_URL', 'DATABASE_URL_FILE')
 
   if (!connectionString) {
-    // During Next.js build time, we allow a dummy connection string to prevent crashes during static analysis
     if (process.env.npm_lifecycle_event === 'build' || process.env.NEXT_PHASE === 'phase-production-build') {
       log.warn('DATABASE_URL is not set during build. Using a dummy connection string.')
       connectionString = 'postgresql://dummy:dummy@localhost:5432/dummy'
     } else {
-      throw new Error('DATABASE_URL environment variable is required')
+      throw new Error('DATABASE_URL is required. Set via DATABASE_URL or DATABASE_URL_FILE (Docker Secrets)')
     }
   }
 

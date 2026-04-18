@@ -1,4 +1,11 @@
 /**
+ * @deprecated This rate limiter uses in-memory storage and is single-instance only.
+ * It must NOT be used in production multi-instance deployments.
+ * Use the Redis-backed rate limiter from @/lib/middleware/rate-limit instead.
+ * This file is kept as a dev-only fallback.
+ */
+
+/**
  * Edge-Compatible Rate Limiting
  *
  * Uses in-memory Map for rate limiting in Edge Runtime.

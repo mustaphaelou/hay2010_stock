@@ -7,7 +7,6 @@ import { DocumentsTable, type DocumentItem } from "@/components/dashboard/tables
 import { PaymentStatusChart } from "@/components/erp/dashboard-charts"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { useRealtimeDashboard } from "@/hooks/use-realtime-dashboard"
 import { SafeIcon as HugeiconsIcon } from "@/components/ui/safe-icon"
 import {
     UserGroupIcon,
@@ -60,20 +59,7 @@ export function OverviewTab({
 }: OverviewTabProps) {
     const [stats, setStats] = React.useState(initialStats)
 
-    // Setup real-time updates
-    const { isConnected, lastUpdate } = useRealtimeDashboard({
-        onStatsUpdate: (update) => {
-            setStats((prev) => ({
-                ...prev,
-                clients: prev.clients + (update.clients || 0),
-                suppliers: prev.suppliers + (update.suppliers || 0),
-                products: prev.products + (update.products || 0),
-                salesCount: prev.salesCount + (update.salesCount || 0),
-                purchasesCount: prev.purchasesCount + (update.purchasesCount || 0),
-            }))
-        },
-        enabled: true,
-    })
+
 
     // KPI Cards Configuration
     const kpiCards: KPIConfig[] = [
@@ -132,18 +118,7 @@ export function OverviewTab({
 
     return (
         <div className={cn("flex flex-col gap-6 animate-fade-in-up", className)}>
-            {/* Real-time Status Indicator */}
-            {isConnected && lastUpdate && (
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span className="flex h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-                    Mise à jour en temps réel
-                    <span className="text-muted-foreground/50">
-                        ({lastUpdate.toLocaleTimeString("fr-FR")})
-                    </span>
-                </div>
-            )}
-
-            {/* KPI Cards Grid */}
+    {/* KPI Cards Grid */}
             <KPICardsGrid
                 cards={kpiCards}
                 columns={6}

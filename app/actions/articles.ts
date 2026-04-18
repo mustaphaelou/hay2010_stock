@@ -143,8 +143,9 @@ export async function toggleArticleStatus(
   const user = await requirePermission('stock:write')
 
   try {
-    const { requireCsrfToken } = await import('@/lib/security/csrf')
-    await requireCsrfToken(user.id, csrfToken)
+      const { requireCsrfToken, getCsrfCookie } = await import('@/lib/security/csrf-server')
+      const csrfCookie = await getCsrfCookie()
+      await requireCsrfToken(user.id, csrfToken, csrfCookie || '')
   } catch {
     return { error: 'Invalid security token. Please refresh the page and try again.' }
   }

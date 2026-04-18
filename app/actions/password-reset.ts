@@ -5,7 +5,7 @@ import { hashPassword } from '@/lib/auth/password'
 import { registerSchema } from '@/lib/validation'
 import crypto from 'crypto'
 import { createLogger } from '@/lib/logger'
-import { storeResetToken, validateResetToken, deleteResetToken } from '@/lib/auth/password-reset'
+import { storeResetToken, consumeResetToken, validateResetToken } from '@/lib/auth/password-reset'
 
 const log = createLogger('password-reset-actions')
 
@@ -46,26 +46,24 @@ export async function validateResetTokenAction(token: string): Promise<{ valid: 
 
 export async function resetPassword(token: string, newPassword: string): Promise<{ error?: string; success?: boolean; message?: string }> {
     try {
-        const tokenValidation = await validateResetToken(token)
-        if (!tokenValidation.valid || !tokenValidation.email) {
-            return { error: tokenValidation.error || 'Invalid reset token' }
-        }
+    const tokenValidation = await consumeResetToken(token)
+    if (!tokenValidation.valid || !tokenValidation.email) {
+      return { error: tokenValidation.error || 'Invalid reset token' }
+    }
 
-        const passwordValidation = registerSchema.shape.password.safeParse(newPassword)
-        if (!passwordValidation.success) {
-            return { error: passwordValidation.error.issues.map(e => e.message).join(', ') }
-        }
+    const passwordValidation = registerSchema.shape.password.safeParse(newPassword)
+    if (!passwordValidation.success) {
+      return { error: passwordValidation.error.issues.map(e => e.message).join(', ') }
+    }
 
-        const hashedPassword = await hashPassword(newPassword)
+    const hashedPassword = await hashPassword(newPassword)
 
-        await prisma.user.update({
-            where: { email: tokenValidation.email },
-            data: { password: hashedPassword }
-        })
+  await prisma.user.update({
+    where: { email: tokenValidation.email },
+    data: { password: hashedPassword, passwordChangedAt: new Date() } as any
+  })
 
-        await deleteResetToken(token)
-
-        return { success: true, message: 'Your password has been reset successfully. You can now log in with your new password.' }
+    return { success: true, message: 'Your password has been reset successfully. You can now log in with your new password.' }
     } catch (error) {
         log.error({ error }, 'Password reset error')
         return { error: 'An unexpected error occurred' }

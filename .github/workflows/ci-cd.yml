@@ -80,7 +80,7 @@ jobs:
         ignore: 'DL3009,DL3018'
 
     - name: Run npm audit
-      run: npm audit --audit-level=high || echo "::warning::npm audit found high-severity vulnerabilities"
+      run: npm audit --audit-level=high
 
     - name: Validate Docker Compose files
       run: |

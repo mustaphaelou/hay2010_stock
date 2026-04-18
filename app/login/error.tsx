@@ -19,10 +19,10 @@ export default function Error({
 		<div className="flex min-h-screen items-center justify-center p-4">
 			<Card className="w-full max-w-md">
 				<CardHeader className="text-center">
-					<CardTitle className="text-2xl">Login Error</CardTitle>
-					<CardDescription>
-						An error occurred. Please try again.
-					</CardDescription>
+<CardTitle className="text-2xl">Erreur de connexion</CardTitle>
+        <CardDescription>
+          Une erreur est survenue. Veuillez réessayer.
+        </CardDescription>
 				</CardHeader>
 				<CardContent className="flex flex-col gap-4">
 					{error.message && (
@@ -32,7 +32,7 @@ export default function Error({
 					)}
 					<div className="flex gap-2 justify-center">
 						<Button onClick={() => reset()} variant="default">
-							Try again
+							Réessayer
 						</Button>
 					</div>
 				</CardContent>

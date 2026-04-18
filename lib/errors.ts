@@ -36,6 +36,34 @@ export class AppError extends Error {
     Error.captureStackTrace(this, this.constructor)
   }
 
+  static badRequest(message: string, details?: Record<string, unknown>): AppError {
+    return new AppError('BAD_REQUEST', message, 400, details)
+  }
+
+  static unauthorized(message: string = 'Unauthorized'): AppError {
+    return new AppError('UNAUTHORIZED', message, 401)
+  }
+
+  static forbidden(message: string = 'Forbidden'): AppError {
+    return new AppError('FORBIDDEN', message, 403)
+  }
+
+  static notFound(message: string = 'Not found'): AppError {
+    return new AppError('NOT_FOUND', message, 404)
+  }
+
+  static conflict(message: string, details?: Record<string, unknown>): AppError {
+    return new AppError('CONFLICT', message, 409, details)
+  }
+
+  static rateLimited(retryAfter?: number): AppError {
+    return new AppError('RATE_LIMITED', 'Too many requests', 429, { retryAfter })
+  }
+
+  static csrf(): AppError {
+    return new AppError('CSRF_ERROR', 'Invalid security token', 403)
+  }
+
   /**
    * Convert error to JSON response format
    */

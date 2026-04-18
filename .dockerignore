@@ -1,10 +1,14 @@
 # ============================================
 # HAY2010 Stock Application - Docker Ignore
-# Version: 2.0
-# Last Updated: 2026-04-01
+# Version: 3.0 (Optimized for Docker Compose)
+# ============================================
+# Excludes all files not needed for Docker build
+# Reduces build context size and improves stability
 # ============================================
 
-# Dependencies
+# =====================================================
+# DEPENDENCIES (regenerate in container)
+# =====================================================
 node_modules
 npm-debug.log*
 yarn-debug.log*
@@ -14,110 +18,167 @@ yarn.lock
 pnpm-lock.yaml
 bun.lockb
 
-# Next.js build output
+# =====================================================
+# BUILD OUTPUT (regenerate in container)
+# =====================================================
 .next
 out
 build
 dist
+.turbo
+.cache
 
-# Testing
+# =====================================================
+# TESTING (not needed in production)
+# =====================================================
 coverage
 .nyc_output
 __tests__
 tests
+src/__tests__
 *.test.ts
 *.test.tsx
 *.spec.ts
 *.spec.tsx
 vitest.config.ts
 jest.config.*
+jest.setup.*
 
-# TypeScript
+# =====================================================
+# TYPESCRIPT BUILD ARTIFACTS
+# =====================================================
 *.tsbuildinfo
 .tsbuildinfo
 
-# Environment files - inject at runtime
+# =====================================================
+# ENVIRONMENT FILES (inject via Docker Secrets)
+# =====================================================
 .env
 .env.*
 !.env.example
 !.env.docker.example
+.env.local
+.env.docker
 
-# IDE
+# =====================================================
+# IDE AND EDITOR FILES
+# =====================================================
 .idea
 .vscode
+.cursor
+.kilo
+.kilocode
 *.swp
 *.swo
-.cursor
+*~
 
-# OS files
+# =====================================================
+# OS GENERATED FILES
+# =====================================================
 .DS_Store
 Thumbs.db
 ehthumbs.db
 Desktop.ini
 
-# Git
+# =====================================================
+# VERSION CONTROL
+# =====================================================
 .git
 .gitignore
 .gitattributes
 
-# Docker (prevent recursive builds)
-# Note: We DO NOT ignore Dockerfile.coolify - needed for Coolify builds
+# =====================================================
+# DOCKER CONFIGURATION FILES
+# =====================================================
 Dockerfile
 docker-compose*.yml
 docker-compose*.yaml
+.dockerignore
 .docker
+
 # Note: docker-entrypoint.sh is NOT ignored - needed for container startup
 
-# Documentation (keep COOLIFY_DEPLOYMENT.md)
+# =====================================================
+# DOCUMENTATION (not needed in container)
+# =====================================================
 README.md
 CHANGELOG.md
 SETUP.md
 DEPLOY.md
 TROUBLESHOOTING.md
+COOLIFY_DEPLOYMENT.md
 docs/
 plans/
-!COOLIFY_DEPLOYMENT.md
 
-# CI/CD
+# =====================================================
+# CI/CD CONFIGURATION (not needed)
+# =====================================================
 .github
 .gitlab-ci.yml
 .travis.yml
 Jenkinsfile
+.gitlab/
 
-# Prisma generated (regenerate in container)
+# =====================================================
+# KUBERNETES CONFIGS (removed for Docker Compose only)
+# =====================================================
+k8s/
+helm/
+.helm/
+
+# =====================================================
+# MONITORING STACK (removed for stability)
+# =====================================================
+monitoring/
+
+# =====================================================
+# PRISMA GENERATED (regenerate in container)
+# =====================================================
 lib/generated/prisma/
 
-# Logs
+# =====================================================
+# LOGS AND TEMPORARY FILES
+# =====================================================
 logs
 *.log
 *.pid
 *.seed
 *.pid.lock
-
-# Build artifacts
-.turbo
-.cache
-errors.txt
-tsc_errors.log
-
-# Scripts not needed in production
-scripts/
-deploy.sh
-
-# Secrets directory
-secrets/
-
-# Temporary files
 tmp
 temp
 .tmp
 
-# Kubernetes configs (if present)
-k8s/
-helm/
-.helm/
+# =====================================================
+# DEVELOPMENT SCRIPTS (not needed in production)
+# =====================================================
+scripts/
+deploy.sh
 
-# Terraform (if present)
+# =====================================================
+# SECRETS DIRECTORY (use Docker Secrets)
+# =====================================================
+secrets/
+
+# =====================================================
+# BACKUP FILES
+# =====================================================
+backups/
+*.backup
+*.bak
+
+# =====================================================
+# TERRAFORM AND INFRASTRUCTURE AS CODE
+# =====================================================
 .terraform
 *.tfstate
+*.tfstate.*
 *.tfvars
+*.tf
+
+# =====================================================
+# MISCELLANEOUS
+# =====================================================
+errors.txt
+tsc_errors.log
+*.orig
+*.patch

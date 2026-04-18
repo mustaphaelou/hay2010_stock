@@ -13,24 +13,7 @@ export type AuthUser = {
   role?: UserRole
 }
 
-export interface PaginatedResult<T> {
-  data: T[]
-  meta: {
-    total: number
-    page: number
-    limit: number
-    totalPages: number
-  }
-  error?: string
-}
-
-export interface PaginationParams {
-  page?: number
-  pageSize?: number
-  search?: string
-  sortBy?: string
-  sortOrder?: 'asc' | 'desc'
-}
+export type { PaginatedResult, PaginationMeta, PaginationParams } from '@/lib/pagination'
 
 // =====================================================
 // PRODUCT TYPES

@@ -64,44 +64,44 @@ describe('CSRF Server', () => {
     })
 
     describe('validateCsrfToken', () => {
-        it('should return true for valid token', async () => {
-            const { redis } = await import('@/lib/db/redis')
-            const { validateCsrfToken } = await import('@/lib/security/csrf-server')
+    it('should return true for valid token', async () => {
+      const { redis } = await import('@/lib/db/redis')
+      const { validateCsrfToken } = await import('@/lib/security/csrf-server')
 
-            vi.mocked(redis.get).mockResolvedValueOnce('stored-cookie-value')
+      vi.mocked(redis.get).mockResolvedValueOnce('stored-cookie-value')
 
-            const result = await validateCsrfToken('test-user', 'test-token')
+      const result = await validateCsrfToken('test-user', 'test-token', 'stored-cookie-value')
 
-            expect(result).toBe(true)
-            expect(redis.del).toHaveBeenCalled()
-        })
+      expect(result).toBe(true)
+      expect(redis.del).toHaveBeenCalled()
+    })
 
-        it('should return false for missing token', async () => {
-            const { validateCsrfToken } = await import('@/lib/security/csrf-server')
+    it('should return false for missing token', async () => {
+      const { validateCsrfToken } = await import('@/lib/security/csrf-server')
 
-            const result = await validateCsrfToken('test-user', '')
+      const result = await validateCsrfToken('test-user', '', 'cookie-val')
 
-            expect(result).toBe(false)
-        })
+      expect(result).toBe(false)
+    })
 
-        it('should return false for missing userId', async () => {
-            const { validateCsrfToken } = await import('@/lib/security/csrf-server')
+    it('should return false for missing userId', async () => {
+      const { validateCsrfToken } = await import('@/lib/security/csrf-server')
 
-            const result = await validateCsrfToken('', 'test-token')
+      const result = await validateCsrfToken('', 'test-token', 'cookie-val')
 
-            expect(result).toBe(false)
-        })
+      expect(result).toBe(false)
+    })
 
-        it('should return false for non-existent token', async () => {
-            const { redis } = await import('@/lib/db/redis')
-            const { validateCsrfToken } = await import('@/lib/security/csrf-server')
+    it('should return false for non-existent token', async () => {
+      const { redis } = await import('@/lib/db/redis')
+      const { validateCsrfToken } = await import('@/lib/security/csrf-server')
 
-            vi.mocked(redis.get).mockResolvedValueOnce(null)
+      vi.mocked(redis.get).mockResolvedValueOnce(null)
 
-            const result = await validateCsrfToken('test-user', 'non-existent')
+      const result = await validateCsrfToken('test-user', 'non-existent', 'cookie-val')
 
-            expect(result).toBe(false)
-        })
+      expect(result).toBe(false)
+    })
 
         it('should return false for mismatched cookie value', async () => {
             const { redis } = await import('@/lib/db/redis')
@@ -122,7 +122,7 @@ describe('CSRF Server', () => {
 
             vi.mocked(redis.get).mockResolvedValueOnce(null)
 
-            await expect(requireCsrfToken('test-user', 'invalid-token')).rejects.toThrow('Invalid CSRF token')
+            await expect(requireCsrfToken('test-user', 'invalid-token', 'cookie-val')).rejects.toThrow('Invalid CSRF token')
         })
     })
 })

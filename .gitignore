@@ -36,6 +36,9 @@ yarn-error.log*
 !.env.example
 !.env.docker.example
 
+# Docker Secrets — contains real production secrets
+/secrets/
+
 # vercel
 .vercel
 

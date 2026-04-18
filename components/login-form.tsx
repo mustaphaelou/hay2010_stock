@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Field, FieldGroup, FieldLabel, FieldDescription, FieldSeparator } from "@/components/ui/field"
 import { SafeIcon as HugeiconsIcon } from "@/components/ui/safe-icon"
-import { Login01Icon, ViewIcon, ViewOffIcon, Loading02Icon, GoogleIcon, GithubIcon, CheckmarkCircle02Icon } from "@hugeicons/core-free-icons"
+import { Login01Icon, ViewIcon, ViewOffIcon, Loading02Icon, CheckmarkCircle02Icon } from "@hugeicons/core-free-icons"
 import { login } from "../app/actions/auth"
 import { getCsrfToken } from "@/lib/security/csrf-client"
 
@@ -31,11 +31,11 @@ export function LoginForm({
     getCsrfToken().then(setCsrfToken).catch(console.error)
   }, [])
 
-  const successMessage = searchParams.get('registered') 
-    ? 'Account created successfully! Please log in.' 
-    : searchParams.get('reset') 
-      ? 'Password reset successfully! Please log in.' 
-      : null
+  const successMessage = searchParams.get('registered')
+    ? 'Compte créé avec succès ! Veuillez vous connecter.'
+    : searchParams.get('reset')
+    ? 'Mot de passe réinitialisé avec succès ! Veuillez vous connecter.'
+    : null
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -59,7 +59,7 @@ export function LoginForm({
       }
     } catch (err) {
       console.error('Login submit error:', err)
-      setError('An unexpected error occurred')
+      setError('Une erreur inattendue est survenue')
       setLoading(false)
       getCsrfToken().then(setCsrfToken).catch(console.error)
     }
@@ -189,26 +189,12 @@ export function LoginForm({
           </Button>
         </Field>
 
-        <FieldSeparator>Ou continuer avec</FieldSeparator>
-
-        <Field>
-          <div className="flex gap-3">
-            <Button variant="outline" type="button" className="flex-1">
-              <HugeiconsIcon icon={GoogleIcon} className="mr-2" />
-              Google
-            </Button>
-            <Button variant="outline" type="button" className="flex-1">
-              <HugeiconsIcon icon={GithubIcon} className="mr-2" />
-              GitHub
-            </Button>
-          </div>
-          <FieldDescription className="text-center mt-4">
+        <FieldDescription className="text-center mt-4">
             Pas encore de compte ?{' '}
             <Link href="/register" className="underline underline-offset-4 hover:text-primary">
               Créer un compte
             </Link>
-          </FieldDescription>
-        </Field>
+      </FieldDescription>
       </FieldGroup>
     </form>
   )

@@ -27,6 +27,7 @@ import {
   CheckmarkCircle01Icon,
 } from "@hugeicons/core-free-icons"
 import { getDocLines } from "@/app/actions/documents"
+import { formatPrice, formatDate } from '@/lib/utils'
 import type { DocumentWithComputed, DocumentLine as DocumentLineType } from '@/lib/types'
 
 type DocumentWithPartner = DocumentWithComputed
@@ -36,24 +37,6 @@ interface DocumentDetailSheetProps {
   document: DocumentWithPartner | null
   open: boolean
   onOpenChange: (open: boolean) => void
-}
-
-const formatPrice = (price: number | null | undefined) => {
-  if (price === null || price === undefined) return '-'
-  return new Intl.NumberFormat('fr-MA', {
-    style: 'currency',
-    currency: 'MAD',
-    minimumFractionDigits: 2
-  }).format(price).replace('MAD', 'Dhs')
-}
-
-const formatDate = (date: Date | null) => {
-  if (!date) return '-'
-  return new Date(date).toLocaleDateString('fr-FR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric'
-  })
 }
 
 const getDocumentTypeName = (domaine: string | null, type: string | null) => {

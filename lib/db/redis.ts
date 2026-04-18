@@ -1,5 +1,6 @@
 import Redis, { RedisOptions } from 'ioredis'
 import { createLogger } from '@/lib/logger'
+import { getOptionalSecret } from '@/lib/config/env-validation'
 
 const log = createLogger('redis')
 
@@ -34,12 +35,12 @@ function createRedisClient(name: string): Redis {
     },
   }
 
-  const password = process.env.REDIS_PASSWORD
+  const password = getOptionalSecret('REDIS_PASSWORD', 'REDIS_PASSWORD_FILE')
   if (password) {
     baseOptions.password = password
   }
 
-  const url = process.env.REDIS_URL || 'redis://localhost:6379'
+  const url = getOptionalSecret('REDIS_URL', 'REDIS_URL_FILE', 'redis://localhost:6379')
   const client = new Redis(url, baseOptions)
 
   client.on('error', (err: Error) => {

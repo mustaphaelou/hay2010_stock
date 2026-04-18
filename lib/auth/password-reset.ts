@@ -61,17 +61,47 @@ export async function deleteResetToken(token: string): Promise<void> {
 }
 
 export async function validateResetToken(token: string): Promise<{ valid: boolean; email?: string; error?: string }> {
-    if (!token) {
-        return { valid: false, error: 'Invalid reset token' }
+  if (!token) {
+    return { valid: false, error: 'Invalid reset token' }
+  }
+
+  const tokenData = await getResetToken(token)
+
+  if (!tokenData) {
+    return { valid: false, error: 'Invalid or expired reset token' }
+  }
+
+  return { valid: true, email: tokenData.email }
+}
+
+export async function consumeResetToken(token: string): Promise<{ valid: boolean; email?: string; error?: string }> {
+  if (!token) {
+    return { valid: false, error: 'Invalid reset token' }
+  }
+
+  const hashedToken = crypto.createHash('sha256').update(token).digest('hex')
+  const key = getTokenKey(hashedToken)
+
+  try {
+    const luaScript = `
+      local value = redis.call('GET', KEYS[1])
+      if value then
+        redis.call('DEL', KEYS[1])
+      end
+      return value
+    `
+    const data = await redisSession.eval(luaScript, 1, key) as string | null
+
+    if (!data) {
+      return { valid: false, error: 'Invalid or expired reset token' }
     }
 
-    const tokenData = await getResetToken(token)
-
-    if (!tokenData) {
-        return { valid: false, error: 'Invalid or expired reset token' }
-    }
-
+    const tokenData = JSON.parse(data) as PasswordResetTokenData
     return { valid: true, email: tokenData.email }
+  } catch (error) {
+    log.error({ error }, 'Failed to consume password reset token')
+    return { valid: false, error: 'Token validation failed' }
+  }
 }
 
 export { TOKEN_TTL }

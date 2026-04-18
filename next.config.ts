@@ -119,23 +119,8 @@ optimizePackageImports: [
           { key: 'Cache-Control', value: 'no-store, must-revalidate' },
         ],
       },
-      // Security headers for all routes
-      {
-        source: '/:path*',
-headers: [
-        { key: 'X-DNS-Prefetch-Control', value: 'on' },
-        { key: 'X-Content-Type-Options', value: 'nosniff' },
-        { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-        {
-          key: 'Content-Security-Policy',
-          value: process.env.NODE_ENV === 'development' 
-            ? "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; font-src 'self' data:; connect-src 'self' https: ws: wss:; frame-ancestors 'none';"
-            : "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none';"
- },
-{ key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
-					{ key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains; preload' }
-				]
-      }
+  // Security headers are now managed by middleware.ts (with nonce-based CSP)
+  // Only add X-Frame-Options here as defense-in-depth since middleware handles the rest
     ]
   },
 

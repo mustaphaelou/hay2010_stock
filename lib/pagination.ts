@@ -41,5 +41,13 @@ export function buildPaginationMeta(total: number, page: number, limit: number):
  * Default pagination limits
  */
 export const DEFAULT_PAGE = 1
-export const DEFAULT_LIMIT = 100
+export const DEFAULT_LIMIT = 50
 export const MAX_LIMIT = 100
+
+export function createEmptyResult<T>(page: number = 1, limit: number = 50, error?: string): PaginatedResult<T> & { error?: string } {
+  return {
+    data: [],
+    meta: buildPaginationMeta(0, page, limit),
+    ...(error && { error })
+  }
+}

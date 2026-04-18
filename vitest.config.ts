@@ -31,12 +31,12 @@ export default defineConfig({
         'lib/middleware/**',
         'lib/utils/client-logger.ts',
       ],
-      thresholds: {
-        lines: 25,
-        functions: 60,
-        branches: 50,
-        statements: 25,
-      },
+    thresholds: {
+      lines: 50,
+      functions: 70,
+      branches: 60,
+      statements: 50,
+    },
     },
   },
   resolve: {

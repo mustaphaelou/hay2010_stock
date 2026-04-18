@@ -20,7 +20,7 @@ import {
     BarCode02Icon,
     Calendar01Icon,
 } from "@hugeicons/core-free-icons"
-import { formatPrice } from "@/lib/utils"
+import { formatPrice, formatDate } from "@/lib/utils"
 import { cn } from "@/lib/utils"
 import { toggleArticleStatus } from "@/app/actions/articles"
 import type { ArticleWithStock } from "@/lib/types"
@@ -64,18 +64,7 @@ export function ArticleDetailsSheet({
         }
     }
 
-    const formatDate = (dateValue: Date | string) => {
-        if (!dateValue) return "-"
-        return new Date(dateValue).toLocaleDateString('fr-FR', {
-            day: '2-digit',
-            month: 'long',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        })
-    }
-
-    return (
+  return (
         <Sheet open={open} onOpenChange={onOpenChange}>
             <SheetContent className="w-full sm:max-w-md overflow-y-auto p-4 sm:p-6">
                 <SheetHeader className="pb-4">

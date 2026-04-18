@@ -27,10 +27,10 @@ export function RegisterForm({
   const [success, setSuccess] = useState(false)
 
   const passwordRequirements = [
-    { label: 'At least 8 characters', valid: password.length >= 8 },
-    { label: 'One uppercase letter', valid: /[A-Z]/.test(password) },
-    { label: 'One lowercase letter', valid: /[a-z]/.test(password) },
-    { label: 'One number', valid: /[0-9]/.test(password) },
+    { label: 'Au moins 8 caractères', valid: password.length >= 8 },
+    { label: 'Une lettre majuscule', valid: /[A-Z]/.test(password) },
+    { label: 'Une lettre minuscule', valid: /[a-z]/.test(password) },
+    { label: 'Un chiffre', valid: /[0-9]/.test(password) },
   ]
 
   const allRequirementsMet = passwordRequirements.every(r => r.valid)
@@ -42,13 +42,13 @@ export function RegisterForm({
     setError(null)
 
     if (!allRequirementsMet) {
-      setError('Please meet all password requirements')
+      setError('Veuillez respecter toutes les exigences du mot de passe')
       setLoading(false)
       return
     }
 
     if (!passwordsMatch) {
-      setError('Passwords do not match')
+      setError('Les mots de passe ne correspondent pas')
       setLoading(false)
       return
     }
@@ -67,7 +67,7 @@ export function RegisterForm({
       }
     } catch (err) {
       console.error('Registration submit error:', err)
-      setError('An unexpected error occurred')
+      setError('Une erreur inattendue est survenue')
       setLoading(false)
     }
   }
@@ -78,9 +78,9 @@ export function RegisterForm({
         <div className="size-16 rounded-full bg-green-500/10 flex items-center justify-center">
           <SafeIcon icon={CheckmarkCircle02Icon} className="size-10 text-green-500" />
         </div>
-        <h2 className="text-2xl font-bold">Account Created!</h2>
+        <h2 className="text-2xl font-bold">Compte créé !</h2>
         <p className="text-muted-foreground">
-          Your account has been created successfully. Redirecting to login...
+          Votre compte a été créé avec succès. Redirection vers la connexion...
         </p>
       </div>
     )
@@ -102,10 +102,10 @@ export function RegisterForm({
               />
             </div>
           </div>
-          <h1 className="text-2xl font-bold">Create Account</h1>
-          <p className="text-sm text-balance text-muted-foreground">
-            Enter your details to create a new account
-          </p>
+<h1 className="text-2xl font-bold">Créer un compte</h1>
+        <p className="text-sm text-balance text-muted-foreground">
+          Entrez vos informations pour créer un nouveau compte
+        </p>
         </div>
 
         {error && (
@@ -115,11 +115,11 @@ export function RegisterForm({
         )}
 
         <Field>
-          <FieldLabel htmlFor="name">Full Name</FieldLabel>
+          <FieldLabel htmlFor="name">Nom complet</FieldLabel>
           <Input
             id="name"
             type="text"
-            placeholder="John Doe"
+            placeholder="Jean Dupont"
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
@@ -147,7 +147,7 @@ export function RegisterForm({
         </Field>
 
         <Field>
-          <FieldLabel htmlFor="password">Password</FieldLabel>
+          <FieldLabel htmlFor="password">Mot de passe</FieldLabel>
           <div className="relative">
             <Input
               id="password"
@@ -167,7 +167,7 @@ export function RegisterForm({
               onClick={() => setShowPassword(!showPassword)}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
               disabled={loading}
-              aria-label={showPassword ? "Hide password" : "Show password"}
+              aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
             >
               <SafeIcon icon={showPassword ? ViewOffIcon : ViewIcon} className="size-5" />
             </button>
@@ -185,7 +185,7 @@ export function RegisterForm({
         </Field>
 
         <Field>
-          <FieldLabel htmlFor="confirmPassword">Confirm Password</FieldLabel>
+          <FieldLabel htmlFor="confirmPassword">Confirmer le mot de passe</FieldLabel>
           <div className="relative">
             <Input
               id="confirmPassword"
@@ -205,13 +205,13 @@ export function RegisterForm({
               onClick={() => setShowConfirmPassword(!showConfirmPassword)}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
               disabled={loading}
-              aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+              aria-label={showConfirmPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
             >
               <SafeIcon icon={showConfirmPassword ? ViewOffIcon : ViewIcon} className="size-5" />
             </button>
           </div>
           {confirmPassword && !passwordsMatch && (
-            <p className="text-xs text-destructive mt-1">Passwords do not match</p>
+            <p className="text-xs text-destructive mt-1">Les mots de passe ne correspondent pas</p>
           )}
         </Field>
 
@@ -224,21 +224,21 @@ export function RegisterForm({
             {loading ? (
               <>
                 <SafeIcon icon={Loading02Icon} className="mr-2 animate-spin" />
-                Creating account...
-              </>
-            ) : (
-              <>
-                <SafeIcon icon={UserAdd01Icon} className="mr-2" />
-                Create Account
+Création du compte...
+          </>
+        ) : (
+          <>
+            <SafeIcon icon={UserAdd01Icon} className="mr-2" />
+            Créer un compte
               </>
             )}
           </Button>
         </Field>
 
         <FieldDescription className="text-center">
-          Already have an account?{' '}
+          Déjà un compte ?{' '}
           <Link href="/login" className="underline underline-offset-4 hover:text-primary">
-            Sign in
+            Se connecter
           </Link>
         </FieldDescription>
       </FieldGroup>
