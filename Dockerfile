@@ -10,7 +10,7 @@
 # ============================================
 
 # Base image with digest pinning
-FROM node:20-alpine@sha256:cabb115cbf5d8d3a3e67059a453a2e0d57c4f8a171fc9d10bb5bce89f5a6c449 AS base
+FROM node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293 AS base
 
 # =====================================================
 # Stage 1: Dependencies

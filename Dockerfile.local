@@ -25,7 +25,7 @@
 # ============================================
 # BASE STAGE
 # ============================================
-FROM node:20-alpine@sha256:cabb115cbf5d8d3a3e67059a453a2e0d57c4f8a171fc9d10bb5bce89f5a6c449 AS base
+FROM node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293 AS base
 
 # Labels
 LABEL org.opencontainers.image.title="HAY2010 Stock Application"
@@ -77,10 +77,14 @@ COPY . .
 # Generate Prisma Client
 RUN npx prisma generate
 
+# Remove legacy middleware.ts (Next.js 16+ uses proxy.ts exclusively)
+RUN rm -f middleware.ts
+
 # Build arguments
 ARG GIT_SHA=unknown
 ARG BUILD_DATE=unknown
 ARG PORT=3000
+ARG DATABASE_URL=postgresql://postgres:postgres@postgres:5432/hay2010_db?connection_limit=5&pool_timeout=10
 
 # Build-time environment
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -88,6 +92,7 @@ ENV NODE_ENV=production
 ENV GIT_SHA=$GIT_SHA
 ENV BUILD_DATE=$BUILD_DATE
 ENV PORT=$PORT
+ENV DATABASE_URL=$DATABASE_URL
 
 # Build Next.js application with BuildKit cache
 RUN --mount=type=cache,target=/app/.next/cache,sharing=locked \
@@ -109,6 +114,8 @@ RUN apk add --no-cache \
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/lib/generated/prisma ./lib/generated/prisma
+COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
+COPY --from=builder /app/package.json ./package.json
 
 # Set up non-root user
 RUN addgroup --system --gid 1001 nodejs && \

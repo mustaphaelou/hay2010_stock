@@ -2,6 +2,8 @@ import { getDashboardStats } from "@/app/actions/dashboard"
 import { DashboardClient } from "./dashboard-client"
 import type { DocumentWithComputed } from "@/lib/types"
 
+export const dynamic = 'force-dynamic'
+
 export default async function Page() {
   const { stats, recentDocs, salesInvoices } = await getDashboardStats()
 

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { jwtVerify } from 'jose'
 import { rateLimitMiddleware } from '@/lib/middleware/rate-limit'
+import { randomBytes } from 'crypto'
 
 const PUBLIC_PATHS = ['/login', '/register', '/api/auth', '/api/health/public', '/favicon.ico', '/_next']
 const AUTH_COOKIE = 'auth_token'
@@ -25,36 +26,66 @@ async function verifyTokenEdge(token: string) {
   }
 }
 
-function addSecurityHeaders(response: NextResponse): void {
+function buildCSP(nonce: string): string {
+  const isDev = process.env.NODE_ENV === 'development'
+  // In local Docker (SECURE_COOKIES=false), use unsafe-inline for compatibility
+  // In production with proper nonce propagation, use nonce-based CSP
+  const useUnsafeInline = isDev || process.env.SECURE_COOKIES === 'false'
+  const cspHeader = `
+    default-src 'self';
+    script-src 'self'${useUnsafeInline ? " 'unsafe-inline' 'unsafe-eval'" : ` 'nonce-${nonce}' 'strict-dynamic'`};
+    style-src 'self'${useUnsafeInline ? " 'unsafe-inline'" : ` 'nonce-${nonce}'`};
+    img-src 'self' blob: data: https:;
+    font-src 'self' data:;
+    connect-src 'self' https:${isDev ? ' ws: wss:' : ''};
+    frame-ancestors 'none';
+    base-uri 'self';
+    form-action 'self';
+    object-src 'none';
+  `
+  return cspHeader.replace(/\s{2,}/g, ' ').trim()
+}
+
+function addSecurityHeaders(response: NextResponse, nonce: string): void {
   response.headers.set('X-Content-Type-Options', 'nosniff')
   response.headers.set('X-Frame-Options', 'DENY')
   response.headers.set('X-XSS-Protection', '1; mode=block')
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
-  response.headers.set(
-    'Content-Security-Policy',
-    process.env.NODE_ENV === 'development'
-      ? "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; font-src 'self' data:; connect-src 'self' https: ws: wss:; frame-ancestors 'none';"
-      : "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none';"
-  )
+  response.headers.set('Content-Security-Policy', buildCSP(nonce))
   response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
   response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload')
   response.headers.set('X-DNS-Prefetch-Control', 'on')
-  
-  // Add Expect-CT header for certificate transparency
   response.headers.set('Expect-CT', 'max-age=86400, enforce')
-  
-  // Add Feature-Policy header (legacy, kept for compatibility)
   response.headers.set('Feature-Policy', "camera 'none'; microphone 'none'; geolocation 'none'")
+}
+
+/**
+ * Create a NextResponse.next() that propagates the nonce to the request headers
+ * so Next.js can automatically apply it to inline scripts during SSR.
+ */
+function nextWithNonce(request: NextRequest, nonce: string): NextResponse {
+  const requestHeaders = new Headers(request.headers)
+  requestHeaders.set('x-nonce', nonce)
+
+  const response = NextResponse.next({
+    request: { headers: requestHeaders },
+  })
+
+  addSecurityHeaders(response, nonce)
+  return response
 }
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
+  // Generate nonce for this request's CSP
+  const nonce = randomBytes(16).toString('base64')
+
   // Apply rate limiting first (except for public paths)
   try {
     const rateLimitResponse = await rateLimitMiddleware(request)
     if (rateLimitResponse) {
-      addSecurityHeaders(rateLimitResponse)
+      addSecurityHeaders(rateLimitResponse, nonce)
       return rateLimitResponse
     }
   } catch {
@@ -67,12 +98,10 @@ export async function proxy(request: NextRequest) {
 
   if (!token) {
     if (isPublicPath) {
-      const response = NextResponse.next()
-      addSecurityHeaders(response)
-      return response
+      return nextWithNonce(request, nonce)
     }
     const response = NextResponse.redirect(new URL('/login', request.url))
-    addSecurityHeaders(response)
+    addSecurityHeaders(response, nonce)
     return response
   }
 
@@ -80,31 +109,35 @@ export async function proxy(request: NextRequest) {
 
   if (!payload) {
     if (isPublicPath) {
-      const response = NextResponse.next()
-      addSecurityHeaders(response)
-      return response
+      return nextWithNonce(request, nonce)
     }
     const response = NextResponse.redirect(new URL('/login', request.url))
     response.cookies.delete(AUTH_COOKIE)
-    addSecurityHeaders(response)
+    addSecurityHeaders(response, nonce)
     return response
   }
 
-	const tokenIssuedAt = payload.iat ? payload.iat * 1000 : Date.now()
-	// Session refresh logic placeholder - currently unused but kept for future implementation
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	const _shouldRefreshSession = Date.now() - tokenIssuedAt > SESSION_REFRESH_THRESHOLD
+  const tokenIssuedAt = payload.iat ? payload.iat * 1000 : Date.now()
+  // Session refresh logic placeholder - currently unused but kept for future implementation
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _shouldRefreshSession = Date.now() - tokenIssuedAt > SESSION_REFRESH_THRESHOLD
 
   if (isPublicPath && pathname !== '/favicon.ico' && !pathname.startsWith('/_next')) {
     const response = NextResponse.redirect(new URL('/', request.url))
-    addSecurityHeaders(response)
+    addSecurityHeaders(response, nonce)
     return response
   }
 
-const response = NextResponse.next()
-  response.headers.set('x-user-id', payload.userId)
-  response.headers.set('x-user-email', payload.email)
-  response.headers.set('x-user-role', payload.role)
+  // Authenticated request: propagate nonce + user info via request headers
+  const requestHeaders = new Headers(request.headers)
+  requestHeaders.set('x-nonce', nonce)
+  requestHeaders.set('x-user-id', payload.userId)
+  requestHeaders.set('x-user-email', payload.email)
+  requestHeaders.set('x-user-role', payload.role)
+
+  const response = NextResponse.next({
+    request: { headers: requestHeaders },
+  })
 
   // RBAC check for admin routes
   const isAdminRoute = pathname.startsWith('/api/admin')
@@ -113,17 +146,17 @@ const response = NextResponse.next()
       { error: 'Forbidden', code: 'INSUFFICIENT_ROLE' },
       { status: 403 }
     )
-    addSecurityHeaders(forbiddenResponse)
+    addSecurityHeaders(forbiddenResponse, nonce)
     return forbiddenResponse
   }
 
-  addSecurityHeaders(response)
+  addSecurityHeaders(response, nonce)
 
   return response
 }
 
 export const config = {
-    matcher: [
-        '/((?!api/health/public|_next/static|_next/image|favicon.ico|icon.png|images).*)',
-    ],
+  matcher: [
+    '/((?!api/health/public|_next/static|_next/image|favicon.ico|icon.png|images).*)',
+  ],
 }
