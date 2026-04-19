@@ -26,6 +26,7 @@ vi.mock('@/lib/logger', () => ({
     info: vi.fn(),
     error: vi.fn(),
     warn: vi.fn(),
+    debug: vi.fn(),
   }),
 }))
 
@@ -67,11 +68,18 @@ vi.mock('@/lib/auth/lockout', () => ({
 vi.mock('@/lib/security/csrf-server', () => ({
   validateCsrfToken: vi.fn().mockResolvedValue(true),
   getCsrfCookie: vi.fn().mockResolvedValue('csrf-cookie-value'),
+  generateCsrfToken: vi.fn().mockResolvedValue({ token: 'new-csrf-token', cookieValue: 'new-csrf-cookie' }),
+  setCsrfCookie: vi.fn().mockResolvedValue(undefined),
+  ANONYMOUS_USER_ID: 'anonymous',
 }))
 
 vi.mock('next/headers', () => ({
   cookies: vi.fn().mockResolvedValue({
-    get: vi.fn().mockReturnValue({ value: 'mock-jwt-token' }),
+    get: vi.fn((name: string) => {
+      if (name === 'auth_token') return { value: 'mock-jwt-token' }
+      if (name === 'csrf_token') return { value: 'csrf-cookie-value' }
+      return undefined
+    }),
     set: vi.fn(),
     delete: vi.fn(),
   }),
@@ -91,6 +99,7 @@ describe('Auth Flow Integration', () => {
       const { prisma } = await import('@/lib/db/prisma')
       const { verifyPassword } = await import('@/lib/auth/password')
       const { login } = await import('@/app/actions/auth')
+      const { validateCsrfToken } = await import('@/lib/security/csrf-server')
 
       vi.mocked(prisma.user.findUnique).mockResolvedValue({
         id: 'user-1',
@@ -115,6 +124,9 @@ describe('Auth Flow Integration', () => {
       expect(result.success).toBe(true)
       expect(verifyPassword).toHaveBeenCalledWith('password123', 'hashed-password')
       expect(mockRedisSetex).toHaveBeenCalled()
+
+      // Verify CSRF was validated with ANONYMOUS_USER_ID
+      expect(validateCsrfToken).toHaveBeenCalledWith('anonymous', 'csrf-token', 'csrf-cookie-value')
 
       const setexCall = mockRedisSetex.mock.calls[0]
       expect(setexCall[0]).toMatch(/^session:/)
@@ -141,6 +153,25 @@ describe('Auth Flow Integration', () => {
 
       expect(result.error).toBeDefined()
       expect(result.success).toBeUndefined()
+    })
+
+    it('should reject login without CSRF token', async () => {
+      const { login } = await import('@/app/actions/auth')
+
+      const result = await login('user@example.com', 'password123', false)
+
+      expect(result.error).toContain('Security token required')
+    })
+
+    it('should reject login with invalid CSRF token', async () => {
+      const { validateCsrfToken } = await import('@/lib/security/csrf-server')
+      const { login } = await import('@/app/actions/auth')
+
+      vi.mocked(validateCsrfToken).mockResolvedValueOnce(false)
+
+      const result = await login('user@example.com', 'password123', false, 'bad-csrf-token')
+
+      expect(result.error).toContain('Invalid security token')
     })
   })
 
@@ -181,12 +212,15 @@ describe('Auth Flow Integration', () => {
 
   describe('logout invalidates session', () => {
     it('should delete session from Redis and clear cookie', async () => {
-      const { deleteSession } = await import('@/lib/auth/session')
       const { logout } = await import('@/app/actions/auth')
       const { cookies } = await import('next/headers')
 
       const mockCookieStore = {
-        get: vi.fn().mockReturnValue({ value: 'mock-jwt-token' }),
+        get: vi.fn((name: string) => {
+          if (name === 'auth_token') return { value: 'mock-jwt-token' }
+          if (name === 'csrf_token') return { value: 'csrf-cookie-value' }
+          return undefined
+        }),
         set: vi.fn(),
         delete: vi.fn(),
       }
@@ -204,7 +238,10 @@ describe('Auth Flow Integration', () => {
       const { cookies } = await import('next/headers')
 
       const mockCookieStore = {
-        get: vi.fn().mockReturnValue(undefined),
+        get: vi.fn((name: string) => {
+          if (name === 'csrf_token') return { value: 'csrf-cookie-value' }
+          return undefined
+        }),
         set: vi.fn(),
         delete: vi.fn(),
       }
@@ -214,6 +251,28 @@ describe('Auth Flow Integration', () => {
 
       expect(result.success).toBe(true)
       expect(mockCookieStore.delete).toHaveBeenCalledWith('auth_token')
+    })
+
+    it('should validate CSRF token with authenticated userId during logout', async () => {
+      const { logout } = await import('@/app/actions/auth')
+      const { validateCsrfToken } = await import('@/lib/security/csrf-server')
+      const { cookies } = await import('next/headers')
+
+      const mockCookieStore = {
+        get: vi.fn((name: string) => {
+          if (name === 'auth_token') return { value: 'mock-jwt-token' }
+          if (name === 'csrf_token') return { value: 'csrf-cookie-value' }
+          return undefined
+        }),
+        set: vi.fn(),
+        delete: vi.fn(),
+      }
+      vi.mocked(cookies).mockResolvedValue(mockCookieStore as unknown as Awaited<ReturnType<typeof cookies>>)
+
+      await logout('csrf-token')
+
+      // For logout, since the user is authenticated, it should use the user's ID
+      expect(validateCsrfToken).toHaveBeenCalledWith('user-1', 'csrf-token', 'csrf-cookie-value')
     })
   })
 })

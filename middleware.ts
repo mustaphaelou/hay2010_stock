@@ -22,6 +22,7 @@ const PUBLIC_PATHS = [
   '/api/auth/forgot-password',
   '/api/auth/reset-password',
   '/api/health/public',
+  '/api/csrf-token',
 ]
 
 const STATIC_PATHS = [

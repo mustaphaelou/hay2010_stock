@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -12,6 +12,9 @@ import { SafeIcon as HugeiconsIcon } from "@/components/ui/safe-icon"
 import { Login01Icon, ViewIcon, ViewOffIcon, Loading02Icon, CheckmarkCircle02Icon } from "@hugeicons/core-free-icons"
 import { login } from "../app/actions/auth"
 import { getCsrfToken } from "@/lib/security/csrf-client"
+
+/** Maximum number of automatic retries after CSRF token failure */
+const CSRF_MAX_RETRIES = 1
 
 export function LoginForm({
   className,
@@ -26,10 +29,22 @@ export function LoginForm({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [csrfToken, setCsrfToken] = useState<string | null>(null)
+  const [csrfRetryCount, setCsrfRetryCount] = useState(0)
+
+  const refreshToken = useCallback(async (): Promise<string | null> => {
+    try {
+      const token = await getCsrfToken()
+      setCsrfToken(token)
+      return token
+    } catch (err) {
+      console.error('CSRF token refresh error:', err)
+      return null
+    }
+  }, [])
 
   useEffect(() => {
-    getCsrfToken().then(setCsrfToken).catch(console.error)
-  }, [])
+    refreshToken()
+  }, [refreshToken])
 
   const successMessage = searchParams.get('registered')
     ? 'Compte créé avec succès ! Veuillez vous connecter.'
@@ -37,18 +52,65 @@ export function LoginForm({
     ? 'Mot de passe réinitialisé avec succès ! Veuillez vous connecter.'
     : null
 
+  /**
+   * Check if an error message indicates a CSRF token failure.
+   * These errors are retryable with a fresh token.
+   */
+  function isCsrfError(errorMessage: string): boolean {
+    return errorMessage.toLowerCase().includes('security token') ||
+           errorMessage.toLowerCase().includes('csrf')
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError(null)
 
     try {
-      const result = await login(email, password, rememberMe, csrfToken || undefined)
+      // Ensure we have a CSRF token before submitting
+      let currentToken = csrfToken
+      if (!currentToken) {
+        currentToken = await refreshToken()
+        if (!currentToken) {
+          setError('Impossible de générer un jeton de sécurité. Veuillez actualiser la page.')
+          setLoading(false)
+          return
+        }
+      }
+
+      const result = await login(email, password, rememberMe, currentToken || undefined)
 
       if (result.error) {
+        // If CSRF error, attempt automatic retry with a fresh token
+        if (isCsrfError(result.error) && csrfRetryCount < CSRF_MAX_RETRIES) {
+          setCsrfRetryCount(prev => prev + 1)
+          const freshToken = await refreshToken()
+
+          if (freshToken) {
+            const retryResult = await login(email, password, rememberMe, freshToken)
+
+            if (retryResult.error) {
+              setError(retryResult.error)
+              setLoading(false)
+              // Refresh token again for next attempt
+              refreshToken()
+            } else {
+              const redirectTo = searchParams.get('redirect') || '/'
+              const safeRedirect = redirectTo.startsWith('/login') || redirectTo.match(/\.(png|jpg|svg|ico|css|js|map|json)$/)
+                ? '/'
+                : redirectTo
+              router.push(safeRedirect)
+              router.refresh()
+            }
+            return
+          }
+        }
+
         setError(result.error)
         setLoading(false)
-        getCsrfToken().then(setCsrfToken).catch(console.error)
+        // Refresh CSRF token after any error for the next attempt
+        setCsrfRetryCount(0)
+        refreshToken()
       } else {
         const redirectTo = searchParams.get('redirect') || '/'
         const safeRedirect = redirectTo.startsWith('/login') || redirectTo.match(/\.(png|jpg|svg|ico|css|js|map|json)$/)
@@ -61,7 +123,7 @@ export function LoginForm({
       console.error('Login submit error:', err)
       setError('Une erreur inattendue est survenue')
       setLoading(false)
-      getCsrfToken().then(setCsrfToken).catch(console.error)
+      refreshToken()
     }
   }
 
@@ -190,11 +252,11 @@ export function LoginForm({
         </Field>
 
         <FieldDescription className="text-center mt-4">
-            Pas encore de compte ?{' '}
-            <Link href="/register" className="underline underline-offset-4 hover:text-primary">
-              Créer un compte
-            </Link>
-      </FieldDescription>
+          Pas encore de compte ?{' '}
+          <Link href="/register" className="underline underline-offset-4 hover:text-primary">
+            Créer un compte
+          </Link>
+        </FieldDescription>
       </FieldGroup>
     </form>
   )
