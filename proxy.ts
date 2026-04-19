@@ -4,7 +4,7 @@ import { jwtVerify } from 'jose'
 import { rateLimitMiddleware } from '@/lib/middleware/rate-limit'
 import { randomBytes } from 'crypto'
 
-const PUBLIC_PATHS = ['/login', '/register', '/api/auth', '/api/health/public', '/favicon.ico', '/_next']
+const PUBLIC_PATHS = ['/login', '/register', '/forgot-password', '/reset-password', '/api/auth', '/api/csrf-token', '/api/health/public', '/favicon.ico', '/_next']
 const AUTH_COOKIE = 'auth_token'
 const SESSION_REFRESH_THRESHOLD = 24 * 60 * 60 * 1000
 

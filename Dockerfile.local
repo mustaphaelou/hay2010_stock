@@ -77,9 +77,6 @@ COPY . .
 # Generate Prisma Client
 RUN npx prisma generate
 
-# Remove legacy middleware.ts (Next.js 16+ uses proxy.ts exclusively)
-RUN rm -f middleware.ts
-
 # Build arguments
 ARG GIT_SHA=unknown
 ARG BUILD_DATE=unknown
