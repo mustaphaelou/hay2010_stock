@@ -8,39 +8,40 @@
 # Uses environment variables instead of Docker secrets for simplicity
 #
 # USAGE:
-# 1. Start:        docker compose up -d
-# 2. View logs:    docker compose logs -f
-# 3. Stop:         docker compose down
-# 4. Rebuild:      docker compose build --no-cache && docker compose up -d
+# 1. Start: docker compose up -d
+# 2. View logs: docker compose logs -f
+# 3. Stop: docker compose down
+# 4. Rebuild: docker compose build --no-cache && docker compose up -d
 # 5. Seed database: docker compose run --rm seed
-# 6. Reset all:    docker compose down -v && docker compose up -d
+# 6. Reset all: docker compose down -v && docker compose up -d
 #
 # ADMIN CREDENTIALS:
 # Default: admin@hay2010.com / Admin@2026
 # Override via .env file or command line:
-#   SEED_ADMIN_EMAIL=you@example.com SEED_ADMIN_PASSWORD=YourPass123 docker compose run --rm seed
+# SEED_ADMIN_EMAIL=you@example.com SEED_ADMIN_PASSWORD=YourPass123 docker compose run --rm seed
 #
 # SERVICES:
 # - migrate: One-time database migration runner
-# - seed:    One-time database seeder (run manually)
-# - app:     Next.js application (port 3000)
+# - seed: One-time database seeder (run manually)
+# - app: Next.js application (port 3000)
 # - postgres: PostgreSQL 16 database (port 5432)
-# - redis:   Redis 7 cache (port 6379)
+# - redis: Redis 7 cache (port 6379)
 #
 # ============================================
 
 services:
+
   # ============================================
   # MIGRATION SERVICE
   # Runs once to apply database migrations on startup
   # ============================================
-migrate:
-  build:
-    context: .
-    dockerfile: Dockerfile
-    target: migrator
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: migrator
       args:
-        DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/hay2010_db?connection_limit=5&pool_timeout=10"
+        - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/hay2010_db?connection_limit=5&pool_timeout=10
     container_name: hay2010_migrate
     environment:
       DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/hay2010_db?connection_limit=5&pool_timeout=10"
@@ -56,45 +57,45 @@ migrate:
       - no-new-privileges:true
     read_only: false
     volumes:
-  - ./prisma:/app/prisma:ro
-  - ./lib/generated:/app/lib/generated:ro
+      - ./prisma:/app/prisma:ro
+      - ./lib/generated:/app/lib/generated:ro
 
-# ============================================
-# SEED SERVICE
-# Seeds the database with initial data (run manually)
-# ============================================
-seed:
-  build:
-    context: .
-    dockerfile: Dockerfile
-    target: migrator
-  container_name: hay2010_seed
-  environment:
-    DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/hay2010_db?connection_limit=5&pool_timeout=10"
-    SEED_ADMIN_EMAIL: "${SEED_ADMIN_EMAIL:-admin@hay2010.com}"
-    SEED_ADMIN_PASSWORD: "${SEED_ADMIN_PASSWORD:-Admin@2026}"
-  command: ["npx", "tsx", "prisma/seed.ts"]
-  depends_on:
-    migrate:
-      condition: service_completed_successfully
-  restart: "no"
-  networks:
-  - backend
+  # ============================================
+  # SEED SERVICE
+  # Seeds the database with initial data (run manually)
+  # ============================================
+  seed:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: migrator
+    container_name: hay2010_seed
+    environment:
+      DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/hay2010_db?connection_limit=5&pool_timeout=10"
+      SEED_ADMIN_EMAIL: "${SEED_ADMIN_EMAIL:-admin@hay2010.com}"
+      SEED_ADMIN_PASSWORD: "${SEED_ADMIN_PASSWORD:-Admin@2026}"
+    command: ["npx", "tsx", "prisma/seed.ts"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: "no"
+    networks:
+      - backend
 
-# ============================================
-# APPLICATION SERVICE
-# Next.js application server
-# ============================================
-app:
-  build:
-    context: .
-    dockerfile: Dockerfile
-    target: runner
+  # ============================================
+  # APPLICATION SERVICE
+  # Next.js application server
+  # ============================================
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runner
       args:
-        PORT: "3000"
-        GIT_SHA: "${GIT_SHA:-local}"
-        BUILD_DATE: "2026-04-18"
-        DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/hay2010_db?connection_limit=5&pool_timeout=10"
+        - PORT=3000
+        - GIT_SHA=${GIT_SHA:-local}
+        - BUILD_DATE=2026-04-18
+        - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/hay2010_db?connection_limit=5&pool_timeout=10
     image: hay2010_stock:local
     container_name: hay2010_stock
     ports:
