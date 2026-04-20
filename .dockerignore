@@ -1,6 +1,6 @@
 # ============================================
 # HAY2010 Stock Application - Docker Ignore
-# Version: 3.0 (Optimized for Docker Compose)
+# Version: 4.0 (Optimized for Docker Compose)
 # ============================================
 # Excludes all files not needed for Docker build
 # Reduces build context size and improves stability
@@ -51,14 +51,12 @@ jest.setup.*
 .tsbuildinfo
 
 # =====================================================
-# ENVIRONMENT FILES (inject via Docker Secrets)
+# ENVIRONMENT FILES (inject via environment variables)
 # =====================================================
 .env
 .env.*
 !.env.example
-!.env.docker.example
 .env.local
-.env.docker
 
 # =====================================================
 # IDE AND EDITOR FILES
@@ -106,7 +104,6 @@ CHANGELOG.md
 SETUP.md
 DEPLOY.md
 TROUBLESHOOTING.md
-COOLIFY_DEPLOYMENT.md
 docs/
 plans/
 
@@ -118,18 +115,6 @@ plans/
 .travis.yml
 Jenkinsfile
 .gitlab/
-
-# =====================================================
-# KUBERNETES CONFIGS (removed for Docker Compose only)
-# =====================================================
-k8s/
-helm/
-.helm/
-
-# =====================================================
-# MONITORING STACK (removed for stability)
-# =====================================================
-monitoring/
 
 # =====================================================
 # PRISMA GENERATED (regenerate in container)
@@ -149,31 +134,11 @@ temp
 .tmp
 
 # =====================================================
-# DEVELOPMENT SCRIPTS (not needed in production)
-# =====================================================
-scripts/
-deploy.sh
-
-# =====================================================
-# SECRETS DIRECTORY (use Docker Secrets)
-# =====================================================
-secrets/
-
-# =====================================================
 # BACKUP FILES
 # =====================================================
 backups/
 *.backup
 *.bak
-
-# =====================================================
-# TERRAFORM AND INFRASTRUCTURE AS CODE
-# =====================================================
-.terraform
-*.tfstate
-*.tfstate.*
-*.tfvars
-*.tf
 
 # =====================================================
 # MISCELLANEOUS

@@ -20,29 +20,24 @@ const prisma = new PrismaClient({ adapter })
 async function main() {
   console.log('Seeding database...')
 
+  const adminEmail = process.env.SEED_ADMIN_EMAIL || 'admin@hay2010.com'
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD || 'Admin@2026'
+
   const existingAdmin = await prisma.user.findUnique({
-    where: { email: 'admin@hay2010.com' }
+    where: { email: adminEmail }
   })
 
   if (!existingAdmin) {
-    const adminPassword = process.env.SEED_ADMIN_PASSWORD
-
     if (!adminPassword && process.env.NODE_ENV === 'production') {
       throw new Error('SEED_ADMIN_PASSWORD must be set in production environment')
     }
 
-    const passwordToUse = adminPassword || crypto.randomUUID()
-    const hashedPassword = await bcrypt.hash(passwordToUse, 12)
-
-    if (!adminPassword) {
-      console.log('Admin user created. Check SEED_ADMIN_PASSWORD or reset password after first login.')
-    } else {
-      console.log('Using password from SEED_ADMIN_PASSWORD environment variable')
-    }
+    const hashedPassword = await bcrypt.hash(adminPassword, 12)
+    console.log(`Creating admin user: ${adminEmail}`)
 
     await prisma.user.create({
       data: {
-        email: 'admin@hay2010.com',
+        email: adminEmail,
         password: hashedPassword,
         name: 'Admin',
         role: 'ADMIN',

@@ -1,22 +1,24 @@
 #!/bin/sh
 # ============================================
-# HAY2010 Stock Application Entrypoint
-# Version: 3.0 (Optimized for Stability)
+# HAY2010 Stock Application - Local Entrypoint
+# Version: 3.0
 # ============================================
-# Features:
-# - Docker Secrets validation
-# - Database connectivity check
-# - Redis connectivity check
-# - Graceful shutdown handling
-# - Fail-fast on missing secrets
+#
+# PURPOSE:
+#   Entrypoint script for local Docker deployment
+#   Does NOT require Docker secrets - uses env vars directly
+#
+# FEATURES:
+#   - Database connectivity check
+#   - Graceful shutdown handling
+#   - Environment validation
+#
 # ============================================
-# shellcheck disable=SC2034
-# shellcheck disable=SC2086
 
 set -e
 
 echo "============================================"
-echo "HAY2010 Stock Application"
+echo "HAY2010 Stock Application (Local Docker)"
 echo "============================================"
 echo "Timestamp: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
 echo "Node Version: $(node --version)"
@@ -25,45 +27,23 @@ echo "Environment: ${NODE_ENV:-production}"
 echo "============================================"
 echo ""
 
-# =====================================================
-# SECRETS VALIDATION
-# =====================================================
-echo "Validating Docker Secrets..."
+# ============================================
+# ENVIRONMENT VALIDATION
+# ============================================
+echo "Validating environment..."
 
-SECRETS_DIR="${SECRETS_DIR:-/run/secrets}"
-SECRETS_VALID=true
-
-# Check required secrets
-for secret in jwt_secret postgres_password redis_password; do
-    secret_path="${SECRETS_DIR}/${secret}"
-    if [ -f "$secret_path" ]; then
-        echo "  ✓ ${secret} found"
-    else
-        echo "  ✗ ${secret} NOT FOUND"
-        SECRETS_VALID=false
-    fi
-done
-
-if [ "$SECRETS_VALID" = "false" ]; then
-    echo ""
-    echo "ERROR: Required secrets are missing!"
-    echo ""
-    echo "Please ensure Docker Secrets are configured:"
-    echo "  1. Generate secrets: cd secrets && ./generate-secrets.sh"
-    echo "  2. Restart containers: docker-compose down && docker-compose up -d"
-    echo ""
+if [ -z "$DATABASE_URL" ]; then
+    echo "ERROR: DATABASE_URL environment variable is required"
     exit 1
 fi
 
-echo ""
-echo "All secrets validated successfully."
+echo "✓ Database URL configured"
 echo ""
 
-# =====================================================
+# ============================================
 # GRACEFUL SHUTDOWN HANDLER
-# =====================================================
+# ============================================
 NODE_PID=""
-
 shutdown_handler() {
     echo ""
     echo "============================================"
@@ -75,8 +55,6 @@ shutdown_handler() {
 
     if [ -n "$NODE_PID" ]; then
         echo "Stopping Node.js server (PID: $NODE_PID)..."
-
-        # Send SIGTERM for graceful shutdown
         kill -TERM "$NODE_PID" 2>/dev/null || true
 
         # Wait up to 30 seconds for graceful shutdown
@@ -99,20 +77,19 @@ shutdown_handler() {
     exit 0
 }
 
-# Register signal handlers
 trap shutdown_handler SIGTERM SIGINT
 
-# =====================================================
+# ============================================
 # DATABASE CONNECTIVITY CHECK
-# =====================================================
+# ============================================
 DB_HOST="${DB_HOST:-postgres}"
 DB_PORT="${DB_PORT:-5432}"
 DB_TIMEOUT="${DB_TIMEOUT:-60}"
 
 echo "Waiting for database connection..."
-echo "  Host: $DB_HOST"
-echo "  Port: $DB_PORT"
-echo "  Timeout: ${DB_TIMEOUT}s"
+echo " Host: $DB_HOST"
+echo " Port: $DB_PORT"
+echo " Timeout: ${DB_TIMEOUT}s"
 echo ""
 
 max_retries=$((DB_TIMEOUT / 2))
@@ -135,18 +112,18 @@ if [ $retry_count -eq $max_retries ]; then
     echo ""
 fi
 
-# =====================================================
+# ============================================
 # REDIS CONNECTIVITY CHECK
-# =====================================================
+# ============================================
 REDIS_HOST="${REDIS_HOST:-redis}"
 REDIS_PORT="${REDIS_PORT:-6379}"
 REDIS_TIMEOUT="${REDIS_TIMEOUT:-30}"
 
 echo ""
 echo "Waiting for Redis connection..."
-echo "  Host: $REDIS_HOST"
-echo "  Port: $REDIS_PORT"
-echo "  Timeout: ${REDIS_TIMEOUT}s"
+echo " Host: $REDIS_HOST"
+echo " Port: $REDIS_PORT"
+echo " Timeout: ${REDIS_TIMEOUT}s"
 echo ""
 
 max_redis_retries=$((REDIS_TIMEOUT / 2))
@@ -169,9 +146,9 @@ if [ $redis_retry_count -eq $max_redis_retries ]; then
     echo ""
 fi
 
-# =====================================================
+# ============================================
 # START APPLICATION
-# =====================================================
+# ============================================
 echo ""
 echo "============================================"
 echo "Starting Next.js Server"
@@ -189,6 +166,10 @@ echo ""
 echo "============================================"
 echo "Application Ready"
 echo "============================================"
+echo ""
+echo "Access the application at: http://localhost:${PORT:-3000}"
+echo "API Health check: http://localhost:${PORT:-3000}/api/health/public"
+echo "Admin health check (requires auth): http://localhost:${PORT:-3000}/api/health"
 echo ""
 
 # Wait for Node.js process
