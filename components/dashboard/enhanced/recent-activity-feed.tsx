@@ -85,11 +85,11 @@ function formatTimestamp(timestamp: string | Date): string {
   const diffHours = Math.floor(diffMins / 60)
   const diffDays = Math.floor(diffHours / 24)
 
-  if (diffMins < 1) return "Just now"
-  if (diffMins < 60) return `${diffMins}m ago`
-  if (diffHours < 24) return `${diffHours}h ago`
-  if (diffDays < 7) return `${diffDays}d ago`
-  
+  if (diffMins < 1) return "À l'instant"
+  if (diffMins < 60) return `Il y a ${diffMins} min`
+  if (diffHours < 24) return `Il y a ${diffHours}h`
+  if (diffDays < 7) return `Il y a ${diffDays}j`
+
   return date.toLocaleDateString("fr-FR", {
     month: "short",
     day: "numeric",
@@ -98,10 +98,10 @@ function formatTimestamp(timestamp: string | Date): string {
 
 export function RecentActivityFeed({
   items,
-  title = "Recent Activity",
+  title = "Activité récente",
   maxItems = 5,
   loading = false,
-  emptyMessage = "No recent activity",
+  emptyMessage = "Aucune activité récente",
   emptyIcon,
   showViewAll = false,
   viewAllHref,
@@ -147,11 +147,11 @@ export function RecentActivityFeed({
             <a
               href={viewAllHref}
               onClick={onViewAll}
-              className="text-sm text-primary hover:underline underline-offset-4"
-              role="button"
-              aria-label="View all activity"
-            >
-              View all
+        className="text-sm text-primary hover:underline underline-offset-4"
+        role="button"
+        aria-label="Voir toute l'activité"
+      >
+        Voir tout
             </a>
           )}
         </div>

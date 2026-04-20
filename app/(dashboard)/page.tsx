@@ -5,7 +5,7 @@ import type { DocumentWithComputed } from "@/lib/types"
 export const dynamic = 'force-dynamic'
 
 export default async function Page() {
-  const { stats, recentDocs, salesInvoices } = await getDashboardStats()
+  const { stats, recentDocs, salesInvoices, monthlyData } = await getDashboardStats()
 
   const processedDocs: DocumentWithComputed[] = recentDocs.map(doc => ({
     ...doc,
@@ -28,6 +28,7 @@ export default async function Page() {
       stats={stats}
       recentDocs={processedDocs}
       salesInvoices={salesInvoices}
+      monthlyData={monthlyData}
     />
   )
 }

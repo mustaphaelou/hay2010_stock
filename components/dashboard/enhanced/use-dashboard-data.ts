@@ -1,6 +1,8 @@
 "use client"
 
 import * as React from "react"
+import { getDashboardStats } from "@/app/actions/dashboard"
+import type { DashboardData } from "@/lib/types"
 
 interface FetchState<T> {
   data: T | null
@@ -78,6 +80,8 @@ function useSWRLike<T>(
 
         const data = await fetcher()
 
+        if (abortControllerRef.current?.signal.aborted) return
+
         cacheRef.current.set(key, { data, timestamp: now })
 
         setState({
@@ -135,7 +139,9 @@ function useSWRLike<T>(
   React.useEffect(() => {
     if (refreshInterval && refreshInterval > 0) {
       const interval = setInterval(() => {
-        fetchData(true)
+        if (document.visibilityState === "visible") {
+          fetchData(true)
+        }
       }, refreshInterval)
 
       return () => clearInterval(interval)
@@ -171,46 +177,9 @@ function useSWRLike<T>(
   }
 }
 
-interface DashboardStats {
-  totalRevenue: number
-  totalOrders: number
-  totalProducts: number
-  totalCustomers: number
-  revenueGrowth: number
-  ordersGrowth: number
-  productsGrowth: number
-  customersGrowth: number
-}
-
-interface ChartDataPoint {
-  date: string
-  revenue: number
-  orders: number
-  visitors: number
-}
-
-interface ActivityItem {
-  id: string
-  title: string
-  description: string
-  timestamp: Date
-  status: "success" | "warning" | "error" | "info"
-}
-
-function useDashboardStats(options?: FetchOptions<DashboardStats>) {
-  const fetcher = React.useCallback(async (): Promise<DashboardStats> => {
-    await new Promise((resolve) => setTimeout(resolve, 500))
-
-    return {
-      totalRevenue: 125430.5,
-      totalOrders: 1247,
-      totalProducts: 483,
-      totalCustomers: 2156,
-      revenueGrowth: 12.5,
-      ordersGrowth: 8.3,
-      productsGrowth: 15.2,
-      customersGrowth: 23.1,
-    }
+function useDashboardStats(options?: FetchOptions<DashboardData>) {
+  const fetcher = React.useCallback(async (): Promise<DashboardData> => {
+    return await getDashboardStats()
   }, [])
 
   return useSWRLike("dashboard-stats", fetcher, options)
@@ -218,80 +187,22 @@ function useDashboardStats(options?: FetchOptions<DashboardStats>) {
 
 function useChartData(
   timeRange: "7d" | "30d" | "90d" | "1y" = "30d",
-  options?: FetchOptions<ChartDataPoint[]>
+  options?: FetchOptions<DashboardData>
 ) {
-  const fetcher = React.useCallback(async (): Promise<ChartDataPoint[]> => {
-    await new Promise((resolve) => setTimeout(resolve, 300))
-
-    const now = new Date()
-    const data: ChartDataPoint[] = []
-    const days = timeRange === "7d" ? 7 : timeRange === "30d" ? 30 : timeRange === "90d" ? 90 : 365
-
-    for (let i = days; i >= 0; i--) {
-      const date = new Date(now)
-      date.setDate(date.getDate() - i)
-
-      data.push({
-        date: date.toISOString().split("T")[0],
-        revenue: Math.floor(Math.random() * 10000) + 5000,
-        orders: Math.floor(Math.random() * 100) + 20,
-        visitors: Math.floor(Math.random() * 500) + 100,
-      })
-    }
-
-    return data
-  }, [timeRange])
+  const fetcher = React.useCallback(async (): Promise<DashboardData> => {
+    return await getDashboardStats()
+  }, [])
 
   return useSWRLike(`chart-data-${timeRange}`, fetcher, options)
 }
 
 function useRecentActivity(
   limit: number = 10,
-  options?: FetchOptions<ActivityItem[]>
+  options?: FetchOptions<DashboardData>
 ) {
-  const fetcher = React.useCallback(async (): Promise<ActivityItem[]> => {
-    await new Promise((resolve) => setTimeout(resolve, 400))
-
-    const activities: ActivityItem[] = [
-      {
-        id: "1",
-        title: "New order received",
-        description: "Order #1234 from John Doe",
-        timestamp: new Date(Date.now() - 1000 * 60 * 5),
-        status: "success",
-      },
-      {
-        id: "2",
-        title: "Low stock alert",
-        description: "Product SKU-567 is running low",
-        timestamp: new Date(Date.now() - 1000 * 60 * 15),
-        status: "warning",
-      },
-      {
-        id: "3",
-        title: "Payment processed",
-        description: "Payment for order #1230 confirmed",
-        timestamp: new Date(Date.now() - 1000 * 60 * 30),
-        status: "success",
-      },
-      {
-        id: "4",
-        title: "Customer complaint",
-        description: "Issue reported by Jane Smith",
-        timestamp: new Date(Date.now() - 1000 * 60 * 60),
-        status: "error",
-      },
-      {
-        id: "5",
-        title: "New product added",
-        description: "Product 'Widget Pro' added to catalog",
-        timestamp: new Date(Date.now() - 1000 * 60 * 120),
-        status: "info",
-      },
-    ]
-
-    return activities.slice(0, limit)
-  }, [limit])
+  const fetcher = React.useCallback(async (): Promise<DashboardData> => {
+    return await getDashboardStats()
+  }, [])
 
   return useSWRLike(`recent-activity-${limit}`, fetcher, options)
 }
@@ -343,9 +254,6 @@ export {
 }
 
 export type {
-  DashboardStats,
-  ChartDataPoint,
-  ActivityItem,
   FetchState,
   FetchOptions,
 }

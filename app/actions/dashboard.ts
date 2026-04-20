@@ -11,61 +11,89 @@ export async function getDashboardStats(): Promise<DashboardData> {
   await requireAuth()
 
   try {
-  const MAX_RECORDS = 100
-  
-  const [
-    clientsCount,
-    suppliersCount,
-    productsCount,
-    familiesCount,
-    salesCount,
-    purchasesCount,
-    recentDocs,
-    salesInvoices
-  ] = await Promise.all([
-    prisma.partenaire.count({ where: { type_partenaire: { in: ['CLIENT', 'LES_DEUX'] } } }),
-    prisma.partenaire.count({ where: { type_partenaire: { in: ['FOURNISSEUR', 'LES_DEUX'] } } }),
-    prisma.produit.count(),
-    prisma.categorieProduit.count(),
-    prisma.docVente.count({ where: { domaine_document: 'VENTE' } }),
-    prisma.docVente.count({ where: { domaine_document: 'ACHAT' } }),
-    prisma.docVente.findMany({
-      include: {
-        partenaire: {
-          select: {
-            nom_partenaire: true,
-            type_partenaire: true
+    const MAX_RECORDS = 100
+
+    const [
+      clientsCount,
+      suppliersCount,
+      productsCount,
+      familiesCount,
+      salesCount,
+      purchasesCount,
+      recentDocs,
+      salesInvoices,
+      lowStockCount,
+      totalStockProducts,
+      monthlySalesData,
+    ] = await Promise.all([
+      prisma.partenaire.count({ where: { type_partenaire: { in: ['CLIENT', 'LES_DEUX'] } } }),
+      prisma.partenaire.count({ where: { type_partenaire: { in: ['FOURNISSEUR', 'LES_DEUX'] } } }),
+      prisma.produit.count(),
+      prisma.categorieProduit.count(),
+      prisma.docVente.count({ where: { domaine_document: 'VENTE' } }),
+      prisma.docVente.count({ where: { domaine_document: 'ACHAT' } }),
+      prisma.docVente.findMany({
+        include: {
+          partenaire: {
+            select: {
+              nom_partenaire: true,
+              type_partenaire: true
+            }
           }
-        }
-      },
-      orderBy: {
-        date_creation: 'desc'
-      },
-      take: 5
-    }),
-    prisma.docVente.findMany({
-      where: {
-        domaine_document: 'VENTE',
-        type_document: { in: ['Facture', 'Avoir'] }
-      },
-      select: {
-        id_document: true,
-        numero_document: true,
-        type_document: true,
-        domaine_document: true,
-        montant_ttc: true,
-        solde_du: true,
-        date_document: true,
-        montant_ht: true,
-        montant_remise_total: true,
-        montant_tva_total: true
-      },
-      orderBy: {
-        date_document: 'desc'
-      },
-      take: MAX_RECORDS
-    })
-  ])
+        },
+        orderBy: {
+          date_creation: 'desc'
+        },
+        take: 5
+      }),
+      prisma.docVente.findMany({
+        where: {
+          domaine_document: 'VENTE',
+          type_document: { in: ['Facture', 'Avoir'] }
+        },
+        select: {
+          id_document: true,
+          numero_document: true,
+          type_document: true,
+          domaine_document: true,
+          montant_ttc: true,
+          solde_du: true,
+          date_document: true,
+          montant_ht: true,
+          montant_remise_total: true,
+          montant_tva_total: true
+        },
+        orderBy: {
+          date_document: 'desc'
+        },
+        take: MAX_RECORDS
+      }),
+      prisma.$queryRaw<Array<{ count: bigint }>>`
+        SELECT COUNT(*) as count
+        FROM produit p
+        JOIN niveau_stock ns ON ns.id_produit = p.id_produit
+        WHERE p.activer_suivi_stock = true
+        AND ns.quantite_en_stock <= COALESCE(p.niveau_reappro_quantite, 0)
+      `.then((result) => Number(result[0]?.count ?? 0)),
+      prisma.produit.count({
+        where: { activer_suivi_stock: true }
+      }),
+      prisma.docVente.findMany({
+        where: {
+          domaine_document: 'VENTE',
+          type_document: { in: ['Facture', 'Avoir'] },
+          date_document: {
+            gte: new Date(new Date().getFullYear(), new Date().getMonth() - 5, 1)
+          }
+        },
+        select: {
+          date_document: true,
+          montant_ttc: true,
+          domaine_document: true
+        },
+        orderBy: { date_document: 'asc' }
+      }),
+    ])
 
     const stats: DashboardStats = {
       clients: clientsCount,
@@ -73,7 +101,9 @@ export async function getDashboardStats(): Promise<DashboardData> {
       products: productsCount,
       families: familiesCount,
       salesCount: salesCount,
-      purchasesCount: purchasesCount
+      purchasesCount: purchasesCount,
+      lowStockCount: lowStockCount,
+      totalStockProducts: totalStockProducts,
     }
 
     const processedSalesInvoices: SalesInvoice[] = salesInvoices.map((s): SalesInvoice => ({
@@ -120,24 +150,55 @@ export async function getDashboardStats(): Promise<DashboardData> {
       partenaire: doc.partenaire
     }))
 
+    const monthlyMap = new Map<string, { ventes: number; achats: number }>()
+    const now = new Date()
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+      const key = d.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' })
+      monthlyMap.set(key, { ventes: 0, achats: 0 })
+    }
+
+    for (const doc of monthlySalesData) {
+      const docDate = new Date(doc.date_document)
+      const key = docDate.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' })
+      const entry = monthlyMap.get(key)
+      if (entry) {
+        if (doc.domaine_document === 'VENTE') {
+          entry.ventes += Number(doc.montant_ttc)
+        } else if (doc.domaine_document === 'ACHAT') {
+          entry.achats += Number(doc.montant_ttc)
+        }
+      }
+    }
+
+    const monthlyData = Array.from(monthlyMap.entries()).map(([month, data]) => ({
+      month,
+      ventes: data.ventes,
+      achats: data.achats
+    }))
+
     return {
       stats,
       recentDocs: processedRecentDocs,
-      salesInvoices: processedSalesInvoices
+      salesInvoices: processedSalesInvoices,
+      monthlyData,
     }
-	} catch (error) {
-		log.error({ error }, 'Failed to fetch dashboard stats')
-		return {
+  } catch (error) {
+    log.error({ error }, 'Failed to fetch dashboard stats')
+    return {
       stats: {
         clients: 0,
         suppliers: 0,
         products: 0,
         families: 0,
         salesCount: 0,
-        purchasesCount: 0
+        purchasesCount: 0,
+        lowStockCount: 0,
+        totalStockProducts: 0,
       },
       recentDocs: [],
-      salesInvoices: []
+      salesInvoices: [],
+      monthlyData: [],
     }
   }
 }

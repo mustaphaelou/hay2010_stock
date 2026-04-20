@@ -4,6 +4,8 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 import { StatsOverviewCard, type StatsOverviewCardProps } from "./stats-overview-card"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useReducedMotion } from "@/lib/hooks/use-reduced-motion"
+import { useIsMobile } from "@/lib/hooks/use-breakpoint"
 
 interface MetricConfig extends Omit<StatsOverviewCardProps, "value"> {
   id: string
@@ -66,14 +68,17 @@ export function RealtimeMetricsGrid({
 }: RealtimeMetricsGridProps) {
   const [visibleMetrics, setVisibleMetrics] = React.useState<typeof metrics>([])
   const [isTransitioning, setIsTransitioning] = React.useState(false)
+  const prefersReducedMotion = useReducedMotion()
+  const isMobile = useIsMobile()
+  const shouldAnimate = animated && !prefersReducedMotion
 
   React.useEffect(() => {
     const timeouts: NodeJS.Timeout[] = []
 
-    if (animated && metrics.length > 0) {
+    if (shouldAnimate && metrics.length > 0) {
       setIsTransitioning(true)
       setVisibleMetrics([])
-      
+
       metrics.forEach((_, index) => {
         const t1 = setTimeout(() => {
           setVisibleMetrics(metrics.slice(0, index + 1))
@@ -91,7 +96,7 @@ export function RealtimeMetricsGrid({
     return () => {
       timeouts.forEach(clearTimeout)
     }
-  }, [metrics, animated, staggerDelay])
+  }, [metrics, shouldAnimate, staggerDelay])
 
   if (loading) {
     return (
@@ -139,32 +144,35 @@ export function RealtimeMetricsGrid({
               className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-xl"
               aria-label={`${metric.title}: ${metric.value}`}
             >
-              <StatsOverviewCard
-                {...metric}
-                className={cn(
-                  "cursor-pointer transition-shadow",
-                  "hover:shadow-lg hover:shadow-primary/5"
-                )}
-                animated={animated}
-              />
-            </a>
-          ) : metric.onClick || onMetricClick ? (
-            <button
-              onClick={() => metric.onClick?.() || onMetricClick?.(metric)}
-              className="w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-xl"
-              type="button"
-              aria-label={`${metric.title}: ${metric.value}`}
-            >
-              <StatsOverviewCard
-                {...metric}
-                className="cursor-pointer hover:shadow-lg hover:shadow-primary/5"
-                animated={animated}
-              />
-            </button>
-          ) : (
-            <StatsOverviewCard
-              {...metric}
-              animated={animated}
+          <StatsOverviewCard
+            {...metric}
+            compact={isMobile}
+            className={cn(
+              "cursor-pointer transition-shadow",
+              "hover:shadow-lg hover:shadow-primary/5"
+            )}
+            animated={shouldAnimate}
+          />
+        </a>
+      ) : metric.onClick || onMetricClick ? (
+        <button
+          onClick={() => metric.onClick?.() || onMetricClick?.(metric)}
+          className="w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-xl"
+          type="button"
+          aria-label={`${metric.title}: ${metric.value}`}
+        >
+          <StatsOverviewCard
+            {...metric}
+            compact={isMobile}
+            className="cursor-pointer hover:shadow-lg hover:shadow-primary/5"
+            animated={shouldAnimate}
+          />
+        </button>
+      ) : (
+        <StatsOverviewCard
+          {...metric}
+          compact={isMobile}
+          animated={shouldAnimate}
             />
           )}
         </div>

@@ -32,72 +32,72 @@ const defaultShortcuts: ShortcutConfig[] = [
   {
     id: "command-palette",
     keys: ["⌘", "K"],
-    description: "Open command palette",
+    description: "Ouvrir la palette de commandes",
     action: () => {},
-    category: "General",
+    category: "Général",
   },
   {
     id: "toggle-sidebar",
     keys: ["⌘", "B"],
-    description: "Toggle sidebar",
+    description: "Basculer la barre latérale",
     action: () => {},
     category: "Navigation",
   },
   {
     id: "refresh",
     keys: ["⌘", "R"],
-    description: "Refresh data",
+    description: "Actualiser les données",
     action: () => {},
     category: "Actions",
   },
   {
     id: "search",
     keys: ["⌘", "/"],
-    description: "Focus search",
+    description: "Focus sur la recherche",
     action: () => {},
     category: "Navigation",
   },
   {
     id: "new-item",
     keys: ["⌘", "N"],
-    description: "Create new item",
+    description: "Créer un nouvel élément",
     action: () => {},
     category: "Actions",
   },
   {
     id: "save",
     keys: ["⌘", "S"],
-    description: "Save changes",
+    description: "Enregistrer les modifications",
     action: () => {},
     category: "Actions",
   },
   {
     id: "export",
     keys: ["⌘", "E"],
-    description: "Export data",
+    description: "Exporter les données",
     action: () => {},
     category: "Actions",
   },
   {
     id: "help",
     keys: ["?"],
-    description: "Show keyboard shortcuts",
+    description: "Afficher les raccourcis clavier",
     action: () => {},
-    category: "General",
+    category: "Général",
   },
   {
     id: "close",
     keys: ["Esc"],
-    description: "Close dialog/modal",
+    description: "Fermer la boîte de dialogue",
     action: () => {},
     category: "Navigation",
   },
   {
     id: "fullscreen",
     keys: ["F11"],
-    description: "Toggle fullscreen",
+    description: "Basculer en plein écran",
     action: () => {},
-    category: "View",
+    category: "Vue",
   },
 ]
 
@@ -255,13 +255,13 @@ function KeyboardShortcutsHelpDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <HugeiconsIcon icon={KeyboardIcon} strokeWidth={2} className="size-5" />
-            Keyboard Shortcuts
-          </DialogTitle>
-          <DialogDescription>
-            Use these shortcuts to navigate and perform actions quickly.
-          </DialogDescription>
+      <DialogTitle className="flex items-center gap-2">
+        <HugeiconsIcon icon={KeyboardIcon} strokeWidth={2} className="size-5" />
+        Raccourcis clavier
+      </DialogTitle>
+      <DialogDescription>
+        Utilisez ces raccourcis pour naviguer et effectuer des actions rapidement.
+      </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6 py-4">
@@ -286,11 +286,11 @@ function KeyboardShortcutsHelpDialog({
         </div>
 
         <div className="flex justify-between items-center pt-4 border-t">
-          <p className="text-xs text-muted-foreground">
-            Press <kbd className="px-1.5 py-0.5 rounded border bg-muted text-[10px] font-mono">?</kbd> anytime to show this dialog
-          </p>
-          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
-            Close
+    <p className="text-xs text-muted-foreground">
+      Appuyez sur <kbd className="px-1.5 py-0.5 rounded border bg-muted text-[10px] font-mono">?</kbd> à tout moment pour afficher cette boîte
+    </p>
+    <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
+      Fermer
           </Button>
         </div>
       </DialogContent>
@@ -393,7 +393,7 @@ export function KeyboardShortcutsButton({
         size="icon"
         onClick={() => setShowHelp(true)}
         className={cn("size-9", className)}
-        aria-label="Show keyboard shortcuts"
+        aria-label="Afficher les raccourcis clavier"
       >
         <HugeiconsIcon icon={KeyboardIcon} strokeWidth={2} className="size-4" />
       </Button>

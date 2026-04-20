@@ -264,6 +264,12 @@ export type PartnerWithComputed = {
 // DASHBOARD TYPES
 // =====================================================
 
+export type MonthlyDataPoint = {
+  month: string
+  ventes: number
+  achats: number
+}
+
 export type SalesInvoice = {
   montant_ttc: Prisma.Decimal
   solde_du: Prisma.Decimal
@@ -278,12 +284,17 @@ export type DashboardStats = {
   families: number
   salesCount: number
   purchasesCount: number
+  lowStockCount: number
+  totalStockProducts: number
+  monthlyRevenue?: number
+  pendingOrders?: number
 }
 
 export type DashboardData = {
   stats: DashboardStats
   recentDocs: DocumentBase[]
   salesInvoices: SalesInvoice[]
+  monthlyData: MonthlyDataPoint[]
 }
 
 export type DashboardDataWithComputed = {

@@ -22,6 +22,8 @@ import {
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { SafeIcon as HugeiconsIcon } from "@/components/ui/safe-icon"
+import { useReducedMotion } from "@/lib/hooks/use-reduced-motion"
+import { useIsMobile } from "@/lib/hooks/use-breakpoint"
 import {
   ArrowDown01Icon,
   ArrowUp01Icon,
@@ -88,12 +90,20 @@ function ChartSkeleton({ height = 300 }: { height?: number }) {
 }
 
 const chartTypeOptions: { value: ChartType; label: string }[] = [
-  { value: "area", label: "Area" },
-  { value: "bar", label: "Bar" },
-  { value: "line", label: "Line" },
+  { value: "area", label: "Aire" },
+  { value: "bar", label: "Barres" },
+  { value: "line", label: "Ligne" },
 ]
 
-export function InteractiveChartCard({
+const timeRangeLabels: Record<TimeRange, string> = {
+  "7d": "7 derniers jours",
+  "30d": "30 derniers jours",
+  "90d": "90 derniers jours",
+  "1y": "Dernière année",
+  "all": "Tout",
+}
+
+export const InteractiveChartCard = React.memo(function InteractiveChartCard({
   title,
   description,
   data,
@@ -118,20 +128,32 @@ export function InteractiveChartCard({
   const [mounted, setMounted] = React.useState(false)
   const [timeRange, setTimeRange] = React.useState<TimeRange>(defaultTimeRange)
   const [chartType, setChartType] = React.useState<ChartType>(initialChartType)
+  const prefersReducedMotion = useReducedMotion()
+  const isMobile = useIsMobile()
+  const debounceTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
 
   React.useEffect(() => {
     setMounted(true)
   }, [])
 
-  const handleTimeRangeChange = (value: TimeRange) => {
-    setTimeRange(value)
-    onTimeRangeChange?.(value)
-  }
+  const handleTimeRangeChange = React.useCallback((value: TimeRange) => {
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current)
+    debounceTimerRef.current = setTimeout(() => {
+      setTimeRange(value)
+      onTimeRangeChange?.(value)
+    }, 300)
+  }, [onTimeRangeChange])
 
-  const handleChartTypeChange = (value: ChartType) => {
+  const handleChartTypeChange = React.useCallback((value: ChartType) => {
     setChartType(value)
     onChartTypeChange?.(value)
-  }
+  }, [onChartTypeChange])
+
+  React.useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current)
+    }
+  }, [])
 
   const chartConfig = React.useMemo(() => generateChartConfig(series), [series])
 
@@ -165,11 +187,13 @@ export function InteractiveChartCard({
     })
   }, [data, timeRange])
 
-  const trend = React.useMemo(() => {
-    if (!filteredData.length || filteredData.length < 2) return null
+  const deferredData = React.useDeferredValue(filteredData)
 
-    const firstValue = Number(filteredData[0][series[0]?.key] || 0)
-    const lastValue = Number(filteredData[filteredData.length - 1][series[0]?.key] || 0)
+  const trend = React.useMemo(() => {
+    if (!deferredData.length || deferredData.length < 2) return null
+
+    const firstValue = Number(deferredData[0][series[0]?.key] || 0)
+    const lastValue = Number(deferredData[deferredData.length - 1][series[0]?.key] || 0)
 
     if (firstValue === 0) return null
 
@@ -180,7 +204,7 @@ export function InteractiveChartCard({
       value: Math.abs(percentChange).toFixed(1),
       direction,
     }
-  }, [filteredData, series])
+  }, [deferredData, series])
 
   if (!mounted || loading) {
     return (
@@ -198,8 +222,9 @@ export function InteractiveChartCard({
 
   const renderChart = () => {
     const commonProps = {
-      data: filteredData,
+      data: deferredData,
       accessibilityLayer: true,
+      isAnimationActive: !prefersReducedMotion,
     }
 
     const renderSeries = () => {
@@ -222,6 +247,7 @@ export function InteractiveChartCard({
                 stroke={`var(--color-${s.key})`}
                 strokeWidth={2}
                 dot={false}
+                isAnimationActive={!prefersReducedMotion}
               />
             )
           case "area":
@@ -235,6 +261,7 @@ export function InteractiveChartCard({
                 stroke={`var(--color-${s.key})`}
                 fillOpacity={0.4}
                 stackId="a"
+                isAnimationActive={!prefersReducedMotion}
               />
             )
         }
@@ -244,7 +271,7 @@ export function InteractiveChartCard({
     const ChartComponent = chartType === "bar" ? BarChart : chartType === "line" ? LineChart : AreaChart
 
     return (
-      <ChartContainer config={chartConfig} className={`h-[${height}px] w-full`} style={{ height }}>
+      <ChartContainer config={chartConfig} className="h-[300px] w-full" style={{ height }}>
         <ChartComponent {...commonProps}>
           <defs>
             {series.map((s) => (
@@ -287,7 +314,7 @@ export function InteractiveChartCard({
   }
 
   return (
-    <Card className={cn("overflow-hidden", className)}>
+    <Card className={cn("overflow-hidden", className)} role="region" aria-label={description || title}>
       <CardHeader className="pb-2">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -302,6 +329,7 @@ export function InteractiveChartCard({
                     "flex items-center gap-1 text-sm font-medium",
                     trend.direction === "up" ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
                   )}
+                  aria-live="polite"
                 >
                   <HugeiconsIcon
                     icon={trend.direction === "up" ? ArrowUp01Icon : ArrowDown01Icon}
@@ -311,8 +339,8 @@ export function InteractiveChartCard({
                   <span>{trend.value}%</span>
                 </div>
               )}
-              {enableChartTypeSelector && (
-                <div className="hidden sm:flex gap-1" role="group" aria-label="Chart type">
+              {enableChartTypeSelector && !isMobile && (
+                <div className="hidden sm:flex gap-1" role="group" aria-label="Type de graphique">
                   {chartTypeOptions.map((option) => (
                     <Button
                       key={option.value}
@@ -320,12 +348,29 @@ export function InteractiveChartCard({
                       size="xs"
                       onClick={() => handleChartTypeChange(option.value)}
                       aria-pressed={chartType === option.value}
-                      aria-label={`${option.label} chart`}
+                      aria-label={`Graphique ${option.label}`}
                     >
                       {option.label}
                     </Button>
                   ))}
                 </div>
+              )}
+              {enableChartTypeSelector && isMobile && (
+                <Select
+                  value={chartType}
+                  onValueChange={(value) => handleChartTypeChange(value as ChartType)}
+                >
+                  <SelectTrigger className="w-[100px] rounded-lg" aria-label="Type de graphique">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl">
+                    {chartTypeOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               )}
               {enableTimeRangeSelector && (
                 <Select
@@ -333,27 +378,27 @@ export function InteractiveChartCard({
                   onValueChange={(value) => handleTimeRangeChange(value as TimeRange)}
                 >
                   <SelectTrigger
-                    className="w-[100px] rounded-lg sm:ml-auto"
-                    aria-label="Select time range"
+                    className="w-[140px] rounded-lg sm:ml-auto"
+                    aria-label="Plage de dates"
                   >
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="rounded-xl">
-                    <SelectItem value="7d">Last 7 days</SelectItem>
-                    <SelectItem value="30d">Last 30 days</SelectItem>
-                    <SelectItem value="90d">Last 90 days</SelectItem>
-                    <SelectItem value="1y">Last year</SelectItem>
-                    <SelectItem value="all">All time</SelectItem>
+                    {(Object.keys(timeRangeLabels) as TimeRange[]).map((range) => (
+                      <SelectItem key={range} value={range}>
+                        {timeRangeLabels[range]}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               )}
               {enableFullScreen && (
-                <Button variant="ghost" size="icon-xs" aria-label="Full screen">
+                <Button variant="ghost" size="icon-xs" aria-label="Plein écran">
                   <HugeiconsIcon icon={FullScreenIcon} strokeWidth={2} className="size-4" />
                 </Button>
               )}
               {enableDownload && (
-                <Button variant="ghost" size="icon-xs" aria-label="Download">
+                <Button variant="ghost" size="icon-xs" aria-label="Télécharger">
                   <HugeiconsIcon icon={Download02Icon} strokeWidth={2} className="size-4" />
                 </Button>
               )}
@@ -366,6 +411,6 @@ export function InteractiveChartCard({
       </CardContent>
     </Card>
   )
-}
+})
 
 export type { DataPoint, SeriesConfig, InteractiveChartCardProps }

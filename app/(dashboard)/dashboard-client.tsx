@@ -1,16 +1,14 @@
 "use client"
 
 import * as React from "react"
-import { Suspense } from "react"
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
-import { SiteHeader } from "@/components/erp/site-header"
+import { useRouter } from "next/navigation"
+import type { DocumentWithComputed, DashboardStats, SalesInvoice, MonthlyDataPoint } from "@/lib/types"
+import { EnhancedDashboardView, ThemeCustomizer } from "@/components/dashboard/enhanced"
 import { DashboardView } from "@/components/erp/dashboard-view"
-import { BottomNav } from "@/components/erp/bottom-nav"
-import { ClientSidebar as AppSidebar } from "@/components/erp/client-sidebar"
-import type { DocumentWithComputed, DashboardStats, SalesInvoice } from "@/lib/types"
-import { EnhancedDashboardView } from "@/components/dashboard/enhanced"
+import { DashboardProvider, useDashboardRefresh } from "@/components/dashboard/enhanced/dashboard-context"
 import { Button } from "@/components/ui/button"
 import { SafeIcon as HugeiconsIcon } from "@/components/ui/safe-icon"
+import { toast } from "sonner"
 import {
   LayoutIcon,
   SparklesIcon,
@@ -21,10 +19,15 @@ interface DashboardClientProps {
   stats: DashboardStats
   recentDocs: DocumentWithComputed[]
   salesInvoices: SalesInvoice[]
+  monthlyData: MonthlyDataPoint[]
 }
 
-export function DashboardClient({ stats, recentDocs, salesInvoices }: DashboardClientProps) {
+function DashboardClientInner({ stats, recentDocs, salesInvoices, monthlyData }: DashboardClientProps) {
+  const router = useRouter()
   const [viewMode, setViewMode] = React.useState<"classic" | "enhanced">("classic")
+  const [showThemeCustomizer, setShowThemeCustomizer] = React.useState(false)
+  const { refresh: contextRefresh } = useDashboardRefresh()
+
   const processedDocs = recentDocs.map(doc => ({
     id_document: doc.id_document,
     numero_piece: doc.numero_piece,
@@ -43,7 +46,6 @@ export function DashboardClient({ stats, recentDocs, salesInvoices }: DashboardC
     gauges,
     chartData,
     paymentData,
-    monthlyData,
   } = React.useMemo(() => {
     let regle = 0, partiel = 0, encours = 0
     salesInvoices.forEach((inv) => {
@@ -63,21 +65,6 @@ export function DashboardClient({ stats, recentDocs, salesInvoices }: DashboardC
       { name: "En cours", value: encours, fill: "hsl(215, 20%, 65%)" },
     ]
 
-    const monthlyMap = new Map<string, { ventes: number; achats: number }>()
-    const now = new Date()
-
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
-      const key = d.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' })
-      monthlyMap.set(key, { ventes: 0, achats: 0 })
-    }
-
-    const monthlyData = Array.from(monthlyMap.entries()).map(([month, data]) => ({
-      month,
-      ventes: data.ventes,
-      achats: data.achats
-    }))
-
     const kpiCards = [
       {
         id: "clients",
@@ -87,7 +74,6 @@ export function DashboardClient({ stats, recentDocs, salesInvoices }: DashboardC
         icon: Invoice01Icon,
         iconColor: "text-primary",
         variant: "success" as const,
-        trend: { value: 12, direction: "up" as const, label: "+12% ce mois" },
       },
       {
         id: "suppliers",
@@ -124,7 +110,6 @@ export function DashboardClient({ stats, recentDocs, salesInvoices }: DashboardC
         icon: Invoice01Icon,
         iconColor: "text-emerald-500",
         variant: "success" as const,
-        trend: { value: 8, direction: "up" as const },
       },
       {
         id: "purchases",
@@ -147,11 +132,13 @@ export function DashboardClient({ stats, recentDocs, salesInvoices }: DashboardC
       href: `/documents/${doc.id_document}`,
     }))
 
-    const paymentPercentage = stats.salesCount > 0 
+    const paymentPercentage = stats.salesCount > 0
       ? Math.round((regle / stats.salesCount) * 100)
       : 0
 
-    const stockPercentage = 75
+    const stockPercentage = stats.totalStockProducts > 0
+      ? Math.round(((stats.totalStockProducts - stats.lowStockCount) / stats.totalStockProducts) * 100)
+      : 100
 
     const gauges = [
       {
@@ -192,84 +179,168 @@ export function DashboardClient({ stats, recentDocs, salesInvoices }: DashboardC
       gauges,
       chartData,
       paymentData,
-      monthlyData,
     }
-  }, [stats, recentDocs, salesInvoices])
+  }, [stats, recentDocs, salesInvoices, monthlyData])
+
+  const handleRefresh = React.useCallback(async () => {
+    try {
+      router.refresh()
+      await contextRefresh()
+      toast.success("Données mises à jour")
+    } catch {
+      toast.error("Erreur lors de l'actualisation")
+    }
+  }, [router, contextRefresh])
+
+  const handleExport = React.useCallback(() => {
+    const headers = ["Mois", "Ventes (MAD)", "Achats (MAD)"]
+    const rows = monthlyData.map(d => [d.month, d.ventes.toString(), d.achats.toString()])
+    const csv = [headers.join(","), ...rows.map(r => r.join(","))].join("\n")
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `tableau-de-bord-${new Date().toISOString().split("T")[0]}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+    toast.success("Export réussi")
+  }, [monthlyData])
+
+  React.useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0
+      const cmdKey = isMac ? event.metaKey : event.ctrlKey
+
+      if (cmdKey && event.key.toLowerCase() === "r") {
+        event.preventDefault()
+        handleRefresh()
+      }
+      if (cmdKey && event.key.toLowerCase() === "e") {
+        event.preventDefault()
+        handleExport()
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [handleRefresh, handleExport])
 
   return (
-    <SidebarProvider
-      style={
-        {
-          "--sidebar-width": "280px",
-          "--header-height": "3.5rem",
-        } as React.CSSProperties
-      }
-    >
-      <Suspense fallback={<div className="hidden md:block w-[--sidebar-width] bg-sidebar border-r h-svh" />}>
-        <AppSidebar />
-      </Suspense>
-      <SidebarInset>
-        <SiteHeader />
-        <div className="flex flex-1 flex-col gap-4 p-4 pt-0 pb-20 md:gap-8 md:p-8 md:pb-8">
-          <div className="flex items-center justify-end gap-2">
-            <div className="flex gap-1 border rounded-lg p-1 bg-muted/30">
-              <Button
-                variant={viewMode === "classic" ? "default" : "ghost"}
-                size="xs"
-                onClick={() => setViewMode("classic")}
-                className="gap-1.5"
-                aria-label="Classic view"
-              >
-                <HugeiconsIcon icon={LayoutIcon} strokeWidth={2} className="size-4" />
-                <span className="hidden sm:inline">Classic</span>
-              </Button>
-              <Button
-                variant={viewMode === "enhanced" ? "default" : "ghost"}
-                size="xs"
-                onClick={() => setViewMode("enhanced")}
-                className="gap-1.5"
-                aria-label="Enhanced view"
-              >
-                <HugeiconsIcon icon={SparklesIcon} strokeWidth={2} className="size-4" />
-                <span className="hidden sm:inline">Enhanced</span>
-              </Button>
-            </div>
-          </div>
-
-          {viewMode === "enhanced" ? (
-            <EnhancedDashboardView
-              title="Tableau de bord"
-              description="Vue d'ensemble de vos activités commerciales"
-              kpiCards={kpiCards}
-              charts={[
-                {
-                  id: "sales-vs-purchases",
-                  title: "Ventes vs Achats",
-                  description: "Comparaison mensuelle des ventes et achats",
-                  data: chartData,
-                  series: [
-                    { key: "ventes", label: "Ventes", color: "hsl(142, 76%, 36%)" },
-                    { key: "achats", label: "Achats", color: "hsl(262, 83%, 58%)" },
-                  ],
-                  chartType: "area",
-                  defaultTimeRange: "all",
-                },
-              ]}
-              activities={activities}
-              gauges={gauges}
-              showViewToggle
-            />
-          ) : (
-      <DashboardView
-        initialStats={stats}
-        initialRecentDocs={processedDocs}
-        paymentData={paymentData}
-        monthlyData={monthlyData}
-      />
-          )}
+    <div id="main-content" className="flex flex-1 flex-col gap-4 p-4 pt-0 pb-20 md:gap-8 md:p-8 md:pb-8">
+      <div className="flex items-center justify-end gap-2">
+        <div className="flex gap-1 border rounded-lg p-1 bg-muted/30" role="tablist" aria-label="Mode de vue">
+          <Button
+            variant={viewMode === "classic" ? "default" : "ghost"}
+            size="xs"
+            onClick={() => setViewMode("classic")}
+            className="gap-1.5"
+            role="tab"
+            aria-selected={viewMode === "classic"}
+            aria-label="Vue classique"
+          >
+            <HugeiconsIcon icon={LayoutIcon} strokeWidth={2} className="size-4" />
+            <span className="hidden sm:inline">Classique</span>
+          </Button>
+          <Button
+            variant={viewMode === "enhanced" ? "default" : "ghost"}
+            size="xs"
+            onClick={() => setViewMode("enhanced")}
+            className="gap-1.5"
+            role="tab"
+            aria-selected={viewMode === "enhanced"}
+            aria-label="Vue avancée"
+          >
+            <HugeiconsIcon icon={SparklesIcon} strokeWidth={2} className="size-4" />
+            <span className="hidden sm:inline">Avancée</span>
+          </Button>
         </div>
-        <BottomNav />
-      </SidebarInset>
-    </SidebarProvider>
+      </div>
+
+      <div
+        aria-live="polite"
+        aria-atomic="true"
+        className="sr-only"
+      >
+        {viewMode === "enhanced" ? "Vue avancée activée" : "Vue classique activée"}
+      </div>
+
+      {viewMode === "enhanced" ? (
+        <EnhancedDashboardView
+          title="Tableau de bord"
+          description="Vue d'ensemble de vos activités commerciales"
+          kpiCards={kpiCards}
+          charts={[
+            {
+              id: "sales-vs-purchases",
+              title: "Ventes vs Achats",
+              description: "Comparaison mensuelle des ventes et achats",
+              data: chartData,
+              series: [
+                { key: "ventes", label: "Ventes", color: "hsl(142, 76%, 36%)" },
+                { key: "achats", label: "Achats", color: "hsl(262, 83%, 58%)" },
+              ],
+              chartType: "area",
+              defaultTimeRange: "all",
+            },
+          ]}
+          activities={activities}
+          gauges={gauges}
+          onRefresh={handleRefresh}
+          onExport={handleExport}
+          onSettings={() => setShowThemeCustomizer(true)}
+          showViewToggle
+        />
+      ) : (
+        <DashboardView
+          initialStats={stats}
+          initialRecentDocs={processedDocs}
+          paymentData={paymentData}
+          monthlyData={monthlyData}
+        />
+      )}
+
+      <ThemeCustomizer
+        onThemeChange={(theme) => {
+          const root = document.documentElement
+          root.style.setProperty("--primary", theme.primary)
+          root.style.setProperty("--accent", theme.accent)
+          root.style.setProperty("--background", theme.background)
+          root.style.setProperty("--foreground", theme.foreground)
+          root.style.setProperty("--radius", `${theme.radius}px`)
+          localStorage.setItem("dashboard-theme", JSON.stringify(theme))
+          toast.success("Thème appliqué")
+        }}
+        trigger={<span className="hidden" />}
+      />
+
+      {showThemeCustomizer && (
+        <ThemeCustomizer
+          onThemeChange={(theme) => {
+            const root = document.documentElement
+            root.style.setProperty("--primary", theme.primary)
+            root.style.setProperty("--accent", theme.accent)
+            root.style.setProperty("--background", theme.background)
+            root.style.setProperty("--foreground", theme.foreground)
+            root.style.setProperty("--radius", `${theme.radius}px`)
+            localStorage.setItem("dashboard-theme", JSON.stringify(theme))
+            setShowThemeCustomizer(false)
+            toast.success("Thème appliqué")
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+export function DashboardClient(props: DashboardClientProps) {
+  return (
+    <DashboardProvider autoRefresh refreshInterval={60000} initialData={{
+      stats: props.stats,
+      recentDocs: [],
+      salesInvoices: props.salesInvoices,
+      monthlyData: props.monthlyData,
+    }}>
+      <DashboardClientInner {...props} />
+    </DashboardProvider>
   )
 }

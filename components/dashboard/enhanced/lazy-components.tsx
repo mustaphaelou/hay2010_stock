@@ -19,6 +19,18 @@ const LazyEnhancedDataTable = React.lazy(() =>
   import("./enhanced-data-table").then((mod) => ({ default: mod.EnhancedDataTable }))
 )
 
+const LazyRecentActivityFeed = React.lazy(() =>
+  import("./recent-activity-feed").then((mod) => ({ default: mod.RecentActivityFeed }))
+)
+
+const LazyAlertsWidget = React.lazy(() =>
+  import("../widgets/alerts-widget").then((mod) => ({ default: mod.AlertsWidget }))
+)
+
+const LazyTopProductsWidget = React.lazy(() =>
+  import("../widgets/top-products-widget").then((mod) => ({ default: mod.TopProductsWidget }))
+)
+
 function ChartLoadingFallback({ height = 300 }: { height?: number }) {
   return (
     <Card className="overflow-hidden">
@@ -93,6 +105,48 @@ function TableLoadingFallback() {
   )
 }
 
+function ActivityLoadingFallback() {
+  return (
+    <Card className="overflow-hidden">
+      <CardHeader className="pb-3">
+        <Skeleton className="h-4 w-32" />
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="flex items-start gap-3 p-3">
+            <Skeleton className="size-10 rounded-lg shrink-0" />
+            <div className="flex-1 space-y-2">
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-3 w-1/2" />
+            </div>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  )
+}
+
+function WidgetLoadingFallback() {
+  return (
+    <Card className="overflow-hidden">
+      <CardHeader className="pb-3">
+        <Skeleton className="h-4 w-32" />
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="flex items-center gap-3 p-2">
+            <Skeleton className="size-8 rounded-lg" />
+            <div className="flex-1 space-y-1">
+              <Skeleton className="h-3 w-3/4" />
+              <Skeleton className="h-3 w-1/2" />
+            </div>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  )
+}
+
 interface LazyLoadProps {
   children: React.ReactNode
   fallback?: React.ReactNode
@@ -115,7 +169,7 @@ class ErrorBoundary extends React.Component<
 
   render() {
     if (this.state.hasError) {
-      return this.props.fallback || <div>Something went wrong</div>
+      return this.props.fallback || <div>Une erreur est survenue</div>
     }
     return this.props.children
   }
@@ -152,7 +206,7 @@ const LazyLoad = React.memo(function LazyLoad({
     <div ref={ref} className={className} style={{ minHeight: isVisible ? undefined : height }}>
       {isVisible ? (
         <React.Suspense fallback={fallback || <Skeleton className="w-full h-full" />}>
-          <ErrorBoundary fallback={<div>Something went wrong</div>}>
+          <ErrorBoundary fallback={<div>Une erreur est survenue</div>}>
             {children}
           </ErrorBoundary>
         </React.Suspense>
@@ -192,14 +246,43 @@ function LazyEnhancedDataTableWrapper<TData, TValue>(props: EnhancedDataTablePro
   )
 }
 
+function LazyRecentActivityFeedWrapper(props: React.ComponentProps<typeof LazyRecentActivityFeed>) {
+  return (
+    <React.Suspense fallback={<ActivityLoadingFallback />}>
+      <LazyRecentActivityFeed {...props} />
+    </React.Suspense>
+  )
+}
+
+function LazyAlertsWidgetWrapper(props: React.ComponentProps<typeof LazyAlertsWidget>) {
+  return (
+    <React.Suspense fallback={<WidgetLoadingFallback />}>
+      <LazyAlertsWidget {...props} />
+    </React.Suspense>
+  )
+}
+
+function LazyTopProductsWidgetWrapper(props: React.ComponentProps<typeof LazyTopProductsWidget>) {
+  return (
+    <React.Suspense fallback={<WidgetLoadingFallback />}>
+      <LazyTopProductsWidget {...props} />
+    </React.Suspense>
+  )
+}
+
 export {
   LazyLoad,
   LazyInteractiveChartCardWrapper as LazyInteractiveChartCard,
   LazyPerformanceGaugeWrapper as LazyPerformanceGauge,
   LazyEnhancedDataTableWrapper as LazyEnhancedDataTable,
+  LazyRecentActivityFeedWrapper as LazyRecentActivityFeed,
+  LazyAlertsWidgetWrapper as LazyAlertsWidget,
+  LazyTopProductsWidgetWrapper as LazyTopProductsWidget,
   ChartLoadingFallback,
   GaugeLoadingFallback,
   TableLoadingFallback,
+  ActivityLoadingFallback,
+  WidgetLoadingFallback,
   ErrorBoundary,
 }
 

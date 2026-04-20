@@ -3,12 +3,15 @@
 import * as React from "react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { ChartLoadingFallback, GaugeLoadingFallback, LazyLoad, ErrorBoundary } from "./lazy-components"
 import { InteractiveChartCard, type ChartType, type TimeRange, type DataPoint } from "./interactive-chart-card"
 import type { StatsOverviewCardProps } from "./stats-overview-card"
 import { RealtimeMetricsGrid } from "./realtime-metrics-grid"
 import { DashboardHeader, type BreadcrumbItemType } from "./dashboard-header"
 import { RecentActivityFeed, type ActivityItem } from "./recent-activity-feed"
 import { PerformanceGauge, type Threshold } from "./performance-gauge"
+import { useReducedMotion } from "@/lib/hooks/use-reduced-motion"
+import { useIsMobile } from "@/lib/hooks/use-breakpoint"
 import { SafeIcon as HugeiconsIcon } from "@/components/ui/safe-icon"
 import {
   LayoutGridIcon,
@@ -76,8 +79,8 @@ const LoadingSkeleton = React.memo(function LoadingSkeleton() {
 })
 
 export const EnhancedDashboardView = React.memo(function EnhancedDashboardView({
-  title = "Dashboard",
-  description = "Overview of your business metrics",
+  title = "Tableau de bord",
+  description = "Vue d'ensemble de vos activités commerciales",
   breadcrumbs = [],
   kpiCards = [],
   charts = [],
@@ -92,6 +95,8 @@ export const EnhancedDashboardView = React.memo(function EnhancedDashboardView({
 }: EnhancedDashboardViewProps) {
   const [viewMode, setViewMode] = React.useState<"grid" | "compact">("grid")
   const [isRefreshing, setIsRefreshing] = React.useState(false)
+  const prefersReducedMotion = useReducedMotion()
+  const isMobile = useIsMobile()
 
   const handleRefresh = React.useCallback(async () => {
     if (onRefresh) {
@@ -102,15 +107,15 @@ export const EnhancedDashboardView = React.memo(function EnhancedDashboardView({
         setIsRefreshing(false)
       }
     }
-}, [onRefresh])
+  }, [onRefresh])
 
   const metricsData = React.useMemo(() => kpiCards, [kpiCards])
 
   const defaultBreadcrumbs: BreadcrumbItemType[] = React.useMemo(() => {
     if (breadcrumbs.length > 0) return breadcrumbs
     return [
-      { label: "Home", href: "/" },
-      { label: "Dashboard" },
+      { label: "Accueil", href: "/" },
+      { label: "Tableau de bord" },
     ]
   }, [breadcrumbs])
 
@@ -140,12 +145,14 @@ export const EnhancedDashboardView = React.memo(function EnhancedDashboardView({
         isLoading={isRefreshing}
       >
         {showViewToggle && (
-          <div className="flex gap-1 border rounded-lg p-1">
+          <div className="flex gap-1 border rounded-lg p-1" role="tablist" aria-label="Affichage">
             <Button
               variant={viewMode === "grid" ? "default" : "ghost"}
               size="xs"
               onClick={() => setViewMode("grid")}
-              aria-label="Grid view"
+              aria-label="Vue grille"
+              role="tab"
+              aria-selected={viewMode === "grid"}
             >
               <HugeiconsIcon icon={LayoutGridIcon} strokeWidth={2} className="size-4" />
             </Button>
@@ -153,7 +160,9 @@ export const EnhancedDashboardView = React.memo(function EnhancedDashboardView({
               variant={viewMode === "compact" ? "default" : "ghost"}
               size="xs"
               onClick={() => setViewMode("compact")}
-              aria-label="Compact view"
+              aria-label="Vue compacte"
+              role="tab"
+              aria-selected={viewMode === "compact"}
             >
               <HugeiconsIcon icon={LayoutIcon} strokeWidth={2} className="size-4" />
             </Button>
@@ -162,11 +171,11 @@ export const EnhancedDashboardView = React.memo(function EnhancedDashboardView({
       </DashboardHeader>
 
       {kpiCards.length > 0 && (
-        <section aria-label="Key Performance Indicators">
+        <section aria-label="Indicateurs clés de performance" aria-live="polite">
           <RealtimeMetricsGrid
             metrics={metricsData}
-            columns={4}
-            animated
+            columns={isMobile ? 2 : 4}
+            animated={!prefersReducedMotion}
           />
         </section>
       )}
@@ -176,18 +185,21 @@ export const EnhancedDashboardView = React.memo(function EnhancedDashboardView({
         viewMode === "grid" ? "lg:grid-cols-2" : "lg:grid-cols-1"
       )}>
         {charts.map((chart) => (
-          <InteractiveChartCard
-            key={chart.id}
-            title={chart.title}
-            description={chart.description}
-            data={chart.data}
-            series={chart.series}
-            chartType={chart.chartType}
-            defaultTimeRange={chart.defaultTimeRange}
-            enableTimeRangeSelector
-            enableChartTypeSelector
-            height={300}
-          />
+          <ErrorBoundary key={chart.id} fallback={<ChartLoadingFallback height={300} />}>
+            <React.Suspense fallback={<ChartLoadingFallback height={300} />}>
+              <InteractiveChartCard
+                title={chart.title}
+                description={chart.description}
+                data={chart.data}
+                series={chart.series}
+                chartType={chart.chartType}
+                defaultTimeRange={chart.defaultTimeRange}
+                enableTimeRangeSelector
+                enableChartTypeSelector
+                height={300}
+              />
+            </React.Suspense>
+          </ErrorBoundary>
         ))}
       </div>
 
@@ -199,10 +211,10 @@ export const EnhancedDashboardView = React.memo(function EnhancedDashboardView({
           <div className={cn(viewMode === "grid" ? "lg:col-span-2" : "")}>
             <RecentActivityFeed
               items={activities}
-              title="Recent Activity"
+              title="Activité récente"
               maxItems={5}
               showViewAll
-              viewAllHref="/activity"
+              viewAllHref="/documents"
             />
           </div>
         )}
@@ -210,16 +222,20 @@ export const EnhancedDashboardView = React.memo(function EnhancedDashboardView({
         {gauges.length > 0 && (
           <div className="grid gap-4 sm:grid-cols-2">
             {gauges.map((gauge) => (
-              <PerformanceGauge
-                key={gauge.id}
-                title={gauge.title}
-                description={gauge.description}
-                value={gauge.value}
-                max={gauge.max}
-                thresholds={gauge.thresholds}
-                size="sm"
-                showPercentage
-              />
+              <ErrorBoundary key={gauge.id} fallback={<GaugeLoadingFallback />}>
+                <LazyLoad height={200}>
+                  <PerformanceGauge
+                    title={gauge.title}
+                    description={gauge.description}
+                    value={gauge.value}
+                    max={gauge.max}
+                    thresholds={gauge.thresholds}
+                    size="sm"
+                    showPercentage
+                    animated={!prefersReducedMotion}
+                  />
+                </LazyLoad>
+              </ErrorBoundary>
             ))}
           </div>
         )}

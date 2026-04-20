@@ -5,8 +5,9 @@ export interface DashboardStats {
   families: number
   salesCount: number
   purchasesCount: number
+  lowStockCount: number
+  totalStockProducts: number
   monthlyRevenue?: number
-  lowStock?: number
   pendingOrders?: number
 }
 

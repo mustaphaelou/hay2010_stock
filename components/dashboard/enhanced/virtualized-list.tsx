@@ -92,7 +92,18 @@ function VirtualizedListInner<T>({
   }, [scrollTop, containerHeight, items, itemPositions, overscan, itemHeight, getItemHeight])
 
   const handleScroll = React.useCallback((e: React.UIEvent<HTMLDivElement>) => {
-    setScrollTop(e.currentTarget.scrollTop)
+    if (rafRef.current) cancelAnimationFrame(rafRef.current)
+    rafRef.current = requestAnimationFrame(() => {
+      setScrollTop(e.currentTarget.scrollTop)
+    })
+  }, [])
+
+  const rafRef = React.useRef<number | null>(null)
+
+  React.useEffect(() => {
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current)
+    }
   }, [])
 
   React.useEffect(() => {

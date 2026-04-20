@@ -30,26 +30,38 @@ interface ThemePreset {
   accent: string
   background: string
   foreground: string
+  darkPrimary?: string
+  darkAccent?: string
+  darkBackground?: string
+  darkForeground?: string
   radius: number
 }
 
 const themePresets: ThemePreset[] = [
   {
     id: "default",
-    name: "Default",
+    name: "Par défaut",
     primary: "hsl(222.2 47.4% 11.2%)",
     accent: "hsl(210 40% 96.1%)",
     background: "hsl(0 0% 100%)",
     foreground: "hsl(222.2 47.4% 11.2%)",
+    darkPrimary: "hsl(210 40% 98%)",
+    darkAccent: "hsl(217.2 32.6% 17.5%)",
+    darkBackground: "hsl(222.2 47.4% 11.2%)",
+    darkForeground: "hsl(210 40% 98%)",
     radius: 8,
   },
   {
     id: "emerald",
-    name: "Emerald",
+    name: "Émeraude",
     primary: "hsl(160 84% 39%)",
     accent: "hsl(160 84% 95%)",
     background: "hsl(0 0% 100%)",
     foreground: "hsl(160 84% 10%)",
+    darkPrimary: "hsl(160 84% 60%)",
+    darkAccent: "hsl(160 84% 15%)",
+    darkBackground: "hsl(160 20% 6%)",
+    darkForeground: "hsl(160 84% 90%)",
     radius: 12,
   },
   {
@@ -59,6 +71,10 @@ const themePresets: ThemePreset[] = [
     accent: "hsl(262 83% 95%)",
     background: "hsl(0 0% 100%)",
     foreground: "hsl(262 83% 10%)",
+    darkPrimary: "hsl(262 83% 70%)",
+    darkAccent: "hsl(262 83% 15%)",
+    darkBackground: "hsl(262 20% 6%)",
+    darkForeground: "hsl(262 83% 90%)",
     radius: 8,
   },
   {
@@ -68,15 +84,23 @@ const themePresets: ThemePreset[] = [
     accent: "hsl(346 77% 95%)",
     background: "hsl(0 0% 100%)",
     foreground: "hsl(346 77% 10%)",
+    darkPrimary: "hsl(346 77% 65%)",
+    darkAccent: "hsl(346 77% 15%)",
+    darkBackground: "hsl(346 20% 6%)",
+    darkForeground: "hsl(346 77% 90%)",
     radius: 6,
   },
   {
     id: "amber",
-    name: "Amber",
+    name: "Ambre",
     primary: "hsl(38 92% 50%)",
     accent: "hsl(38 92% 95%)",
     background: "hsl(0 0% 100%)",
     foreground: "hsl(38 92% 10%)",
+    darkPrimary: "hsl(38 92% 65%)",
+    darkAccent: "hsl(38 92% 15%)",
+    darkBackground: "hsl(38 20% 6%)",
+    darkForeground: "hsl(38 92% 90%)",
     radius: 10,
   },
   {
@@ -86,6 +110,10 @@ const themePresets: ThemePreset[] = [
     accent: "hsl(189 94% 95%)",
     background: "hsl(0 0% 100%)",
     foreground: "hsl(189 94% 10%)",
+    darkPrimary: "hsl(189 94% 60%)",
+    darkAccent: "hsl(189 94% 15%)",
+    darkBackground: "hsl(189 20% 6%)",
+    darkForeground: "hsl(189 94% 90%)",
     radius: 8,
   },
 ]
@@ -174,7 +202,7 @@ function ColorPicker({
           value={hexValue}
           onChange={(e) => onChange(hexToHsl(e.target.value))}
           className="size-10 rounded-lg border cursor-pointer"
-          aria-label={`Pick ${label} color`}
+          aria-label={`Couleur ${label}`}
         />
         <code className="text-xs text-muted-foreground font-mono">{value}</code>
       </div>
@@ -184,12 +212,20 @@ function ColorPicker({
 
 function ThemePreview({ theme, mode }: { theme: ThemePreset; mode: "light" | "dark" }) {
   const bgStyle = mode === "dark"
-    ? { background: "hsl(222.2 47.4% 11.2%)" }
+    ? { background: theme.darkBackground || "hsl(222.2 47.4% 11.2%)" }
     : { background: theme.background }
 
   const textStyle = mode === "dark"
-    ? { color: "hsl(210 40% 98%)" }
+    ? { color: theme.darkForeground || "hsl(210 40% 98%)" }
     : { color: theme.foreground }
+
+  const primaryStyle = mode === "dark"
+    ? { background: theme.darkPrimary || theme.primary }
+    : { background: theme.primary }
+
+  const accentStyle = mode === "dark"
+    ? { background: theme.darkAccent || theme.accent }
+    : { background: theme.accent }
 
   return (
     <div
@@ -200,30 +236,40 @@ function ThemePreview({ theme, mode }: { theme: ThemePreset; mode: "light" | "da
       style={bgStyle}
     >
       <div className="space-y-3">
-        <div
-          className="h-3 w-3/4 rounded"
-          style={{ background: theme.primary }}
-        />
-        <div
-          className="h-2 w-1/2 rounded"
-          style={{ background: theme.accent }}
-        />
+        <div className="h-3 w-3/4 rounded" style={primaryStyle} />
+        <div className="h-2 w-1/2 rounded" style={accentStyle} />
         <div className="flex gap-2 mt-3">
-          <div
-            className="h-6 w-16 rounded-md"
-            style={{ background: theme.primary }}
-          />
-          <div
-            className="h-6 w-16 rounded-md border"
-            style={{
-              borderColor: theme.primary,
-              ...textStyle
-            }}
-          />
+          <div className="h-6 w-16 rounded-md" style={primaryStyle} />
+          <div className="h-6 w-16 rounded-md border" style={{ borderColor: theme.primary, ...textStyle }} />
         </div>
       </div>
     </div>
   )
+}
+
+function applyThemeToCSS(theme: ThemePreset & { mode: "light" | "dark" }) {
+  const root = document.documentElement
+  if (theme.mode === "dark") {
+    root.style.setProperty("--primary", theme.darkPrimary || theme.primary)
+    root.style.setProperty("--accent", theme.darkAccent || theme.accent)
+    root.style.setProperty("--background", theme.darkBackground || theme.background)
+    root.style.setProperty("--foreground", theme.darkForeground || theme.foreground)
+  } else {
+    root.style.setProperty("--primary", theme.primary)
+    root.style.setProperty("--accent", theme.accent)
+    root.style.setProperty("--background", theme.background)
+    root.style.setProperty("--foreground", theme.foreground)
+  }
+  root.style.setProperty("--radius", `${theme.radius}px`)
+  localStorage.setItem("dashboard-theme", JSON.stringify(theme))
+}
+
+function loadPersistedTheme(): (ThemePreset & { mode: "light" | "dark" }) | null {
+  try {
+    const stored = localStorage.getItem("dashboard-theme")
+    if (stored) return JSON.parse(stored)
+  } catch {}
+  return null
 }
 
 export function ThemeCustomizer({
@@ -238,6 +284,23 @@ export function ThemeCustomizer({
   const [isOpen, setIsOpen] = React.useState(false)
   const [hasChanges, setHasChanges] = React.useState(false)
 
+  React.useEffect(() => {
+    const persisted = loadPersistedTheme()
+    if (persisted) {
+      setSelectedPreset(persisted.id)
+      setMode(persisted.mode)
+      setRadius(persisted.radius)
+      if (persisted.mode === "dark") {
+        setCustomPrimary(persisted.darkPrimary || persisted.primary)
+        setCustomAccent(persisted.darkAccent || persisted.accent)
+      } else {
+        setCustomPrimary(persisted.primary)
+        setCustomAccent(persisted.accent)
+      }
+      applyThemeToCSS(persisted)
+    }
+  }, [])
+
   const currentPreset = themePresets.find((p) => p.id === selectedPreset) || themePresets[0]
 
   const currentTheme = React.useMemo(() => ({
@@ -251,23 +314,35 @@ export function ThemeCustomizer({
     setSelectedPreset(presetId)
     const preset = themePresets.find((p) => p.id === presetId)
     if (preset) {
-      setCustomPrimary(preset.primary)
-      setCustomAccent(preset.accent)
+      if (mode === "dark") {
+        setCustomPrimary(preset.darkPrimary || preset.primary)
+        setCustomAccent(preset.darkAccent || preset.accent)
+      } else {
+        setCustomPrimary(preset.primary)
+        setCustomAccent(preset.accent)
+      }
       setRadius(preset.radius)
       setHasChanges(false)
     }
   }
 
   const handleApply = () => {
-    onThemeChange?.({ ...currentTheme, mode })
+    const themeToApply = { ...currentTheme, mode }
+    onThemeChange?.(themeToApply)
+    applyThemeToCSS(themeToApply)
     setIsOpen(false)
   }
 
   const handleReset = () => {
     const preset = themePresets.find((p) => p.id === selectedPreset)
     if (preset) {
-      setCustomPrimary(preset.primary)
-      setCustomAccent(preset.accent)
+      if (mode === "dark") {
+        setCustomPrimary(preset.darkPrimary || preset.primary)
+        setCustomAccent(preset.darkAccent || preset.accent)
+      } else {
+        setCustomPrimary(preset.primary)
+        setCustomAccent(preset.accent)
+      }
       setRadius(preset.radius)
       setHasChanges(false)
     }
@@ -276,12 +351,14 @@ export function ThemeCustomizer({
   React.useEffect(() => {
     const preset = themePresets.find((p) => p.id === selectedPreset)
     if (preset) {
-      const hasPrimaryChange = customPrimary !== preset.primary
-      const hasAccentChange = customAccent !== preset.accent
+      const presetPrimary = mode === "dark" ? (preset.darkPrimary || preset.primary) : preset.primary
+      const presetAccent = mode === "dark" ? (preset.darkAccent || preset.accent) : preset.accent
+      const hasPrimaryChange = customPrimary !== presetPrimary
+      const hasAccentChange = customAccent !== presetAccent
       const hasRadiusChange = radius !== preset.radius
       setHasChanges(hasPrimaryChange || hasAccentChange || hasRadiusChange)
     }
-  }, [customPrimary, customAccent, radius, selectedPreset])
+  }, [customPrimary, customAccent, radius, selectedPreset, mode])
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -289,7 +366,7 @@ export function ThemeCustomizer({
         {trigger || (
           <Button variant="outline" size="sm" className="gap-2">
             <HugeiconsIcon icon={PaintBrush01Icon} strokeWidth={2} className="size-4" />
-            Customize Theme
+            Personnaliser le thème
           </Button>
         )}
       </DialogTrigger>
@@ -297,16 +374,16 @@ export function ThemeCustomizer({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <HugeiconsIcon icon={PaintBrush01Icon} strokeWidth={2} className="size-5" />
-            Theme Customizer
+            Personnalisation du thème
           </DialogTitle>
           <DialogDescription>
-            Customize the appearance of your dashboard. Changes are applied instantly.
+            Personnalisez l'apparence de votre tableau de bord. Les modifications sont appliquées instantanément.
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-6 py-4">
           <div className="space-y-4">
-            <Label className="text-base font-semibold">Preset Themes</Label>
+            <Label className="text-base font-semibold">Thèmes prédéfinis</Label>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {themePresets.map((preset) => (
                 <button
@@ -315,10 +392,10 @@ export function ThemeCustomizer({
                   className={cn(
                     "relative rounded-lg border-2 p-3 transition-all text-left",
                     selectedPreset === preset.id
-                      ? "border-primary ring-2 ring-primary/20"
-                      : "border-border hover:border-primary/50"
+                    ? "border-primary ring-2 ring-primary/20"
+                    : "border-border hover:border-primary/50"
                   )}
-                  aria-label={`Select ${preset.name} theme`}
+                  aria-label={`Sélectionner le thème ${preset.name}`}
                 >
                   {selectedPreset === preset.id && (
                     <div className="absolute top-2 right-2">
@@ -331,14 +408,11 @@ export function ThemeCustomizer({
                   )}
                   <div className="font-medium text-sm">{preset.name}</div>
                   <div className="flex gap-1 mt-2">
-                    <div
-                      className="size-4 rounded-full border"
-                      style={{ background: preset.primary }}
-                    />
-                    <div
-                      className="size-4 rounded-full border"
-                      style={{ background: preset.accent }}
-                    />
+                    <div className="size-4 rounded-full border" style={{ background: preset.primary }} />
+                    <div className="size-4 rounded-full border" style={{ background: preset.accent }} />
+                    {preset.darkPrimary && (
+                      <div className="size-4 rounded-full border" style={{ background: preset.darkPrimary }} />
+                    )}
                   </div>
                 </button>
               ))}
@@ -347,9 +421,9 @@ export function ThemeCustomizer({
 
           <div className="flex items-center justify-between p-4 rounded-lg border">
             <div className="space-y-1">
-              <Label className="font-medium">Dark Mode</Label>
+              <Label className="font-medium">Mode sombre</Label>
               <p className="text-sm text-muted-foreground">
-                Toggle between light and dark appearance
+                Basculer entre l'apparence claire et sombre
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -361,7 +435,7 @@ export function ThemeCustomizer({
               <Switch
                 checked={mode === "dark"}
                 onCheckedChange={(checked) => setMode(checked ? "dark" : "light")}
-                aria-label="Toggle dark mode"
+                aria-label="Basculer le mode sombre"
               />
               <HugeiconsIcon
                 icon={Moon02Icon}
@@ -375,18 +449,18 @@ export function ThemeCustomizer({
             <ColorPicker
               value={customPrimary}
               onChange={setCustomPrimary}
-              label="Primary Color"
+              label="Couleur principale"
             />
             <ColorPicker
               value={customAccent}
               onChange={setCustomAccent}
-              label="Accent Color"
+              label="Couleur d'accentuation"
             />
           </div>
 
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <Label className="font-medium">Border Radius</Label>
+              <Label className="font-medium">Rayon de bordure</Label>
               <span className="text-sm text-muted-foreground">{radius}px</span>
             </div>
             <div className="flex gap-2 flex-wrap">
@@ -396,23 +470,23 @@ export function ThemeCustomizer({
                   variant={radius === r ? "default" : "outline"}
                   size="xs"
                   onClick={() => setRadius(r)}
-                  aria-label={`Set radius to ${r}px`}
+                  aria-label={`Définir le rayon à ${r}px`}
                 >
                   {r}px
                 </Button>
               ))}
-</div>
+            </div>
           </div>
 
           <div className="space-y-3">
-            <Label className="font-medium">Live Preview</Label>
+            <Label className="font-medium">Aperçu en direct</Label>
             <div className="grid sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <span className="text-xs text-muted-foreground uppercase tracking-wider">Light</span>
+                <span className="text-xs text-muted-foreground uppercase tracking-wider">Clair</span>
                 <ThemePreview theme={currentTheme} mode="light" />
               </div>
               <div className="space-y-2">
-                <span className="text-xs text-muted-foreground uppercase tracking-wider">Dark</span>
+                <span className="text-xs text-muted-foreground uppercase tracking-wider">Sombre</span>
                 <ThemePreview theme={currentTheme} mode="dark" />
               </div>
             </div>
@@ -427,11 +501,11 @@ export function ThemeCustomizer({
             className="gap-2"
           >
             <HugeiconsIcon icon={ReloadIcon} strokeWidth={2} className="size-4" />
-            Reset
+            Réinitialiser
           </Button>
           <Button onClick={handleApply} className="gap-2">
             <HugeiconsIcon icon={CheckmarkCircle02Icon} strokeWidth={2} className="size-4" />
-            Apply Theme
+            Appliquer le thème
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -3,15 +3,16 @@
 import * as React from "react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { 
-  Breadcrumb, 
-  BreadcrumbItem, 
-  BreadcrumbList, 
-  BreadcrumbPage, 
-  BreadcrumbSeparator 
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator
 } from "@/components/ui/breadcrumb"
 import { DateRangePicker, type DateRangePickerProps } from "@/components/ui/date-range-picker"
 import { SafeIcon as HugeiconsIcon } from "@/components/ui/safe-icon"
+import { useIsMobile } from "@/lib/hooks/use-breakpoint"
 import {
   RefreshIcon,
   Download02Icon,
@@ -40,6 +41,7 @@ interface DashboardHeaderProps {
   dateRange?: DateRangePickerProps["date"]
   onDateRangeChange?: DateRangePickerProps["onDateChange"]
   isLoading?: boolean
+  lastUpdated?: Date | null
   className?: string
   children?: React.ReactNode
 }
@@ -60,9 +62,23 @@ export function DashboardHeader({
   dateRange,
   onDateRangeChange,
   isLoading = false,
+  lastUpdated,
   className,
   children,
 }: DashboardHeaderProps) {
+  const isMobile = useIsMobile()
+
+  const formatLastUpdated = React.useCallback((date: Date) => {
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffSecs = Math.floor(diffMs / 1000)
+    const diffMins = Math.floor(diffSecs / 60)
+
+    if (diffSecs < 60) return "À l'instant"
+    if (diffMins < 60) return `Il y a ${diffMins} min`
+    return date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })
+  }, [])
+
   return (
     <header
       className={cn(
@@ -71,9 +87,8 @@ export function DashboardHeader({
       )}
       role="banner"
     >
-      {/* Breadcrumbs */}
       {breadcrumbs.length > 0 && (
-        <Breadcrumb aria-label="Dashboard navigation">
+        <Breadcrumb aria-label="Navigation du tableau de bord">
           <BreadcrumbList>
             {breadcrumbs.map((item, index) => (
               <React.Fragment key={index}>
@@ -96,14 +111,13 @@ export function DashboardHeader({
         </Breadcrumb>
       )}
 
-      {/* Title and Actions Row */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
           <h1
             className={cn(
               "text-2xl sm:text-3xl font-bold tracking-tight",
-              "bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text",
-              "dark:from-foreground dark:to-foreground/50"
+              "bg-gradient-to-r from-primary to-primary/70 bg-clip-text",
+              "dark:from-primary dark:to-primary/50"
             )}
           >
             {title}
@@ -113,9 +127,13 @@ export function DashboardHeader({
               {description}
             </p>
           )}
+          {lastUpdated && (
+            <p className="text-xs text-muted-foreground" aria-live="polite">
+              Dernière mise à jour : {formatLastUpdated(lastUpdated)}
+            </p>
+          )}
         </div>
 
-        {/* Action Buttons */}
         <div className="flex flex-wrap items-center gap-2">
           {showSearch && (
             <Button
@@ -123,18 +141,18 @@ export function DashboardHeader({
               size="sm"
               onClick={onSearch}
               className="gap-2"
-              aria-label="Open search"
+              aria-label="Recherche"
             >
               <HugeiconsIcon
                 icon={Search01Icon}
                 strokeWidth={2}
                 className="size-4"
               />
-              <span className="hidden sm:inline">Search</span>
+              <span className="hidden sm:inline">Recherche</span>
             </Button>
           )}
 
-          {showDateRange && (
+          {showDateRange && !isMobile && (
             <DateRangePicker
               date={dateRange}
               onDateChange={onDateRangeChange}
@@ -149,14 +167,14 @@ export function DashboardHeader({
               onClick={onRefresh}
               disabled={isLoading}
               className="gap-2"
-              aria-label="Refresh data"
+              aria-label="Actualiser les données"
             >
               <HugeiconsIcon
                 icon={RefreshIcon}
                 strokeWidth={2}
                 className={cn("size-4", isLoading && "animate-spin")}
               />
-              <span className="hidden sm:inline">Refresh</span>
+              <span className="hidden sm:inline">Actualiser</span>
             </Button>
           )}
 
@@ -166,14 +184,14 @@ export function DashboardHeader({
               size="sm"
               onClick={onExport}
               className="gap-2"
-              aria-label="Export data"
+              aria-label="Exporter les données"
             >
               <HugeiconsIcon
                 icon={Download02Icon}
                 strokeWidth={2}
                 className="size-4"
               />
-              <span className="hidden sm:inline">Export</span>
+              <span className="hidden sm:inline">Exporter</span>
             </Button>
           )}
 
@@ -183,14 +201,14 @@ export function DashboardHeader({
               size="sm"
               onClick={onSettings}
               className="gap-2"
-              aria-label="Open settings"
+              aria-label="Paramètres"
             >
               <HugeiconsIcon
                 icon={Settings01Icon}
                 strokeWidth={2}
                 className="size-4"
               />
-              <span className="hidden sm:inline">Settings</span>
+              <span className="hidden sm:inline">Paramètres</span>
             </Button>
           )}
 

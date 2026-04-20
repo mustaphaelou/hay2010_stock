@@ -2,6 +2,8 @@
 "use client"
 
 import * as React from "react"
+import { getDashboardStats } from "@/app/actions/dashboard"
+import type { DashboardData } from "@/lib/types"
 
 type ViewMode = "grid" | "list" | "compact"
 type DateRange = "today" | "7d" | "30d" | "90d" | "1y" | "custom"
@@ -21,12 +23,24 @@ interface DashboardState {
   isLoading: boolean
   error: string | null
   lastUpdated: Date | null
+  data: DashboardData | null
   performanceMetrics: {
     renderTime: number
     dataFetchTime: number
     updateTime: number
   }
 }
+
+type DashboardAction =
+  | { type: "SET_VIEW_MODE"; payload: ViewMode }
+  | { type: "SET_FILTERS"; payload: Partial<DashboardFilters> }
+  | { type: "RESET_FILTERS" }
+  | { type: "SET_LOADING"; payload: boolean }
+  | { type: "SET_ERROR"; payload: string | null }
+  | { type: "SET_LAST_UPDATED"; payload: Date }
+  | { type: "SET_DATA"; payload: DashboardData }
+  | { type: "SET_PERFORMANCE_METRIC"; payload: { key: keyof DashboardState["performanceMetrics"]; value: number } }
+  | { type: "RESET" }
 
 interface DashboardContextValue extends DashboardState {
   setViewMode: (mode: ViewMode) => void
@@ -53,11 +67,43 @@ const initialState: DashboardState = {
   isLoading: false,
   error: null,
   lastUpdated: null,
+  data: null,
   performanceMetrics: {
     renderTime: 0,
     dataFetchTime: 0,
     updateTime: 0,
   },
+}
+
+function dashboardReducer(state: DashboardState, action: DashboardAction): DashboardState {
+  switch (action.type) {
+    case "SET_VIEW_MODE":
+      return { ...state, viewMode: action.payload }
+    case "SET_FILTERS":
+      return { ...state, filters: { ...state.filters, ...action.payload } }
+    case "RESET_FILTERS":
+      return { ...state, filters: defaultFilters }
+    case "SET_LOADING":
+      return { ...state, isLoading: action.payload }
+    case "SET_ERROR":
+      return { ...state, error: action.payload, isLoading: false }
+    case "SET_LAST_UPDATED":
+      return { ...state, lastUpdated: action.payload, isLoading: false }
+    case "SET_DATA":
+      return { ...state, data: action.payload, isLoading: false, error: null }
+    case "SET_PERFORMANCE_METRIC":
+      return {
+        ...state,
+        performanceMetrics: {
+          ...state.performanceMetrics,
+          [action.payload.key]: action.payload.value,
+        },
+      }
+    case "RESET":
+      return initialState
+    default:
+      return state
+  }
 }
 
 interface DashboardProviderProps {
@@ -66,7 +112,7 @@ interface DashboardProviderProps {
   initialFilters?: Partial<DashboardFilters>
   autoRefresh?: boolean
   refreshInterval?: number
-  onRefresh?: () => Promise<void>
+  initialData?: DashboardData
 }
 
 function DashboardProvider({
@@ -75,68 +121,64 @@ function DashboardProvider({
   initialFilters,
   autoRefresh = false,
   refreshInterval = 30000,
-  onRefresh,
+  initialData,
 }: DashboardProviderProps) {
-  const [state, dispatch] = React.useReducer(
-    (prevState: DashboardState, action: Partial<DashboardState>) => ({
-      ...prevState,
-      ...action,
-    }),
-    {
-      ...initialState,
-      viewMode: initialViewMode,
-      filters: { ...defaultFilters, ...initialFilters },
-    }
-  )
+  const [state, dispatch] = React.useReducer(dashboardReducer, {
+    ...initialState,
+    viewMode: initialViewMode,
+    filters: { ...defaultFilters, ...initialFilters },
+    data: initialData ?? null,
+  })
 
   const subscribersRef = React.useRef<Set<(data: unknown) => void>>(new Set())
-  const intervalRef = React.useRef<NodeJS.Timeout | null>(null)
+  const intervalRef = React.useRef<ReturnType<typeof setInterval> | null>(null)
+  const isRefreshingRef = React.useRef(false)
 
   const setViewMode = React.useCallback((mode: ViewMode) => {
-    dispatch({ viewMode: mode })
+    dispatch({ type: "SET_VIEW_MODE", payload: mode })
   }, [])
 
   const setFilters = React.useCallback((filters: Partial<DashboardFilters>) => {
-    dispatch({
-      filters: { ...state.filters, ...filters },
-    })
-  }, [state.filters])
+    dispatch({ type: "SET_FILTERS", payload: filters })
+  }, [])
 
   const resetFilters = React.useCallback(() => {
-    dispatch({ filters: defaultFilters })
+    dispatch({ type: "RESET_FILTERS" })
   }, [])
 
   const refresh = React.useCallback(async () => {
+    if (isRefreshingRef.current) return
+    isRefreshingRef.current = true
     const startTime = performance.now()
 
-    dispatch({ isLoading: true, error: null })
+    dispatch({ type: "SET_LOADING", payload: true })
 
     try {
-      await onRefresh?.()
-
+      const data = await getDashboardStats()
       const endTime = performance.now()
+
+      dispatch({ type: "SET_DATA", payload: data })
+      dispatch({ type: "SET_LAST_UPDATED", payload: new Date() })
       dispatch({
-        isLoading: false,
-        lastUpdated: new Date(),
-        performanceMetrics: {
-          ...state.performanceMetrics,
-          dataFetchTime: endTime - startTime,
-        },
+        type: "SET_PERFORMANCE_METRIC",
+        payload: { key: "dataFetchTime", value: endTime - startTime },
       })
 
       subscribersRef.current.forEach((callback) => {
-        callback({ type: "refresh", timestamp: new Date() })
+        callback({ type: "refresh", timestamp: new Date(), data })
       })
     } catch (error) {
       dispatch({
-        isLoading: false,
-        error: error instanceof Error ? error.message : "An error occurred",
+        type: "SET_ERROR",
+        payload: error instanceof Error ? error.message : "Une erreur est survenue",
       })
+    } finally {
+      isRefreshingRef.current = false
     }
-  }, [onRefresh, state.performanceMetrics])
+  }, [])
 
   const retry = React.useCallback(async () => {
-    dispatch({ error: null })
+    dispatch({ type: "SET_ERROR", payload: null })
     await refresh()
   }, [refresh])
 
@@ -150,19 +192,19 @@ function DashboardProvider({
   const trackPerformance = React.useCallback(
     (metric: keyof DashboardState["performanceMetrics"], value: number) => {
       dispatch({
-        performanceMetrics: {
-          ...state.performanceMetrics,
-          [metric]: value,
-        },
+        type: "SET_PERFORMANCE_METRIC",
+        payload: { key: metric, value },
       })
     },
-    [state.performanceMetrics]
+    []
   )
 
   React.useEffect(() => {
     if (autoRefresh && refreshInterval > 0) {
       intervalRef.current = setInterval(() => {
-        refresh()
+        if (document.visibilityState === "visible") {
+          refresh()
+        }
       }, refreshInterval)
 
       return () => {
@@ -172,27 +214,6 @@ function DashboardProvider({
       }
     }
   }, [autoRefresh, refreshInterval, refresh])
-
-  const simulateWebSocket = React.useCallback(() => {
-    const interval = setInterval(() => {
-      const updateData = {
-        type: "update",
-        timestamp: new Date(),
-        data: { random: Math.random() },
-      }
-
-      subscribersRef.current.forEach((callback) => {
-        callback(updateData)
-      })
-    }, 5000)
-
-    return () => clearInterval(interval)
-  }, [])
-
-  React.useEffect(() => {
-    const cleanup = simulateWebSocket()
-    return cleanup
-  }, [simulateWebSocket])
 
   const value: DashboardContextValue = {
     ...state,
@@ -281,4 +302,5 @@ export type {
   DashboardFilters,
   ViewMode,
   DateRange,
+  DashboardAction,
 }

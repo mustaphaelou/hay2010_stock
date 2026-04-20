@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { SafeIcon as HugeiconsIcon } from "@/components/ui/safe-icon"
 import type { IconSvgElement } from "@hugeicons/react"
+import { useReducedMotion } from "@/lib/hooks/use-reduced-motion"
 import {
   ArrowUp01Icon,
   ArrowDown01Icon,
@@ -71,30 +72,37 @@ interface StatsOverviewCardProps extends VariantProps<typeof statsCardVariants> 
   sparklineData?: number[]
   loading?: boolean
   animated?: boolean
+  compact?: boolean
   className?: string
   prefix?: string
   suffix?: string
+  onClick?: () => void
+  tabIndex?: number
 }
 
-function AnimatedNumber({ 
-  value, 
+function AnimatedNumber({
+  value,
   duration = 1000,
   prefix = "",
   suffix = ""
-}: { 
+}: {
   value: number
   duration?: number
   prefix?: string
   suffix?: string
 }) {
+  const prefersReducedMotion = useReducedMotion()
   const [displayValue, setDisplayValue] = React.useState(0)
   const startTime = React.useRef<number | null>(null)
   const rafRef = React.useRef<number | null>(null)
 
   React.useEffect(() => {
-    if (startTime.current === null) {
-      startTime.current = Date.now()
+    if (prefersReducedMotion) {
+      setDisplayValue(value)
+      return
     }
+
+    startTime.current = Date.now()
 
     const animate = () => {
       const now = Date.now()
@@ -108,7 +116,7 @@ function AnimatedNumber({
         setDisplayValue(value)
       }
     }
-    
+
     animate()
 
     return () => {
@@ -116,7 +124,7 @@ function AnimatedNumber({
         cancelAnimationFrame(rafRef.current)
       }
     }
-  }, [value, duration])
+  }, [value, duration, prefersReducedMotion])
 
   return <>{prefix}{displayValue.toLocaleString()}{suffix}</>
 }
@@ -151,6 +159,8 @@ function MiniSparkline({
       viewBox="0 0 100 100"
       preserveAspectRatio="none"
       className={cn("h-10 w-20", className)}
+      role="img"
+      aria-label={`Mini graphique: ${isPositive ? "hausse" : "baisse"}`}
     >
       <polyline
         points={points}
@@ -213,17 +223,27 @@ export function StatsOverviewCard({
   size,
   loading = false,
   animated = true,
+  compact = false,
   className,
   prefix,
   suffix,
+  onClick,
+  tabIndex,
 }: StatsOverviewCardProps) {
-  const numericValue = typeof value === "number" 
-    ? value 
+  const numericValue = typeof value === "number"
+    ? value
     : parseFloat(value.replace(/[^\d.-]/g, "")) || 0
+
+  const handleKeyDown = React.useCallback((e: React.KeyboardEvent) => {
+    if (onClick && (e.key === "Enter" || e.key === " ")) {
+      e.preventDefault()
+      onClick()
+    }
+  }, [onClick])
 
   if (loading) {
     return (
-      <Card className={cn(statsCardVariants({ variant, size }), className)}>
+      <Card className={cn(statsCardVariants({ variant, size: compact ? "sm" : size }), className)}>
         <CardContent className="space-y-3">
           <Skeleton className="h-4 w-24" />
           <Skeleton className="h-8 w-32" />
@@ -236,40 +256,45 @@ export function StatsOverviewCard({
   return (
     <Card
       className={cn(
-        statsCardVariants({ variant, size }),
-        "hover:-translate-y-0.5",
+        statsCardVariants({ variant, size: compact ? "sm" : size }),
+        onClick && "cursor-pointer hover:-translate-y-0.5",
+        !onClick && "hover:-translate-y-0.5",
         className
       )}
+      tabIndex={tabIndex ?? (onClick ? 0 : undefined)}
+      onKeyDown={onClick ? handleKeyDown : undefined}
+      onClick={onClick}
+      role={onClick ? "button" : undefined}
     >
       <div className={cn(glowVariants({ variant }))} />
-      
+
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative">
-        <CardTitle className="text-sm font-medium text-muted-foreground">
+        <CardTitle className={cn("font-medium text-muted-foreground", compact ? "text-xs" : "text-sm")}>
           {title}
         </CardTitle>
-{isValidIcon(icon) && (
-      <div
-        className={cn(
-          "p-2.5 rounded-xl bg-primary/10 group-hover:bg-primary/20 transition-all duration-300",
-          "group-hover:scale-110 group-hover:shadow-lg"
+        {isValidIcon(icon) && !compact && (
+          <div
+            className={cn(
+              "p-2.5 rounded-xl bg-primary/10 group-hover:bg-primary/20 transition-all duration-300",
+              "group-hover:scale-110 group-hover:shadow-lg"
+            )}
+          >
+            <HugeiconsIcon
+              icon={icon}
+              strokeWidth={2}
+              className={cn("size-5", iconColor)}
+            />
+          </div>
         )}
-      >
-        <HugeiconsIcon
-          icon={icon}
-          strokeWidth={2}
-          className={cn("size-5", iconColor)}
-        />
-      </div>
-    )}
       </CardHeader>
 
-      <CardContent className="relative">
+      <CardContent className="relative" aria-live="polite">
         <div className="flex items-end justify-between gap-4">
           <div className="space-y-1">
-            <div className="text-2xl font-bold tracking-tight tabular-nums">
+            <div className={cn("font-bold tracking-tight tabular-nums", compact ? "text-xl" : "text-2xl")}>
               {typeof value === "number" && animated ? (
-                <AnimatedNumber 
-                  value={numericValue} 
+                <AnimatedNumber
+                  value={numericValue}
                   prefix={prefix}
                   suffix={suffix}
                 />
@@ -281,15 +306,15 @@ export function StatsOverviewCard({
                 </span>
               )}
             </div>
-            
-            {description && (
+
+            {description && !compact && (
               <p className="text-xs text-muted-foreground">{description}</p>
             )}
-            
-            {trend && <TrendIndicator trend={trend} />}
+
+            {trend && !compact && <TrendIndicator trend={trend} />}
           </div>
-          
-          {sparklineData && (
+
+          {sparklineData && !compact && (
             <div className="shrink-0">
               <MiniSparkline data={sparklineData} />
             </div>

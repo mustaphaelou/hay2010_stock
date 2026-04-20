@@ -44,9 +44,14 @@ export {
   LazyInteractiveChartCard,
   LazyPerformanceGauge,
   LazyEnhancedDataTable,
+  LazyRecentActivityFeed,
+  LazyAlertsWidget,
+  LazyTopProductsWidget,
   ChartLoadingFallback,
   GaugeLoadingFallback,
   TableLoadingFallback,
+  ActivityLoadingFallback,
+  WidgetLoadingFallback,
   ErrorBoundary,
 } from "./lazy-components"
 export type { LazyLoadProps } from "./lazy-components"
@@ -69,6 +74,7 @@ export type {
   DashboardFilters,
   ViewMode,
   DateRange,
+  DashboardAction,
 } from "./dashboard-context"
 
 export {
@@ -79,9 +85,6 @@ export {
   useOptimisticUpdate,
 } from "./use-dashboard-data"
 export type {
-  DashboardStats,
-  ChartDataPoint,
-  ActivityItem as DashboardActivityItem,
   FetchState,
   FetchOptions,
 } from "./use-dashboard-data"

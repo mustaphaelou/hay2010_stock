@@ -4,6 +4,7 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useReducedMotion } from "@/lib/hooks/use-reduced-motion"
 
 interface Threshold {
   value: number
@@ -96,32 +97,36 @@ export function PerformanceGauge({
 }: PerformanceGaugeProps) {
   const [animatedValue, setAnimatedValue] = React.useState(0)
   const config = sizeConfig[size]
+  const prefersReducedMotion = useReducedMotion()
+  const previousValueRef = React.useRef(0)
 
   React.useEffect(() => {
-    if (animated) {
+    if (animated && !prefersReducedMotion) {
       const duration = 1000
       const startTime = Date.now()
-      const startValue = animatedValue
-      
+      const startValue = previousValueRef.current
+
       const animate = () => {
         const elapsed = Date.now() - startTime
         const progress = Math.min(elapsed / duration, 1)
         const easeOutQuart = 1 - Math.pow(1 - progress, 4)
         const currentValue = startValue + (value - startValue) * easeOutQuart
-        
+
         setAnimatedValue(currentValue)
-        
+
         if (progress < 1) {
           requestAnimationFrame(animate)
+        } else {
+          previousValueRef.current = value
         }
       }
-      
+
       animate()
     } else {
       setAnimatedValue(value)
+      previousValueRef.current = value
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value, animated])
+  }, [value, animated, prefersReducedMotion])
 
   if (loading) {
     return (
