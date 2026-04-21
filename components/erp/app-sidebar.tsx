@@ -258,10 +258,14 @@ const [mounted, setMounted] = React.useState(false)
                     <SidebarGroupLabel>Paramètres</SidebarGroupLabel>
                     <SidebarMenu>
                         <SidebarMenuItem>
-                            <SidebarMenuButton tooltip="Configuration">
-                                <HugeiconsIcon icon={Settings01Icon} strokeWidth={2} />
-                                <span>Configuration</span>
-                            </SidebarMenuButton>
+        <SidebarMenuButton
+            tooltip="Configuration"
+            isActive={pathname?.startsWith("/settings")}
+            render={<Link href="/settings" />}
+          >
+            <HugeiconsIcon icon={Settings01Icon} strokeWidth={2} />
+            <span>Configuration</span>
+          </SidebarMenuButton>
                         </SidebarMenuItem>
                     </SidebarMenu>
                 </SidebarGroup>
