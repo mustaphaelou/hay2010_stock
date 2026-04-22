@@ -25,6 +25,8 @@ export async function getDashboardStats(): Promise<DashboardData> {
       lowStockCount,
       totalStockProducts,
       monthlySalesData,
+      totalSalesAmount,
+      totalPurchasesAmount,
     ] = await Promise.all([
       prisma.partenaire.count({ where: { type_partenaire: { in: ['CLIENT', 'LES_DEUX'] } } }),
       prisma.partenaire.count({ where: { type_partenaire: { in: ['FOURNISSEUR', 'LES_DEUX'] } } }),
@@ -93,6 +95,14 @@ export async function getDashboardStats(): Promise<DashboardData> {
         },
         orderBy: { date_document: 'asc' }
       }),
+      prisma.docVente.aggregate({
+        where: { domaine_document: 'VENTE' },
+        _sum: { montant_ttc: true },
+      }).then((r) => Number(r._sum.montant_ttc || 0)),
+      prisma.docVente.aggregate({
+        where: { domaine_document: 'ACHAT' },
+        _sum: { montant_ttc: true },
+      }).then((r) => Number(r._sum.montant_ttc || 0)),
     ])
 
     const stats: DashboardStats = {
@@ -104,6 +114,8 @@ export async function getDashboardStats(): Promise<DashboardData> {
       purchasesCount: purchasesCount,
       lowStockCount: lowStockCount,
       totalStockProducts: totalStockProducts,
+      totalSalesAmount: totalSalesAmount,
+      totalPurchasesAmount: totalPurchasesAmount,
     }
 
     const processedSalesInvoices: SalesInvoice[] = salesInvoices.map((s): SalesInvoice => ({
@@ -195,6 +207,8 @@ export async function getDashboardStats(): Promise<DashboardData> {
         purchasesCount: 0,
         lowStockCount: 0,
         totalStockProducts: 0,
+        totalSalesAmount: 0,
+        totalPurchasesAmount: 0,
       },
       recentDocs: [],
       salesInvoices: [],

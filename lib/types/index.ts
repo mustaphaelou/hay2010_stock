@@ -286,6 +286,8 @@ export type DashboardStats = {
   purchasesCount: number
   lowStockCount: number
   totalStockProducts: number
+  totalSalesAmount: number
+  totalPurchasesAmount: number
   monthlyRevenue?: number
   pendingOrders?: number
 }
