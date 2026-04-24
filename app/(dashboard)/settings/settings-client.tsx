@@ -24,6 +24,7 @@ import {
   FieldGroup,
   FieldLabel,
   FieldLegend,
+  FieldSeparator,
   FieldSet,
 } from '@/components/ui/field'
 import {
@@ -118,7 +119,7 @@ export function SettingsClient({ profile }: SettingsClientProps) {
   }
 
   return (
-    <div className="flex flex-col gap-6 p-4 md:p-6 lg:p-8 max-w-4xl mx-auto">
+    <div className="flex flex-col gap-6 p-4 pt-0 pb-20 md:p-8 md:pt-0 md:pb-8 max-w-4xl mx-auto animate-fade-in-up">
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-semibold tracking-tight">Paramètres</h1>
         <p className="text-muted-foreground text-sm">

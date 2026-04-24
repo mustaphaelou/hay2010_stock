@@ -184,7 +184,7 @@ export default function PurchasesClient({ initialData, initialError }: Purchases
           onTypeChange={setSelectedType}
           className="hidden lg:flex"
         />
-        <div className="flex-1 flex flex-col gap-6 p-4 pb-20 md:p-8 md:pb-8 overflow-y-auto">
+        <div className="flex-1 flex flex-col gap-6 p-4 pt-0 pb-20 md:p-8 md:pt-0 md:pb-8 overflow-y-auto animate-fade-in-up">
           {/* Header */}
           <div className="flex items-center justify-between">
             <div>

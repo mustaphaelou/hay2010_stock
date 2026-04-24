@@ -1,11 +1,5 @@
-"use client"
-
-import PartnersView from "@/components/erp/partners-view"
+import { redirect } from "next/navigation"
 
 export default function SuppliersPage() {
-  return (
-    <div className="flex flex-1 flex-col gap-4 p-4 pt-0 pb-20 md:gap-8 md:p-8 md:pb-8">
-      <PartnersView type={1} title="Fournisseurs" />
-    </div>
-  )
+  redirect("/partners?tab=suppliers")
 }

@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, Roboto } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider"
-import { Toaster } from "sonner"
+import { Toaster } from "@/components/ui/sonner"
 import { SkipLink } from "@/components/ui/skip-link"
 
 const roboto = Roboto({ subsets: ['latin'], variable: '--font-sans' });
@@ -47,7 +47,7 @@ export default function RootLayout({
         >
           {children}
         </ThemeProvider>
-        <Toaster position="top-right" richColors closeButton />
+        <Toaster position="top-right" closeButton />
       </body>
     </html>
   );

@@ -161,7 +161,7 @@ export default function StockClient({ initialStockData, initialDepots, initialEr
   const lowStockCount = stockLevels.filter(s => Number(s.quantite_en_stock_num || 0) <= 5).length
 
   return (
-    <div className="flex flex-1 flex-col gap-8 p-4 pb-20 md:p-8 md:pb-8 animate-fade-in-up">
+    <div className="flex flex-1 flex-col gap-8 p-4 pt-0 pb-20 md:p-8 md:pt-0 md:pb-8 animate-fade-in-up">
       {/* Header */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>

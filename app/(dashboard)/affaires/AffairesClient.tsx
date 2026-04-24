@@ -86,7 +86,7 @@ export default function AffairesClient({ initialAffaires }: AffairesClientProps)
   const marge = totalVentes - totalAchats
 
   return (
-    <div className="flex flex-1 flex-col gap-6 p-4 pb-20 md:p-8 md:pb-8">
+    <div className="flex flex-1 flex-col gap-6 p-4 pt-0 pb-20 md:p-8 md:pt-0 md:pb-8 animate-fade-in-up">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Interrogation Affaire</h1>
@@ -133,11 +133,13 @@ export default function AffairesClient({ initialAffaires }: AffairesClientProps)
       </Card>
 
       {selectedAffaire && (
-        <div className="grid gap-4 md:grid-cols-4">
-          <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
+        <div className="grid gap-4 grid-cols-2 lg:grid-cols-4 stagger-children">
+          <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20 hover-lift shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Documents</CardTitle>
-              <HugeiconsIcon icon={File01Icon} className="size-4 text-primary" />
+              <div className="icon-container size-9 shadow-sm opacity-90">
+                <HugeiconsIcon icon={File01Icon} className="size-4 text-primary" />
+              </div>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{documents.length}</div>
@@ -146,25 +148,29 @@ export default function AffairesClient({ initialAffaires }: AffairesClientProps)
               </p>
             </CardContent>
           </Card>
-          <Card className="bg-gradient-to-br from-green-500/10 to-green-500/5 border-green-500/20">
+          <Card className="bg-gradient-to-br from-green-500/10 to-green-500/5 border-green-500/20 hover-lift shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Ventes</CardTitle>
-              <HugeiconsIcon icon={Invoice01Icon} className="size-4 text-green-600" />
+              <div className="icon-container size-9 shadow-sm opacity-90">
+                <HugeiconsIcon icon={Invoice01Icon} className="size-4 text-green-600" />
+              </div>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-600">{formatPrice(totalVentes)}</div>
             </CardContent>
           </Card>
-          <Card className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 border-blue-500/20">
+          <Card className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 border-blue-500/20 hover-lift shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Achats</CardTitle>
-              <HugeiconsIcon icon={ShoppingBag01Icon} className="size-4 text-blue-600" />
+              <div className="icon-container size-9 shadow-sm opacity-90">
+                <HugeiconsIcon icon={ShoppingBag01Icon} className="size-4 text-blue-600" />
+              </div>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-blue-600">{formatPrice(totalAchats)}</div>
             </CardContent>
           </Card>
-          <Card className={`bg-gradient-to-br ${marge >= 0 ? 'from-emerald-500/10 to-emerald-500/5 border-emerald-500/20' : 'from-red-500/10 to-red-500/5 border-red-500/20'}`}>
+          <Card className={`bg-gradient-to-br hover-lift shadow-sm ${marge >= 0 ? 'from-emerald-500/10 to-emerald-500/5 border-emerald-500/20' : 'from-red-500/10 to-red-500/5 border-red-500/20'}`}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Marge</CardTitle>
             </CardHeader>
@@ -200,7 +206,8 @@ export default function AffairesClient({ initialAffaires }: AffairesClientProps)
                 Aucun document pour cette affaire.
               </div>
             ) : (
-              <Table>
+              <div className="overflow-x-auto rounded-lg">
+                <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>N° Pièce</TableHead>
@@ -238,6 +245,7 @@ export default function AffairesClient({ initialAffaires }: AffairesClientProps)
                   ))}
                 </TableBody>
               </Table>
+              </div>
             )}
           </CardContent>
         </Card>

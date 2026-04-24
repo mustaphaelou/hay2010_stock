@@ -20,11 +20,13 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { SafeIcon as HugeiconsIcon } from "@/components/ui/safe-icon"
+import { Button } from "@/components/ui/button"
 import {
   Invoice01Icon,
   UserIcon,
   Calendar03Icon,
   CheckmarkCircle01Icon,
+  Alert01Icon,
 } from "@hugeicons/core-free-icons"
 import { getDocLines } from "@/app/actions/documents"
 import { formatPrice, formatDate } from '@/lib/utils'
@@ -82,32 +84,36 @@ const getDocumentTypeName = (domaine: string | null, type: string | null) => {
 export function DocumentDetailSheet({ document, open, onOpenChange }: DocumentDetailSheetProps) {
   const [lines, setLines] = React.useState<DocumentLine[]>([])
   const [loading, setLoading] = React.useState(false)
+  const [error, setError] = React.useState<string | null>(null)
+
+  const fetchLines = React.useCallback(async () => {
+    if (!document) return
+    setLoading(true)
+    setError(null)
+    try {
+      const result = await getDocLines(document.id_document)
+      if (result.error) {
+        setError(result.error)
+        setLines([])
+      } else {
+        setLines(result.data || [])
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors du chargement des lignes')
+    } finally {
+      setLoading(false)
+    }
+  }, [document])
 
   React.useEffect(() => {
     if (!document || !open) {
       setLines([])
+      setError(null)
       return
     }
 
-    const fetchLines = async () => {
-      setLoading(true)
-      try {
-        const result = await getDocLines(document.id_document)
-        if (result.error) {
-          console.error('Error fetching document lines:', result.error)
-          setLines([])
-        } else {
-          setLines(result.data || [])
-        }
-      } catch (err) {
-        console.error('Error fetching document lines:', err)
-      } finally {
-        setLoading(false)
-      }
-    }
-
     fetchLines()
-  }, [document, open])
+  }, [document, open, fetchLines])
 
   if (!document) return null
 
@@ -204,7 +210,13 @@ export function DocumentDetailSheet({ document, open, onOpenChange }: DocumentDe
           {/* Document Lines */}
           <div className="py-4">
             <h4 className="font-semibold mb-3">Lignes du document</h4>
-            {loading ? (
+            {error ? (
+              <div className="text-center py-6">
+                <HugeiconsIcon icon={Alert01Icon} className="mx-auto size-10 text-destructive/50 mb-3" />
+                <p className="text-destructive text-sm font-medium mb-3">{error}</p>
+                <Button onClick={fetchLines} variant="outline" size="sm">Réessayer</Button>
+              </div>
+            ) : loading ? (
               <div className="flex flex-col gap-2">
                 {[1, 2, 3].map(i => (
                   <Skeleton key={i} className="h-12 w-full" />

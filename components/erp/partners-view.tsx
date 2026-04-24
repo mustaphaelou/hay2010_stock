@@ -5,7 +5,6 @@ import { getPartners } from "@/app/actions/partners"
 import dynamic from "next/dynamic"
 import { ColumnDef } from "@tanstack/react-table"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -92,7 +91,6 @@ const createColumns = (onViewDetails: (partner: Partner) => void): ColumnDef<Par
           <DropdownMenuItem onClick={() => onViewDetails(partner)}>
             Voir fiche
           </DropdownMenuItem>
-          <DropdownMenuItem>Voir historique</DropdownMenuItem>
         </DropdownMenuGroup>
       </DropdownMenuContent>
                 </DropdownMenu>
@@ -147,11 +145,6 @@ function PartnersView({ type, title }: PartnersViewProps) {
                         <span className="flex size-2 rounded-full bg-primary" />
                         {data.length} {type === 0 ? "clients" : "fournisseurs"} référencés au total
                     </p>
-                </div>
-                <div className="flex items-center gap-3">
-                    <Button size="lg" className="w-full sm:w-auto hover-lift shadow-md rounded-xl font-bold">
-                        <span className="mr-2 text-xl">+</span> Nouveau {type === 0 ? "Client" : "Fournisseur"}
-                    </Button>
                 </div>
             </div>
 

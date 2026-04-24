@@ -1,5 +1,6 @@
 "use client"
 
+import { usePathname } from "next/navigation"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
 import {
@@ -13,7 +14,22 @@ import {
 import { ModeToggle } from "@/components/mode-toggle"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
+const breadcrumbLabels: Record<string, string> = {
+    "/": "Tableau de bord",
+    "/sales": "Ventes",
+    "/stock": "Niveaux de Stock",
+    "/articles": "Articles",
+    "/documents": "Documents",
+    "/purchases": "Achats",
+    "/affaires": "Interrogation Affaire",
+    "/partners": "Tiers",
+    "/settings": "Paramètres",
+}
+
 export function SiteHeader() {
+    const pathname = usePathname()
+    const pageTitle = breadcrumbLabels[pathname] ?? "Tableau de bord"
+
     return (
         <header className="flex h-14 sm:h-14 shrink-0 items-center gap-2 border-b bg-background/95 backdrop-blur-sm px-3 sm:px-4 sticky top-0 z-10 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
             {/* Larger touch target for sidebar toggle on mobile */}
@@ -27,7 +43,7 @@ export function SiteHeader() {
                     </BreadcrumbItem>
                     <BreadcrumbSeparator className="hidden md:block" />
                     <BreadcrumbItem className="truncate">
-                        <BreadcrumbPage className="text-sm sm:text-base truncate">Tableau de bord</BreadcrumbPage>
+                        <BreadcrumbPage className="text-sm sm:text-base truncate">{pageTitle}</BreadcrumbPage>
                     </BreadcrumbItem>
                 </BreadcrumbList>
             </Breadcrumb>

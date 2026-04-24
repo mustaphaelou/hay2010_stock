@@ -16,12 +16,6 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar"
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { SafeIcon as HugeiconsIcon } from "@/components/ui/safe-icon"
 import {
   DashboardSquare01Icon,
@@ -32,21 +26,17 @@ import {
   TruckDeliveryIcon,
   Settings01Icon,
   Logout01Icon,
-  MoreVerticalIcon,
   File01Icon,
   ProductLoadingIcon,
   FolderOpenIcon,
 } from "@hugeicons/core-free-icons"
 import { logout } from "../../app/actions/auth"
 
-// Company switcher data
-const companies = [
-    {
-        name: "HAY2010",
-        plan: "Gestion Commerciale",
-        logo: "/hay2010-logo.png",
-    },
-]
+const company = {
+    name: "HAY2010",
+    plan: "Gestion Commerciale",
+    logo: "/hay2010-logo.png",
+}
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 const pathname = usePathname()
@@ -56,8 +46,6 @@ const [mounted, setMounted] = React.useState(false)
     React.useEffect(() => {
         setMounted(true)
     }, [])
-
-    const [activeCompany, setActiveCompany] = React.useState(companies[0])
 
     if (!mounted) {
         return (
@@ -94,54 +82,22 @@ const [mounted, setMounted] = React.useState(false)
             <SidebarHeader>
                 <SidebarMenu>
                     <SidebarMenuItem>
-                        <DropdownMenu>
-                            <SidebarMenuButton
-                                size="lg"
-                                className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
-                                render={<DropdownMenuTrigger />}
-                            >
+                        <SidebarMenuButton size="lg" className="pointer-events-none">
                                 <div className="flex aspect-square size-8 items-center justify-center rounded-lg overflow-hidden bg-white">
-<Image
-              src={activeCompany.logo}
-              alt={activeCompany.name}
-              width={32}
-              height={32}
-              priority
-              className="object-contain"
-            />
+                                    <Image
+                                        src={company.logo}
+                                        alt={company.name}
+                                        width={32}
+                                        height={32}
+                                        priority
+                                        className="object-contain"
+                                    />
                                 </div>
                                 <div className="grid flex-1 text-left text-sm leading-tight">
-                                    <span className="truncate font-semibold">{activeCompany.name}</span>
-                                    <span className="truncate text-xs">{activeCompany.plan}</span>
+                                    <span className="truncate font-semibold">{company.name}</span>
+                                    <span className="truncate text-xs">{company.plan}</span>
                                 </div>
-                                <HugeiconsIcon icon={MoreVerticalIcon} strokeWidth={2} className="ml-auto" />
-                            </SidebarMenuButton>
-                            <DropdownMenuContent
-                                className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
-                                align="start"
-                                side="bottom"
-                                sideOffset={4}
-                            >
-                                {companies.map((company) => (
-                                    <DropdownMenuItem
-                                        key={company.name}
-                                        onClick={() => setActiveCompany(company)}
-                                        className="gap-2 p-2"
-                                    >
-                                        <div className="flex size-6 items-center justify-center rounded-sm border overflow-hidden bg-white">
-                                            <Image
-                                                src={company.logo}
-                                                alt={company.name}
-                                                width={24}
-                                                height={24}
-                                                className="object-contain"
-                                            />
-                                        </div>
-                                        {company.name}
-                                    </DropdownMenuItem>
-                                ))}
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                        </SidebarMenuButton>
                     </SidebarMenuItem>
                 </SidebarMenu>
             </SidebarHeader>

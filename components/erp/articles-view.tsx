@@ -280,19 +280,7 @@ if (isLoading) {
               <span>Stock Faible: <span className="text-amber-600">{localData.filter(a => (a.stock_global || 0) <= (a.stock_minimum || 0)).length}</span></span>
             </div>
           </div>
-                <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">Lignes par page:</span>
-<Select defaultValue="20">
-                <SelectTrigger className="h-8 w-16 bg-background text-xs" aria-label="Lignes par page">
-                  <SelectValue />
-                </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="20">20</SelectItem>
-                            <SelectItem value="50">50</SelectItem>
-                            <SelectItem value="100">100</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
+    
             </div>
 
             {/* Detailed Sheet Component */}

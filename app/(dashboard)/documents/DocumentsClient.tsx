@@ -102,7 +102,7 @@ export default function DocumentsClient({ initialData, initialError }: Documents
   const totalAchats = documents.filter(d => d.domaine_document === 'ACHAT').reduce((acc, d) => acc + (Number(d.montant_ttc) || 0), 0)
 
   return (
-    <div className="flex flex-1 flex-col gap-6 p-4 pb-20 md:p-8 md:pb-8">
+    <div className="flex flex-1 flex-col gap-6 p-4 pt-0 pb-20 md:p-8 md:pt-0 md:pb-8 animate-fade-in-up">
       {/* Header & Stats */}
       <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
         <div>
@@ -191,7 +191,7 @@ export default function DocumentsClient({ initialData, initialError }: Documents
               <div className="animate-spin rounded-full size-8 border-b-2 border-primary"></div>
             </div>
           ) : (
-            <div className="rounded-md border-0 overflow-hidden">
+            <div className="rounded-md border-0 overflow-x-auto">
               <Table>
                 <TableHeader className="bg-muted/30">
                   <TableRow className="hover:bg-transparent">
