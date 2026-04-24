@@ -40,8 +40,17 @@ vi.mock('next/cache', () => ({
   revalidateTag: vi.fn(),
 }))
 
-vi.mock('@/lib/auth/user-utils', () => ({
-  requireRole: vi.fn().mockResolvedValue({ id: 'user-1', role: 'ADMIN' }),
+vi.mock('@/lib/auth/authorization', () => ({
+  requirePermission: vi.fn().mockResolvedValue({ id: 'user-1', role: 'ADMIN' }),
+}))
+
+vi.mock('next/headers', () => ({
+  cookies: vi.fn().mockResolvedValue({
+    get: vi.fn().mockReturnValue({ value: 'mock-auth-token' }),
+    set: vi.fn(),
+    delete: vi.fn(),
+  }),
+  headers: vi.fn().mockResolvedValue(new Map()),
 }))
 
 vi.mock('@/lib/security/csrf-server', () => ({

@@ -96,6 +96,10 @@ vi.mock('@/lib/auth/user-utils', () => ({
   getCurrentUser: vi.fn(),
 }))
 
+vi.mock('next/server', () => ({
+  after: vi.fn((fn) => fn()),
+}))
+
 vi.mock('@sentry/nextjs', () => ({
   captureException: vi.fn(),
 }))

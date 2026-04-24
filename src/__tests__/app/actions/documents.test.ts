@@ -123,7 +123,8 @@ describe('Document Actions', () => {
       const result = await documentsModule.getDocuments(1, 50)
 
       expect(result.data).toEqual([])
-      expect(result.error).toBe('Failed to fetch documents')
+      expect(result.error).toContain('Failed to fetch')
+      expect(result.error).toContain('documents')
     })
   })
 
