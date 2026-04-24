@@ -131,7 +131,7 @@ export async function validateCsrfToken(userId: string, token: string, cookieVal
  */
 async function rotateCsrfToken(userId: string): Promise<void> {
   try {
-    const { token: newToken, cookieValue: newCookie } = await generateCsrfToken(userId)
+    const { cookieValue: newCookie } = await generateCsrfToken(userId)
     await setCsrfCookie(newCookie)
     log.debug({ userId }, 'CSRF token rotated after validation')
   } catch (error) {
@@ -210,8 +210,11 @@ export async function getCsrfTokenFromHeader(): Promise<string | null> {
 import { createHmac, timingSafeEqual } from 'crypto'
 
 function getHmacSecret(): string {
-  const secret = process.env.JWT_SECRET || 'csrf-fallback-secret-change-me'
-  return secret
+	const secret = process.env.JWT_SECRET
+	if (!secret) {
+		throw new Error('JWT_SECRET is required for CSRF protection')
+	}
+	return secret
 }
 
 function generateStatelessCsrfToken(userId: string): CsrfTokens {

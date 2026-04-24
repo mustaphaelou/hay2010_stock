@@ -2,16 +2,17 @@
 
 import * as React from "react"
 import {
-    ChevronLeftIcon,
-    ChevronRightIcon,
-} from "lucide-react"
+  ArrowLeft01Icon,
+  ArrowRight01Icon,
+} from "@hugeicons/core-free-icons"
 import {
-    DayPicker,
-    type DayButtonProps,
+  DayPicker,
+  type DayButtonProps,
 } from "react-day-picker"
 
 import { cn } from "@/lib/utils"
 import { Button, buttonVariants } from "@/components/ui/button"
+import { SafeIcon as HugeiconsIcon } from "@/components/ui/safe-icon"
 
 function Calendar({
     className,
@@ -61,12 +62,12 @@ function Calendar({
                 ...classNames,
             }}
             components={{
-                Chevron: ({ orientation }) => {
-                    if (orientation === "left") {
-                        return <ChevronLeftIcon className="size-4" />
-                    }
-                    return <ChevronRightIcon className="size-4" />
-                },
+      Chevron: ({ orientation }) => {
+        if (orientation === "left") {
+          return <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
+        }
+        return <HugeiconsIcon icon={ArrowRight01Icon} className="size-4" />
+      },
 DayButton: (props: DayButtonProps) => {
     const { modifiers, className, ...buttonProps } = props
                     return (

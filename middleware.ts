@@ -75,7 +75,7 @@ function nextWithNonce(request: NextRequest, nonce: string): NextResponse {
   return response
 }
 
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Generate nonce for this request's CSP

@@ -1,23 +1,40 @@
 "use client"
 
 import * as React from "react"
+import dynamic from "next/dynamic"
 import { KPICardsGrid, type KPIConfig } from "@/components/dashboard/cards/kpi-cards-grid"
-import { SalesPurchasesChart, type MonthlyData } from "@/components/dashboard/charts/sales-purchases-chart"
 import { DocumentsTable, type DocumentItem } from "@/components/dashboard/tables/documents-table"
-import { PaymentStatusChart } from "@/components/erp/dashboard-charts"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { SafeIcon as HugeiconsIcon } from "@/components/ui/safe-icon"
 import {
-    UserGroupIcon,
-    TruckDeliveryIcon,
-    PackageIcon,
-    FolderOpenIcon,
-    Invoice01Icon,
-    ShoppingBag01Icon,
-    Analytics01Icon,
+  UserGroupIcon,
+  TruckDeliveryIcon,
+  PackageIcon,
+  FolderOpenIcon,
+  Invoice01Icon,
+  ShoppingBag01Icon,
+  Analytics01Icon,
 } from "@hugeicons/core-free-icons"
 import { cn } from "@/lib/utils"
+
+const SalesPurchasesChart = dynamic(
+  () => import("@/components/dashboard/charts/sales-purchases-chart").then(m => ({ default: m.SalesPurchasesChart })),
+  { ssr: true, loading: () => <ChartSkeleton /> }
+)
+
+const PaymentStatusChart = dynamic(
+  () => import("@/components/erp/dashboard-charts").then(m => ({ default: m.PaymentStatusChart })),
+  { ssr: true, loading: () => <ChartSkeleton /> }
+)
+
+function ChartSkeleton() {
+  return (
+    <div className="h-[350px] animate-pulse rounded-lg bg-muted/50" />
+  )
+}
+
+export type MonthlyData = import("@/components/dashboard/charts/sales-purchases-chart").MonthlyData
 
 interface DashboardStats {
     clients: number
@@ -57,7 +74,7 @@ export function OverviewTab({
     loading = false,
     className,
 }: OverviewTabProps) {
-    const [stats, setStats] = React.useState(initialStats)
+  const [stats] = React.useState(initialStats)
 
 
 

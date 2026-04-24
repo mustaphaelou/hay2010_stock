@@ -23,7 +23,7 @@ const sampleData: TestRow[] = [
   { id: 3, name: 'Charlie', email: 'charlie@test.com' },
 ]
 
-vi.mock('@/hooks/use-mobile', () => ({
+vi.mock('@/lib/hooks/use-breakpoint', () => ({
   useIsMobile: vi.fn().mockReturnValue(false),
 }))
 

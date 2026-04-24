@@ -2,6 +2,7 @@
 
 import { prisma } from '@/lib/db/prisma'
 import { requireAuth } from '@/lib/auth/user-utils'
+import { CacheService, CacheTTL } from '@/lib/db/redis-cluster'
 import type { DashboardData, DashboardStats, SalesInvoice, DocumentBase } from '@/lib/types'
 import { createLogger } from '@/lib/logger'
 
@@ -10,7 +11,12 @@ const log = createLogger('dashboard-actions')
 export async function getDashboardStats(): Promise<DashboardData> {
   await requireAuth()
 
+  const cacheKey = 'dashboard:stats'
+
   try {
+    const cached = await CacheService.get<DashboardData>(cacheKey)
+    if (cached) return cached
+
     const MAX_RECORDS = 100
 
     const [
@@ -189,12 +195,16 @@ export async function getDashboardStats(): Promise<DashboardData> {
       achats: data.achats
     }))
 
-    return {
+    const result = {
       stats,
       recentDocs: processedRecentDocs,
       salesInvoices: processedSalesInvoices,
       monthlyData,
     }
+
+    await CacheService.set(cacheKey, result, CacheTTL.SHORT)
+
+    return result
   } catch (error) {
     log.error({ error }, 'Failed to fetch dashboard stats')
     return {

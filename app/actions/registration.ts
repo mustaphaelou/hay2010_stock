@@ -6,6 +6,7 @@ import { registerSchema } from '@/lib/validation'
 import { createLogger } from '@/lib/logger'
 import { redis, isRedisReady } from '@/lib/db/redis'
 import { headers } from 'next/headers'
+import { validateCsrfToken, getCsrfCookie, ANONYMOUS_USER_ID, generateCsrfToken, setCsrfCookie } from '@/lib/security/csrf-server'
 
 const log = createLogger('registration-actions')
 
@@ -26,7 +27,7 @@ async function getClientIdentifier(): Promise<string> {
 
 async function checkRegistrationRateLimit(identifier: string): Promise<{ allowed: boolean; remaining: number }> {
   const key = `${REG_RATE_LIMIT_PREFIX}${identifier}`
-  
+
   if (!isRedisReady()) {
     log.warn('Redis not ready, skipping rate limit check')
     return { allowed: true, remaining: REG_RATE_LIMIT_MAX }
@@ -37,7 +38,7 @@ async function checkRegistrationRateLimit(identifier: string): Promise<{ allowed
     if (current === 1) {
       await redis.expire(key, REG_RATE_LIMIT_WINDOW)
     }
-    
+
     const remaining = Math.max(0, REG_RATE_LIMIT_MAX - current)
     return { allowed: current <= REG_RATE_LIMIT_MAX, remaining }
   } catch (error) {
@@ -49,12 +50,29 @@ async function checkRegistrationRateLimit(identifier: string): Promise<{ allowed
 export async function publicRegister(
   email: string,
   password: string,
-  name: string
+  name: string,
+  csrfToken?: string
 ): Promise<{ error?: string; success?: boolean; message?: string }> {
   try {
+    if (!csrfToken) {
+      log.warn('CSRF token missing on registration')
+      return { error: 'Jeton de sécurité requis. Veuillez actualiser la page.' }
+    }
+
+    const csrfCookie = await getCsrfCookie()
+    const valid = await validateCsrfToken(ANONYMOUS_USER_ID, csrfToken, csrfCookie || '')
+    if (!valid) {
+      log.warn('Invalid CSRF token on registration')
+      try {
+        const { cookieValue: newCookie } = await generateCsrfToken(ANONYMOUS_USER_ID)
+        await setCsrfCookie(newCookie)
+      } catch { /* non-fatal */ }
+      return { error: 'Jeton de sécurité invalide. Veuillez actualiser la page et réessayer.' }
+    }
+
     const clientIdentifier = await getClientIdentifier()
     const rateCheck = await checkRegistrationRateLimit(clientIdentifier)
-    
+
     if (!rateCheck.allowed) {
       return { error: 'Too many registration attempts. Please try again later.' }
     }

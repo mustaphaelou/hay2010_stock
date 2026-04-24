@@ -1,8 +1,8 @@
 'use server'
 
 import { prisma } from '@/lib/db/prisma'
-import { requireAuth } from '@/lib/auth/user-utils'
-import { getDocLinesSchema } from '@/lib/validation'
+import { requirePermission } from '@/lib/auth/authorization'
+import { getDocLinesSchema, paginationSchema } from '@/lib/validation'
 import type { DocumentWithComputed, DocumentLine } from '@/lib/types'
 import { Prisma } from '@/lib/generated/prisma/client'
 import { createLogger } from '@/lib/logger'
@@ -68,17 +68,30 @@ function mapDocumentToComputed(doc: {
   }
 }
 
+function applyRowLevelSecurity(user: { id: string; role: string }, whereClause: Record<string, unknown> = {}): Record<string, unknown> {
+  if (user.role === 'ADMIN') return whereClause
+  return { ...whereClause, cree_par: user.id }
+}
+
 export async function getDocuments(page: number = 1, limit: number = 50): Promise<{ data: DocumentWithComputed[]; meta: { total: number; page: number; limit: number; totalPages: number }; error?: string }> {
-  const user = await requireAuth()
-  const skip = (page - 1) * limit
+  const user = await requirePermission('documents:read')
+
+  const parsed = paginationSchema.safeParse({ page, limit })
+  if (!parsed.success) {
+    return { data: [], meta: { total: 0, page, limit, totalPages: 0 }, error: 'Invalid pagination parameters' }
+  }
+  const { page: p, limit: l } = parsed.data ?? { page, limit }
+  const safePage = p ?? page
+  const safeLimit = l ?? limit
+  const skip = (safePage - 1) * safeLimit
 
   try {
-    const whereClause = user.role === 'ADMIN' ? {} : { cree_par: user.id }
-    
+    const whereClause = applyRowLevelSecurity(user)
+
     const [documents, total] = await Promise.all([
       prisma.docVente.findMany({
         skip,
-        take: limit,
+        take: safeLimit,
         where: whereClause,
         include: {
           partenaire: {
@@ -99,34 +112,41 @@ export async function getDocuments(page: number = 1, limit: number = 50): Promis
       data: documents.map(mapDocumentToComputed),
       meta: {
         total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit)
+        page: safePage,
+        limit: safeLimit,
+        totalPages: Math.ceil(total / safeLimit)
       }
     }
-	} catch (error) {
-		log.error({ error }, 'Failed to fetch documents')
-		return {
-      data: [], 
-      meta: { total: 0, page, limit, totalPages: 0 },
+  } catch (error) {
+    log.error({ error }, 'Failed to fetch documents')
+    return {
+      data: [],
+      meta: { total: 0, page: safePage, limit: safeLimit, totalPages: 0 },
       error: 'Failed to fetch documents'
     }
   }
 }
 
 export async function getSalesDocuments(page: number = 1, limit: number = 50): Promise<{ data: DocumentWithComputed[]; meta: { total: number; page: number; limit: number; totalPages: number }; error?: string }> {
-  await requireAuth()
-  
-  const skip = (page - 1) * limit
+  const user = await requirePermission('documents:read')
+
+  const parsed = paginationSchema.safeParse({ page, limit })
+  if (!parsed.success) {
+    return { data: [], meta: { total: 0, page, limit, totalPages: 0 }, error: 'Invalid pagination parameters' }
+  }
+  const { page: p, limit: l } = parsed.data ?? { page, limit }
+  const safePage = p ?? page
+  const safeLimit = l ?? limit
+  const skip = (safePage - 1) * safeLimit
 
   try {
+    const whereClause = applyRowLevelSecurity(user, { domaine_document: 'VENTE' })
+
     const [documents, total] = await Promise.all([
       prisma.docVente.findMany({
         skip,
-        take: limit,
-        where: {
-          domaine_document: 'VENTE'
-        },
+        take: safeLimit,
+        where: whereClause,
         include: {
           partenaire: {
             select: {
@@ -139,41 +159,48 @@ export async function getSalesDocuments(page: number = 1, limit: number = 50): P
           date_document: 'desc'
         }
       }),
-      prisma.docVente.count({ where: { domaine_document: 'VENTE' } })
+      prisma.docVente.count({ where: whereClause })
     ])
 
     return {
       data: documents.map(mapDocumentToComputed),
       meta: {
         total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit)
+        page: safePage,
+        limit: safeLimit,
+        totalPages: Math.ceil(total / safeLimit)
       }
     }
-	} catch (error) {
-		log.error({ error }, 'Failed to fetch sales documents')
-		return {
-      data: [], 
-      meta: { total: 0, page, limit, totalPages: 0 },
+  } catch (error) {
+    log.error({ error }, 'Failed to fetch sales documents')
+    return {
+      data: [],
+      meta: { total: 0, page: safePage, limit: safeLimit, totalPages: 0 },
       error: 'Failed to fetch sales documents'
     }
   }
 }
 
 export async function getPurchasesDocuments(page: number = 1, limit: number = 50): Promise<{ data: DocumentWithComputed[]; meta: { total: number; page: number; limit: number; totalPages: number }; error?: string }> {
-  await requireAuth()
-  
-  const skip = (page - 1) * limit
+  const user = await requirePermission('documents:read')
+
+  const parsed = paginationSchema.safeParse({ page, limit })
+  if (!parsed.success) {
+    return { data: [], meta: { total: 0, page, limit, totalPages: 0 }, error: 'Invalid pagination parameters' }
+  }
+  const { page: p, limit: l } = parsed.data ?? { page, limit }
+  const safePage = p ?? page
+  const safeLimit = l ?? limit
+  const skip = (safePage - 1) * safeLimit
 
   try {
+    const whereClause = applyRowLevelSecurity(user, { domaine_document: 'ACHAT' })
+
     const [documents, total] = await Promise.all([
       prisma.docVente.findMany({
         skip,
-        take: limit,
-        where: {
-          domaine_document: 'ACHAT'
-        },
+        take: safeLimit,
+        where: whereClause,
         include: {
           partenaire: {
             select: {
@@ -186,35 +213,35 @@ export async function getPurchasesDocuments(page: number = 1, limit: number = 50
           date_document: 'desc'
         }
       }),
-      prisma.docVente.count({ where: { domaine_document: 'ACHAT' } })
+      prisma.docVente.count({ where: whereClause })
     ])
 
     return {
       data: documents.map(mapDocumentToComputed),
       meta: {
         total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit)
+        page: safePage,
+        limit: safeLimit,
+        totalPages: Math.ceil(total / safeLimit)
       }
     }
-	} catch (error) {
-		log.error({ error }, 'Failed to fetch purchases documents')
-		return {
-      data: [], 
-      meta: { total: 0, page, limit, totalPages: 0 },
+  } catch (error) {
+    log.error({ error }, 'Failed to fetch purchases documents')
+    return {
+      data: [],
+      meta: { total: 0, page: safePage, limit: safeLimit, totalPages: 0 },
       error: 'Failed to fetch purchases documents'
     }
   }
 }
 
 export async function getDocLines(docId: number): Promise<{ data: DocumentLine[]; error?: string }> {
-  await requireAuth()
+  await requirePermission('documents:read')
 
-	const validationResult = getDocLinesSchema.safeParse({ docId })
-	if (!validationResult.success) {
-		log.error({ error: validationResult.error, docId }, 'Invalid docId')
-		return { data: [], error: 'Invalid document ID' }
+  const validationResult = getDocLinesSchema.safeParse({ docId })
+  if (!validationResult.success) {
+    log.error({ error: validationResult.error, docId }, 'Invalid docId')
+    return { data: [], error: 'Invalid document ID' }
   }
 
   try {
@@ -241,8 +268,8 @@ export async function getDocLines(docId: number): Promise<{ data: DocumentLine[]
         code_taxe: null
       }))
     }
-	} catch (error) {
-		log.error({ error, docId }, 'Failed to fetch document lines')
-		return { data: [], error: 'Failed to fetch document lines' }
+  } catch (error) {
+    log.error({ error, docId }, 'Failed to fetch document lines')
+    return { data: [], error: 'Failed to fetch document lines' }
   }
 }

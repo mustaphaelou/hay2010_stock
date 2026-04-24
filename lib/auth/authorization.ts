@@ -52,7 +52,7 @@ export function hasRole(userRole: UserRole, minRole: UserRole): boolean {
   return (ROLE_HIERARCHY[userRole] || 0) >= (ROLE_HIERARCHY[minRole] || 0)
 }
 
-export async function requirePermission(permission: Permission): Promise<{ id: string; email: string; role: string }> {
+export async function requirePermission(permission: Permission): Promise<{ id: string; email: string; name: string; role: string }> {
   const cookieStore = await cookies()
   const token = cookieStore.get(AUTH_COOKIE_NAME)?.value
 
@@ -79,6 +79,7 @@ export async function requirePermission(permission: Permission): Promise<{ id: s
   return {
     id: payload.userId,
     email: payload.email,
+    name: session.name,
     role: payload.role,
   }
 }

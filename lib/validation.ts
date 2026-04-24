@@ -94,3 +94,17 @@ export type GetPartnersInput = z.infer<typeof getPartnersSchema>
 
 /** Pagination input type */
 export type PaginationInput = z.infer<typeof paginationSchema>
+
+/** Stock movement creation validation schema */
+export const createMovementSchema = z.object({
+  productId: z.number().int().positive('Product ID must be a positive integer'),
+  warehouseId: z.number().int().positive('Warehouse ID must be a positive integer'),
+  quantity: z.number().positive('Quantity must be positive'),
+  type: z.enum(['ENTREE', 'SORTIE', 'TRANSFERT', 'INVENTAIRE']),
+  reference: z.string().max(255).optional(),
+  motif: z.string().max(1000).optional(),
+  destinationWarehouseId: z.number().int().positive().optional(),
+})
+
+/** Create movement input type */
+export type CreateMovementInput = z.infer<typeof createMovementSchema>

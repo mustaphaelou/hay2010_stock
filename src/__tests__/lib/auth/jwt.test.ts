@@ -1,9 +1,32 @@
 /**
  * @vitest-environment node
  */
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+
+vi.mock('@/lib/db/redis', () => ({
+  redis: {
+    exists: vi.fn().mockResolvedValue(0),
+    setex: vi.fn().mockResolvedValue('OK'),
+    get: vi.fn().mockResolvedValue(null),
+    del: vi.fn().mockResolvedValue(1),
+    ping: vi.fn().mockResolvedValue('PONG'),
+  },
+  isRedisReady: vi.fn().mockReturnValue(true),
+}))
+
+vi.mock('@/lib/logger', () => ({
+  createLogger: () => ({
+    info: vi.fn(),
+    error: vi.fn(),
+    warn: vi.fn(),
+    debug: vi.fn(),
+  }),
+}))
 
 describe('JWT Token', () => {
+  beforeEach(() => {
+    vi.resetModules()
+  })
   const validPayload = {
     userId: 'test-user-id',
     email: 'test@example.com',

@@ -1,8 +1,10 @@
 'use server'
 
 import { prisma } from '@/lib/db/prisma'
+import { after } from 'next/server'
 import { requireAuth } from '@/lib/auth/user-utils'
 import { validateCsrfToken, getCsrfCookie } from '@/lib/security/csrf-server'
+import { verifyPassword } from '@/lib/auth/password'
 import { createLogger } from '@/lib/logger'
 import * as Sentry from '@sentry/nextjs'
 import { z } from 'zod'
@@ -12,6 +14,7 @@ const log = createLogger('profile-actions')
 const updateProfileSchema = z.object({
   name: z.string().min(2, 'Le nom doit contenir au moins 2 caractères').max(255),
   email: z.string().email('Adresse email invalide'),
+  currentPassword: z.string().optional(),
 })
 
 export async function updateProfile(
@@ -35,10 +38,29 @@ export async function updateProfile(
 
     const name = formData.get('name') as string
     const email = formData.get('email') as string
+    const currentPassword = formData.get('currentPassword') as string | null
 
-    const validationResult = updateProfileSchema.safeParse({ name, email })
+    const validationResult = updateProfileSchema.safeParse({ name, email, currentPassword })
     if (!validationResult.success) {
       return { error: validationResult.error.issues.map((e) => e.message).join(', ') }
+    }
+
+    // If email is changing, require current password
+    if (validationResult.data.email !== user.email) {
+      if (!currentPassword) {
+        return { error: 'Votre mot de passe actuel est requis pour changer l\'adresse email.' }
+      }
+      const dbUser = await prisma.user.findUnique({
+        where: { id: user.id },
+        select: { password: true, email: true },
+      })
+      if (!dbUser) {
+        return { error: 'Utilisateur introuvable.' }
+      }
+      const passwordValid = await verifyPassword(currentPassword, dbUser.password)
+      if (!passwordValid) {
+        return { error: 'Mot de passe actuel incorrect.' }
+      }
     }
 
     const existingUser = await prisma.user.findUnique({
@@ -60,7 +82,9 @@ export async function updateProfile(
     return { success: true }
   } catch (error) {
     log.error({ error }, 'Profile update error')
-    Sentry.captureException(error, { tags: { action: 'updateProfile' } })
+    after(() => {
+      Sentry.captureException(error, { tags: { action: 'updateProfile' } })
+    })
     return { error: 'Une erreur inattendue est survenue lors de la mise à jour du profil.' }
   }
 }

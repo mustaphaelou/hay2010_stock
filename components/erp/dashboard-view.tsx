@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
+import dynamic from "next/dynamic"
 import { formatPrice } from "@/lib/utils"
 import {
   Card,
@@ -34,7 +35,10 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Empty } from "@/components/ui/empty"
 
-import { PaymentStatusChart } from "@/components/erp/dashboard-charts"
+const PaymentStatusChart = dynamic(
+  () => import("@/components/erp/dashboard-charts").then(m => ({ default: m.PaymentStatusChart })),
+  { ssr: true, loading: () => <div className="h-[300px] animate-pulse rounded-lg bg-muted/50" /> }
+)
 
 interface RecentDocType {
   id_document: number

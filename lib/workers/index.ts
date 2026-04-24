@@ -74,7 +74,8 @@ export function startWorkers(): void {
       await job.log(`Starting PDF generation for document ${documentId}`)
 
       try {
-        const { generateInvoicePDF, transformToInvoiceData } = await import('@/lib/pdf/generate-invoice')
+        const { transformToInvoiceData } = await import('@/lib/pdf/generate-invoice')
+          const { generateInvoicePdfBuffer } = await import('@/lib/pdf/generate-invoice-server')
         const { prisma } = await import('@/lib/db/prisma')
 
         await job.updateProgress(20)
@@ -122,7 +123,7 @@ export function startWorkers(): void {
         }))
 
         const invoiceData = transformToInvoiceData(documentWithComputed, linesWithComputed, document.partenaire)
-        await generateInvoicePDF(invoiceData)
+        await generateInvoicePdfBuffer(invoiceData)
 
         await job.updateProgress(80)
 

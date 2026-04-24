@@ -49,35 +49,36 @@ const nextConfig: NextConfig = {
   compress: true,
 
   // =====================================================
+  // SERVER EXTERNAL PACKAGES
+  // Prevent bundling of native Node.js modules
+  // =====================================================
+  serverExternalPackages: ['pg', 'canvas', '@prisma/adapter-pg'],
+
+  // =====================================================
   // EXPERIMENTAL FEATURES
   // =====================================================
   experimental: {
     // Optimize package imports to reduce bundle size
-optimizePackageImports: [
-    "recharts",
-    "@hugeicons/core-free-icons",
-    "@hugeicons/react",
-    "@base-ui/react",
-    "@dnd-kit/core",
-    "@dnd-kit/sortable",
-    "@dnd-kit/modifiers",
-    "@dnd-kit/utilities",
-    "class-variance-authority",
-    "clsx",
-    "tailwind-merge",
-    "@radix-ui/react-dialog",
-    "@radix-ui/react-popover",
-    "@radix-ui/react-dropdown-menu",
-    "@radix-ui/react-select",
-    "@radix-ui/react-tabs",
-    "@radix-ui/react-tooltip",
-    "@radix-ui/react-avatar",
-    "@radix-ui/react-separator",
-    "@radix-ui/react-toggle",
-    "@radix-ui/react-toggle-group",
-    "lucide-react",
-    "zod",
-  ],
+      optimizePackageImports: [
+        "recharts",
+        "@hugeicons/core-free-icons",
+        "@hugeicons/react",
+        "@base-ui/react",
+        "class-variance-authority",
+        "clsx",
+        "tailwind-merge",
+        "@radix-ui/react-dialog",
+        "@radix-ui/react-popover",
+        "@radix-ui/react-dropdown-menu",
+        "@radix-ui/react-select",
+        "@radix-ui/react-tabs",
+        "@radix-ui/react-tooltip",
+        "@radix-ui/react-avatar",
+        "@radix-ui/react-separator",
+        "@radix-ui/react-toggle",
+        "@radix-ui/react-toggle-group",
+          "zod",
+      ],
 
     // Server actions configuration
     serverActions: {

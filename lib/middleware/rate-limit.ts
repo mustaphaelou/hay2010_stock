@@ -10,6 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { redis, CacheKeys } from '@/lib/db/redis-cluster'
 import { createLogger } from '@/lib/logger'
+import { randomBytes } from 'crypto'
 
 const log = createLogger('rate-limit')
 
@@ -100,26 +101,28 @@ const EXEMPT_PATHS = [
  * Uses X-Forwarded-For header or falls back to IP
  */
 function getClientIdentifier(request: NextRequest): string {
-    const forwardedFor = request.headers.get('x-forwarded-for')
-    const realIp = request.headers.get('x-real-ip')
-    const cfConnectingIp = request.headers.get('cf-connecting-ip') // Cloudflare
+  const userId = request.headers.get('x-user-id')
 
-    // Try different headers in order of preference
-    if (cfConnectingIp) {
-        return cfConnectingIp
-    }
+  if (userId) {
+    return `user:${userId}`
+  }
 
-    if (forwardedFor) {
-        // X-Forwarded-For can contain multiple IPs, use the first one
-        return forwardedFor.split(',')[0].trim()
-    }
+  const cfConnectingIp = request.headers.get('cf-connecting-ip')
+  if (cfConnectingIp) {
+    return cfConnectingIp
+  }
 
-    if (realIp) {
-        return realIp
-    }
+  const forwardedFor = request.headers.get('x-forwarded-for')
+  if (forwardedFor) {
+    return forwardedFor.split(',')[0].trim()
+  }
 
-    // Fallback to a default identifier
-    return 'unknown'
+  const realIp = request.headers.get('x-real-ip')
+  if (realIp) {
+    return realIp
+  }
+
+  return 'unknown'
 }
 
 /**
@@ -179,7 +182,7 @@ async function checkRateLimit(
         multi.zremrangebyscore(key, 0, windowStart)
 
         // Add current request
-        multi.zadd(key, now, `${now}-${Math.random().toString(36).substr(2, 9)}`)
+        multi.zadd(key, now, `${now}-${randomBytes(8).toString('hex')}`)
 
         // Get count of requests in window
         multi.zcard(key)
@@ -338,13 +341,18 @@ export async function rateLimitMiddleware(
  * Rate limit decorator for server actions
  */
 export function withRateLimit<T extends (...args: unknown[]) => Promise<unknown>>(
-    action: T,
-    config: RateLimitConfig
+  action: T,
+  config: RateLimitConfig
 ): T {
-    return (async (...args: unknown[]) => {
-        // For server actions, we use a simplified rate limit check
-        // The identifier would typically come from the session
-        const key = `action:${action.name}`
+  return (async (...args: unknown[]) => {
+    let userId = 'anonymous'
+    try {
+      const { getCurrentUser } = await import('@/lib/auth/user-utils')
+      const user = await getCurrentUser()
+      if (user) userId = user.id
+    } catch { /* use anonymous */ }
+
+    const key = `action:${action.name}:${userId}`
 
         try {
             const current = await redis.incr(key)

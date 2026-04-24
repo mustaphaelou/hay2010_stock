@@ -92,9 +92,8 @@ lib/
 │   ├── prisma.ts       # Prisma client singleton
 │   ├── redis.ts        # Redis client
 │   └── redis-cluster.ts # Redis cluster utilities
-├── middleware/          # Custom middleware
-│   ├── rate-limit.ts   # Rate limiting middleware
-│   └── edge-rate-limit.ts # Edge-compatible rate limiting
+├── middleware/ # Custom middleware
+│ └── rate-limit.ts # Rate limiting middleware
 ├── errors.ts           # Custom error classes
 ├── logger.ts           # Structured logging
 └── utils/              # Utility functions

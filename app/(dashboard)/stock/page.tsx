@@ -1,6 +1,8 @@
 import { getStockLevels, getDepots } from '@/app/actions/stock'
 import StockClient from './StockClient'
 
+export const dynamic = 'force-dynamic'
+
 export default async function StockPage() {
   let initialStockData: Awaited<ReturnType<typeof getStockLevels>>['data'] = []
   let initialDepots: Awaited<ReturnType<typeof getDepots>> = []

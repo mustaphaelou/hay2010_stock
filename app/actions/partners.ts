@@ -1,7 +1,7 @@
 'use server'
 
 import { prisma } from '@/lib/db/prisma'
-import { requireAuth } from '@/lib/auth/user-utils'
+import { requirePermission } from '@/lib/auth/authorization'
 import { getPartnersSchema } from '@/lib/validation'
 import type { PartnerWithComputed } from '@/lib/types'
 import { TypePartenaire } from '@/lib/generated/prisma'
@@ -10,7 +10,7 @@ import { createLogger } from '@/lib/logger'
 const log = createLogger('partners-actions')
 
 export async function getPartners(type?: string, page: number = 1, limit: number = 50): Promise<{ data: PartnerWithComputed[]; meta: { total: number; page: number; limit: number; totalPages: number }; error?: string }> {
-  await requireAuth()
+  await requirePermission('partners:read')
 
   const validationResult = getPartnersSchema.safeParse({ type })
   if (!validationResult.success) {

@@ -14,8 +14,8 @@ vi.mock('@/lib/db/prisma', () => ({
   },
 }))
 
-vi.mock('@/lib/auth/user-utils', () => ({
-  requireAuth: vi.fn().mockResolvedValue({ id: 'user-1', role: 'USER' }),
+vi.mock('@/lib/auth/authorization', () => ({
+  requirePermission: vi.fn().mockResolvedValue({ id: 'user-1', email: 'test@example.com', name: 'Test User', role: 'ADMIN' }),
 }))
 
 describe('Document Actions', () => {

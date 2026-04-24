@@ -9,7 +9,7 @@ vi.mock('@/components/erp/article-details-sheet', () => ({
   ArticleDetailsSheet: () => null,
 }))
 
-vi.mock('@/hooks/use-mobile', () => ({
+vi.mock('@/lib/hooks/use-breakpoint', () => ({
   useIsMobile: vi.fn().mockReturnValue(false),
 }))
 

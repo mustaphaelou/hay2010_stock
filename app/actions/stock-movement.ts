@@ -1,12 +1,15 @@
 'use server'
 
+export const maxDuration = 60
+
 import { prisma, withTransaction } from '@/lib/db/prisma'
-import { requireRole } from '@/lib/auth/user-utils'
+import { requirePermission } from '@/lib/auth/authorization'
 import { revalidatePath } from 'next/cache'
+import { after } from 'next/server'
 import { CacheService } from '@/lib/db/redis-cluster'
 import { CacheInvalidationService } from '@/lib/cache/invalidation'
 import { createLogger } from '@/lib/logger'
-import { UserRole } from '@/lib/auth/authorization'
+import { createMovementSchema } from '@/lib/validation'
 
 const log = createLogger('stock-movement-actions')
 
@@ -32,25 +35,24 @@ export interface MovementResult {
 }
 
 export async function createStockMovement(input: CreateMovementInput, csrfToken: string): Promise<MovementResult> {
-  const user = await requireRole(['ADMIN', 'MANAGER'] as UserRole[])
+  const user = await requirePermission('stock:write')
 
   try {
-      const { requireCsrfToken, getCsrfCookie } = await import('@/lib/security/csrf-server')
-      const csrfCookie = await getCsrfCookie()
-      await requireCsrfToken(user.id, csrfToken, csrfCookie || '')
+    const { requireCsrfToken, getCsrfCookie } = await import('@/lib/security/csrf-server')
+    const csrfCookie = await getCsrfCookie()
+    await requireCsrfToken(user.id, csrfToken, csrfCookie || '')
   } catch {
     return { error: 'Invalid security token. Please refresh the page and try again.' }
   }
 
-  if (input.quantity <= 0) {
-    return { error: 'Quantity must be positive' }
+  const validation = createMovementSchema.safeParse(input)
+  if (!validation.success) {
+    return { error: validation.error.issues.map(e => e.message).join(', ') }
   }
 
-  if (input.type === 'TRANSFERT' && !input.destinationWarehouseId) {
-    return { error: 'Destination warehouse required for transfer' }
-  }
+  const validatedInput = validation.data
 
-  const lockKey = `stock:${input.productId}:${input.warehouseId}`
+  const lockKey = `stock:${validatedInput.productId}:${validatedInput.warehouseId}`
   const lockToken = await CacheService.acquireLock(lockKey, 30)
   if (!lockToken) {
     return { error: 'Stock operation in progress, please retry' }
@@ -61,8 +63,8 @@ export async function createStockMovement(input: CreateMovementInput, csrfToken:
       let stockLevel = await tx.niveauStock.findUnique({
         where: {
           id_produit_id_entrepot: {
-            id_produit: input.productId,
-            id_entrepot: input.warehouseId,
+            id_produit: validatedInput.productId,
+            id_entrepot: validatedInput.warehouseId,
           },
         },
       })
@@ -70,8 +72,8 @@ export async function createStockMovement(input: CreateMovementInput, csrfToken:
       if (!stockLevel) {
         stockLevel = await tx.niveauStock.create({
           data: {
-            id_produit: input.productId,
-            id_entrepot: input.warehouseId,
+            id_produit: validatedInput.productId,
+            id_entrepot: validatedInput.warehouseId,
             quantite_en_stock: 0,
             quantite_reservee: 0,
             quantite_commandee: 0,
@@ -80,26 +82,26 @@ export async function createStockMovement(input: CreateMovementInput, csrfToken:
       }
 
       const currentQty = Number(stockLevel.quantite_en_stock)
-      let delta = input.quantity
+      let delta = validatedInput.quantity
 
-      if (input.type === 'SORTIE' || input.type === 'TRANSFERT') {
-        delta = -input.quantity
+      if (validatedInput.type === 'SORTIE' || validatedInput.type === 'TRANSFERT') {
+        delta = -validatedInput.quantity
       }
 
       const newQty = currentQty + delta
 
       if (newQty < 0) {
-        throw new Error(`Insufficient stock. Current: ${currentQty}, Requested: ${input.quantity}`)
+        throw new Error(`Insufficient stock. Current: ${currentQty}, Requested: ${validatedInput.quantity}`)
       }
 
       const movement = await tx.mouvementStock.create({
         data: {
-          id_produit: input.productId,
-          id_entrepot: input.warehouseId,
-          type_mouvement: input.type,
-          quantite: input.quantity,
-          reference_document: input.reference,
-          motif: input.motif,
+          id_produit: validatedInput.productId,
+          id_entrepot: validatedInput.warehouseId,
+          type_mouvement: validatedInput.type,
+          quantite: validatedInput.quantity,
+          reference_document: validatedInput.reference,
+          motif: validatedInput.motif,
           cree_par: user.id,
         },
       })
@@ -109,16 +111,16 @@ export async function createStockMovement(input: CreateMovementInput, csrfToken:
         data: {
           quantite_en_stock: newQty,
           date_dernier_mouvement: new Date(),
-          type_dernier_mouvement: input.type,
+          type_dernier_mouvement: validatedInput.type,
         },
       })
 
-      if (input.type === 'TRANSFERT' && input.destinationWarehouseId) {
+      if (validatedInput.type === 'TRANSFERT' && validatedInput.destinationWarehouseId) {
         let destStockLevel = await tx.niveauStock.findUnique({
           where: {
             id_produit_id_entrepot: {
-              id_produit: input.productId,
-              id_entrepot: input.destinationWarehouseId,
+              id_produit: validatedInput.productId,
+              id_entrepot: validatedInput.destinationWarehouseId,
             },
           },
         })
@@ -126,8 +128,8 @@ export async function createStockMovement(input: CreateMovementInput, csrfToken:
         if (!destStockLevel) {
           destStockLevel = await tx.niveauStock.create({
             data: {
-              id_produit: input.productId,
-              id_entrepot: input.destinationWarehouseId,
+              id_produit: validatedInput.productId,
+              id_entrepot: validatedInput.destinationWarehouseId,
               quantite_en_stock: 0,
               quantite_reservee: 0,
               quantite_commandee: 0,
@@ -137,17 +139,17 @@ export async function createStockMovement(input: CreateMovementInput, csrfToken:
 
         await tx.mouvementStock.create({
           data: {
-            id_produit: input.productId,
-            id_entrepot: input.destinationWarehouseId,
+            id_produit: validatedInput.productId,
+            id_entrepot: validatedInput.destinationWarehouseId,
             type_mouvement: 'ENTREE',
-            quantite: input.quantity,
-            reference_document: input.reference,
-            motif: `Transfer from warehouse ${input.warehouseId}`,
+            quantite: validatedInput.quantity,
+            reference_document: validatedInput.reference,
+            motif: `Transfer from warehouse ${validatedInput.warehouseId}`,
             cree_par: user.id,
           },
         })
 
-        const destNewQty = Number(destStockLevel.quantite_en_stock) + input.quantity
+        const destNewQty = Number(destStockLevel.quantite_en_stock) + validatedInput.quantity
         await tx.niveauStock.update({
           where: { id_stock: destStockLevel.id_stock },
           data: {
@@ -164,13 +166,15 @@ export async function createStockMovement(input: CreateMovementInput, csrfToken:
       }
     })
 
-    await CacheInvalidationService.invalidateProduct(input.productId)
-    await CacheInvalidationService.invalidateStock(input.productId, input.warehouseId)
+    after(() => {
+      CacheInvalidationService.invalidateProduct(validatedInput.productId)
+      CacheInvalidationService.invalidateStock(validatedInput.productId, validatedInput.warehouseId)
+    })
 
-    revalidatePath('/stock')
+  revalidatePath('/stock')
     return { success: true, data: result }
 	} catch (error) {
-		log.error({ error, input }, 'Stock movement failed')
+    log.error({ error, input: validatedInput }, 'Stock movement failed')
 		return {
       error: error instanceof Error ? error.message : 'Failed to create stock movement',
     }
@@ -184,7 +188,7 @@ export async function getStockMovements(
   warehouseId?: number,
   limit: number = 100
 ) {
-  await requireRole(['ADMIN', 'MANAGER', 'USER', 'VIEWER'] as UserRole[])
+  await requirePermission('stock:read')
 
   if (limit > 500) limit = 500
 

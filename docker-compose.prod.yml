@@ -1,48 +1,29 @@
 # ============================================
-# HAY2010 Stock Application - Docker Compose
-# Version: 5.0
+# HAY2010 Stock Application - Production Docker Compose
 # ============================================
 #
 # PURPOSE:
-# Complete local deployment using Docker only - no external services required
-# Uses environment variables from .env.docker instead of hardcoded secrets
+# Production deployment with hardened security, resource limits,
+# and no exposed internal service ports.
 #
 # USAGE:
-# 1. Copy .env.docker.example to .env.docker and set your secrets
-# 2. Start: docker compose up -d
-# 3. View logs: docker compose logs -f
-# 4. Stop: docker compose down
-# 5. Rebuild: docker compose build --no-cache && docker compose up -d
-# 6. Seed database: docker compose run --rm seed
-# 7. Reset all: docker compose down -v && docker compose up -d
+#   docker compose -f docker-compose.prod.yml up -d
+#   docker compose -f docker-compose.prod.yml run --rm seed
 #
-# ADMIN CREDENTIALS:
-# Default: admin@hay2010.com / Admin@2026
-# Override via .env.docker or command line:
-# SEED_ADMIN_EMAIL=you@example.com SEED_ADMIN_PASSWORD=YourPass123 docker compose run --rm seed
-#
-# SERVICES:
-# - migrate: One-time database migration runner
-# - seed: One-time database seeder (run manually)
-# - app: Next.js application (port 3000)
-# - postgres: PostgreSQL 16 database (port 5432)
-# - redis: Redis 7 cache (port 6379)
+# REQUIRED ENV VARS (set in .env.docker or shell):
+#   POSTGRES_PASSWORD, JWT_SECRET, REDIS_PASSWORD
 #
 # ============================================
 
 services:
 
-# ============================================
-# MIGRATION SERVICE
-# Runs once to apply database migrations on startup
-# ============================================
   migrate:
     build:
       context: .
       dockerfile: Dockerfile
       target: migrator
       args:
-        DATABASE_URL: "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-hay2010_db}?connection_limit=5&pool_timeout=10"
+        - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-hay2010_db}?connection_limit=5&pool_timeout=10
     container_name: hay2010_migrate
     environment:
       DATABASE_URL: "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-hay2010_db}?connection_limit=5&pool_timeout=10"
@@ -56,15 +37,10 @@ services:
       - backend
     security_opt:
       - no-new-privileges:true
-    read_only: false
-    volumes:
-      - ./prisma:/app/prisma:ro
-      - ./lib/generated:/app/lib/generated:ro
+    read_only: true
+    tmpfs:
+      - /tmp
 
-# ============================================
-# SEED SERVICE
-# Seeds the database with initial data (run manually)
-# ============================================
   seed:
     build:
       context: .
@@ -74,7 +50,7 @@ services:
     environment:
       DATABASE_URL: "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-hay2010_db}?connection_limit=5&pool_timeout=10"
       SEED_ADMIN_EMAIL: "${SEED_ADMIN_EMAIL:-admin@hay2010.com}"
-      SEED_ADMIN_PASSWORD: "${SEED_ADMIN_PASSWORD:-Admin@2026}"
+      SEED_ADMIN_PASSWORD: "${SEED_ADMIN_PASSWORD:?SEED_ADMIN_PASSWORD is required}"
     command: ["npx", "tsx", "prisma/seed.ts"]
     depends_on:
       migrate:
@@ -82,40 +58,41 @@ services:
     restart: "no"
     networks:
       - backend
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
 
-# ============================================
-# APPLICATION SERVICE
-# Next.js application server
-# ============================================
   app:
     build:
       context: .
       dockerfile: Dockerfile
       target: runner
       args:
-        PORT: "3000"
-        GIT_SHA: ${GIT_SHA:-local}
-        BUILD_DATE: "2026-04-18"
-        DATABASE_URL: "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-hay2010_db}?connection_limit=5&pool_timeout=10"
-    image: hay2010_stock:local
+        - PORT=3000
+        - GIT_SHA=${GIT_SHA:-production}
+        - BUILD_DATE=${BUILD_DATE:-2026-01-01}
+        - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-hay2010_db}?connection_limit=5&pool_timeout=10
+    image: hay2010_stock:${GIT_SHA:-latest}
     container_name: hay2010_stock
     ports:
-      - "3000:3000"
+      - "${APP_PORT:-3000}:3000"
     environment:
       DATABASE_URL: "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-hay2010_db}?connection_limit=5&pool_timeout=10"
       REDIS_URL: "redis://:${REDIS_PASSWORD}@redis:6379/0"
-      REDIS_PASSWORD: "${REDIS_PASSWORD}"
-      JWT_SECRET: "${JWT_SECRET}"
-      JWT_EXPIRES_IN: "${JWT_EXPIRES_IN:-24h}"
+      REDIS_PASSWORD: "${REDIS_PASSWORD:?REDIS_PASSWORD is required}"
+      JWT_SECRET: "${JWT_SECRET:?JWT_SECRET is required}"
+      JWT_EXPIRES_IN: "24h"
       NODE_ENV: production
       NEXT_TELEMETRY_DISABLED: "1"
-      NEXT_PUBLIC_APP_URL: "http://localhost:3000"
-      NEXT_PUBLIC_APP_NAME: "HAY2010 Stock"
-      NEXT_PUBLIC_COMPANY_NAME: "HAY2010"
-      NEXT_PUBLIC_APP_VERSION: "1.0.0"
-      SECURE_COOKIES: "${SECURE_COOKIES:-false}"
-      LOCKOUT_FAIL_CLOSED: "false"
-      RATE_LIMIT_FAIL_CLOSED: "false"
+      NEXT_PUBLIC_APP_URL: "${NEXT_PUBLIC_APP_URL:-http://localhost:3000}"
+      NEXT_PUBLIC_APP_NAME: "${NEXT_PUBLIC_APP_NAME:-HAY2010 Stock}"
+      NEXT_PUBLIC_COMPANY_NAME: "${NEXT_PUBLIC_COMPANY_NAME:-HAY2010}"
+      NEXT_PUBLIC_APP_VERSION: "${NEXT_PUBLIC_APP_VERSION:-1.0.0}"
+      SECURE_COOKIES: "true"
+      LOCKOUT_FAIL_CLOSED: "true"
+      RATE_LIMIT_FAIL_CLOSED: "true"
     depends_on:
       postgres:
         condition: service_healthy
@@ -132,32 +109,33 @@ services:
     restart: always
     networks:
       - backend
-      - frontend
     security_opt:
       - no-new-privileges:true
-    read_only: false
+    read_only: true
+    tmpfs:
+      - /tmp
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 128M
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
 
-# ============================================
-# POSTGRESQL DATABASE
-# Primary data store
-# ============================================
   postgres:
     image: postgres:16-alpine
     container_name: hay2010_postgres
     environment:
       POSTGRES_USER: "${POSTGRES_USER:-postgres}"
-      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}"
       POSTGRES_DB: "${POSTGRES_DB:-hay2010_db}"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
-    ports:
-      - "5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-hay2010_db}"]
       interval: 10s
@@ -177,16 +155,19 @@ services:
       - SETUID
       - DAC_OVERRIDE
       - FOWNER
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 128M
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
 
-# ============================================
-# REDIS CACHE
-# Session storage and caching
-# ============================================
   redis:
     image: redis:7-alpine
     container_name: hay2010_redis
@@ -197,11 +178,9 @@ services:
       --maxmemory 256mb
       --maxmemory-policy allkeys-lru
       --save 60 1000
-      --requirepass ${REDIS_PASSWORD}
+      --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
     volumes:
       - redis_data:/data
-    ports:
-      - "6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 10s
@@ -210,30 +189,26 @@ services:
     restart: always
     networks:
       - backend
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
+        reservations:
+          memory: 64M
     logging:
       driver: "json-file"
       options:
         max-size: "5m"
         max-file: "3"
 
-# ============================================
-# VOLUMES
-# Persistent data storage
-# ============================================
 volumes:
   postgres_data:
     driver: local
   redis_data:
     driver: local
 
-# ============================================
-# NETWORKS
-# backend: internal-only for DB/Redis communication
-# frontend: allows app to expose ports to host
-# ============================================
 networks:
   backend:
     driver: bridge
     internal: true
-  frontend:
-    driver: bridge

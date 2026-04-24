@@ -23,7 +23,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { useIsMobile } from "@/hooks/use-mobile"
+import { useIsMobile } from "@/lib/hooks/use-breakpoint"
 import { SafeIcon as HugeiconsIcon } from "@/components/ui/safe-icon"
 import { SidebarLeftIcon } from "@hugeicons/core-free-icons"
 

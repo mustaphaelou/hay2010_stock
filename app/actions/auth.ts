@@ -1,6 +1,7 @@
 'use server'
 
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
+import { after } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { verifyPassword } from '@/lib/auth/password'
 import { generateToken, verifyToken, revokeToken } from '@/lib/auth/jwt'
@@ -18,8 +19,7 @@ export async function login(
   email: string,
   password: string,
   rememberMe: boolean = false,
-  csrfToken?: string,
-  clientIp?: string
+  csrfToken?: string
 ): Promise<{ error?: string; success?: boolean }> {
   try {
     if (!csrfToken) {
@@ -37,12 +37,20 @@ export async function login(
       return { error: 'Invalid security token. Please refresh the page and try again.' }
     }
 
-    const ipLocked = clientIp ? await isLockedByIp(clientIp) : false
+    const headersList = await headers()
+    const clientIp = headersList.get('x-forwarded-for')?.split(',')[0]?.trim()
+      || headersList.get('x-real-ip')
+      || 'unknown'
+
+    const [ipLocked, locked] = await Promise.all([
+      isLockedByIp(clientIp),
+      isAccountLocked(email),
+    ])
+
     if (ipLocked) {
       return { error: 'Too many failed attempts from this location. Please try again in 15 minutes.' }
     }
 
-    const locked = await isAccountLocked(email)
     if (locked) {
       return { error: 'Account is temporarily locked due to too many failed attempts. Please try again in 15 minutes.' }
     }
@@ -57,8 +65,10 @@ export async function login(
     })
 
     if (!user) {
-      await recordFailedAttempt(email)
-      if (clientIp) await recordFailedAttemptByIp(clientIp)
+      await Promise.all([
+        recordFailedAttempt(email),
+        recordFailedAttemptByIp(clientIp),
+      ])
       return { error: 'Invalid email or password' }
     }
 
@@ -66,22 +76,26 @@ export async function login(
 
     if (!isValid) {
       const result = await recordFailedAttempt(email)
-      if (clientIp) await recordFailedAttemptByIp(clientIp)
+      await recordFailedAttemptByIp(clientIp)
       if (result.locked) {
         return { error: 'Account locked due to too many failed attempts. Please try again in 15 minutes.' }
       }
       return { error: `Invalid email or password. ${result.remaining} attempt${result.remaining !== 1 ? 's' : ''} remaining.` }
     }
 
-    await clearFailedAttempts(email)
-    if (clientIp) await clearFailedAttemptsByIp(clientIp)
+    await Promise.all([
+      clearFailedAttempts(email),
+      clearFailedAttemptsByIp(clientIp),
+    ])
 
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { lastLoginAt: new Date() } as any
-    })
+    const [sessionId, ] = await Promise.all([
+      createSession(user.id, user.email, user.name, user.role),
+      prisma.user.update({
+        where: { id: user.id },
+        data: { lastLoginAt: new Date() } as any
+      }),
+    ])
 
-    const sessionId = await createSession(user.id, user.email, user.name, user.role)
     const token = await generateToken({
       userId: user.id,
       email: user.email,
@@ -103,7 +117,9 @@ export async function login(
     return { success: true }
   } catch (error) {
     log.error({ email, error }, 'Login error')
-    Sentry.captureException(error, { tags: { action: 'login' } })
+    after(() => {
+      Sentry.captureException(error, { tags: { action: 'login' } })
+    })
     return { error: 'An unexpected error occurred during login' }
   }
 }
@@ -127,58 +143,41 @@ export async function logout(csrfToken?: string): Promise<{ error?: string; succ
       }
     }
 
-    const csrfCookie = await getCsrfCookie()
-    const valid = await validateCsrfToken(csrfUserId, csrfToken, csrfCookie || '')
-    if (!valid) {
-      log.warn('Invalid CSRF token on logout')
-      return { error: 'Invalid security token. Please refresh the page and try again.' }
-    }
+  const csrfCookie = await getCsrfCookie()
+  const valid = await validateCsrfToken(csrfUserId, csrfToken, csrfCookie || '')
+  if (!valid) {
+    log.warn('Invalid CSRF token on logout')
+    return { error: 'Invalid security token. Please refresh the page and try again.' }
+  }
 
-    const token = cookieStore.get(AUTH_COOKIE_NAME)?.value
-
-    if (token) {
-      const payload = await verifyToken(token)
-      if (payload?.sessionId) {
-        await deleteSession(payload.sessionId)
-      }
-      if (payload?.jti) {
-        await revokeToken(payload.jti)
-      }
+  if (authToken) {
+    const payload = await verifyToken(authToken)
+    if (payload?.sessionId) {
+      after(async () => {
+        await deleteSession(payload.sessionId!)
+      })
     }
+    if (payload?.jti) {
+      after(async () => {
+        await revokeToken(payload.jti!)
+      })
+    }
+  }
 
     cookieStore.delete(AUTH_COOKIE_NAME)
     return { success: true }
   } catch (error) {
     log.error({ error }, 'Logout error')
-    Sentry.captureException(error, { tags: { action: 'logout' } })
+    after(() => {
+      Sentry.captureException(error, { tags: { action: 'logout' } })
+    })
     return { error: 'Logout failed' }
   }
 }
 
 export async function getCurrentUser(): Promise<{ id: string; email: string; name: string; role: string } | null> {
-  try {
-    const cookieStore = await cookies()
-    const token = cookieStore.get(AUTH_COOKIE_NAME)?.value
-
-    if (!token) {
-      return null
-    }
-
-    const payload = await verifyToken(token)
-    if (!payload || !payload.userId) {
-      return null
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { id: payload.userId },
-      select: { id: true, email: true, name: true, role: true }
-    })
-
-    return user
-  } catch (error) {
-    log.error({ error }, 'Get current user error')
-    return null
-  }
+  const { getCurrentUser: getCachedUser } = await import('@/lib/auth/user-utils')
+  return getCachedUser()
 }
 
 /**
@@ -188,7 +187,7 @@ export async function getCurrentUser(): Promise<{ id: string; email: string; nam
  */
 async function refreshCsrfForClient(): Promise<void> {
   try {
-    const { token, cookieValue } = await generateCsrfToken(ANONYMOUS_USER_ID)
+    const { cookieValue } = await generateCsrfToken(ANONYMOUS_USER_ID)
     await setCsrfCookie(cookieValue)
     log.debug('CSRF token refreshed for anonymous user after validation failure')
   } catch (error) {

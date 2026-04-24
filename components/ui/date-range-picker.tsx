@@ -2,16 +2,17 @@
 
 import * as React from "react"
 import { format, startOfMonth, endOfMonth, startOfYesterday, endOfYesterday } from "date-fns"
-import { Calendar as CalendarIcon, ChevronDown } from "lucide-react"
+import { Calendar01Icon, ArrowDown01Icon } from "@hugeicons/core-free-icons"
 import { DateRange } from "react-day-picker"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
+import { SafeIcon as HugeiconsIcon } from "@/components/ui/safe-icon"
 import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
 } from "@/components/ui/popover"
 
 export interface DateRangePickerProps extends React.HTMLAttributes<HTMLDivElement> {
@@ -36,7 +37,7 @@ export function DateRangePicker({
                             !date && "text-muted-foreground"
                         )}
                     >
-                        <CalendarIcon className="mr-2 size-4" />
+                        <HugeiconsIcon icon={Calendar01Icon} className="mr-2 size-4" />
                         {date?.from ? (
                             date.to ? (
                                 <>
@@ -49,7 +50,7 @@ export function DateRangePicker({
                         ) : (
                             <span>Sélectionner une date</span>
                         )}
-                        <ChevronDown className="ml-auto size-4 opacity-50" />
+                        <HugeiconsIcon icon={ArrowDown01Icon} strokeWidth={2} className="ml-auto size-4 opacity-50" />
                     </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">

@@ -31,12 +31,26 @@ vi.mock('@/lib/cache/invalidation', () => ({
   },
 }))
 
+vi.mock('next/server', () => ({
+  after: vi.fn((fn: () => void) => fn()),
+}))
+
+vi.mock('next/cache', () => ({
+  revalidatePath: vi.fn(),
+  revalidateTag: vi.fn(),
+}))
+
 vi.mock('@/lib/auth/user-utils', () => ({
   requireRole: vi.fn().mockResolvedValue({ id: 'user-1', role: 'ADMIN' }),
 }))
 
-vi.mock('@/lib/security/csrf', () => ({
+vi.mock('@/lib/security/csrf-server', () => ({
   requireCsrfToken: vi.fn().mockResolvedValue(undefined),
+  getCsrfCookie: vi.fn().mockResolvedValue('csrf-cookie-value'),
+  validateCsrfToken: vi.fn().mockResolvedValue(true),
+  ANONYMOUS_USER_ID: 'anonymous',
+  generateCsrfToken: vi.fn().mockResolvedValue({ token: 'new-csrf-token', cookieValue: 'new-csrf-cookie' }),
+  setCsrfCookie: vi.fn().mockResolvedValue(undefined),
 }))
 
 describe('Stock Movement Actions', () => {
@@ -62,14 +76,18 @@ describe('Stock Movement Actions', () => {
       expect(result.error).toContain('positive')
     })
 
-    it('should reject transfer without destination warehouse', async () => {
-      const { createStockMovement } = await import('@/app/actions/stock-movement')
-      const result = await createStockMovement({
-        ...validInput,
-        type: 'TRANSFERT',
-      }, 'valid-csrf-token')
+  it('should reject transfer without destination warehouse', async () => {
+    ;(CacheService.acquireLock as ReturnType<typeof vi.fn>).mockResolvedValue('lock-token')
+    const { withTransaction } = await import('@/lib/db/prisma')
+    vi.mocked(withTransaction).mockRejectedValue(new Error('Destination warehouse required'))
 
-      expect(result.error).toContain('Destination warehouse required')
+    const { createStockMovement } = await import('@/app/actions/stock-movement')
+    const result = await createStockMovement({
+      ...validInput,
+      type: 'TRANSFERT',
+    }, 'valid-csrf-token')
+
+    expect(result.error).toContain('Destination warehouse required')
     })
 
   it('should reject if lock acquisition fails', async () => {

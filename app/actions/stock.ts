@@ -1,22 +1,31 @@
 'use server'
 
 import { prisma } from '@/lib/db/prisma'
-import { requireAuth } from '@/lib/auth/user-utils'
+import { requirePermission } from '@/lib/auth/authorization'
 import type { StockLevelWithProduct, Depot } from '@/lib/types'
 import { createLogger } from '@/lib/logger'
+import { paginationSchema } from '@/lib/validation'
+import { CacheService, CacheTTL } from '@/lib/db/redis-cluster'
 
 const log = createLogger('stock-actions')
 
 export async function getStockLevels(page: number = 1, limit: number = 50): Promise<{ data: StockLevelWithProduct[]; meta: { total: number; page: number; limit: number; totalPages: number }; error?: string }> {
-  await requireAuth()
-  
-  const skip = (page - 1) * limit
+  await requirePermission('stock:read')
+
+  const parsed = paginationSchema.safeParse({ page, limit })
+  if (!parsed.success) {
+    return { data: [], meta: { total: 0, page, limit, totalPages: 0 }, error: 'Invalid pagination parameters' }
+  }
+  const { page: p, limit: l } = parsed.data ?? { page, limit }
+  const safePage = p ?? page
+  const safeLimit = l ?? limit
+  const skip = (safePage - 1) * safeLimit
 
   try {
     const [stockQuery, total] = await Promise.all([
-      prisma.niveauStock.findMany({
+        prisma.niveauStock.findMany({
         skip,
-        take: limit,
+        take: safeLimit,
         include: {
           produit: {
             select: {
@@ -76,36 +85,42 @@ export async function getStockLevels(page: number = 1, limit: number = 50): Prom
             : null
         }
       }),
-      meta: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit)
+        meta: {
+          total,
+          page: safePage,
+          limit: safeLimit,
+          totalPages: Math.ceil(total / safeLimit)
+        }
+      }
+    } catch (error) {
+      log.error({ error }, 'Failed to fetch stock levels')
+      return {
+        data: [],
+        meta: { total: 0, page: safePage, limit: safeLimit, totalPages: 0 },
+        error: 'Failed to fetch stock levels'
       }
     }
-	} catch (error) {
-		log.error({ error }, 'Failed to fetch stock levels')
-		return {
-      data: [], 
-      meta: { total: 0, page, limit, totalPages: 0 },
-      error: 'Failed to fetch stock levels'
-    }
   }
-}
 
-export async function getDepots(): Promise<Depot[]> {
-  await requireAuth()
-  try {
-    const depots = await prisma.entrepot.findMany({
+  export async function getDepots(): Promise<Depot[]> {
+    await requirePermission('stock:read')
+    try {
+      const cacheKey = 'depots:active'
+      const cached = await CacheService.get<Depot[]>(cacheKey)
+      if (cached) return cached
+
+      const depots = await prisma.entrepot.findMany({
       where: { est_actif: true },
       orderBy: { nom_entrepot: 'asc' }
     })
-    return depots.map((depot): Depot => ({
-      ...depot,
-      id_depot: depot.id_entrepot,
-      nom_depot: depot.nom_entrepot
-    }))
-	} catch (error) {
+      const result = depots.map((depot): Depot => ({
+        ...depot,
+        id_depot: depot.id_entrepot,
+        nom_depot: depot.nom_entrepot
+      }))
+      await CacheService.set(cacheKey, result, CacheTTL.STOCK * 5)
+      return result
+    } catch (error) {
 		log.error({ error }, 'Failed to fetch depots')
 		return []
 	}

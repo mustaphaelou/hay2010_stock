@@ -1,9 +1,12 @@
+import { cache } from 'react'
 import { cookies } from 'next/headers'
 import { verifyToken } from '@/lib/auth/jwt'
 import { getSession } from '@/lib/auth/session'
 import { AUTH_COOKIE_NAME } from '@/lib/constants/auth'
 
-export async function getCurrentUser(): Promise<{ id: string; email: string; name: string; role: string } | null> {
+export type CurrentUser = { id: string; email: string; name: string; role: string }
+
+export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   try {
     const cookieStore = await cookies()
     const token = cookieStore.get(AUTH_COOKIE_NAME)?.value
@@ -25,9 +28,9 @@ export async function getCurrentUser(): Promise<{ id: string; email: string; nam
   } catch {
     return null
   }
-}
+})
 
-export async function requireAuth(): Promise<{ id: string; email: string; name: string; role: string }> {
+export async function requireAuth(): Promise<CurrentUser> {
   const user = await getCurrentUser()
   if (!user) {
     throw new Error('Unauthorized')
@@ -35,7 +38,7 @@ export async function requireAuth(): Promise<{ id: string; email: string; name: 
   return user
 }
 
-export async function requireRole(allowedRoles: string[]): Promise<{ id: string; email: string; name: string; role: string }> {
+export async function requireRole(allowedRoles: string[]): Promise<CurrentUser> {
   const user = await requireAuth()
   if (!allowedRoles.includes(user.role)) {
     throw new Error('Forbidden')

@@ -8,14 +8,18 @@ const log = createLogger('jwt')
 
 const JWT_BLOCKLIST_PREFIX = 'jwt:blocklist:'
 
+let _jwtSecret: Uint8Array | null = null
+
 function getJwtSecret(): Uint8Array {
+  if (_jwtSecret) return _jwtSecret
   const secret = getRequiredSecret('JWT_SECRET', 'JWT_SECRET_FILE')
 
   if (secret.length < 32) {
     log.warn('JWT_SECRET should be at least 32 characters for security')
   }
 
-  return new TextEncoder().encode(secret)
+  _jwtSecret = new TextEncoder().encode(secret)
+  return _jwtSecret
 }
 
 function getJwtExpiration(): string {

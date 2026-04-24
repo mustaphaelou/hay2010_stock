@@ -1,5 +1,4 @@
-import { pdf } from '@react-pdf/renderer'
-import { InvoiceDocument, InvoiceData, InvoiceLineItem } from './invoice-template'
+import type { InvoiceData, InvoiceLineItem } from './invoice-template'
 import type { DocumentWithComputed, DocumentLine as DocumentLineType } from '@/lib/types'
 
 type DocumentWithPartner = DocumentWithComputed
@@ -162,6 +161,10 @@ export function transformToInvoiceData(
  * Generate PDF blob from invoice data
  */
 export async function generateInvoicePDF(data: InvoiceData): Promise<Blob> {
+  const [{ pdf }, { InvoiceDocument }] = await Promise.all([
+    import('@react-pdf/renderer'),
+    import('./invoice-template'),
+  ])
   const doc = <InvoiceDocument data={data} />
   const blob = await pdf(doc).toBlob()
   return blob

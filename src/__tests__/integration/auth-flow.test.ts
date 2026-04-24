@@ -83,6 +83,17 @@ vi.mock('next/headers', () => ({
     set: vi.fn(),
     delete: vi.fn(),
   }),
+  headers: vi.fn().mockResolvedValue({
+    get: vi.fn((name: string) => {
+      if (name === 'x-forwarded-for') return '127.0.0.1'
+      if (name === 'x-real-ip') return null
+      return null
+    }),
+  }),
+}))
+
+vi.mock('@/lib/auth/user-utils', () => ({
+  getCurrentUser: vi.fn(),
 }))
 
 vi.mock('@sentry/nextjs', () => ({
@@ -177,15 +188,15 @@ describe('Auth Flow Integration', () => {
 
   describe('getCurrentUser returns user', () => {
     it('should return user data when valid session exists', async () => {
-      const { prisma } = await import('@/lib/db/prisma')
+      const { getCurrentUser: getCachedUser } = await import('@/lib/auth/user-utils')
       const { getCurrentUser } = await import('@/app/actions/auth')
 
-      vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      vi.mocked(getCachedUser).mockResolvedValue({
         id: 'user-1',
         email: 'user@example.com',
         name: 'Test User',
         role: 'USER',
-      } as unknown as Awaited<ReturnType<typeof prisma.user.findUnique>>)
+      })
 
       const user = await getCurrentUser()
 
@@ -196,14 +207,11 @@ describe('Auth Flow Integration', () => {
     })
 
     it('should return null when no session exists', async () => {
-      const { cookies } = await import('next/headers')
-      vi.mocked(cookies).mockResolvedValueOnce({
-        get: vi.fn().mockReturnValue(undefined),
-        set: vi.fn(),
-        delete: vi.fn(),
-      } as unknown as Awaited<ReturnType<typeof cookies>>)
-
+      const { getCurrentUser: getCachedUser } = await import('@/lib/auth/user-utils')
       const { getCurrentUser } = await import('@/app/actions/auth')
+
+      vi.mocked(getCachedUser).mockResolvedValue(null)
+
       const user = await getCurrentUser()
 
       expect(user).toBeNull()

@@ -2,6 +2,7 @@
 
 import { prisma } from '@/lib/db/prisma'
 import { revalidatePath } from 'next/cache'
+import { after } from 'next/server'
 import { requirePermission } from '@/lib/auth/authorization'
 import { toggleArticleStatusSchema } from '@/lib/validation'
 import type { ArticleWithStock } from '@/lib/types'
@@ -161,17 +162,19 @@ export async function toggleArticleStatus(
   }
 
   try {
-    await prisma.$transaction(async (tx) => {
-      await tx.produit.update({
-        where: { id_produit },
-        data: { en_sommeil: newStatus }
+      await prisma.$transaction(async (tx) => {
+        await tx.produit.update({
+          where: { id_produit },
+          data: { en_sommeil: newStatus }
+        })
       })
-    })
 
-    await CacheInvalidationService.invalidateProduct(id_produit)
+      after(async () => {
+        await CacheInvalidationService.invalidateProduct(id_produit)
+        revalidatePath('/articles')
+      })
 
-    revalidatePath('/articles')
-    return { success: true }
+      return { success: true }
 	} catch (error) {
 		log.error({ error, id_produit }, 'Failed to toggle article status')
 		return { error: 'Failed to update status' }

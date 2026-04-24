@@ -64,7 +64,7 @@ const paymentChartConfig = {
     },
 } satisfies ChartConfig
 
-export function SalesVsPurchasesChart({ data }: { data: MonthlyData[] }) {
+export const SalesVsPurchasesChart = memo(function SalesVsPurchasesChart({ data }: { data: MonthlyData[] }) {
     const [mounted, setMounted] = React.useState(false)
 
     React.useEffect(() => {
@@ -118,9 +118,9 @@ export function SalesVsPurchasesChart({ data }: { data: MonthlyData[] }) {
             </CardContent>
         </Card>
     )
-}
+})
 
-export function PaymentStatusChart({ data }: { data: PaymentStatusData[] }) {
+export const PaymentStatusChart = memo(function PaymentStatusChart({ data }: { data: PaymentStatusData[] }) {
     const [mounted, setMounted] = React.useState(false)
 
     React.useEffect(() => {
@@ -174,7 +174,7 @@ export function PaymentStatusChart({ data }: { data: PaymentStatusData[] }) {
             </CardContent>
         </Card>
     )
-}
+})
 
 export function DashboardCharts({ monthlyData, paymentData }: DashboardChartsProps) {
     return (

@@ -41,7 +41,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Empty } from "@/components/ui/empty"
 import { SafeIcon as HugeiconsIcon } from "@/components/ui/safe-icon"
 import { Settings01Icon, ArrowLeft01Icon, ArrowRight01Icon, Menu01Icon, GridIcon } from "@hugeicons/core-free-icons"
-import { useIsMobile } from "@/hooks/use-mobile"
+import { useIsMobile } from "@/lib/hooks/use-breakpoint"
 
 interface PaginationMeta {
   total: number
@@ -118,7 +118,7 @@ export function DataTable<TData, TValue>({
     }, [isMobile, mobileCardRenderer])
 
 
-  const table = useReactTable({
+  const table = React.useMemo(() => useReactTable({
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
@@ -137,7 +137,17 @@ export function DataTable<TData, TValue>({
             rowSelection,
             pagination,
         },
-    })
+    }), [
+      data,
+      columns,
+      sorting,
+      columnFilters,
+      columnVisibility,
+      rowSelection,
+      pagination,
+      serverSidePagination,
+      handlePaginationChange,
+    ])
 
   const currentPage = serverSidePagination && paginationMeta ? paginationMeta.page : table.getState().pagination.pageIndex + 1
   const totalPages = serverSidePagination && paginationMeta ? Math.ceil(paginationMeta.total / paginationMeta.limit) : table.getPageCount()

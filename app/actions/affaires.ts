@@ -1,7 +1,7 @@
 'use server'
 
 import { prisma } from '@/lib/db/prisma'
-import { requireAuth } from '@/lib/auth/user-utils'
+import { requirePermission } from '@/lib/auth/authorization'
 import { getDocumentsByAffaireSchema } from '@/lib/validation'
 import type { DocumentBase } from '@/lib/types'
 import { createLogger } from '@/lib/logger'
@@ -9,7 +9,7 @@ import { createLogger } from '@/lib/logger'
 const log = createLogger('affaires-actions')
 
 export async function getAffaires(): Promise<string[]> {
-  await requireAuth()
+  await requirePermission('affairs:read')
   try {
     const affaires = await prisma.affaire.findMany({
       select: {
@@ -31,7 +31,7 @@ export async function getAffaires(): Promise<string[]> {
 }
 
 export async function getDocumentsByAffaire(code_affaire: string): Promise<DocumentBase[]> {
-  await requireAuth()
+  await requirePermission('affairs:read')
 
 	const validationResult = getDocumentsByAffaireSchema.safeParse({ code_affaire })
 	if (!validationResult.success) {

@@ -1,6 +1,8 @@
 import { getSalesDocuments } from '@/app/actions/documents'
 import SalesClient from './SalesClient'
 
+export const dynamic = 'force-dynamic'
+
 export default async function SalesPage() {
   let initialData: Awaited<ReturnType<typeof getSalesDocuments>>['data'] = []
   let initialError: string | null = null

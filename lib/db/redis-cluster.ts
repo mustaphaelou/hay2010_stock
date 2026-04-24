@@ -7,6 +7,7 @@
 
 import Redis, { Cluster, RedisOptions } from 'ioredis'
 import { createLogger } from '@/lib/logger'
+import { randomBytes } from 'crypto'
 
 const log = createLogger('redis')
 
@@ -325,7 +326,7 @@ export class CacheService {
         maxRetries: number = 10
     ): Promise<string | null> {
         const lockKey = `${CacheKeys.LOCK}${key}`
-        const token = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+        const token = `${Date.now()}-${randomBytes(16).toString('hex')}`
 
         for (let i = 0; i < maxRetries; i++) {
             const result = await redis.set(lockKey, token, 'PX', ttl * 1000, 'NX')

@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { getPartners } from "@/app/actions/partners"
-import { DataTable } from "@/components/erp/data-table"
+import dynamic from "next/dynamic"
 import { ColumnDef } from "@tanstack/react-table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -100,6 +100,11 @@ const createColumns = (onViewDetails: (partner: Partner) => void): ColumnDef<Par
         },
     },
 ]
+
+const DataTable = dynamic(() => import("@/components/erp/data-table").then(m => ({ default: m.DataTable })), {
+  ssr: true,
+  loading: () => <div className="h-64 animate-pulse bg-muted rounded-md" />,
+})
 
 interface PartnersViewProps {
     type: 0 | 1 // 0=Client, 1=Supplier
