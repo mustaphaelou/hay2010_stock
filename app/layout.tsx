@@ -5,6 +5,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/sonner"
 import { SkipLink } from "@/components/ui/skip-link"
+import { getNonce } from "@/lib/security/nonce"
 
 const roboto = Roboto({ subsets: ['latin'], variable: '--font-sans' });
 
@@ -27,16 +28,19 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const nonce = await getNonce()
+
   return (
-    <html lang="fr" className={roboto.variable} suppressHydrationWarning>
+    <html lang="fr" className={roboto.variable} suppressHydrationWarning nonce={nonce}>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         suppressHydrationWarning
+        nonce={nonce}
       >
         <SkipLink />
         <ThemeProvider

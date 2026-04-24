@@ -5,7 +5,7 @@ import { requirePermission } from '@/lib/auth/authorization'
 import type { StockLevelWithProduct, Depot } from '@/lib/types'
 import { createLogger } from '@/lib/logger'
 import { paginationSchema } from '@/lib/validation'
-import { CacheService, CacheTTL } from '@/lib/db/redis-cluster'
+import { VersionedCacheService, CacheNamespaces, CacheTTLSeconds } from '@/lib/cache/versioned'
 
 const log = createLogger('stock-actions')
 
@@ -106,7 +106,7 @@ export async function getStockLevels(page: number = 1, limit: number = 50): Prom
     await requirePermission('stock:read')
     try {
       const cacheKey = 'depots:active'
-      const cached = await CacheService.get<Depot[]>(cacheKey)
+      const cached = await VersionedCacheService.get<Depot[]>(CacheNamespaces.STOCK, cacheKey)
       if (cached) return cached
 
       const depots = await prisma.entrepot.findMany({
@@ -118,7 +118,7 @@ export async function getStockLevels(page: number = 1, limit: number = 50): Prom
         id_depot: depot.id_entrepot,
         nom_depot: depot.nom_entrepot
       }))
-      await CacheService.set(cacheKey, result, CacheTTL.STOCK * 5)
+      await VersionedCacheService.set(CacheNamespaces.STOCK, cacheKey, result, CacheTTLSeconds.STOCK * 5)
       return result
     } catch (error) {
 		log.error({ error }, 'Failed to fetch depots')

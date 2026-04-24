@@ -59,35 +59,4 @@ vi.mock('@/lib/db/redis', () => ({
     getRedisError: vi.fn().mockReturnValue(null),
 }))
 
-vi.mock('@/lib/db/redis-cluster', () => ({
-    redis: mockRedisClient,
-    CacheKeys: {
-        SESSION: 'session:',
-        USER: 'user:',
-        PRODUCT: 'product:',
-        STOCK: 'stock:',
-        PARTNER: 'partner:',
-        DOCUMENT: 'document:',
-        RATE_LIMIT: 'ratelimit:',
-        LOCK: 'lock:',
-        METRICS: 'metrics:',
-    },
-    CacheTTL: {
-        SESSION: 604800,
-        USER: 3600,
-        PRODUCT: 900,
-        STOCK: 60,
-        PARTNER: 3600,
-        DOCUMENT: 300,
-        RATE_LIMIT: 60,
-        LOCK: 30,
-        METRICS: 60,
-    },
-    CacheService: {
-        get: vi.fn(),
-        set: vi.fn(),
-        delete: vi.fn(),
-        acquireLock: vi.fn(),
-        releaseLock: vi.fn(),
-    },
-}))
+

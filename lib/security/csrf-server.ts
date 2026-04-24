@@ -210,11 +210,16 @@ export async function getCsrfTokenFromHeader(): Promise<string | null> {
 import { createHmac, timingSafeEqual } from 'crypto'
 
 function getHmacSecret(): string {
-	const secret = process.env.JWT_SECRET
-	if (!secret) {
-		throw new Error('JWT_SECRET is required for CSRF protection')
-	}
-	return secret
+  const csrfSecret = process.env.CSRF_SECRET
+  if (csrfSecret) return csrfSecret
+
+  const jwtSecret = process.env.JWT_SECRET
+  if (jwtSecret) {
+    log.warn('CSRF_SECRET not set — falling back to JWT_SECRET. Set CSRF_SECRET for proper key separation.')
+    return jwtSecret
+  }
+
+  throw new Error('CSRF_SECRET or JWT_SECRET is required for CSRF protection')
 }
 
 function generateStatelessCsrfToken(userId: string): CsrfTokens {

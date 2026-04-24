@@ -6,7 +6,8 @@ import { after } from 'next/server'
 import { requirePermission } from '@/lib/auth/authorization'
 import { toggleArticleStatusSchema } from '@/lib/validation'
 import type { ArticleWithStock } from '@/lib/types'
-import { CacheService, CacheKeys, CacheTTL } from '@/lib/db/redis-cluster'
+import { CacheService } from '@/lib/db/redis'
+import { VersionedCacheService, CacheNamespaces, CacheTTLSeconds } from '@/lib/cache/versioned'
 import { CacheInvalidationService } from '@/lib/cache/invalidation'
 import { Prisma } from '@/lib/generated/prisma/client'
 import { createLogger } from '@/lib/logger'
@@ -32,13 +33,13 @@ export async function getArticlesWithStock(page: number = 1, limit: number = 50)
 
   if (limit > 100) limit = 100
 
-  const cacheKey = `${CacheKeys.PRODUCT}list:${page}:${limit}`
+  const cacheKey = `list:${page}:${limit}`
 
   try {
-    const cached = await CacheService.get<{
+    const cached = await VersionedCacheService.get<{
       data: ArticleWithStock[]
       meta: { total: number; page: number; limit: number; totalPages: number }
-    }>(cacheKey)
+    }>(CacheNamespaces.PRODUCT, cacheKey)
 
     if (cached) {
       return cached
@@ -123,7 +124,7 @@ const data = result.map((article) => {
       }
     }
 
-    await CacheService.set(cacheKey, response, CacheTTL.PRODUCT)
+    await VersionedCacheService.set(CacheNamespaces.PRODUCT, cacheKey, response, CacheTTLSeconds.PRODUCT)
 
     return response
 	} catch (error) {

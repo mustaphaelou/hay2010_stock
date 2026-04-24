@@ -90,8 +90,7 @@ lib/
 │   └── session.ts      # Session management
 ├── db/                  # Database clients
 │   ├── prisma.ts       # Prisma client singleton
-│   ├── redis.ts        # Redis client
-│   └── redis-cluster.ts # Redis cluster utilities
+│   ├── redis.ts # Redis client (cluster + single mode)
 ├── middleware/ # Custom middleware
 │ └── rate-limit.ts # Rate limiting middleware
 ├── errors.ts           # Custom error classes

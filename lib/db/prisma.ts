@@ -28,6 +28,12 @@ function createPrismaClient(): PrismaClient {
       connectionTimeoutMillis: 2000,
     })
 
+    pool.on('connect', (client) => {
+      client.query('SET statement_timeout = 30000').catch((err) => {
+        log.warn({ error: err }, 'Failed to set statement_timeout')
+      })
+    })
+
 	pool.on('error', (err) => {
 		log.error({ error: err }, 'PostgreSQL pool error')
 	})
@@ -51,13 +57,16 @@ const client = new PrismaClient({
   },
 })
 
-	if (process.env.NODE_ENV === 'production') {
-		client.$on('query', (e) => {
-			if (e.duration > 1000) {
-				log.warn({ duration: e.duration, query: e.query.substring(0, 200) }, 'Slow query detected')
-			}
-		})
-	}
+  if (process.env.NODE_ENV === 'production') {
+    client.$on('query', (e) => {
+      if (e.duration > 1000) {
+        const operation = e.query.trim().split(/\s+/)[0]?.toUpperCase() || 'UNKNOWN'
+        const tableMatch = e.query.match(/(?:FROM|INTO|UPDATE|JOIN)\s+"?(\w+)/i)
+        const table = tableMatch ? tableMatch[1] : 'unknown'
+        log.warn({ duration: e.duration, operation, table }, 'Slow query detected')
+      }
+    })
+  }
 
     return client
 	} catch (error) {

@@ -17,7 +17,7 @@ const { mockRedis } = vi.hoisted(() => {
   }
 })
 
-vi.mock('@/lib/db/redis-cluster', () => ({
+vi.mock('@/lib/db/redis', () => ({
   redis: mockRedis,
   CacheKeys: {
     RATE_LIMIT: 'ratelimit:',

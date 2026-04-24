@@ -1,18 +1,11 @@
 import { Queue, Worker, Job } from 'bullmq'
-import Redis from 'ioredis'
+import { redis } from '@/lib/db/redis'
 import { createLogger } from '@/lib/logger'
 
 const log = createLogger('worker')
 
-const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379'
-const REDIS_PASSWORD = process.env.REDIS_PASSWORD
-
 let workersStarted = false
-const connection: Redis = new Redis(REDIS_URL, {
-  maxRetriesPerRequest: null,
-  password: REDIS_PASSWORD || undefined,
-  lazyConnect: true,
-})
+const connection = redis
 let workers: Worker[] = []
 
 interface PDFGenerationJob {

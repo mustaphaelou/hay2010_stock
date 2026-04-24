@@ -1,28 +1,34 @@
-import { redis } from '@/lib/db/redis-cluster'
+import { redis } from '@/lib/db/redis'
 import { createLogger } from '@/lib/logger'
 
 const log = createLogger('cache-version')
 
 const VERSION_KEY_PREFIX = 'cache:version:'
 const DEFAULT_VERSION = '1'
+const VERSION_CACHE_TTL_MS = 10_000
+
+interface CachedVersion {
+  value: string
+  expiresAt: number
+}
 
 export class CacheVersionService {
-  private static versionCache = new Map<string, string>()
+  private static versionCache = new Map<string, CachedVersion>()
 
   static async getVersion(namespace: string): Promise<string> {
     const cached = this.versionCache.get(namespace)
-    if (cached) return cached
+    if (cached && cached.expiresAt > Date.now()) return cached.value
 
     try {
       const key = `${VERSION_KEY_PREFIX}${namespace}`
       let version = await redis.get(key)
-      
+
       if (!version) {
         version = DEFAULT_VERSION
         await redis.set(key, version)
       }
 
-      this.versionCache.set(namespace, version)
+      this.versionCache.set(namespace, { value: version, expiresAt: Date.now() + VERSION_CACHE_TTL_MS })
       return version
     } catch (error) {
       log.warn({ namespace, error }, 'Failed to get version, using default')
@@ -35,9 +41,9 @@ export class CacheVersionService {
       const key = `${VERSION_KEY_PREFIX}${namespace}`
       const newVersion = await redis.incr(key)
       const versionStr = String(newVersion)
-      
-      this.versionCache.set(namespace, versionStr)
-      
+
+      this.versionCache.set(namespace, { value: versionStr, expiresAt: Date.now() + VERSION_CACHE_TTL_MS })
+
       log.info({ namespace, version: versionStr }, 'Cache version incremented')
       return versionStr
     } catch (error) {
@@ -47,7 +53,8 @@ export class CacheVersionService {
   }
 
   static buildKey(namespace: string, key: string): string {
-    const version = this.versionCache.get(namespace) || DEFAULT_VERSION
+    const cached = this.versionCache.get(namespace)
+    const version = (cached && cached.expiresAt > Date.now()) ? cached.value : DEFAULT_VERSION
     return `${namespace}:v${version}:${key}`
   }
 

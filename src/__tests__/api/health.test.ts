@@ -3,7 +3,7 @@ import { GET as getPublicHealth } from '@/app/api/health/public/route'
 import { GET as getAdminHealth } from '@/app/api/health/route'
 import { prisma } from '@/lib/db/prisma'
 import { redis } from '@/lib/db/redis'
-import { checkRedisHealth } from '@/lib/db/redis-cluster'
+import { checkRedisHealth } from '@/lib/db/redis'
 import { verifyToken } from '@/lib/auth/jwt'
 import { cookies } from 'next/headers'
 
@@ -23,15 +23,12 @@ vi.mock('@/lib/db/prisma', () => ({
   }
 }))
 
-vi.mock('@/lib/db/redis', () => ({
-  redis: {
-    ping: vi.fn()
+vi.mock('@/lib/db/redis', async () => {
+  return {
+    redis: { ping: vi.fn() },
+    checkRedisHealth: vi.fn(),
   }
-}))
-
-vi.mock('@/lib/db/redis-cluster', () => ({
-  checkRedisHealth: vi.fn()
-}))
+})
 
 vi.mock('@/lib/auth/jwt', () => ({
   verifyToken: vi.fn()

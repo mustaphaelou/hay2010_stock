@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { prisma } from '@/lib/db/prisma'
-import { CacheService } from '@/lib/db/redis-cluster'
+import { CacheService } from '@/lib/db/redis'
 
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
@@ -17,7 +17,7 @@ vi.mock('@/lib/db/prisma', () => ({
   withTransaction: vi.fn(),
 }))
 
-vi.mock('@/lib/db/redis-cluster', () => ({
+vi.mock('@/lib/db/redis', () => ({
   CacheService: {
     acquireLock: vi.fn(),
     releaseLock: vi.fn(),

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
-import { checkRedisHealth } from '@/lib/db/redis-cluster'
+import { checkRedisHealth } from '@/lib/db/redis'
 import { createLogger } from '@/lib/logger'
 
 const log = createLogger('health-public-api')

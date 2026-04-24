@@ -2,136 +2,162 @@
 
 import { prisma } from '@/lib/db/prisma'
 import { requireAuth } from '@/lib/auth/user-utils'
-import { CacheService, CacheTTL } from '@/lib/db/redis-cluster'
+import { VersionedCacheService, CacheNamespaces, CacheTTLSeconds } from '@/lib/cache/versioned'
 import type { DashboardData, DashboardStats, SalesInvoice, DocumentBase } from '@/lib/types'
 import { createLogger } from '@/lib/logger'
+import { Prisma } from '@/lib/generated/prisma/client'
 
 const log = createLogger('dashboard-actions')
+
+const SIX_MONTHS_AGO = new Date(new Date().getFullYear(), new Date().getMonth() - 5, 1)
+
+interface CountsRow {
+  clients: bigint
+  suppliers: bigint
+  products: bigint
+  families: bigint
+  sales: bigint
+  purchases: bigint
+  low_stock: bigint
+  total_stock_products: bigint
+  total_sales_amount: number
+  total_purchases_amount: number
+}
+
+interface MonthlyRow {
+  month: string
+  ventes: number
+  achats: number
+}
+
+interface RecentDocRow {
+  id_document: number
+  numero_document: string
+  type_document: string
+  domaine_document: string
+  etat_document: string
+  id_partenaire: number
+  nom_partenaire_snapshot: string | null
+  id_affaire: number | null
+  numero_affaire: string | null
+  date_document: Date
+  date_echeance: Date | null
+  date_livraison: Date | null
+  date_livraison_prevue: Date | null
+  montant_ht: Prisma.Decimal
+  montant_remise_total: Prisma.Decimal
+  montant_tva_total: Prisma.Decimal
+  montant_ttc: Prisma.Decimal
+  solde_du: Prisma.Decimal
+  code_devise: string
+  taux_change: Prisma.Decimal
+  statut_document: string
+  est_entierement_paye: boolean
+  id_entrepot: number | null
+  notes_internes: string | null
+  notes_client: string | null
+  reference_externe: string | null
+  date_creation: Date
+  date_modification: Date
+  cree_par: string | null
+  modifie_par: string | null
+  mode_expedition: string | null
+  poids_total_brut: Prisma.Decimal | null
+  nombre_colis: number | null
+  nom_partenaire: string | null
+  type_partenaire: string | null
+}
+
+interface SalesInvoiceRow {
+  id_document: number
+  numero_document: string
+  type_document: string
+  domaine_document: string
+  montant_ttc: Prisma.Decimal
+  solde_du: Prisma.Decimal
+  date_document: Date
+  montant_ht: Prisma.Decimal
+  montant_remise_total: Prisma.Decimal
+  montant_tva_total: Prisma.Decimal
+}
 
 export async function getDashboardStats(): Promise<DashboardData> {
   await requireAuth()
 
-  const cacheKey = 'dashboard:stats'
+  const cacheKey = 'stats'
 
   try {
-    const cached = await CacheService.get<DashboardData>(cacheKey)
+    const cached = await VersionedCacheService.get<DashboardData>(CacheNamespaces.DASHBOARD, cacheKey)
     if (cached) return cached
 
-    const MAX_RECORDS = 100
-
-    const [
-      clientsCount,
-      suppliersCount,
-      productsCount,
-      familiesCount,
-      salesCount,
-      purchasesCount,
-      recentDocs,
-      salesInvoices,
-      lowStockCount,
-      totalStockProducts,
-      monthlySalesData,
-      totalSalesAmount,
-      totalPurchasesAmount,
-    ] = await Promise.all([
-      prisma.partenaire.count({ where: { type_partenaire: { in: ['CLIENT', 'LES_DEUX'] } } }),
-      prisma.partenaire.count({ where: { type_partenaire: { in: ['FOURNISSEUR', 'LES_DEUX'] } } }),
-      prisma.produit.count(),
-      prisma.categorieProduit.count(),
-      prisma.docVente.count({ where: { domaine_document: 'VENTE' } }),
-      prisma.docVente.count({ where: { domaine_document: 'ACHAT' } }),
-      prisma.docVente.findMany({
-        include: {
-          partenaire: {
-            select: {
-              nom_partenaire: true,
-              type_partenaire: true
-            }
-          }
-        },
-        orderBy: {
-          date_creation: 'desc'
-        },
-        take: 5
-      }),
-      prisma.docVente.findMany({
-        where: {
-          domaine_document: 'VENTE',
-          type_document: { in: ['Facture', 'Avoir'] }
-        },
-        select: {
-          id_document: true,
-          numero_document: true,
-          type_document: true,
-          domaine_document: true,
-          montant_ttc: true,
-          solde_du: true,
-          date_document: true,
-          montant_ht: true,
-          montant_remise_total: true,
-          montant_tva_total: true
-        },
-        orderBy: {
-          date_document: 'desc'
-        },
-        take: MAX_RECORDS
-      }),
-      prisma.$queryRaw<Array<{ count: bigint }>>`
-        SELECT COUNT(*) as count
-        FROM produit p
-        JOIN niveau_stock ns ON ns.id_produit = p.id_produit
-        WHERE p.activer_suivi_stock = true
-        AND ns.quantite_en_stock <= COALESCE(p.niveau_reappro_quantite, 0)
-      `.then((result) => Number(result[0]?.count ?? 0)),
-      prisma.produit.count({
-        where: { activer_suivi_stock: true }
-      }),
-      prisma.docVente.findMany({
-        where: {
-          domaine_document: 'VENTE',
-          type_document: { in: ['Facture', 'Avoir'] },
-          date_document: {
-            gte: new Date(new Date().getFullYear(), new Date().getMonth() - 5, 1)
-          }
-        },
-        select: {
-          date_document: true,
-          montant_ttc: true,
-          domaine_document: true
-        },
-        orderBy: { date_document: 'asc' }
-      }),
-      prisma.docVente.aggregate({
-        where: { domaine_document: 'VENTE' },
-        _sum: { montant_ttc: true },
-      }).then((r) => Number(r._sum.montant_ttc || 0)),
-      prisma.docVente.aggregate({
-        where: { domaine_document: 'ACHAT' },
-        _sum: { montant_ttc: true },
-      }).then((r) => Number(r._sum.montant_ttc || 0)),
+    const [countsResult, monthlyResult, recentDocsResult, salesInvoicesResult] = await Promise.all([
+      prisma.$queryRaw<Array<CountsRow>>`
+        SELECT
+          (SELECT COUNT(*) FROM partenaires WHERE type_partenaire IN ('CLIENT', 'LES_DEUX')) AS clients,
+          (SELECT COUNT(*) FROM partenaires WHERE type_partenaire IN ('FOURNISSEUR', 'LES_DEUX')) AS suppliers,
+          (SELECT COUNT(*) FROM produits) AS products,
+          (SELECT COUNT(*) FROM categories_produits) AS families,
+          (SELECT COUNT(*) FROM documents WHERE domaine_document = 'VENTE') AS sales,
+          (SELECT COUNT(*) FROM documents WHERE domaine_document = 'ACHAT') AS purchases,
+          (SELECT COUNT(*) FROM produits p JOIN niveaux_stock ns ON ns.id_produit = p.id_produit
+            WHERE p.activer_suivi_stock = true AND ns.quantite_en_stock <= COALESCE(p.niveau_reappro_quantite, 0)) AS low_stock,
+          (SELECT COUNT(*) FROM produits WHERE activer_suivi_stock = true) AS total_stock_products,
+          COALESCE((SELECT SUM(montant_ttc) FROM documents WHERE domaine_document = 'VENTE'), 0)::float AS total_sales_amount,
+          COALESCE((SELECT SUM(montant_ttc) FROM documents WHERE domaine_document = 'ACHAT'), 0)::float AS total_purchases_amount
+      `,
+      prisma.$queryRaw<Array<MonthlyRow>>`
+        SELECT
+          TO_CHAR(date_trunc('month', date_document), 'Mon YY') AS month,
+          COALESCE(SUM(CASE WHEN domaine_document = 'VENTE' THEN montant_ttc ELSE 0 END), 0)::float AS ventes,
+          COALESCE(SUM(CASE WHEN domaine_document = 'ACHAT' THEN montant_ttc ELSE 0 END), 0)::float AS achats
+        FROM documents
+        WHERE type_document IN ('Facture', 'Avoir')
+          AND date_document >= ${SIX_MONTHS_AGO}
+        GROUP BY date_trunc('month', date_document)
+        ORDER BY date_trunc('month', date_document) ASC
+        LIMIT 6
+      `,
+      prisma.$queryRaw<Array<RecentDocRow>>`
+        SELECT
+          d.id_document, d.numero_document, d.type_document, d.domaine_document, d.etat_document,
+          d.id_partenaire, d.nom_partenaire_snapshot, d.id_affaire, d.numero_affaire,
+          d.date_document, d.date_echeance, d.date_livraison, d.date_livraison_prevue,
+          d.montant_ht, d.montant_remise_total, d.montant_tva_total, d.montant_ttc, d.solde_du,
+          d.code_devise, d.taux_change, d.statut_document, d.est_entierement_paye,
+          d.id_entrepot, d.notes_internes, d.notes_client, d.reference_externe,
+          d.date_creation, d.date_modification, d.cree_par, d.modifie_par,
+          d.mode_expedition, d.poids_total_brut, d.nombre_colis,
+          p.nom_partenaire, p.type_partenaire
+        FROM documents d
+        LEFT JOIN partenaires p ON d.id_partenaire = p.id_partenaire
+        ORDER BY d.date_creation DESC
+        LIMIT 5
+      `,
+      prisma.$queryRaw<Array<SalesInvoiceRow>>`
+        SELECT id_document, numero_document, type_document, domaine_document,
+          montant_ttc, solde_du, date_document, montant_ht, montant_remise_total, montant_tva_total
+        FROM documents
+        WHERE domaine_document = 'VENTE' AND type_document IN ('Facture', 'Avoir')
+        ORDER BY date_document DESC
+        LIMIT 100
+      `,
     ])
 
+    const c = countsResult[0]
     const stats: DashboardStats = {
-      clients: clientsCount,
-      suppliers: suppliersCount,
-      products: productsCount,
-      families: familiesCount,
-      salesCount: salesCount,
-      purchasesCount: purchasesCount,
-      lowStockCount: lowStockCount,
-      totalStockProducts: totalStockProducts,
-      totalSalesAmount: totalSalesAmount,
-      totalPurchasesAmount: totalPurchasesAmount,
+      clients: Number(c?.clients ?? 0),
+      suppliers: Number(c?.suppliers ?? 0),
+      products: Number(c?.products ?? 0),
+      families: Number(c?.families ?? 0),
+      salesCount: Number(c?.sales ?? 0),
+      purchasesCount: Number(c?.purchases ?? 0),
+      lowStockCount: Number(c?.low_stock ?? 0),
+      totalStockProducts: Number(c?.total_stock_products ?? 0),
+      totalSalesAmount: c?.total_sales_amount ?? 0,
+      totalPurchasesAmount: c?.total_purchases_amount ?? 0,
     }
 
-    const processedSalesInvoices: SalesInvoice[] = salesInvoices.map((s): SalesInvoice => ({
-      montant_ttc: s.montant_ttc,
-      solde_du: s.solde_du,
-      date_document: s.date_document,
-      montant_regle: Number(s.montant_ttc) - Number(s.solde_du)
-    }))
-
-    const processedRecentDocs: DocumentBase[] = recentDocs.map((doc): DocumentBase => ({
+    const processedRecentDocs: DocumentBase[] = recentDocsResult.map((doc): DocumentBase => ({
       id_document: doc.id_document,
       numero_document: doc.numero_document,
       type_document: doc.type_document,
@@ -165,7 +191,17 @@ export async function getDashboardStats(): Promise<DashboardData> {
       mode_expedition: doc.mode_expedition,
       poids_total_brut: doc.poids_total_brut,
       nombre_colis: doc.nombre_colis,
-      partenaire: doc.partenaire
+      partenaire: doc.nom_partenaire ? {
+        nom_partenaire: doc.nom_partenaire,
+        type_partenaire: doc.type_partenaire || '',
+      } : null,
+    }))
+
+    const processedSalesInvoices: SalesInvoice[] = salesInvoicesResult.map((s): SalesInvoice => ({
+      montant_ttc: s.montant_ttc,
+      solde_du: s.solde_du,
+      date_document: s.date_document,
+      montant_regle: Number(s.montant_ttc) - Number(s.solde_du),
     }))
 
     const monthlyMap = new Map<string, { ventes: number; achats: number }>()
@@ -176,23 +212,16 @@ export async function getDashboardStats(): Promise<DashboardData> {
       monthlyMap.set(key, { ventes: 0, achats: 0 })
     }
 
-    for (const doc of monthlySalesData) {
-      const docDate = new Date(doc.date_document)
-      const key = docDate.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' })
-      const entry = monthlyMap.get(key)
-      if (entry) {
-        if (doc.domaine_document === 'VENTE') {
-          entry.ventes += Number(doc.montant_ttc)
-        } else if (doc.domaine_document === 'ACHAT') {
-          entry.achats += Number(doc.montant_ttc)
-        }
+    for (const row of monthlyResult) {
+      if (monthlyMap.has(row.month)) {
+        monthlyMap.set(row.month, { ventes: row.ventes, achats: row.achats })
       }
     }
 
     const monthlyData = Array.from(monthlyMap.entries()).map(([month, data]) => ({
       month,
       ventes: data.ventes,
-      achats: data.achats
+      achats: data.achats,
     }))
 
     const result = {
@@ -202,7 +231,7 @@ export async function getDashboardStats(): Promise<DashboardData> {
       monthlyData,
     }
 
-    await CacheService.set(cacheKey, result, CacheTTL.SHORT)
+    await VersionedCacheService.set(CacheNamespaces.DASHBOARD, cacheKey, result, CacheTTLSeconds.DASHBOARD)
 
     return result
   } catch (error) {

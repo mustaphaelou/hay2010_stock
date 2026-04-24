@@ -72,8 +72,8 @@ export async function requirePermission(permission: Permission): Promise<{ id: s
 
   const userRole = payload.role as UserRole
   if (!hasPermission(userRole, permission)) {
-    log.warn({ userId: payload.userId, role: userRole, permission }, 'Permission denied')
-    throw new Error(`Forbidden: ${permission} permission required`)
+  log.warn({ userId: payload.userId, role: userRole, permission, code: 'INSUFFICIENT_PERMISSION' }, 'Permission denied')
+  throw new Error('Forbidden')
   }
 
   return {

@@ -6,7 +6,6 @@ import { randomBytes } from 'crypto'
 
 const PUBLIC_PATHS = ['/login', '/register', '/forgot-password', '/reset-password', '/api/auth', '/api/csrf-token', '/api/health/public', '/favicon.ico', '/_next']
 const AUTH_COOKIE = 'auth_token'
-const SESSION_REFRESH_THRESHOLD = 24 * 60 * 60 * 1000
 
 function getJwtSecret(): Uint8Array {
   const secret = process.env.JWT_SECRET
@@ -116,11 +115,6 @@ export async function middleware(request: NextRequest) {
     addSecurityHeaders(response, nonce)
     return response
   }
-
-  const tokenIssuedAt = payload.iat ? payload.iat * 1000 : Date.now()
-  // Session refresh logic placeholder - currently unused but kept for future implementation
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const _shouldRefreshSession = Date.now() - tokenIssuedAt > SESSION_REFRESH_THRESHOLD
 
   if (isPublicPath && pathname !== '/favicon.ico' && !pathname.startsWith('/_next')) {
     const response = NextResponse.redirect(new URL('/', request.url))

@@ -73,9 +73,12 @@ function applyRowLevelSecurity(user: { id: string; role: string }, whereClause: 
   return { ...whereClause, cree_par: user.id }
 }
 
-export async function getDocuments(page: number = 1, limit: number = 50): Promise<{ data: DocumentWithComputed[]; meta: { total: number; page: number; limit: number; totalPages: number }; error?: string }> {
-  const user = await requirePermission('documents:read')
-
+async function getFilteredDocuments(
+  user: { id: string; role: string },
+  page: number,
+  limit: number,
+  domaine?: 'VENTE' | 'ACHAT'
+): Promise<{ data: DocumentWithComputed[]; meta: { total: number; page: number; limit: number; totalPages: number }; error?: string }> {
   const parsed = paginationSchema.safeParse({ page, limit })
   if (!parsed.success) {
     return { data: [], meta: { total: 0, page, limit, totalPages: 0 }, error: 'Invalid pagination parameters' }
@@ -86,7 +89,8 @@ export async function getDocuments(page: number = 1, limit: number = 50): Promis
   const skip = (safePage - 1) * safeLimit
 
   try {
-    const whereClause = applyRowLevelSecurity(user)
+    const baseWhere = domaine ? { domaine_document: domaine } : {}
+    const whereClause = applyRowLevelSecurity(user, baseWhere)
 
     const [documents, total] = await Promise.all([
       prisma.docVente.findMany({
@@ -118,121 +122,29 @@ export async function getDocuments(page: number = 1, limit: number = 50): Promis
       }
     }
   } catch (error) {
-    log.error({ error }, 'Failed to fetch documents')
+    const label = domaine === 'VENTE' ? 'sales' : domaine === 'ACHAT' ? 'purchases' : ''
+    log.error({ error }, `Failed to fetch ${label} documents`)
     return {
       data: [],
       meta: { total: 0, page: safePage, limit: safeLimit, totalPages: 0 },
-      error: 'Failed to fetch documents'
+      error: `Failed to fetch ${label} documents`
     }
   }
+}
+
+export async function getDocuments(page: number = 1, limit: number = 50): Promise<{ data: DocumentWithComputed[]; meta: { total: number; page: number; limit: number; totalPages: number }; error?: string }> {
+  const user = await requirePermission('documents:read')
+  return getFilteredDocuments(user, page, limit)
 }
 
 export async function getSalesDocuments(page: number = 1, limit: number = 50): Promise<{ data: DocumentWithComputed[]; meta: { total: number; page: number; limit: number; totalPages: number }; error?: string }> {
   const user = await requirePermission('documents:read')
-
-  const parsed = paginationSchema.safeParse({ page, limit })
-  if (!parsed.success) {
-    return { data: [], meta: { total: 0, page, limit, totalPages: 0 }, error: 'Invalid pagination parameters' }
-  }
-  const { page: p, limit: l } = parsed.data ?? { page, limit }
-  const safePage = p ?? page
-  const safeLimit = l ?? limit
-  const skip = (safePage - 1) * safeLimit
-
-  try {
-    const whereClause = applyRowLevelSecurity(user, { domaine_document: 'VENTE' })
-
-    const [documents, total] = await Promise.all([
-      prisma.docVente.findMany({
-        skip,
-        take: safeLimit,
-        where: whereClause,
-        include: {
-          partenaire: {
-            select: {
-              nom_partenaire: true,
-              type_partenaire: true
-            }
-          }
-        },
-        orderBy: {
-          date_document: 'desc'
-        }
-      }),
-      prisma.docVente.count({ where: whereClause })
-    ])
-
-    return {
-      data: documents.map(mapDocumentToComputed),
-      meta: {
-        total,
-        page: safePage,
-        limit: safeLimit,
-        totalPages: Math.ceil(total / safeLimit)
-      }
-    }
-  } catch (error) {
-    log.error({ error }, 'Failed to fetch sales documents')
-    return {
-      data: [],
-      meta: { total: 0, page: safePage, limit: safeLimit, totalPages: 0 },
-      error: 'Failed to fetch sales documents'
-    }
-  }
+  return getFilteredDocuments(user, page, limit, 'VENTE')
 }
 
 export async function getPurchasesDocuments(page: number = 1, limit: number = 50): Promise<{ data: DocumentWithComputed[]; meta: { total: number; page: number; limit: number; totalPages: number }; error?: string }> {
   const user = await requirePermission('documents:read')
-
-  const parsed = paginationSchema.safeParse({ page, limit })
-  if (!parsed.success) {
-    return { data: [], meta: { total: 0, page, limit, totalPages: 0 }, error: 'Invalid pagination parameters' }
-  }
-  const { page: p, limit: l } = parsed.data ?? { page, limit }
-  const safePage = p ?? page
-  const safeLimit = l ?? limit
-  const skip = (safePage - 1) * safeLimit
-
-  try {
-    const whereClause = applyRowLevelSecurity(user, { domaine_document: 'ACHAT' })
-
-    const [documents, total] = await Promise.all([
-      prisma.docVente.findMany({
-        skip,
-        take: safeLimit,
-        where: whereClause,
-        include: {
-          partenaire: {
-            select: {
-              nom_partenaire: true,
-              type_partenaire: true
-            }
-          }
-        },
-        orderBy: {
-          date_document: 'desc'
-        }
-      }),
-      prisma.docVente.count({ where: whereClause })
-    ])
-
-    return {
-      data: documents.map(mapDocumentToComputed),
-      meta: {
-        total,
-        page: safePage,
-        limit: safeLimit,
-        totalPages: Math.ceil(total / safeLimit)
-      }
-    }
-  } catch (error) {
-    log.error({ error }, 'Failed to fetch purchases documents')
-    return {
-      data: [],
-      meta: { total: 0, page: safePage, limit: safeLimit, totalPages: 0 },
-      error: 'Failed to fetch purchases documents'
-    }
-  }
+  return getFilteredDocuments(user, page, limit, 'ACHAT')
 }
 
 export async function getDocLines(docId: number): Promise<{ data: DocumentLine[]; error?: string }> {

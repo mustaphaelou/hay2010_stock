@@ -41,6 +41,13 @@ const OPTIONAL_SECRETS: SecretSource[] = [
     required: false,
     description: 'Redis password (used to construct REDIS_URL)',
   },
+  {
+    envVar: 'CSRF_SECRET',
+    fileVar: 'CSRF_SECRET_FILE',
+    required: false,
+    minLength: 32,
+    description: 'CSRF HMAC secret (falls back to JWT_SECRET if not set)',
+  },
 ]
 
 export interface ValidationResult {

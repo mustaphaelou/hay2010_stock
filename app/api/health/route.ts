@@ -3,7 +3,7 @@ import { cookies } from 'next/headers'
 import { prisma } from '@/lib/db/prisma'
 
 import { verifyToken } from '@/lib/auth/jwt'
-import { checkRedisHealth } from '@/lib/db/redis-cluster'
+import { checkRedisHealth } from '@/lib/db/redis'
 import { createLogger } from '@/lib/logger'
 import { AUTH_COOKIE_NAME } from '@/lib/constants/auth'
 
