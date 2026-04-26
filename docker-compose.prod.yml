@@ -1,80 +1,40 @@
 # ============================================
 # HAY2010 Stock Application - Production Docker Compose
+# Version: 6.0
 # ============================================
 #
 # PURPOSE:
-# Production deployment with hardened security, resource limits,
-# and no exposed internal service ports.
+#   Production VPS deployment with hardened security,
+#   file-based secrets, resource limits, and no exposed
+#   internal service ports.
 #
 # USAGE:
 #   docker compose -f docker-compose.prod.yml up -d
-#   docker compose -f docker-compose.prod.yml run --rm seed
+#   docker compose -f docker-compose.prod.yml exec app npx tsx prisma/seed.ts
 #
 # REQUIRED ENV VARS (set in .env.docker or shell):
 #   POSTGRES_PASSWORD, JWT_SECRET, REDIS_PASSWORD
+#
+# MIGRATIONS:
+#   Run automatically by the app entrypoint before server startup.
 #
 # ============================================
 
 services:
 
-  migrate:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: migrator
-      args:
-        - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-hay2010_db}?connection_limit=5&pool_timeout=10
-    container_name: hay2010_migrate
-    environment:
-      DATABASE_URL: "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-hay2010_db}?connection_limit=5&pool_timeout=10"
-      NODE_ENV: production
-      NEXT_TELEMETRY_DISABLED: "1"
-    depends_on:
-      postgres:
-        condition: service_healthy
-    restart: "no"
-    networks:
-      - backend
-    security_opt:
-      - no-new-privileges:true
-    read_only: true
-    tmpfs:
-      - /tmp
-
-  seed:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: migrator
-    container_name: hay2010_seed
-    environment:
-      DATABASE_URL: "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-hay2010_db}?connection_limit=5&pool_timeout=10"
-      SEED_ADMIN_EMAIL: "${SEED_ADMIN_EMAIL:-admin@hay2010.com}"
-      SEED_ADMIN_PASSWORD: "${SEED_ADMIN_PASSWORD:?SEED_ADMIN_PASSWORD is required}"
-    command: ["npx", "tsx", "prisma/seed.ts"]
-    depends_on:
-      migrate:
-        condition: service_completed_successfully
-    restart: "no"
-    networks:
-      - backend
-    security_opt:
-      - no-new-privileges:true
-    read_only: true
-    tmpfs:
-      - /tmp
-
+  # ============================================
+  # APPLICATION SERVICE
+  # ============================================
   app:
     build:
       context: .
       dockerfile: Dockerfile
       target: runner
       args:
-        - PORT=3000
-        - GIT_SHA=${GIT_SHA:-production}
-        - BUILD_DATE=${BUILD_DATE:-2026-01-01}
-        - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-hay2010_db}?connection_limit=5&pool_timeout=10
-    image: hay2010_stock:${GIT_SHA:-latest}
+        PORT: "3000"
+        GIT_SHA: ${GIT_SHA:-production}
+        BUILD_DATE: ${BUILD_DATE:-2026-01-01}
+    image: hay2010_stock:${APP_VERSION:-latest}
     container_name: hay2010_stock
     ports:
       - "${APP_PORT:-3000}:3000"
@@ -89,7 +49,7 @@ services:
       NEXT_PUBLIC_APP_URL: "${NEXT_PUBLIC_APP_URL:-http://localhost:3000}"
       NEXT_PUBLIC_APP_NAME: "${NEXT_PUBLIC_APP_NAME:-HAY2010 Stock}"
       NEXT_PUBLIC_COMPANY_NAME: "${NEXT_PUBLIC_COMPANY_NAME:-HAY2010}"
-      NEXT_PUBLIC_APP_VERSION: "${NEXT_PUBLIC_APP_VERSION:-1.0.0}"
+      NEXT_PUBLIC_APP_VERSION: "${APP_VERSION:-1.0.0}"
       SECURE_COOKIES: "true"
       LOCKOUT_FAIL_CLOSED: "true"
       RATE_LIMIT_FAIL_CLOSED: "true"
@@ -98,17 +58,16 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      migrate:
-        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/api/health/public"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 60s
-    restart: always
+    restart: unless-stopped
     networks:
       - backend
+      - frontend
     security_opt:
       - no-new-privileges:true
     read_only: true
@@ -127,6 +86,9 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  # ============================================
+  # POSTGRESQL DATABASE
+  # ============================================
   postgres:
     image: postgres:16-alpine
     container_name: hay2010_postgres
@@ -142,7 +104,7 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
-    restart: always
+    restart: unless-stopped
     networks:
       - backend
     security_opt:
@@ -168,9 +130,14 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  # ============================================
+  # REDIS CACHE
+  # ============================================
   redis:
     image: redis:7-alpine
     container_name: hay2010_redis
+    environment:
+      REDISCLI_AUTH: "${REDIS_PASSWORD:?REDIS_PASSWORD is required}"
     command: >
       redis-server
       --appendonly yes
@@ -178,15 +145,15 @@ services:
       --maxmemory 256mb
       --maxmemory-policy allkeys-lru
       --save 60 1000
-      --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+      --requirepass ${REDIS_PASSWORD}
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
-    restart: always
+    restart: unless-stopped
     networks:
       - backend
     deploy:
@@ -202,13 +169,23 @@ services:
         max-size: "5m"
         max-file: "3"
 
+# ============================================
+# VOLUMES
+# ============================================
 volumes:
   postgres_data:
     driver: local
   redis_data:
     driver: local
 
+# ============================================
+# NETWORKS
+#   backend:  internal-only for DB/Redis communication
+#   frontend: allows app outbound internet + host port exposure
+# ============================================
 networks:
   backend:
     driver: bridge
     internal: true
+  frontend:
+    driver: bridge

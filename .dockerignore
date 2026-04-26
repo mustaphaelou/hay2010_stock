@@ -1,6 +1,6 @@
 # ============================================
 # HAY2010 Stock Application - Docker Ignore
-# Version: 4.0 (Optimized for Docker Compose)
+# Version: 5.0
 # ============================================
 # Excludes all files not needed for Docker build
 # Reduces build context size and improves stability
@@ -104,6 +104,8 @@ CHANGELOG.md
 SETUP.md
 DEPLOY.md
 TROUBLESHOOTING.md
+LOCAL_DEPLOYMENT.md
+DEPENDENCIES.md
 docs/
 plans/
 
@@ -147,3 +149,5 @@ errors.txt
 tsc_errors.log
 *.orig
 *.patch
+init.sql
+secrets/

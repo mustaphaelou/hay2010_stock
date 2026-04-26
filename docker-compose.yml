@@ -1,92 +1,38 @@
 # ============================================
 # HAY2010 Stock Application - Docker Compose
-# Version: 5.0
+# Version: 6.0
 # ============================================
 #
 # PURPOSE:
-# Complete local deployment using Docker only - no external services required
-# Uses environment variables from .env.docker instead of hardcoded secrets
+#   Local development + VPS deployment with file-based secrets
 #
 # USAGE:
-# 1. Copy .env.docker.example to .env.docker and set your secrets
-# 2. Start: docker compose up -d
-# 3. View logs: docker compose logs -f
-# 4. Stop: docker compose down
-# 5. Rebuild: docker compose build --no-cache && docker compose up -d
-# 6. Seed database: docker compose run --rm seed
-# 7. Reset all: docker compose down -v && docker compose up -d
+#   1. Copy .env.docker.example to .env.docker and set your secrets
+#   2. Create secret files: ./secrets/db_password, ./secrets/redis_password, ./secrets/jwt_secret
+#   3. Start:  docker compose up -d
+#   4. Logs:   docker compose logs -f
+#   5. Stop:   docker compose down
+#   6. Rebuild: docker compose build --no-cache && docker compose up -d
+#   7. Seed:   docker compose exec app npx tsx prisma/seed.ts
+#   8. Reset:  docker compose down -v && docker compose up -d
 #
-# ADMIN CREDENTIALS:
-# Default: admin@hay2010.com / Admin@2026
-# Override via .env.docker or command line:
-# SEED_ADMIN_EMAIL=you@example.com SEED_ADMIN_PASSWORD=YourPass123 docker compose run --rm seed
+# MIGRATIONS:
+#   Run automatically by the app entrypoint before server startup.
+#   No separate migrate service needed.
 #
 # SERVICES:
-# - migrate: One-time database migration runner
-# - seed: One-time database seeder (run manually)
-# - app: Next.js application (port 3000)
-# - postgres: PostgreSQL 16 database (port 5432)
-# - redis: Redis 7 cache (port 6379)
+#   - app:      Next.js application with built-in migrations (port 3000)
+#   - postgres: PostgreSQL 16 database (port 5432)
+#   - redis:    Redis 7 cache (port 6379)
 #
 # ============================================
 
 services:
 
-# ============================================
-# MIGRATION SERVICE
-# Runs once to apply database migrations on startup
-# ============================================
-  migrate:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: migrator
-      args:
-        DATABASE_URL: "${DATABASE_URL}"
-    container_name: hay2010_migrate
-    environment:
-      DATABASE_URL: "${DATABASE_URL}"
-      NODE_ENV: production
-      NEXT_TELEMETRY_DISABLED: "1"
-    depends_on:
-      postgres:
-        condition: service_healthy
-    restart: "no"
-    networks:
-      - backend
-    security_opt:
-      - no-new-privileges:true
-    read_only: false
-    volumes:
-      - ./prisma:/app/prisma:ro
-      - ./lib/generated:/app/lib/generated:ro
-
-# ============================================
-# SEED SERVICE
-# Seeds the database with initial data (run manually)
-# ============================================
-  seed:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: migrator
-    container_name: hay2010_seed
-    environment:
-      DATABASE_URL: "${DATABASE_URL}"
-      SEED_ADMIN_EMAIL: "${SEED_ADMIN_EMAIL:-admin@hay2010.com}"
-      SEED_ADMIN_PASSWORD: "${SEED_ADMIN_PASSWORD:-Admin@2026}"
-    command: ["npx", "tsx", "prisma/seed.ts"]
-    depends_on:
-      migrate:
-        condition: service_completed_successfully
-    restart: "no"
-    networks:
-      - backend
-
-# ============================================
-# APPLICATION SERVICE
-# Next.js application server
-# ============================================
+  # ============================================
+  # APPLICATION SERVICE
+  # Next.js application with built-in migrations
+  # ============================================
   app:
     build:
       context: .
@@ -95,12 +41,11 @@ services:
       args:
         PORT: "3000"
         GIT_SHA: ${GIT_SHA:-local}
-        BUILD_DATE: "2026-04-18"
-        DATABASE_URL: "${DATABASE_URL}"
-    image: hay2010_stock:local
+        BUILD_DATE: ${BUILD_DATE:-2026-01-01}
+    image: hay2010_stock:${APP_VERSION:-0.1.1}
     container_name: hay2010_stock
     ports:
-      - "3000:3000"
+      - "${APP_PORT:-3000}:3000"
     environment:
       DATABASE_URL: "${DATABASE_URL}"
       REDIS_URL: "${REDIS_URL}"
@@ -109,10 +54,10 @@ services:
       JWT_EXPIRES_IN: "${JWT_EXPIRES_IN:-24h}"
       NODE_ENV: production
       NEXT_TELEMETRY_DISABLED: "1"
-      NEXT_PUBLIC_APP_URL: "http://localhost:3000"
-      NEXT_PUBLIC_APP_NAME: "HAY2010 Stock"
-      NEXT_PUBLIC_COMPANY_NAME: "HAY2010"
-      NEXT_PUBLIC_APP_VERSION: "1.0.0"
+      NEXT_PUBLIC_APP_URL: "${NEXT_PUBLIC_APP_URL:-http://localhost:3000}"
+      NEXT_PUBLIC_APP_NAME: "${NEXT_PUBLIC_APP_NAME:-HAY2010 Stock}"
+      NEXT_PUBLIC_COMPANY_NAME: "${NEXT_PUBLIC_COMPANY_NAME:-HAY2010}"
+      NEXT_PUBLIC_APP_VERSION: "${APP_VERSION:-0.1.1}"
       SECURE_COOKIES: "${SECURE_COOKIES:-false}"
       LOCKOUT_FAIL_CLOSED: "false"
       RATE_LIMIT_FAIL_CLOSED: "false"
@@ -121,31 +66,27 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      migrate:
-        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/api/health/public"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 60s
-    restart: always
+    restart: unless-stopped
     networks:
       - backend
       - frontend
     security_opt:
       - no-new-privileges:true
-    read_only: false
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
 
-# ============================================
-# POSTGRESQL DATABASE
-# Primary data store
-# ============================================
+  # ============================================
+  # POSTGRESQL DATABASE
+  # ============================================
   postgres:
     image: postgres:16-alpine
     container_name: hay2010_postgres
@@ -155,16 +96,15 @@ services:
       POSTGRES_DB: "${POSTGRES_DB:-hay2010_db}"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-hay2010_db}"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
-    restart: always
+    restart: unless-stopped
     networks:
       - backend
     security_opt:
@@ -183,13 +123,14 @@ services:
         max-size: "10m"
         max-file: "3"
 
-# ============================================
-# REDIS CACHE
-# Session storage and caching
-# ============================================
+  # ============================================
+  # REDIS CACHE
+  # ============================================
   redis:
     image: redis:7-alpine
     container_name: hay2010_redis
+    environment:
+      REDISCLI_AUTH: "${REDIS_PASSWORD}"
     command: >
       redis-server
       --appendonly yes
@@ -201,13 +142,13 @@ services:
     volumes:
       - redis_data:/data
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
-    restart: always
+    restart: unless-stopped
     networks:
       - backend
     logging:
@@ -218,7 +159,6 @@ services:
 
 # ============================================
 # VOLUMES
-# Persistent data storage
 # ============================================
 volumes:
   postgres_data:
@@ -228,8 +168,8 @@ volumes:
 
 # ============================================
 # NETWORKS
-# backend: internal-only for DB/Redis communication
-# frontend: allows app to expose ports to host
+#   backend:  internal-only for DB/Redis communication
+#   frontend: allows app to expose ports and reach internet
 # ============================================
 networks:
   backend:
