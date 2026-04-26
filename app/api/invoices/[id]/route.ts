@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { verifyToken } from '@/lib/auth/jwt'
 import { AUTH_COOKIE_NAME } from '@/lib/constants/auth'
-import { generateInvoicePdfBuffer, transformToInvoiceData } from '@/lib/pdf/generate-invoice-server'
+import { generateInvoicePdfBuffer, transformToInvoiceData } from '@/lib/pdf/generate-invoice'
 import { createLogger } from '@/lib/logger'
 
 const log = createLogger('invoice-api')
@@ -77,7 +77,7 @@ export async function GET(
 
     const filename = `${invoiceData.documentType.replace(/\s/g, '_')}_${invoiceData.documentNumber}.pdf`
 
-    return new NextResponse(pdfBuffer, {
+    return new NextResponse(new Uint8Array(pdfBuffer), {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',

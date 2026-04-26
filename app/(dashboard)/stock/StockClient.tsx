@@ -26,7 +26,6 @@ import {
   AlertCircleIcon,
 } from "@hugeicons/core-free-icons"
 
-import dynamic from "next/dynamic"
 import { ColumnDef } from "@tanstack/react-table"
 import { formatPrice } from "@/lib/utils"
 import { cn } from "@/lib/utils"
@@ -36,10 +35,7 @@ import type { StockLevelWithProduct, Depot as DepotType } from '@/lib/types'
 type StockLevel = StockLevelWithProduct
 type Depot = DepotType
 
-const DataTable = dynamic(() => import("@/components/erp/data-table").then(m => ({ default: m.DataTable })), {
-  ssr: true,
-  loading: () => <div className="h-64 animate-pulse bg-muted rounded-md" />,
-})
+import { DataTable } from "@/components/erp/data-table"
 
 interface StockClientProps {
   initialStockData: StockLevel[]

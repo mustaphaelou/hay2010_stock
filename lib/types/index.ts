@@ -218,7 +218,7 @@ export type DocumentLine = {
   designation: string | null
   reference_article: string | null
   ordre: number
-  code_taxe: null
+  code_taxe: string | null
 }
 
 // =====================================================

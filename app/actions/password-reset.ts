@@ -60,7 +60,7 @@ export async function resetPassword(token: string, newPassword: string): Promise
 
   await prisma.user.update({
     where: { email: tokenValidation.email },
-    data: { password: hashedPassword, passwordChangedAt: new Date() } as any
+        data: { password: hashedPassword, passwordChangedAt: new Date() } as import('@/lib/generated/prisma/client').Prisma.UserUpdateInput
   })
 
     return { success: true, message: 'Your password has been reset successfully. You can now log in with your new password.' }

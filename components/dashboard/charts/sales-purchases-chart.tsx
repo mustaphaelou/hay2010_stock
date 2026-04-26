@@ -208,6 +208,7 @@ month: "short",
             </CardContent>
         </Card>
     )
-}
+});
 
-export type { SalesPurchasesChartProps, MonthlyData }
+export type { SalesPurchasesChartProps, MonthlyData };
+

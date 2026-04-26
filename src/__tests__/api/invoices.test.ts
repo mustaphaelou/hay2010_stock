@@ -27,7 +27,7 @@ vi.mock('@/lib/db/prisma', () => ({
   },
 }))
 
-vi.mock('@/lib/pdf/generate-invoice-server', () => ({
+vi.mock('@/lib/pdf/generate-invoice', () => ({
   generateInvoicePdfBuffer: mockGenerateInvoicePdfBuffer,
   transformToInvoiceData: mockTransformToInvoiceData,
 }))

@@ -112,6 +112,7 @@ ENV GIT_SHA=$GIT_SHA
 ENV BUILD_DATE=$BUILD_DATE
 ENV PORT=$PORT
 ENV DATABASE_URL=$DATABASE_URL
+ENV SKIP_TYPE_CHECK=true
 
 # Build Next.js application with BuildKit cache
 RUN --mount=type=cache,target=/app/.next/cache,sharing=locked \

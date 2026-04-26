@@ -109,7 +109,7 @@ export async function getUserProfile(): Promise<{
         role: true,
         createdAt: true,
         lastLoginAt: true,
-      } as any,
+      } as import('@/lib/generated/prisma/client').Prisma.UserSelect,
     })
 
     if (!dbUser) return null

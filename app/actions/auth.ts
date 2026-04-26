@@ -92,7 +92,7 @@ export async function login(
       createSession(user.id, user.email, user.name, user.role),
       prisma.user.update({
         where: { id: user.id },
-        data: { lastLoginAt: new Date() } as any
+        data: { lastLoginAt: new Date() } as import('@/lib/generated/prisma/client').Prisma.UserUpdateInput
       }),
     ])
 

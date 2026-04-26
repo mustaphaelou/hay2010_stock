@@ -44,7 +44,7 @@ export default ts.config(
     },
   },
   {
-    ignores: [".next/**", "out/**", "build/**", "next-env.d.ts"],
+    ignores: [".next/**", "out/**", "build/**", "next-env.d.ts", "lib/generated/**", "src/__tests__/setup.ts", ".kilo/**"],
   },
   {
     rules: {

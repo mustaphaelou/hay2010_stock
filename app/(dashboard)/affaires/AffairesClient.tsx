@@ -35,7 +35,7 @@ import {
   File01Icon,
 } from "@hugeicons/core-free-icons"
 
-import { getAffaires, getDocumentsByAffaire } from '@/app/actions/affaires'
+import { getDocumentsByAffaire } from '@/app/actions/affaires'
 import { formatPrice, formatDate } from '@/lib/utils'
 
 import type { DocumentBase } from '@/lib/types'
@@ -53,7 +53,7 @@ const getDomaineBadge = (domaine: string) => {
 }
 
 export default function AffairesClient({ initialAffaires }: AffairesClientProps) {
-  const [affaires, setAffaires] = useState<string[]>(initialAffaires)
+  const [affaires] = useState<string[]>(initialAffaires)
   const [selectedAffaire, setSelectedAffaire] = useState<string>(initialAffaires.length > 0 ? initialAffaires[0] : '')
   const [documents, setDocuments] = useState<AffaireDocument[]>([])
   const [loadingDocs, setLoadingDocs] = useState(false)

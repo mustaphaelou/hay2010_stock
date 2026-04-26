@@ -7,15 +7,14 @@ import { FileDownloadIcon, Loading01Icon } from '@hugeicons/core-free-icons'
 import type { DocumentWithPartner } from '@/app/actions/documents'
 
 interface DownloadInvoiceButtonProps {
-  document: DocumentWithPartner
+  doc: DocumentWithPartner
   partner?: Record<string, string | null> | null
   variant?: 'default' | 'ghost' | 'outline' | 'secondary'
   size?: 'default' | 'sm' | 'lg' | 'icon'
   className?: string
 }
 
-export function DownloadInvoiceButton({
-  document,
+export function DownloadInvoiceButton({ doc,
   variant = 'outline',
   size = 'sm',
   className,
@@ -26,7 +25,7 @@ export function DownloadInvoiceButton({
     try {
       setLoading(true)
 
-      const response = await fetch(`/api/invoices/${document.id_document}`)
+      const response = await fetch(`/api/invoices/${doc.id_document}`)
 
       if (!response.ok) {
         throw new Error(`Failed to download PDF: ${response.status}`)
@@ -39,7 +38,7 @@ export function DownloadInvoiceButton({
 
       const disposition = response.headers.get('Content-Disposition')
       const filenameMatch = disposition?.match(/filename="?(.+?)"?$/)
-      link.download = filenameMatch ? filenameMatch[1] : `document_${document.id_document}.pdf`
+      link.download = filenameMatch ? filenameMatch[1] : `document_${doc.id_document}.pdf`
 
       document.body.appendChild(link)
       link.click()

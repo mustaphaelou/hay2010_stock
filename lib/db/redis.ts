@@ -36,7 +36,7 @@ function createRedisCluster(): Cluster {
   })
 
   const redisOptions: RedisOptions = {
-    maxRetriesPerRequest: 3,
+    maxRetriesPerRequest: null,
     keepAlive: 30000,
     connectTimeout: 10000,
     commandTimeout: 5000,
@@ -73,7 +73,7 @@ function createRedisSingle(name: string): Redis {
   const password = getOptionalSecret('REDIS_PASSWORD', 'REDIS_PASSWORD_FILE')
 
   const options: RedisOptions = {
-    maxRetriesPerRequest: 3,
+    maxRetriesPerRequest: null,
     lazyConnect: true,
     connectTimeout: 10000,
     commandTimeout: 5000,

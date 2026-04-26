@@ -144,7 +144,7 @@ export function assertEnvironment(): void {
     console.error('  cd secrets && ./generate-secrets.sh')
     console.error('\n========================================\n')
 
-    process.exit(1)
+    throw new Error('Environment validation failed')
   }
 
   console.log('\n========================================')

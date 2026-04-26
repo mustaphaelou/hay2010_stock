@@ -1,4 +1,4 @@
-import { AuthUser } from '@/lib/types'
+
 
 export type UserRole = 'ADMIN' | 'MANAGER' | 'USER' | 'VIEWER'
 

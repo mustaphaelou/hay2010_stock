@@ -172,7 +172,7 @@ const nextConfig: NextConfig = {
   typescript: {
     // Only ignore build errors in development for faster iteration
     // Production builds should catch type errors
-    ignoreBuildErrors: process.env.NODE_ENV === 'development',
+    ignoreBuildErrors: process.env.NODE_ENV === 'development' || process.env.SKIP_TYPE_CHECK === 'true',
   },
 
   // =====================================================

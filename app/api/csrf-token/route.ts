@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { generateCsrfToken, setCsrfCookie, ANONYMOUS_USER_ID, CSRF_COOKIE_NAME } from '@/lib/security/csrf-server'
+import { generateCsrfToken, ANONYMOUS_USER_ID, CSRF_COOKIE_NAME } from '@/lib/security/csrf-server'
 import { verifyToken } from '@/lib/auth/jwt'
 import { createLogger } from '@/lib/logger'
 import { AUTH_COOKIE_NAME } from '@/lib/constants/auth'

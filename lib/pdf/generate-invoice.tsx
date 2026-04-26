@@ -1,4 +1,5 @@
-import type { InvoiceData, InvoiceLineItem } from './invoice-template'
+import type { InvoiceData, InvoiceLineItem, InvoiceCompany } from './invoice-template'
+export type { InvoiceData, InvoiceLineItem, InvoiceCompany }
 import type { DocumentWithComputed, DocumentLine as DocumentLineType } from '@/lib/types'
 
 type DocumentWithPartner = DocumentWithComputed
@@ -155,6 +156,19 @@ export function transformToInvoiceData(
     showWatermark: options?.showWatermark ?? true,
     watermarkText: options?.watermarkText ?? 'DUPLICATA',
   }
+}
+
+/**
+ * Generate PDF buffer from invoice data (for server-side use)
+ */
+export async function generateInvoicePdfBuffer(data: InvoiceData): Promise<Buffer> {
+  const [{ pdf }, { InvoiceDocument }] = await Promise.all([
+    import("@react-pdf/renderer"),
+    import("./invoice-template"),
+  ])
+  const doc = <InvoiceDocument data={data} />
+  const buffer = await pdf(doc).toBuffer()
+  return Buffer.from(buffer as unknown as ArrayBuffer)
 }
 
 /**

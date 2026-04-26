@@ -54,3 +54,14 @@ eslint_out.txt
 tsc_output.txt
 
 /lib/generated/prisma
+
+# debug and test parse artifacts
+lint-debug.txt
+lint-output*.json
+test-parse*.cjs
+tsc-output.txt
+tsc-pretty.txt
+_fix*.cjs
+
+# kilo agents
+.kilo/

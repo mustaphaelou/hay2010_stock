@@ -3,9 +3,11 @@
 import "dotenv/config";
 import { defineConfig } from "prisma/config";
 
-// Also load .env.local for local development  
-import { config } from "dotenv";
-config({ path: ".env.local", override: true });
+// Also load .env.local for local development (not in Docker/production)
+if (process.env.NODE_ENV !== 'production') {
+  const { config } = require('dotenv');
+  config({ path: '.env.local', override: true });
+}
 
 export default defineConfig({
   schema: "prisma/schema.prisma",

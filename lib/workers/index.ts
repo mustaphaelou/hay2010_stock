@@ -68,7 +68,7 @@ export function startWorkers(): void {
 
       try {
         const { transformToInvoiceData } = await import('@/lib/pdf/generate-invoice')
-          const { generateInvoicePdfBuffer } = await import('@/lib/pdf/generate-invoice-server')
+          const { generateInvoicePdfBuffer } = await import('@/lib/pdf/generate-invoice')
         const { prisma } = await import('@/lib/db/prisma')
 
         await job.updateProgress(20)

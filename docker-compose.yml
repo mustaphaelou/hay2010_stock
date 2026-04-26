@@ -42,10 +42,10 @@ services:
       dockerfile: Dockerfile
       target: migrator
       args:
-        DATABASE_URL: "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-hay2010_db}?connection_limit=5&pool_timeout=10"
+        DATABASE_URL: "${DATABASE_URL}"
     container_name: hay2010_migrate
     environment:
-      DATABASE_URL: "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-hay2010_db}?connection_limit=5&pool_timeout=10"
+      DATABASE_URL: "${DATABASE_URL}"
       NODE_ENV: production
       NEXT_TELEMETRY_DISABLED: "1"
     depends_on:
@@ -72,7 +72,7 @@ services:
       target: migrator
     container_name: hay2010_seed
     environment:
-      DATABASE_URL: "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-hay2010_db}?connection_limit=5&pool_timeout=10"
+      DATABASE_URL: "${DATABASE_URL}"
       SEED_ADMIN_EMAIL: "${SEED_ADMIN_EMAIL:-admin@hay2010.com}"
       SEED_ADMIN_PASSWORD: "${SEED_ADMIN_PASSWORD:-Admin@2026}"
     command: ["npx", "tsx", "prisma/seed.ts"]
@@ -96,14 +96,14 @@ services:
         PORT: "3000"
         GIT_SHA: ${GIT_SHA:-local}
         BUILD_DATE: "2026-04-18"
-        DATABASE_URL: "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-hay2010_db}?connection_limit=5&pool_timeout=10"
+        DATABASE_URL: "${DATABASE_URL}"
     image: hay2010_stock:local
     container_name: hay2010_stock
     ports:
       - "3000:3000"
     environment:
-      DATABASE_URL: "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-hay2010_db}?connection_limit=5&pool_timeout=10"
-      REDIS_URL: "redis://:${REDIS_PASSWORD}@redis:6379/0"
+      DATABASE_URL: "${DATABASE_URL}"
+      REDIS_URL: "${REDIS_URL}"
       REDIS_PASSWORD: "${REDIS_PASSWORD}"
       JWT_SECRET: "${JWT_SECRET}"
       JWT_EXPIRES_IN: "${JWT_EXPIRES_IN:-24h}"
