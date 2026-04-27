@@ -3,7 +3,7 @@ export async function register() {
     const { assertEnvironment } = await import('@/lib/config/env-validation')
     assertEnvironment()
 
-    const { startWorkers } = await import('@/lib/workers')
+    const { startWorkers } = await import('@/lib/queue')
     startWorkers()
   }
 }

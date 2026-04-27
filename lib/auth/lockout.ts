@@ -1,6 +1,10 @@
 import { redis, isRedisReady } from '@/lib/db/redis'
 import { createLogger } from '@/lib/logger'
-import crypto from 'crypto'
+import { createHash } from 'node:crypto'
+function randomBytesHex(length: number): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(length))
+  return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('')
+}
 
 const log = createLogger('lockout')
 
@@ -147,7 +151,7 @@ export async function getRemainingAttempts(email: string): Promise<number> {
 }
 
 function hashIp(ip: string): string {
-  return crypto.createHash('sha256').update(ip).digest('hex').slice(0, 16)
+  return createHash('sha256').update(ip).digest('hex').slice(0, 16)
 }
 
 const IP_LOCKOUT_SCRIPT = `

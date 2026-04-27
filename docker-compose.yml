@@ -136,7 +136,7 @@ services:
       --appendonly yes
       --appendfsync everysec
       --maxmemory 256mb
-      --maxmemory-policy allkeys-lru
+      --maxmemory-policy noeviction
       --save 60 1000
       --requirepass ${REDIS_PASSWORD}
     volumes:

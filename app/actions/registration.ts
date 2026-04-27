@@ -2,7 +2,7 @@
 
 import { prisma } from '@/lib/db/prisma'
 import { hashPassword } from '@/lib/auth/password'
-import { registerSchema } from '@/lib/validation'
+import { registerSchema } from '@/lib/auth/validation'
 import { createLogger } from '@/lib/logger'
 import { redis, isRedisReady } from '@/lib/db/redis'
 import { headers } from 'next/headers'

@@ -10,7 +10,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { redis, CacheKeys } from '@/lib/db/redis'
 import { createLogger } from '@/lib/logger'
-import { randomBytes } from 'crypto'
+function randomBytesHex(length: number): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(length))
+  return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('')
+}
 
 const log = createLogger('rate-limit')
 
@@ -190,7 +193,7 @@ async function checkRateLimit(
         multi.zremrangebyscore(key, 0, windowStart)
 
         // Add current request
-        multi.zadd(key, now, `${now}-${randomBytes(8).toString('hex')}`)
+        multi.zadd(key, now, `${now}-${randomBytesHex(8)}`)
 
         // Get count of requests in window
         multi.zcard(key)

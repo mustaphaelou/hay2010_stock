@@ -1,4 +1,8 @@
-import crypto from 'crypto'
+import { createHash } from 'node:crypto'
+function randomBytesHex(length: number): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(length))
+  return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('')
+}
 import { redisSession } from '@/lib/db/redis'
 import { createLogger } from '@/lib/logger'
 
@@ -17,7 +21,7 @@ function getTokenKey(hashedToken: string): string {
 }
 
 export async function storeResetToken(token: string, email: string): Promise<void> {
-    const hashedToken = crypto.createHash('sha256').update(token).digest('hex')
+    const hashedToken = createHash('sha256').update(token).digest('hex')
     const key = getTokenKey(hashedToken)
     const data: PasswordResetTokenData = {
         email,
@@ -34,7 +38,7 @@ export async function storeResetToken(token: string, email: string): Promise<voi
 }
 
 export async function getResetToken(token: string): Promise<PasswordResetTokenData | null> {
-    const hashedToken = crypto.createHash('sha256').update(token).digest('hex')
+    const hashedToken = createHash('sha256').update(token).digest('hex')
     const key = getTokenKey(hashedToken)
 
     try {
@@ -50,7 +54,7 @@ export async function getResetToken(token: string): Promise<PasswordResetTokenDa
 }
 
 export async function deleteResetToken(token: string): Promise<void> {
-    const hashedToken = crypto.createHash('sha256').update(token).digest('hex')
+    const hashedToken = createHash('sha256').update(token).digest('hex')
     const key = getTokenKey(hashedToken)
 
     try {
@@ -79,7 +83,7 @@ export async function consumeResetToken(token: string): Promise<{ valid: boolean
     return { valid: false, error: 'Invalid reset token' }
   }
 
-  const hashedToken = crypto.createHash('sha256').update(token).digest('hex')
+  const hashedToken = createHash('sha256').update(token).digest('hex')
   const key = getTokenKey(hashedToken)
 
   try {

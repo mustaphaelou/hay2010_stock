@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -10,6 +10,10 @@ import { Field, FieldGroup, FieldLabel, FieldDescription } from "@/components/ui
 import { UserAdd01Icon, ViewIcon, ViewOffIcon, Loading02Icon, CheckmarkCircle02Icon } from "@hugeicons/core-free-icons"
 import { SafeIcon } from "@/components/ui/safe-icon"
 import { publicRegister } from "../app/actions/registration"
+import { getCsrfToken } from "@/lib/security/csrf-client"
+
+/** Maximum number of automatic retries after CSRF token failure */
+const CSRF_MAX_RETRIES = 1
 
 export function RegisterForm({
   className,
@@ -25,6 +29,24 @@ export function RegisterForm({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  const [csrfToken, setCsrfToken] = useState<string | null>(null)
+  const [csrfRetryCount, setCsrfRetryCount] = useState(0)
+
+  const refreshToken = useCallback(async (): Promise<string | null> => {
+    try {
+      const token = await getCsrfToken()
+      setCsrfToken(token)
+      return token
+    } catch (err) {
+      console.error('CSRF token refresh error:', err)
+      return null
+    }
+  }, [])
+
+  // Fetch CSRF token on mount
+  useEffect(() => {
+    refreshToken()
+  }, [refreshToken])
 
   const passwordRequirements = [
     { label: 'Au moins 8 caractères', valid: password.length >= 8 },
@@ -35,6 +57,12 @@ export function RegisterForm({
 
   const allRequirementsMet = passwordRequirements.every(r => r.valid)
   const passwordsMatch = password === confirmPassword && confirmPassword.length > 0
+
+  function isCsrfError(errorMessage: string): boolean {
+    return errorMessage.toLowerCase().includes('jeton') ||
+           errorMessage.toLowerCase().includes('csrf') ||
+           errorMessage.toLowerCase().includes('security token')
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -54,11 +82,47 @@ export function RegisterForm({
     }
 
     try {
-      const result = await publicRegister(email, password, name)
+      // Ensure we have a CSRF token before submitting
+      let currentToken = csrfToken
+      if (!currentToken) {
+        currentToken = await refreshToken()
+        if (!currentToken) {
+          setError('Impossible de générer un jeton de sécurité. Veuillez actualiser la page.')
+          setLoading(false)
+          return
+        }
+      }
+
+      const result = await publicRegister(email, password, name, currentToken || undefined)
 
       if (result.error) {
+        // If CSRF error, attempt automatic retry with a fresh token
+        if (isCsrfError(result.error) && csrfRetryCount < CSRF_MAX_RETRIES) {
+          setCsrfRetryCount(prev => prev + 1)
+          const freshToken = await refreshToken()
+
+          if (freshToken) {
+            const retryResult = await publicRegister(email, password, name, freshToken)
+
+            if (retryResult.error) {
+              setError(retryResult.error)
+              setLoading(false)
+              refreshToken()
+            } else {
+              setSuccess(true)
+              setTimeout(() => {
+                router.push('/login?registered=true')
+              }, 2000)
+            }
+            return
+          }
+        }
+
         setError(result.error)
         setLoading(false)
+        // Refresh CSRF token after any error for the next attempt
+        setCsrfRetryCount(0)
+        refreshToken()
       } else {
         setSuccess(true)
         setTimeout(() => {
@@ -69,6 +133,7 @@ export function RegisterForm({
       console.error('Registration submit error:', err)
       setError('Une erreur inattendue est survenue')
       setLoading(false)
+      refreshToken()
     }
   }
 
@@ -102,10 +167,10 @@ export function RegisterForm({
               />
             </div>
           </div>
-<h1 className="text-2xl font-bold">Créer un compte</h1>
-        <p className="text-sm text-balance text-muted-foreground">
-          Entrez vos informations pour créer un nouveau compte
-        </p>
+          <h1 className="text-2xl font-bold">Créer un compte</h1>
+          <p className="text-sm text-balance text-muted-foreground">
+            Entrez vos informations pour créer un nouveau compte
+          </p>
         </div>
 
         {error && (
@@ -216,20 +281,20 @@ export function RegisterForm({
         </Field>
 
         <Field>
-          <Button 
-            type="submit" 
-            className="w-full" 
+          <Button
+            type="submit"
+            className="w-full"
             disabled={loading || !allRequirementsMet || !passwordsMatch}
           >
             {loading ? (
               <>
                 <SafeIcon icon={Loading02Icon} className="mr-2 animate-spin" />
-Création du compte...
-          </>
-        ) : (
-          <>
-            <SafeIcon icon={UserAdd01Icon} className="mr-2" />
-            Créer un compte
+                Création du compte...
+              </>
+            ) : (
+              <>
+                <SafeIcon icon={UserAdd01Icon} className="mr-2" />
+                Créer un compte
               </>
             )}
           </Button>

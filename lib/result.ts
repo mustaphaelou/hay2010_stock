@@ -78,3 +78,10 @@ export type ActionResult<T> = Promise<{
   error?: string
   code?: string
 }>
+
+
+export type { PaginationMeta, PaginatedResult } from '@/lib/pagination'
+
+export type AsyncResult<T> = Promise<Result<T, string>>
+
+export type ResultWithWarnings<T> = Result<T, string> & { warnings?: string[] }

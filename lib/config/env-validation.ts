@@ -1,5 +1,3 @@
-import { existsSync, readFileSync } from 'fs'
-
 type SecretSource = {
   envVar: string
   fileVar?: string
@@ -57,18 +55,7 @@ export interface ValidationResult {
   secrets: Record<string, boolean>
 }
 
-export function getSecret(envVar: string, fileVar?: string): string | undefined {
-  const fileEnv = fileVar || `${envVar}_FILE`
-  const filePath = process.env[fileEnv]
-
-  if (filePath && existsSync(filePath)) {
-    try {
-      return readFileSync(filePath, 'utf-8').trim()
-    } catch (error) {
-      throw new Error(`Failed to read secret from ${filePath}: ${error}`)
-    }
-  }
-
+export function getSecret(envVar: string, _fileVar?: string): string | undefined {
   return process.env[envVar]
 }
 
@@ -80,33 +67,28 @@ export function validateEnvironment(): ValidationResult {
   const allSecrets = [...REQUIRED_SECRETS, ...OPTIONAL_SECRETS]
 
   for (const secret of allSecrets) {
-    try {
-      const value = getSecret(secret.envVar, secret.fileVar)
+    const value = getSecret(secret.envVar, secret.fileVar)
 
-      if (!value) {
-        if (secret.required) {
-          errors.push(`Missing required secret: ${secret.envVar} (${secret.description})`)
-          secrets[secret.envVar] = false
-        } else {
-          warnings.push(`Optional secret not set: ${secret.envVar}`)
-          secrets[secret.envVar] = false
-        }
-        continue
-      }
-
-      if (secret.minLength && value.length < secret.minLength) {
-        errors.push(
-          `${secret.envVar} is too short (min ${secret.minLength} characters, got ${value.length})`
-        )
+    if (!value) {
+      if (secret.required) {
+        errors.push(`Missing required secret: ${secret.envVar} (${secret.description})`)
         secrets[secret.envVar] = false
-        continue
+      } else {
+        warnings.push(`Optional secret not set: ${secret.envVar}`)
+        secrets[secret.envVar] = false
       }
-
-      secrets[secret.envVar] = true
-    } catch (error) {
-      errors.push(`Error reading ${secret.envVar}: ${error}`)
-      secrets[secret.envVar] = false
+      continue
     }
+
+    if (secret.minLength && value.length < secret.minLength) {
+      errors.push(
+        `${secret.envVar} is too short (min ${secret.minLength} characters, got ${value.length})`
+      )
+      secrets[secret.envVar] = false
+      continue
+    }
+
+    secrets[secret.envVar] = true
   }
 
   return {
@@ -175,6 +157,6 @@ export function getRequiredSecret(envVar: string, fileVar?: string): string {
   return value
 }
 
-export function getOptionalSecret(envVar: string, fileVar?: string, defaultValue = ''): string {
-  return getSecret(envVar, fileVar) || defaultValue
+export function getOptionalSecret(envVar: string, _fileVar?: string, defaultValue = ''): string {
+  return getSecret(envVar, _fileVar) || defaultValue
 }

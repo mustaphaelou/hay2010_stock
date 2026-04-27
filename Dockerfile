@@ -82,6 +82,12 @@ RUN --mount=type=cache,target=/app/.next/cache,sharing=locked \
 # Prune devDependencies after build
 RUN npm prune --production
 
+# Reinstall prisma CLI as production dep (needed for runtime migrations)
+RUN npm install prisma --omit=dev --no-save
+
+# Regenerate Prisma client after prune to ensure .prisma dir exists
+RUN npx prisma generate
+
 # ============================================
 # RUNNER STAGE - Production Runtime
 # ============================================
@@ -116,8 +122,6 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/lib/generated/prisma ./lib/generated/prisma
 COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.ts ./prisma.config.ts
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
 
 # Copy production node_modules (pruned after build)
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules

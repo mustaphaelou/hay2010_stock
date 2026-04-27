@@ -1,7 +1,10 @@
 import Redis, { Cluster, RedisOptions } from 'ioredis'
 import { createLogger } from '@/lib/logger'
 import { getOptionalSecret } from '@/lib/config/env-validation'
-import { randomBytes } from 'crypto'
+function randomBytesHex(length: number): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(length))
+  return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('')
+}
 
 const log = createLogger('redis')
 
@@ -39,7 +42,7 @@ function createRedisCluster(): Cluster {
     maxRetriesPerRequest: null,
     keepAlive: 30000,
     connectTimeout: 10000,
-    commandTimeout: 5000,
+
   }
 
   const password = getOptionalSecret('REDIS_PASSWORD', 'REDIS_PASSWORD_FILE')
@@ -76,7 +79,7 @@ function createRedisSingle(name: string): Redis {
     maxRetriesPerRequest: null,
     lazyConnect: true,
     connectTimeout: 10000,
-    commandTimeout: 5000,
+
     keepAlive: 30000,
     enableReadyCheck: true,
     enableOfflineQueue: true,
@@ -301,7 +304,7 @@ export class CacheService {
     maxRetries: number = 10
   ): Promise<string | null> {
     const lockKey = `${CacheKeys.LOCK}${key}`
-    const token = `${Date.now()}-${randomBytes(16).toString('hex')}`
+    const token = `${Date.now()}-${randomBytesHex(16)}`
 
     for (let i = 0; i < maxRetries; i++) {
       const result = await redis.set(lockKey, token, 'PX', ttl * 1000, 'NX')

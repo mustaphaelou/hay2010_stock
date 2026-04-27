@@ -1,4 +1,7 @@
-import { randomBytes } from 'crypto'
+function randomBytesHex(length: number): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(length))
+  return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('')
+}
 import { createLogger } from '@/lib/logger'
 
 const SESSION_PREFIX = 'session:'
@@ -15,7 +18,7 @@ export interface SessionData {
 }
 
 function generateSessionId(): string {
-  return randomBytes(16).toString('hex')
+  return randomBytesHex(16)
 }
 
 async function getRedis() {
