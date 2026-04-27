@@ -1,6 +1,6 @@
-﻿import { z } from 'zod'
+import { z } from 'zod'
 
-const passwordSchema = z.string()
+export const passwordSchema = z.string()
   .min(8, 'Le mot de passe doit contenir au moins 8 caractères')
   .max(100, 'Le mot de passe ne peut pas dépasser 100 caractères')
   .regex(/[A-Z]/, 'Le mot de passe doit contenir au moins une lettre majuscule')
@@ -18,15 +18,11 @@ export const registerSchema = z.object({
   name: z.string().min(2, 'Le nom doit contenir au moins 2 caractères')
 })
 
-export const paginationSchema = z.object({
-  page: z.number().int().min(1).default(1).optional(),
-  limit: z.number().int().min(1).max(100).default(50).optional()
+export const updateProfileSchema = z.object({
+  name: z.string().min(2, 'Le nom doit contenir au moins 2 caractères').max(255),
+  email: z.string().email('Adresse email invalide'),
+  currentPassword: z.string().optional(),
 })
 
 export type LoginInput = z.infer<typeof loginSchema>
 export type RegisterInput = z.infer<typeof registerSchema>
-export type PaginationInput = z.infer<typeof paginationSchema>
-
-export { toggleArticleStatusSchema, createMovementSchema, type ToggleArticleStatusInput, type CreateMovementInput } from '@/lib/stock/validation'
-export { getDocLinesSchema, getDocumentsByAffaireSchema, type GetDocLinesInput, type GetDocumentsByAffaireInput } from '@/lib/documents/validation'
-export { getPartnersSchema, type GetPartnersInput } from '@/lib/partners/validation'

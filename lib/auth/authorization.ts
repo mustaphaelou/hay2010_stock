@@ -3,17 +3,13 @@ import { verifyToken } from './jwt'
 import { getSession } from './session'
 import { createLogger } from '@/lib/logger'
 import { AUTH_COOKIE_NAME } from '@/lib/constants/auth'
+import { ROLE_HIERARCHY } from './roles'
+import type { UserRole } from './roles'
+
+export type { UserRole }
+export { ROLE_HIERARCHY }
 
 const log = createLogger('authorization')
-
-export type UserRole = 'ADMIN' | 'MANAGER' | 'USER' | 'VIEWER'
-
-export const ROLE_HIERARCHY: Record<UserRole, number> = {
-  ADMIN: 100,
-  MANAGER: 50,
-  USER: 25,
-  VIEWER: 10,
-}
 
 export const RESOURCE_PERMISSIONS = {
   'stock:read': ['ADMIN', 'MANAGER', 'USER', 'VIEWER'],

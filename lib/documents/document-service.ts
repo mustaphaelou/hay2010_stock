@@ -1,0 +1,153 @@
+import { prisma } from '@/lib/db/prisma'
+import { Prisma } from '@/lib/generated/prisma/client'
+import { paginationSchema } from '@/lib/validation'
+import { getDocLinesSchema } from '@/lib/documents/validation'
+import type { DocumentWithComputed, DocumentLine } from '@/lib/types'
+import { createLogger } from '@/lib/logger'
+import { createEmptyResult, buildPaginationMeta, getPaginationParams } from '@/lib/pagination'
+import type { PaginatedResult } from '@/lib/pagination'
+
+const log = createLogger('document-service')
+
+export function mapDocumentToComputed(doc: {
+  id_document: number
+  numero_document: string
+  type_document: string
+  domaine_document: string
+  etat_document: string
+  id_partenaire: number
+  nom_partenaire_snapshot: string | null
+  id_affaire: number | null
+  numero_affaire: string | null
+  date_document: Date
+  date_echeance: Date | null
+  date_livraison: Date | null
+  date_livraison_prevue: Date | null
+  montant_ht: Prisma.Decimal
+  montant_remise_total: Prisma.Decimal
+  montant_tva_total: Prisma.Decimal
+  montant_ttc: Prisma.Decimal
+  solde_du: Prisma.Decimal
+  code_devise: string
+  taux_change: Prisma.Decimal
+  statut_document: string
+  est_entierement_paye: boolean
+  id_entrepot: number | null
+  notes_internes: string | null
+  notes_client: string | null
+  reference_externe: string | null
+  date_creation: Date
+  date_modification: Date
+  cree_par: string | null
+  modifie_par: string | null
+  mode_expedition: string | null
+  poids_total_brut: Prisma.Decimal | null
+  nombre_colis: number | null
+  partenaire: {
+    nom_partenaire: string
+    type_partenaire: string
+  } | null
+}): DocumentWithComputed {
+  return {
+    ...doc,
+    montant_ht_num: Number(doc.montant_ht || 0),
+    montant_ttc_num: Number(doc.montant_ttc || 0),
+    solde_du_num: Number(doc.solde_du || 0),
+    montant_regle: Number(doc.montant_ttc || 0) - Number(doc.solde_du || 0),
+    numero_piece: doc.numero_document,
+    nom_tiers: doc.nom_partenaire_snapshot || doc.partenaire?.nom_partenaire || null,
+    reference: doc.reference_externe || null,
+    montant_tva_num: Number(doc.montant_tva_total || 0),
+    montant_remise_num: Number(doc.montant_remise_total || 0),
+    type_document_num: Number(doc.type_document || 0),
+    statut_document_num: Number(doc.statut_document || 0),
+    domaine: doc.domaine_document
+  }
+}
+
+function applyRowLevelSecurity(user: { id: string; role: string }, whereClause: Record<string, unknown> = {}): Record<string, unknown> {
+  if (user.role === 'ADMIN') return whereClause
+  return { ...whereClause, cree_par: user.id }
+}
+
+export async function getFilteredDocuments(
+  user: { id: string; role: string },
+  page: number,
+  limit: number,
+  domaine?: 'VENTE' | 'ACHAT'
+): Promise<PaginatedResult<DocumentWithComputed> & { error?: string }> {
+  const parsed = paginationSchema.safeParse({ page, limit })
+  if (!parsed.success) {
+    return createEmptyResult<DocumentWithComputed>(page, limit, 'Invalid pagination parameters')
+  }
+  const safePage = parsed.data?.page ?? page
+  const safeLimit = parsed.data?.limit ?? limit
+  const { skip } = getPaginationParams({ page: safePage, limit: safeLimit })
+
+  try {
+    const baseWhere = domaine ? { domaine_document: domaine } : {}
+    const whereClause = applyRowLevelSecurity(user, baseWhere)
+
+    const [documents, total] = await Promise.all([
+      prisma.docVente.findMany({
+        skip,
+        take: safeLimit,
+        where: whereClause,
+        include: {
+          partenaire: {
+            select: {
+              nom_partenaire: true,
+              type_partenaire: true
+            }
+          }
+        },
+        orderBy: { date_document: 'desc' }
+      }),
+      prisma.docVente.count({ where: whereClause })
+    ])
+
+    return {
+      data: documents.map(mapDocumentToComputed),
+      meta: buildPaginationMeta(total, safePage, safeLimit)
+    }
+  } catch (error) {
+    const label = domaine === 'VENTE' ? 'sales' : domaine === 'ACHAT' ? 'purchases' : ''
+    log.error({ error }, `Failed to fetch ${label} documents`)
+    return createEmptyResult<DocumentWithComputed>(safePage, safeLimit, `Failed to fetch ${label} documents`)
+  }
+}
+
+export async function getDocLines(docId: number): Promise<{ data: DocumentLine[]; error?: string }> {
+  const validationResult = getDocLinesSchema.safeParse({ docId })
+  if (!validationResult.success) {
+    log.error({ error: validationResult.error, docId }, 'Invalid docId')
+    return { data: [], error: 'Invalid document ID' }
+  }
+
+  try {
+    const lines = await prisma.ligneDocument.findMany({
+      where: { id_document: docId },
+      include: {
+        produit: { select: { nom_produit: true } }
+      },
+      orderBy: { numero_ligne: 'asc' }
+    })
+
+    return {
+      data: lines.map((line): DocumentLine => ({
+        ...line,
+        quantite: Number(line.quantite_commandee || 0),
+        prix_unitaire: Number(line.prix_unitaire_ht || 0),
+        montant_ht_num: Number(line.montant_ht || 0),
+        montant_ttc_num: Number(line.montant_ttc || 0),
+        designation: line.nom_produit_snapshot || line.produit?.nom_produit || null,
+        reference_article: line.code_produit_snapshot || null,
+        ordre: line.numero_ligne,
+        code_taxe: null
+      }))
+    }
+  } catch (error) {
+    log.error({ error, docId }, 'Failed to fetch document lines')
+    return { data: [], error: 'Failed to fetch document lines' }
+  }
+}

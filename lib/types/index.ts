@@ -1,10 +1,11 @@
 import { Prisma } from '@/lib/generated/prisma/client'
+import type { UserRole } from '@/lib/auth/roles'
+
+export type { UserRole }
 
 // =====================================================
 // AUTH TYPES
 // =====================================================
-
-export type UserRole = 'ADMIN' | 'MANAGER' | 'USER' | 'VIEWER'
 
 export type AuthUser = {
   id: string

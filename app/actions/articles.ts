@@ -1,140 +1,15 @@
 'use server'
 
-import { prisma } from '@/lib/db/prisma'
 import { revalidatePath } from 'next/cache'
 import { after } from 'next/server'
 import { requirePermission } from '@/lib/auth/authorization'
-import { toggleArticleStatusSchema } from '@/lib/validation'
-import type { ArticleWithStock } from '@/lib/types'
-import { CacheService } from '@/lib/db/redis'
-import { VersionedCacheService, CacheNamespaces, CacheTTLSeconds } from '@/lib/cache/versioned'
+import { validateActionCsrf } from '@/lib/utils/action-helpers'
+import { getArticlesWithStock as getArticles, toggleArticleStatus as toggleStatus } from '@/lib/stock/stock-service'
 import { CacheInvalidationService } from '@/lib/cache/invalidation'
-import { Prisma } from '@/lib/generated/prisma/client'
-import { createLogger } from '@/lib/logger'
 
-const log = createLogger('articles-actions')
-
-async function getStockAggregates(productIds: number[]): Promise<Map<number, number>> {
-  if (productIds.length === 0) return new Map()
-  
-  const results = await prisma.$queryRaw<Array<{ id_produit: number; stock_global: number }>>`
-    SELECT p.id_produit, COALESCE(SUM(n.quantite_en_stock), 0)::float as stock_global
-    FROM produits p
-    LEFT JOIN niveaux_stock n ON p.id_produit = n.id_produit
-    WHERE p.id_produit IN (${Prisma.join(productIds)})
-    GROUP BY p.id_produit
-  `
-  
-  return new Map(results.map(r => [r.id_produit, r.stock_global]))
-}
-
-export async function getArticlesWithStock(page: number = 1, limit: number = 50): Promise<{ data: ArticleWithStock[]; meta: { total: number; page: number; limit: number; totalPages: number }; error?: string }> {
+export async function getArticlesWithStock(page: number = 1, limit: number = 50) {
   await requirePermission('stock:read')
-
-  if (limit > 100) limit = 100
-
-  const cacheKey = `list:${page}:${limit}`
-
-  try {
-    const cached = await VersionedCacheService.get<{
-      data: ArticleWithStock[]
-      meta: { total: number; page: number; limit: number; totalPages: number }
-    }>(CacheNamespaces.PRODUCT, cacheKey)
-
-    if (cached) {
-      return cached
-    }
-
-    const skip = (page - 1) * limit
-
-    const [result, total] = await Promise.all([
-      prisma.produit.findMany({
-        skip,
-        take: limit,
-        include: {
-          categorie: true,
-        },
-        orderBy: {
-          nom_produit: 'asc'
-        }
-      }),
-      prisma.produit.count()
-    ])
-
-    const productIds = result.map(a => a.id_produit)
-    const stockMap = await getStockAggregates(productIds)
-
-const data = result.map((article) => {
-		return {
-			id_produit: article.id_produit,
-			code_produit: article.code_produit,
-			nom_produit: article.nom_produit,
-			famille: article.famille || article.categorie?.nom_categorie || null,
-			id_categorie: article.id_categorie,
-			description_produit: article.description_produit,
-			code_barre_ean: article.code_barre_ean,
-			unite_mesure: article.unite_mesure,
-			poids_kg: article.poids_kg,
-			volume_m3: article.volume_m3,
-			prix_achat: article.prix_achat,
-			prix_dernier_achat: article.prix_dernier_achat,
-			coefficient: article.coefficient,
-			prix_vente: article.prix_vente,
-			prix_gros: article.prix_gros,
-			taux_tva: article.taux_tva,
-			type_suivi_stock: article.type_suivi_stock,
-			quantite_min_commande: article.quantite_min_commande,
-			niveau_reappro_quantite: article.niveau_reappro_quantite,
-			stock_minimum: article.stock_minimum,
-			stock_maximum: article.stock_maximum,
-			activer_suivi_stock: article.activer_suivi_stock,
-			id_fournisseur_principal: article.id_fournisseur_principal,
-			reference_fournisseur: article.reference_fournisseur,
-			delai_livraison_fournisseur_jours: article.delai_livraison_fournisseur_jours,
-			est_actif: article.est_actif,
-			en_sommeil: article.en_sommeil,
-			est_abandonne: article.est_abandonne,
-			date_creation: article.date_creation,
-			date_modification: article.date_modification,
-			cree_par: article.cree_par,
-			modifie_par: article.modifie_par,
-			compte_general_vente: article.compte_general_vente,
-			compte_general_achat: article.compte_general_achat,
-			code_taxe_vente: article.code_taxe_vente,
-			code_taxe_achat: article.code_taxe_achat,
-			categorie: article.categorie ? {
-				id_categorie: article.categorie.id_categorie,
-				code_categorie: article.categorie.code_categorie,
-				nom_categorie: article.categorie.nom_categorie,
-				description_categorie: article.categorie.description_categorie,
-				est_actif: article.categorie.est_actif,
-			} : null,
-			niveaux_stock: [],
-			stock_global: stockMap.get(article.id_produit) || 0,
-		}
-	})
-
-    const response = {
-      data,
-      meta: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit)
-      }
-    }
-
-    await VersionedCacheService.set(CacheNamespaces.PRODUCT, cacheKey, response, CacheTTLSeconds.PRODUCT)
-
-    return response
-	} catch (error) {
-		log.error({ error }, 'Failed to fetch articles')
-		return {
-      data: [],
-      meta: { total: 0, page, limit, totalPages: 0 },
-      error: 'Failed to fetch articles'
-    }
-  }
+  return getArticles(page, limit)
 }
 
 export async function toggleArticleStatus(
@@ -144,42 +19,15 @@ export async function toggleArticleStatus(
 ): Promise<{ success?: boolean; error?: string }> {
   const user = await requirePermission('stock:write')
 
-  try {
-      const { requireCsrfToken, getCsrfCookie } = await import('@/lib/security/csrf-server')
-      const csrfCookie = await getCsrfCookie()
-      await requireCsrfToken(user.id, csrfToken, csrfCookie || '')
-  } catch {
-    return { error: 'Invalid security token. Please refresh the page and try again.' }
+  const csrfError = await validateActionCsrf(user.id, csrfToken)
+  if (csrfError) return { error: csrfError }
+
+  const result = await toggleStatus(id_produit, newStatus)
+  if (result.success) {
+    after(async () => {
+      await CacheInvalidationService.invalidateProduct(id_produit)
+      revalidatePath('/articles')
+    })
   }
-
-  const validationResult = toggleArticleStatusSchema.safeParse({ id_produit, newStatus })
-  if (!validationResult.success) {
-    return { error: 'Invalid input: ' + validationResult.error.issues.map((e: { message: string }) => e.message).join(', ') }
-  }
-
-  const lockToken = await CacheService.acquireLock(`article:${id_produit}`, 30)
-  if (!lockToken) {
-    return { error: 'Operation in progress, please retry' }
-  }
-
-  try {
-      await prisma.$transaction(async (tx) => {
-        await tx.produit.update({
-          where: { id_produit },
-          data: { en_sommeil: newStatus }
-        })
-      })
-
-      after(async () => {
-        await CacheInvalidationService.invalidateProduct(id_produit)
-        revalidatePath('/articles')
-      })
-
-      return { success: true }
-	} catch (error) {
-		log.error({ error, id_produit }, 'Failed to toggle article status')
-		return { error: 'Failed to update status' }
-  } finally {
-    await CacheService.releaseLock(`article:${id_produit}`, lockToken)
-  }
+  return result
 }

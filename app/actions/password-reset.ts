@@ -2,7 +2,7 @@
 
 import { prisma } from '@/lib/db/prisma'
 import { hashPassword } from '@/lib/auth/password'
-import { registerSchema } from '@/lib/validation'
+import { passwordSchema } from '@/lib/auth/validation'
 import crypto from 'crypto'
 import { createLogger } from '@/lib/logger'
 import { storeResetToken, consumeResetToken, validateResetToken } from '@/lib/auth/password-reset'
@@ -51,7 +51,7 @@ export async function resetPassword(token: string, newPassword: string): Promise
       return { error: tokenValidation.error || 'Invalid reset token' }
     }
 
-    const passwordValidation = registerSchema.shape.password.safeParse(newPassword)
+    const passwordValidation = passwordSchema.safeParse(newPassword)
     if (!passwordValidation.success) {
       return { error: passwordValidation.error.issues.map(e => e.message).join(', ') }
     }

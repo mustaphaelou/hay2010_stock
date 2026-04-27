@@ -7,15 +7,9 @@ import { validateCsrfToken, getCsrfCookie } from '@/lib/security/csrf-server'
 import { verifyPassword } from '@/lib/auth/password'
 import { createLogger } from '@/lib/logger'
 import * as Sentry from '@sentry/nextjs'
-import { z } from 'zod'
+import { updateProfileSchema } from '@/lib/auth/validation'
 
 const log = createLogger('profile-actions')
-
-const updateProfileSchema = z.object({
-  name: z.string().min(2, 'Le nom doit contenir au moins 2 caractères').max(255),
-  email: z.string().email('Adresse email invalide'),
-  currentPassword: z.string().optional(),
-})
 
 export async function updateProfile(
   formData: FormData

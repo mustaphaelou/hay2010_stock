@@ -3,21 +3,20 @@
  *
  * Provides queue-based job processing for heavy operations
  * like PDF generation, report creation, and bulk imports.
+ * Consolidated module: queues, workers, helper functions,
+ * and lifecycle management live here.
  */
 
 import { Queue, Worker, Job } from 'bullmq'
-import { redis } from '@/lib/db/redis-cluster'
+import { redis } from '@/lib/db/redis'
 import { createLogger } from '@/lib/logger'
 
 const log = createLogger('queue')
 
 // =====================================================
-// QUEUE DEFINITIONS
+// JOB TYPE DEFINITIONS
 // =====================================================
 
-/**
- * Job types
- */
 export interface PDFGenerationJob {
     documentId: number
     userId: string
@@ -66,347 +65,281 @@ const defaultQueueOptions = {
             delay: 1000,
         },
         removeOnComplete: {
-            age: 24 * 3600, // Keep completed jobs for 24 hours
-            count: 1000, // Keep max 1000 completed jobs
+            age: 24 * 3600,
+            count: 1000,
         },
         removeOnFail: {
-            age: 7 * 24 * 3600, // Keep failed jobs for 7 days
+            age: 7 * 24 * 3600,
         },
     },
 }
 
-/**
- * Document processing queue
- */
 export const documentQueue = new Queue<PDFGenerationJob>('documents', defaultQueueOptions)
-
-/**
- * Report generation queue
- */
 export const reportQueue = new Queue<ReportGenerationJob>('reports', defaultQueueOptions)
-
-/**
- * Stock import queue
- */
 export const stockImportQueue = new Queue<StockImportJob>('stock-imports', defaultQueueOptions)
-
-/**
- * Email queue
- */
 export const emailQueue = new Queue<EmailJob>('emails', defaultQueueOptions)
-
-/**
- * Cache warmup queue
- */
 export const cacheQueue = new Queue<CacheWarmupJob>('cache-warmup', defaultQueueOptions)
 
 // =====================================================
-// WORKER DEFINITIONS
+// WORKER LIFECYCLE
 // =====================================================
 
-/**
- * PDF Generation Worker
- */
-const pdfWorker = new Worker<PDFGenerationJob>(
-  'documents',
-  async (job: Job<PDFGenerationJob>) => {
-    const { documentId, email } = job.data
+let workersStarted = false
+let workers: Worker[] = []
 
-    await job.updateProgress(10)
-    await job.log(`Starting PDF generation for document ${documentId}`)
+export function startWorkers(): void {
+  if (workersStarted) {
+    log.info('Workers already started, skipping')
+    return
+  }
+  workersStarted = true
 
-    try {
-      const { transformToInvoiceData } = await import('@/lib/pdf/generate-invoice')
-      const { generateInvoicePdfBuffer } = await import('@/lib/pdf/generate-invoice')
+  const pdfWorker = new Worker<PDFGenerationJob>(
+    'documents',
+    async (job: Job<PDFGenerationJob>) => {
+      const { documentId, email } = job.data
 
-      await job.updateProgress(20)
-      const { prisma } = await import('@/lib/db/prisma')
-      const document = await prisma.docVente.findUnique({
-        where: { id_document: documentId },
-        include: {
-          partenaire: true,
-          lignes: {
-            include: { produit: true }
+      await job.updateProgress(10)
+      await job.log(`Starting PDF generation for document ${documentId}`)
+
+      try {
+        const { transformToInvoiceData } = await import('@/lib/pdf/generate-invoice')
+        const { generateInvoicePdfBuffer } = await import('@/lib/pdf/generate-invoice')
+        const { prisma } = await import('@/lib/db/prisma')
+
+        await job.updateProgress(20)
+
+        const document = await prisma.docVente.findUnique({
+          where: { id_document: documentId },
+          include: {
+            partenaire: true,
+            lignes: { include: { produit: true } }
           }
-        }
-      })
-
-      if (!document) {
-        throw new Error(`Document ${documentId} not found`)
-      }
-
-      await job.updateProgress(40)
-
-      const documentWithComputed = {
-        ...document,
-        montant_ht_num: Number(document.montant_ht || 0),
-        montant_ttc_num: Number(document.montant_ttc || 0),
-        solde_du_num: Number(document.solde_du || 0),
-        montant_regle: Number(document.montant_ttc || 0) - Number(document.solde_du || 0),
-        numero_piece: document.numero_document,
-        nom_tiers: document.nom_partenaire_snapshot || document.partenaire?.nom_partenaire || null,
-        reference: document.reference_externe || null,
-        montant_tva_num: Number(document.montant_tva_total || 0),
-        montant_remise_num: Number(document.montant_remise_total || 0),
-        type_document_num: Number(document.type_document || 0),
-        statut_document_num: Number(document.statut_document || 0),
-        domaine: document.domaine_document
-      }
-
-      const linesWithComputed = document.lignes.map((line: typeof document.lignes[0]) => ({
-        ...line,
-        quantite: Number(line.quantite_commandee || 0),
-        prix_unitaire: Number(line.prix_unitaire_ht || 0),
-        montant_ht_num: Number(line.montant_ht || 0),
-        montant_ttc_num: Number(line.montant_ttc || 0),
-        designation: line.nom_produit_snapshot || line.produit?.nom_produit || null,
-        reference_article: line.code_produit_snapshot || null,
-        ordre: line.numero_ligne,
-        code_taxe: null
-      }))
-
-      const invoiceData = transformToInvoiceData(documentWithComputed, linesWithComputed, document.partenaire)
-      await generateInvoicePdfBuffer(invoiceData)
-      await job.updateProgress(80)
-
-      await job.updateProgress(90)
-
-      if (email) {
-        await emailQueue.add('send-pdf', {
-          to: email,
-          subject: `Document ${document.numero_document} - PDF Ready`,
-          template: 'document-ready',
-          data: {
-            documentNumber: document.numero_document,
-            downloadUrl: `#`,
-          },
         })
-      }
 
-      await job.updateProgress(100)
-      await job.log(`PDF generation completed for document ${documentId}`)
+        if (!document) {
+          throw new Error(`Document ${documentId} not found`)
+        }
 
-      return {
-        success: true,
-        documentId,
-        generatedAt: new Date().toISOString(),
+        await job.updateProgress(40)
+
+        const documentWithComputed = {
+          ...document,
+          montant_ht_num: Number(document.montant_ht || 0),
+          montant_ttc_num: Number(document.montant_ttc || 0),
+          solde_du_num: Number(document.solde_du || 0),
+          montant_regle: Number(document.montant_ttc || 0) - Number(document.solde_du || 0),
+          numero_piece: document.numero_document,
+          nom_tiers: document.nom_partenaire_snapshot || document.partenaire?.nom_partenaire || null,
+          reference: document.reference_externe || null,
+          montant_tva_num: Number(document.montant_tva_total || 0),
+          montant_remise_num: Number(document.montant_remise_total || 0),
+          type_document_num: Number(document.type_document || 0),
+          statut_document_num: Number(document.statut_document || 0),
+          domaine: document.domaine_document
+        }
+
+        const linesWithComputed = document.lignes.map((line) => ({
+          ...line,
+          quantite: Number(line.quantite_commandee || 0),
+          prix_unitaire: Number(line.prix_unitaire_ht || 0),
+          montant_ht_num: Number(line.montant_ht || 0),
+          montant_ttc_num: Number(line.montant_ttc || 0),
+          designation: line.nom_produit_snapshot || line.produit?.nom_produit || null,
+          reference_article: line.code_produit_snapshot || null,
+          ordre: line.numero_ligne,
+          code_taxe: null
+        }))
+
+        const invoiceData = transformToInvoiceData(documentWithComputed, linesWithComputed, document.partenaire)
+        await generateInvoicePdfBuffer(invoiceData)
+
+        await job.updateProgress(80)
+
+        if (email) {
+          await emailQueue.add('send-pdf', {
+            to: email,
+            subject: `Document ${document.numero_document} - PDF Ready`,
+            template: 'document-ready',
+            data: {
+              documentNumber: document.numero_document,
+              downloadUrl: '#',
+            },
+          })
+        }
+
+        await job.updateProgress(100)
+        await job.log(`PDF generation completed for document ${documentId}`)
+
+        return {
+          success: true,
+          documentId,
+          generatedAt: new Date().toISOString(),
+        }
+      } catch (error) {
+        await job.log(`PDF generation failed: ${error}`)
+        throw error
       }
-    } catch (error) {
-      await job.log(`PDF generation failed: ${error}`)
-      throw error
-    }
-  },
-  {
-    connection: redis,
-    concurrency: 5,
-    limiter: {
-      max: 10,
-      duration: 1000,
     },
-  }
-)
-
-/**
- * Report Generation Worker
- */
-const reportWorker = new Worker<ReportGenerationJob>(
-  'reports',
-  async (job: Job<ReportGenerationJob>) => {
-    const { reportType, format } = job.data
-
-    await job.updateProgress(10)
-    await job.log(`Starting ${reportType} report generation`)
-
-    try {
-      await job.updateProgress(30)
-      await job.updateProgress(60)
-      await job.updateProgress(90)
-      await job.updateProgress(100)
-      await job.log(`${reportType} report generation completed`)
-
-      return {
-        success: true,
-        reportType,
-        format,
-        generatedAt: new Date().toISOString(),
-      }
-    } catch (error) {
-      await job.log(`Report generation failed: ${error}`)
-      throw error
+    {
+      connection: redis,
+      concurrency: parseInt(process.env.PDF_WORKER_CONCURRENCY || '5', 10),
+      limiter: {
+        max: 10,
+        duration: 1000,
+      },
     }
-  },
-  {
-    connection: redis,
-    concurrency: 3,
-  }
-)
+  )
 
-/**
- * Stock Import Worker
- */
-const stockImportWorker = new Worker<StockImportJob>(
+  const reportWorker = new Worker<ReportGenerationJob>(
+    'reports',
+    async (job: Job<ReportGenerationJob>) => {
+      const { reportType, format } = job.data
+
+      await job.updateProgress(10)
+      await job.log(`Starting ${reportType} report generation`)
+
+      try {
+        await job.updateProgress(30)
+        await job.updateProgress(60)
+        await job.updateProgress(90)
+        await job.updateProgress(100)
+        await job.log(`${reportType} report generation completed`)
+
+        return {
+          success: true,
+          reportType,
+          format,
+          generatedAt: new Date().toISOString(),
+        }
+      } catch (error) {
+        await job.log(`Report generation failed: ${error}`)
+        throw error
+      }
+    },
+    {
+      connection: redis,
+      concurrency: parseInt(process.env.REPORT_WORKER_CONCURRENCY || '3', 10),
+    }
+  )
+
+  const stockImportWorker = new Worker<StockImportJob>(
     'stock-imports',
     async (job: Job<StockImportJob>) => {
-        const { fileUrl } = job.data
+      const { fileUrl } = job.data
 
-        await job.updateProgress(5)
-        await job.log(`Starting stock import from ${fileUrl}`)
+      await job.updateProgress(5)
+      await job.log(`Starting stock import from ${fileUrl}`)
 
-        try {
-            // Download file
-            await job.updateProgress(10)
-            // const fileBuffer = await downloadFile(fileUrl)
+      try {
+        await job.updateProgress(100)
+        await job.log(`Stock import completed`)
 
-            // Parse file
-            await job.updateProgress(20)
-            // const records = await parseImportFile(fileBuffer)
-
-            // Process records
-            await job.updateProgress(30)
-            // const results = await processImportRecords(records, options)
-
-            // Update progress based on processed count
-            // for (let i = 0; i < records.length; i++) {
-            //   await job.updateProgress(30 + (i / records.length) * 60)
-            // }
-
-            await job.updateProgress(100)
-            await job.log(`Stock import completed`)
-
-            return {
-                success: true,
-                processed: 0, // results.processed
-                errors: 0, // results.errors
-                importedAt: new Date().toISOString(),
-            }
-        } catch (error) {
-            await job.log(`Stock import failed: ${error}`)
-            throw error
+        return {
+          success: true,
+          processed: 0,
+          errors: 0,
+          importedAt: new Date().toISOString(),
         }
+      } catch (error) {
+        await job.log(`Stock import failed: ${error}`)
+        throw error
+      }
     },
     {
-        connection: redis,
-        concurrency: 2,
+      connection: redis,
+      concurrency: parseInt(process.env.STOCK_IMPORT_WORKER_CONCURRENCY || '2', 10),
     }
-)
+  )
 
-/**
- * Email Worker
- */
-const emailWorker = new Worker<EmailJob>(
+  const emailWorker = new Worker<EmailJob>(
     'emails',
     async (job: Job<EmailJob>) => {
-const { to } = job.data
+      const { to } = job.data
 
-await job.log(`Sending email to ${to}`)
+      await job.log(`Sending email to ${to}`)
 
-try {
-  // Integrate with your email provider (SendGrid, AWS SES, etc.)
-  // await sendEmail({ to, subject, template, data })
+      try {
+        await job.log(`Email sent successfully to ${to}`)
 
-  await job.log(`Email sent successfully to ${to}`)
-
-            return {
-                success: true,
-                to,
-                sentAt: new Date().toISOString(),
-            }
-        } catch (error) {
-            await job.log(`Email sending failed: ${error}`)
-            throw error
+        return {
+          success: true,
+          to,
+          sentAt: new Date().toISOString(),
         }
+      } catch (error) {
+        await job.log(`Email sending failed: ${error}`)
+        throw error
+      }
     },
     {
-        connection: redis,
-        concurrency: 10,
+      connection: redis,
+      concurrency: parseInt(process.env.EMAIL_WORKER_CONCURRENCY || '10', 10),
     }
-)
+  )
 
-/**
- * Cache Warmup Worker
- */
-const cacheWarmupWorker = new Worker<CacheWarmupJob>(
+  const cacheWarmupWorker = new Worker<CacheWarmupJob>(
     'cache-warmup',
     async (job: Job<CacheWarmupJob>) => {
-        const { type } = job.data
+      const { type } = job.data
 
-        await job.log(`Starting cache warmup for ${type}`)
+      await job.log(`Starting cache warmup for ${type}`)
 
-        try {
-            // Placeholder for cache warmup logic
-            // const { CacheService, CacheKeys, CacheTTL } = await import('@/lib/db/redis-cluster')
+      try {
+        await job.log(`Cache warmup completed for ${type}`)
 
-            switch (type) {
-                case 'products':
-                    // Warmup product cache
-                    break
-                case 'partners':
-                    // Warmup partner cache
-                    break
-                case 'stock':
-                    // Warmup stock cache
-                    break
-                case 'all':
-                    // Warmup all caches
-                    break
-            }
-
-            await job.log(`Cache warmup completed for ${type}`)
-
-            return {
-                success: true,
-                type,
-                completedAt: new Date().toISOString(),
-            }
-        } catch (error) {
-            await job.log(`Cache warmup failed: ${error}`)
-            throw error
+        return {
+          success: true,
+          type,
+          completedAt: new Date().toISOString(),
         }
+      } catch (error) {
+        await job.log(`Cache warmup failed: ${error}`)
+        throw error
+      }
     },
     {
-        connection: redis,
-        concurrency: 1,
+      connection: redis,
+      concurrency: 1,
     }
-)
+  )
 
-// =====================================================
-// WORKER EVENT HANDLERS
-// =====================================================
+  workers = [pdfWorker, reportWorker, stockImportWorker, emailWorker, cacheWarmupWorker]
 
-// PDF Worker Events
-pdfWorker.on('completed', (job: Job<PDFGenerationJob>) => {
-	log.info({ jobId: job.id }, 'PDF job completed')
-})
+  workers.forEach((worker) => {
+    worker.on('completed', (job) => {
+      log.info({ jobId: job.id }, 'Job completed')
+    })
 
-pdfWorker.on('failed', (job: Job<PDFGenerationJob> | undefined, err: Error) => {
-	log.error({ jobId: job?.id, error: err.message }, 'PDF job failed')
-})
+    worker.on('failed', (job, err) => {
+      log.error({ jobId: job?.id, error: err.message }, 'Job failed')
+    })
 
-// Report Worker Events
-reportWorker.on('completed', (job: Job<ReportGenerationJob>) => {
-	log.info({ jobId: job.id }, 'Report job completed')
-})
+    worker.on('error', (err) => {
+      log.error({ error: err.message }, 'Worker error')
+    })
+  })
 
-reportWorker.on('failed', (job: Job<ReportGenerationJob> | undefined, err: Error) => {
-	log.error({ jobId: job?.id, error: err.message }, 'Report job failed')
-})
+  log.info('Workers started')
+}
 
-// Email Worker Events
-emailWorker.on('completed', (job: Job<EmailJob>) => {
-	log.info({ jobId: job.id, to: job.data.to }, 'Email job sent')
-})
+export async function stopWorkers(): Promise<void> {
+  if (!workersStarted) return
 
-emailWorker.on('failed', (job: Job<EmailJob> | undefined, err: Error) => {
-	log.error({ jobId: job?.id, error: err.message }, 'Email job failed')
-})
+  log.info('Shutting down workers...')
+
+  await Promise.all(workers.map((w) => w.close()))
+
+  workersStarted = false
+  workers = []
+
+  log.info('Workers shut down')
+}
 
 // =====================================================
 // HELPER FUNCTIONS
 // =====================================================
 
-/**
- * Add a PDF generation job
- */
 export async function queuePDFGeneration(
     documentId: number,
     userId: string,
@@ -420,9 +353,6 @@ export async function queuePDFGeneration(
     })
 }
 
-/**
- * Add a report generation job
- */
 export async function queueReportGeneration(
     reportType: ReportGenerationJob['reportType'],
     userId: string,
@@ -437,9 +367,6 @@ export async function queueReportGeneration(
     })
 }
 
-/**
- * Add a stock import job
- */
 export async function queueStockImport(
     fileUrl: string,
     userId: string,
@@ -455,9 +382,6 @@ export async function queueStockImport(
     })
 }
 
-/**
- * Add an email job
- */
 export async function queueEmail(
     to: string,
     subject: string,
@@ -472,18 +396,12 @@ export async function queueEmail(
     })
 }
 
-/**
- * Schedule cache warmup
- */
 export async function scheduleCacheWarmup(
     type: CacheWarmupJob['type']
 ): Promise<Job<CacheWarmupJob>> {
     return cacheQueue.add('warmup-cache', { type })
 }
 
-/**
- * Get queue statistics
- */
 export async function getQueueStats(): Promise<{
     documents: { waiting: number; active: number; completed: number; failed: number }
     reports: { waiting: number; active: number; completed: number; failed: number }
@@ -517,46 +435,23 @@ export async function getQueueStats(): Promise<{
     }
 }
 
-/**
- * Graceful shutdown
- */
 export async function shutdownQueues(): Promise<void> {
-	log.info('Shutting down queues...')
+  log.info('Shutting down queues...')
 
-	await Promise.all([
-		pdfWorker.close(),
-		reportWorker.close(),
-		stockImportWorker.close(),
-		emailWorker.close(),
-		cacheWarmupWorker.close(),
-		documentQueue.close(),
-		reportQueue.close(),
-		stockImportQueue.close(),
-		emailQueue.close(),
-		cacheQueue.close(),
-	])
+  await stopWorkers()
 
-	log.info('All queues shut down')
+  await Promise.all([
+    documentQueue.close(),
+    reportQueue.close(),
+    stockImportQueue.close(),
+    emailQueue.close(),
+    cacheQueue.close(),
+  ])
+
+  log.info('All queues shut down')
 }
 
-// Handle process termination - only in non-serverless environments
-// In serverless (Vercel, AWS Lambda), these handlers can cause issues
 if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL && !process.env.AWS_LAMBDA_FUNCTION_NAME) {
     process.on('SIGTERM', shutdownQueues)
     process.on('SIGINT', shutdownQueues)
-}
-
-export default {
-    documentQueue,
-    reportQueue,
-    stockImportQueue,
-    emailQueue,
-    cacheQueue,
-    queuePDFGeneration,
-    queueReportGeneration,
-    queueStockImport,
-    queueEmail,
-    scheduleCacheWarmup,
-    getQueueStats,
-    shutdownQueues,
 }
