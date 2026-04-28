@@ -144,7 +144,6 @@ export default function StockClient({ initialStockData, initialDepots, initialEr
   const filteredStock = stockLevels.filter(stock => {
     const matchesDepot = selectedDepot === 'all' ||
       (stock.id_entrepot && stock.id_entrepot.toString() === selectedDepot)
-
     return matchesDepot
   })
 
@@ -155,90 +154,87 @@ export default function StockClient({ initialStockData, initialDepots, initialEr
   }, 0)
 
   const lowStockCount = stockLevels.filter(s => Number(s.quantite_en_stock_num || 0) <= 5).length
+  const uniqueProducts = new Set(stockLevels.map(s => s.id_produit)).size
 
   return (
-    <div className="flex flex-1 flex-col gap-8 p-4 pt-0 pb-20 md:p-8 md:pt-0 md:pb-8 animate-fade-in-up">
-      {/* Header */}
+    <div className="flex flex-1 flex-col gap-4 p-4 pt-0 pb-20 md:gap-8 md:p-8 md:pb-8 animate-fade-in-up">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight gradient-text">Niveaux de Stock</h1>
-          <p className="text-muted-foreground font-medium">Suivi en temps réel des quantités par dépôt.</p>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight gradient-text">Niveaux de Stock</h1>
+          <p className="text-sm text-muted-foreground font-medium">Suivi en temps réel des quantités par dépôt</p>
         </div>
-        <Button onClick={fetchData} disabled={loading} size="lg" className="hover-lift shadow-md rounded-xl">
-          <HugeiconsIcon icon={RefreshIcon} className={cn("mr-2 size-5", loading && "animate-spin")} />
+        <Button onClick={fetchData} disabled={loading} size="lg">
+          <HugeiconsIcon icon={RefreshIcon} className={cn("size-5", loading && "animate-spin")} data-icon="inline-start" />
           Actualiser
         </Button>
       </div>
 
-      {/* Stats Cards - Staggered */}
-      <div className="grid gap-4 sm:gap-6 grid-cols-2 lg:grid-cols-4 stagger-children">
+      <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4 stagger-children">
         <Card variant="kpi" className="hover-lift glow">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 p-0">
-            <CardTitle className="text-xs sm:text-sm font-semibold text-muted-foreground uppercase tracking-wider">Lignes Stock</CardTitle>
-            <div className="icon-container size-10 shadow-sm opacity-90">
-              <HugeiconsIcon icon={PackageIcon} className="size-5 text-primary" />
+          <CardHeader className="flex flex-row items-center justify-between p-0 pb-1">
+            <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Lignes Stock</CardTitle>
+            <div className="icon-container">
+              <HugeiconsIcon icon={PackageIcon} className="text-primary" />
             </div>
           </CardHeader>
           <CardContent className="p-0 pt-3">
-            <div className="text-2xl sm:text-3xl font-extrabold animate-count-up">{stockLevels.length}</div>
-            <p className="text-[10px] sm:text-xs text-muted-foreground font-medium mt-1">Nombre d&apos;emplacements</p>
+            <div className="text-2xl font-extrabold animate-count-up">{stockLevels.length}</div>
+            <p className="text-xs text-muted-foreground font-medium mt-1">{uniqueProducts} produits distincts</p>
           </CardContent>
         </Card>
 
         <Card variant="kpi" className="hover-lift glow">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 p-0">
-            <CardTitle className="text-xs sm:text-sm font-semibold text-muted-foreground uppercase tracking-wider">Valeur Totale</CardTitle>
-            <div className="icon-container size-10 shadow-sm opacity-90">
-              <HugeiconsIcon icon={Store01Icon} className="size-5 text-success" />
+          <CardHeader className="flex flex-row items-center justify-between p-0 pb-1">
+            <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Valeur Totale</CardTitle>
+            <div className="icon-container">
+              <HugeiconsIcon icon={Store01Icon} className="text-success" />
             </div>
           </CardHeader>
           <CardContent className="p-0 pt-3">
-            <div className="text-2xl sm:text-3xl font-extrabold text-primary animate-count-up">{formatPrice(totalStockValue)}</div>
-            <p className="text-[10px] sm:text-xs text-muted-foreground font-medium mt-1">Valorisation au CMUP</p>
+            <div className="text-xl font-extrabold text-primary animate-count-up">{formatPrice(totalStockValue)}</div>
+            <p className="text-xs text-muted-foreground font-medium mt-1">Valorisation au CMUP</p>
           </CardContent>
         </Card>
 
         <Card variant="kpi" className="hover-lift glow">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 p-0">
-            <CardTitle className="text-xs sm:text-sm font-semibold text-muted-foreground uppercase tracking-wider">Dépôts</CardTitle>
-            <div className="icon-container size-10 shadow-sm opacity-90">
-              <HugeiconsIcon icon={Store01Icon} className="size-5 text-warning" />
+          <CardHeader className="flex flex-row items-center justify-between p-0 pb-1">
+            <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Dépôts</CardTitle>
+            <div className="icon-container">
+              <HugeiconsIcon icon={Store01Icon} className="text-warning" />
             </div>
           </CardHeader>
           <CardContent className="p-0 pt-3">
-            <div className="text-2xl sm:text-3xl font-extrabold animate-count-up">{depots.length}</div>
-            <p className="text-[10px] sm:text-xs text-muted-foreground font-medium mt-1">Entrepôts actifs</p>
+            <div className="text-2xl font-extrabold animate-count-up">{depots.length}</div>
+            <p className="text-xs text-muted-foreground font-medium mt-1">Entrepôts actifs</p>
           </CardContent>
         </Card>
 
-        <Card variant="kpi" className={cn("hover-lift glow", lowStockCount > 0 && "bg-destructive/5 ring-destructive/20")}>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 p-0">
-            <CardTitle className="text-xs sm:text-sm font-semibold text-muted-foreground uppercase tracking-wider">Alertes</CardTitle>
-            <div className={cn("icon-container size-10 shadow-sm", lowStockCount > 0 ? "bg-destructive/10" : "opacity-90")}>
-              <HugeiconsIcon icon={AlertCircleIcon} className={cn("size-5", lowStockCount > 0 ? "text-destructive" : "text-muted-foreground")} />
+        <Card variant="kpi" className={cn("hover-lift glow", lowStockCount > 0 && "ring-warning/30")}>
+          <CardHeader className="flex flex-row items-center justify-between p-0 pb-1">
+            <CardTitle className={cn("text-xs font-semibold uppercase tracking-wider", lowStockCount > 0 ? "text-warning" : "text-muted-foreground")}>Alertes</CardTitle>
+            <div className={cn("icon-container", lowStockCount > 0 && "bg-warning/10")}>
+              <HugeiconsIcon icon={AlertCircleIcon} className={cn(lowStockCount > 0 ? "text-warning" : "text-muted-foreground")} />
             </div>
           </CardHeader>
           <CardContent className="p-0 pt-3">
-            <div className={cn("text-2xl sm:text-3xl font-extrabold animate-count-up", lowStockCount > 0 && "text-destructive")}>{lowStockCount}</div>
-            <p className="text-[10px] sm:text-xs text-muted-foreground font-medium mt-1">Qté ≤ 5 unités</p>
+            <div className={cn("text-2xl font-extrabold animate-count-up", lowStockCount > 0 && "text-warning")}>{lowStockCount}</div>
+            <p className="text-xs text-muted-foreground font-medium mt-1">Qté ≤ 5 unités</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Filters & Content Row */}
-      <div className="grid gap-6 lg:grid-cols-4 items-start">
-        {/* Filter Sidebar on desktop, top on mobile */}
-        <Card className="lg:col-span-1 shadow-sm border-muted/40 sticky top-20">
-          <CardHeader className="pb-4 border-b bg-muted/20">
-            <CardTitle className="text-lg font-bold">Filtrer par Dépôt</CardTitle>
-            <CardDescription>Affiner la vue par localisation.</CardDescription>
+      <div className="grid gap-4 lg:grid-cols-4 items-start">
+        <Card className="lg:col-span-1 sticky top-20">
+          <CardHeader className="pb-3 border-b bg-muted/20">
+            <CardTitle className="text-base font-bold">Filtrer par Dépôt</CardTitle>
+            <CardDescription>Affiner la vue par localisation</CardDescription>
           </CardHeader>
-          <CardContent className="pt-6">
+          <CardContent className="pt-4">
             <Select value={selectedDepot} onValueChange={(value) => setSelectedDepot(value ?? 'all')}>
-              <SelectTrigger className="w-full h-11 rounded-xl shadow-sm">
+              <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="rounded-xl">
+              <SelectContent>
                 <SelectGroup>
                   <SelectItem value="all">Tous les dépôts</SelectItem>
                   {depots.map(d => (
@@ -252,27 +248,23 @@ export default function StockClient({ initialStockData, initialDepots, initialEr
           </CardContent>
         </Card>
 
-        {/* Table Content */}
-        <Card className="lg:col-span-3 overflow-hidden shadow-sm border-muted/40 transition-all hover:shadow-md">
-          <CardHeader className="pb-4 bg-muted/20 border-b">
+        <Card className="lg:col-span-3 overflow-hidden">
+          <CardHeader className="pb-3 border-b bg-muted/20">
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-xl font-bold">Etat détaillé du Stock</CardTitle>
+                <CardTitle className="text-base font-bold">État détaillé du Stock</CardTitle>
                 <CardDescription>
                   {loading ? 'Chargement des données...' : `${filteredStock.length} ligne(s) trouvée(s)`}
                 </CardDescription>
               </div>
-              <div className="p-2 rounded-lg bg-background border shadow-xs">
-                <HugeiconsIcon icon={PackageIcon} className="size-5 text-primary" />
-              </div>
             </div>
           </CardHeader>
-          <CardContent className="p-0 sm:p-2">
+          <CardContent className="p-0">
             {error ? (
-              <div className="text-center py-16 px-4">
+              <div className="p-8 text-center">
                 <HugeiconsIcon icon={AlertCircleIcon} className="mx-auto size-12 text-destructive/50 mb-4" />
-                <p className="text-destructive font-semibold mb-6">{error}</p>
-                <Button onClick={fetchData} variant="outline" size="lg" className="rounded-xl">Réessayer</Button>
+                <p className="text-destructive font-semibold mb-4">{error}</p>
+                <Button onClick={fetchData} variant="outline">Réessayer</Button>
               </div>
             ) : (
               <DataTable
