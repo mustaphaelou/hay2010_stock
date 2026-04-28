@@ -36,7 +36,7 @@ export async function requestPasswordReset(email: string): Promise<{ error?: str
         return { success: true, message: successMessage }
     } catch (error) {
         log.error({ error, email }, 'Password reset request error')
-        return { error: 'An unexpected error occurred' }
+        return { error: 'Une erreur inattendue est survenue' }
     }
 }
 
@@ -48,7 +48,7 @@ export async function resetPassword(token: string, newPassword: string): Promise
     try {
     const tokenValidation = await consumeResetToken(token)
     if (!tokenValidation.valid || !tokenValidation.email) {
-      return { error: tokenValidation.error || 'Invalid reset token' }
+      return { error: tokenValidation.error || 'Jeton de réinitialisation invalide' }
     }
 
     const passwordValidation = passwordSchema.safeParse(newPassword)
@@ -66,6 +66,6 @@ export async function resetPassword(token: string, newPassword: string): Promise
     return { success: true, message: 'Your password has been reset successfully. You can now log in with your new password.' }
     } catch (error) {
         log.error({ error }, 'Password reset error')
-        return { error: 'An unexpected error occurred' }
+        return { error: 'Une erreur inattendue est survenue' }
     }
 }

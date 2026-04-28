@@ -175,7 +175,7 @@ describe('Auth Flow Integration', () => {
 
       const result = await login('user@example.com', 'password123', false)
 
-      expect(result.error).toContain('Security token required')
+      expect(result.error).toContain('Jeton de sécurité requis')
     })
 
     it('should reject login with invalid CSRF token', async () => {
@@ -186,7 +186,7 @@ describe('Auth Flow Integration', () => {
 
       const result = await login('user@example.com', 'password123', false, 'bad-csrf-token')
 
-      expect(result.error).toContain('Invalid security token')
+      expect(result.error).toContain('Jeton de sécurité invalide')
     })
   })
 

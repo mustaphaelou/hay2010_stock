@@ -47,7 +47,7 @@ function ResetPasswordContent() {
             Gestion Commerciale Intelligente
           </p>
           <p className="text-sm text-muted-foreground/80 mt-4 max-w-md">
-            Set your new password and regain access to your account.
+            Définissez votre nouveau mot de passe et retrouvez l'accès à votre compte.
           </p>
         </div>
       </div>

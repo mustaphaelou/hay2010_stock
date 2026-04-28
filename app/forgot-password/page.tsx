@@ -46,7 +46,7 @@ export default function ForgotPasswordPage() {
             Gestion Commerciale Intelligente
           </p>
           <p className="text-sm text-muted-foreground/80 mt-4 max-w-md">
-            We'll help you regain access to your account securely.
+            Nous vous aiderons à retrouver l'accès à votre compte en toute sécurité.
           </p>
         </div>
       </div>

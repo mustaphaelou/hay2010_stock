@@ -5,6 +5,6 @@ export async function validateActionCsrf(userId: string, csrfToken: string): Pro
     await requireCsrfToken(userId, csrfToken, csrfCookie || '')
     return null
   } catch {
-    return 'Invalid security token. Please refresh the page and try again.'
+    return 'Jeton de sécurité invalide. Veuillez rafraîchir la page et réessayer.'
   }
 }

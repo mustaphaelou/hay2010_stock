@@ -98,7 +98,7 @@ describe('Password Reset Actions', () => {
 
       const result = await requestPasswordReset('user@test.com')
 
-      expect(result.error).toBe('An unexpected error occurred')
+      expect(result.error).toBe('Une erreur inattendue est survenue')
     })
   })
 
@@ -153,7 +153,7 @@ describe('Password Reset Actions', () => {
 
       const result = await resetPassword('valid-token', 'StrongPass123')
 
-      expect(result.error).toBe('An unexpected error occurred')
+      expect(result.error).toBe('Une erreur inattendue est survenue')
     })
   })
 })

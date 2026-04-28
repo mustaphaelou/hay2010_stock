@@ -19,9 +19,9 @@ export default function Error({
 		<div className="flex min-h-screen items-center justify-center p-4">
 			<Card className="w-full max-w-md">
 				<CardHeader className="text-center">
-					<CardTitle className="text-2xl">Something went wrong</CardTitle>
+					<CardTitle className="text-2xl">Une erreur est survenue</CardTitle>
 					<CardDescription>
-						An error occurred while loading this page.
+						Une erreur s'est produite lors du chargement de cette page.
 					</CardDescription>
 				</CardHeader>
 				<CardContent className="flex flex-col gap-4">
@@ -32,10 +32,10 @@ export default function Error({
 					)}
 					<div className="flex gap-2 justify-center">
 						<Button onClick={() => reset()} variant="default">
-							Try again
+							Réessayer
 						</Button>
 						<Button onClick={() => window.location.href = '/'} variant="outline">
-							Go home
+							Accueil
 						</Button>
 					</div>
 				</CardContent>

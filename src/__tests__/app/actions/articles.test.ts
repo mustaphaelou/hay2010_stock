@@ -221,7 +221,7 @@ describe('Articles Actions', () => {
 
       const result = await toggleArticleStatus(1, true, 'bad-token')
 
-      expect(result.error).toContain('Invalid security token')
+      expect(result.error).toContain('Jeton de sécurité invalide')
     })
 
     it('should reject when lock cannot be acquired', async () => {

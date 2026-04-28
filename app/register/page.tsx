@@ -46,13 +46,12 @@ export default function RegisterPage() {
             Gestion Commerciale Intelligente
           </p>
           <p className="text-sm text-muted-foreground/80 mt-4 max-w-md">
-            Create your account to access all features including stock management, 
-            invoicing, and partner management.
+            Créez votre compte pour accéder à toutes les fonctionnalités : gestion de stock, facturation et gestion des tiers.
           </p>
           <div className="flex gap-6 mt-8">
             <div className="flex flex-col items-center">
               <div className="text-2xl font-bold text-primary">99%</div>
-              <div className="text-xs text-muted-foreground">Availability</div>
+              <div className="text-xs text-muted-foreground">Disponibilité</div>
             </div>
             <div className="flex flex-col items-center">
               <div className="text-2xl font-bold text-primary">24/7</div>
@@ -60,7 +59,7 @@ export default function RegisterPage() {
             </div>
             <div className="flex flex-col items-center">
               <div className="text-2xl font-bold text-primary">100%</div>
-              <div className="text-xs text-muted-foreground">Secure</div>
+              <div className="text-xs text-muted-foreground">Sécurisé</div>
             </div>
           </div>
         </div>

@@ -35,7 +35,7 @@ export function ForgotPasswordForm({
       }
     } catch (err) {
       console.error('Password reset request error:', err)
-      setError('An unexpected error occurred')
+      setError('Une erreur inattendue est survenue')
       setLoading(false)
     }
   }
@@ -56,21 +56,20 @@ export function ForgotPasswordForm({
         <div className="size-16 rounded-full bg-green-500/10 flex items-center justify-center mt-4">
           <HugeiconsIcon icon={CheckmarkCircle02Icon} className="size-10 text-green-500" />
         </div>
-        <h1 className="text-2xl font-bold">Check Your Email</h1>
+        <h1 className="text-2xl font-bold">Vérifiez votre Email</h1>
         <p className="text-sm text-balance text-muted-foreground max-w-xs">
-          If an account exists for <span className="font-medium text-foreground">{email}</span>, 
-          you will receive a password reset link shortly.
+          Si un compte existe pour <span className="font-medium text-foreground">{email}</span>, vous recevrez un lien de réinitialisation sous peu.
         </p>
         <p className="text-xs text-muted-foreground mt-4">
           {/* Development mode: Check server console for reset link */}
-          <strong>Dev Mode:</strong> Check the server console for the reset link.
+          <strong>Mode Dev :</strong> Vérifiez la console du serveur pour le lien de réinitialisation.
         </p>
         <Link 
           href="/login"
           className="mt-4 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary"
         >
           <HugeiconsIcon icon={ArrowLeft02Icon} className="size-4" />
-          Back to Login
+          Retour à la connexion
         </Link>
       </div>
     )
@@ -92,9 +91,9 @@ export function ForgotPasswordForm({
               />
             </div>
           </div>
-          <h1 className="text-2xl font-bold">Forgot Password?</h1>
+          <h1 className="text-2xl font-bold">Mot de passe oublié ?</h1>
           <p className="text-sm text-balance text-muted-foreground">
-            Enter your email address and we'll send you a link to reset your password.
+            Entrez votre adresse email et nous vous enverrons un lien pour réinitialiser votre mot de passe.
           </p>
         </div>
 
@@ -105,7 +104,7 @@ export function ForgotPasswordForm({
         )}
 
         <Field>
-          <FieldLabel htmlFor="email">Email Address</FieldLabel>
+          <FieldLabel htmlFor="email">Adresse Email</FieldLabel>
           <Input
             id="email"
             type="email"
@@ -125,12 +124,12 @@ export function ForgotPasswordForm({
             {loading ? (
               <>
                 <HugeiconsIcon icon={Loading02Icon} className="mr-2 animate-spin" />
-                Sending...
+                Envoi en cours...
               </>
             ) : (
               <>
                 <HugeiconsIcon icon={MailSend02Icon} className="mr-2" />
-                Send Reset Link
+                Envoyer le lien
               </>
             )}
           </Button>
@@ -142,7 +141,7 @@ export function ForgotPasswordForm({
             className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary"
           >
             <HugeiconsIcon icon={ArrowLeft02Icon} className="size-4" />
-            Back to Login
+            Retour à la connexion
           </Link>
         </FieldDescription>
       </FieldGroup>

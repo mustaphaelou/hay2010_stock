@@ -61,7 +61,7 @@ export class AppError extends Error {
   }
 
   static csrf(): AppError {
-    return new AppError('CSRF_ERROR', 'Invalid security token', 403)
+    return new AppError('CSRF_ERROR', 'Jeton de sécurité invalide', 403)
   }
 
   /**

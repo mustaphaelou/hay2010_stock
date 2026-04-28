@@ -122,7 +122,7 @@ describe('Auth Actions', () => {
     it('should reject missing CSRF token', async () => {
       const result = await authModule.login('test@test.com', 'password', false)
 
-      expect(result.error).toBe('Security token required. Please refresh the page.')
+      expect(result.error).toBe('Jeton de sécurité requis. Veuillez rafraîchir la page.')
     })
 
     it('should reject invalid CSRF token', async () => {
@@ -130,7 +130,7 @@ describe('Auth Actions', () => {
 
       const result = await authModule.login('test@test.com', 'password', false, 'bad-token')
 
-      expect(result.error).toContain('Invalid security token')
+      expect(result.error).toContain('Jeton de sécurité invalide')
     })
 
     it('should reject locked IP', async () => {
@@ -138,7 +138,7 @@ describe('Auth Actions', () => {
 
       const result = await authModule.login('test@test.com', 'password', false, 'valid-token')
 
-      expect(result.error).toContain('Too many failed attempts from this location')
+      expect(result.error).toContain('Trop de tentatives depuis cet emplacement')
     })
 
     it('should reject locked account', async () => {
@@ -146,13 +146,13 @@ describe('Auth Actions', () => {
 
       const result = await authModule.login('test@test.com', 'password', false, 'valid-token')
 
-      expect(result.error).toContain('Account is temporarily locked')
+      expect(result.error).toContain('Compte temporairement verrouillé')
     })
 
     it('should reject invalid input', async () => {
       const result = await authModule.login('', '', false, 'valid-token')
 
-      expect(result.error).toContain('Invalid input')
+      expect(result.error).toContain('Entrée invalide')
     })
 
     it('should reject non-existent user', async () => {
@@ -160,7 +160,7 @@ describe('Auth Actions', () => {
 
       const result = await authModule.login('nonexistent@test.com', 'password', false, 'valid-token')
 
-      expect(result.error).toBe('Invalid email or password')
+      expect(result.error).toBe('Email ou mot de passe invalide')
       expect(mockRecordFailedAttempt).toHaveBeenCalled()
       expect(mockRecordFailedAttemptByIp).toHaveBeenCalled()
     })
@@ -175,7 +175,7 @@ describe('Auth Actions', () => {
 
       const result = await authModule.login('test@test.com', 'wrong-password', false, 'valid-token')
 
-      expect(result.error).toContain('Invalid email or password')
+      expect(result.error).toContain('Email ou mot de passe invalide')
     })
 
     it('should login successfully with valid credentials', async () => {
@@ -218,7 +218,7 @@ describe('Auth Actions', () => {
     it('should reject missing CSRF token', async () => {
       const result = await authModule.logout()
 
-      expect(result.error).toBe('Security token required. Please refresh the page.')
+      expect(result.error).toBe('Jeton de sécurité requis. Veuillez rafraîchir la page.')
     })
 
     it('should reject invalid CSRF token', async () => {
@@ -226,7 +226,7 @@ describe('Auth Actions', () => {
 
       const result = await authModule.logout('bad-token')
 
-      expect(result.error).toContain('Invalid security token')
+      expect(result.error).toContain('Jeton de sécurité invalide')
     })
 
     it('should logout successfully with valid CSRF token', async () => {

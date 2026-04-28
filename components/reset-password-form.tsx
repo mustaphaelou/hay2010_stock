@@ -32,7 +32,7 @@ export function ResetPasswordForm({
   useEffect(() => {
     const tokenParam = searchParams.get('token')
     if (!tokenParam) {
-      setTokenError('No reset token provided. Please request a new password reset link.')
+      setTokenError('Aucun jeton fourni. Veuillez demander un nouveau lien de réinitialisation.')
       setIsValidating(false)
       return
     }
@@ -43,16 +43,16 @@ export function ResetPasswordForm({
         setIsValidating(false)
         if (result.valid) {
         } else {
-            setTokenError(result.error || 'Invalid reset token')
+            setTokenError(result.error || 'Jeton de réinitialisation invalide')
         }
     })
   }, [searchParams])
 
   const passwordRequirements = [
-    { label: 'At least 8 characters', valid: password.length >= 8 },
-    { label: 'One uppercase letter', valid: /[A-Z]/.test(password) },
-    { label: 'One lowercase letter', valid: /[a-z]/.test(password) },
-    { label: 'One number', valid: /[0-9]/.test(password) },
+    { label: 'Au moins 8 caractères', valid: password.length >= 8 },
+    { label: 'Une lettre majuscule', valid: /[A-Z]/.test(password) },
+    { label: 'Une lettre minuscule', valid: /[a-z]/.test(password) },
+    { label: 'Un chiffre', valid: /[0-9]/.test(password) },
   ]
 
   const allRequirementsMet = passwordRequirements.every(r => r.valid)
@@ -66,13 +66,13 @@ export function ResetPasswordForm({
     setError(null)
 
     if (!allRequirementsMet) {
-      setError('Please meet all password requirements')
+      setError('Veuillez respecter toutes les exigences du mot de passe')
       setLoading(false)
       return
     }
 
     if (!passwordsMatch) {
-      setError('Passwords do not match')
+      setError('Les mots de passe ne correspondent pas')
       setLoading(false)
       return
     }
@@ -91,7 +91,7 @@ export function ResetPasswordForm({
       }
     } catch (err) {
       console.error('Password reset error:', err)
-      setError('An unexpected error occurred')
+      setError('Une erreur inattendue est survenue')
       setLoading(false)
     }
   }
@@ -100,7 +100,7 @@ export function ResetPasswordForm({
     return (
       <div className="flex flex-col items-center gap-4 text-center py-8">
         <HugeiconsIcon icon={Loading02Icon} className="size-10 animate-spin text-primary" />
-        <p className="text-muted-foreground">Validating reset token...</p>
+        <p className="text-muted-foreground">Validation du jeton de réinitialisation...</p>
       </div>
     )
   }
@@ -118,7 +118,7 @@ export function ResetPasswordForm({
             className="object-contain"
           />
         </div>
-        <h1 className="text-2xl font-bold">Invalid Link</h1>
+        <h1 className="text-2xl font-bold">Lien invalide</h1>
         <p className="text-sm text-balance text-muted-foreground max-w-xs">
           {tokenError}
         </p>
@@ -127,7 +127,7 @@ export function ResetPasswordForm({
           className="mt-4"
         >
           <Button variant="outline">
-            Request New Reset Link
+            Demander un nouveau lien
           </Button>
         </Link>
         <Link 
@@ -135,7 +135,7 @@ export function ResetPasswordForm({
           className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary mt-2"
         >
           <HugeiconsIcon icon={ArrowLeft02Icon} className="size-4" />
-          Back to Login
+          Retour à la connexion
         </Link>
       </div>
     )
@@ -147,9 +147,9 @@ export function ResetPasswordForm({
         <div className="size-16 rounded-full bg-green-500/10 flex items-center justify-center">
           <HugeiconsIcon icon={CheckmarkCircle02Icon} className="size-10 text-green-500" />
         </div>
-        <h2 className="text-2xl font-bold">Password Reset!</h2>
+        <h2 className="text-2xl font-bold">Mot de passe réinitialisé !</h2>
         <p className="text-muted-foreground">
-          Your password has been reset successfully. Redirecting to login...
+          Votre mot de passe a été réinitialisé avec succès. Redirection vers la connexion...
         </p>
       </div>
     )
@@ -171,9 +171,9 @@ export function ResetPasswordForm({
               />
             </div>
           </div>
-          <h1 className="text-2xl font-bold">Reset Password</h1>
+          <h1 className="text-2xl font-bold">Réinitialiser le mot de passe</h1>
           <p className="text-sm text-balance text-muted-foreground">
-            Enter your new password below
+            Entrez votre nouveau mot de passe ci-dessous
           </p>
         </div>
 
@@ -184,7 +184,7 @@ export function ResetPasswordForm({
         )}
 
         <Field>
-          <FieldLabel htmlFor="password">New Password</FieldLabel>
+          <FieldLabel htmlFor="password">Nouveau mot de passe</FieldLabel>
           <div className="relative">
             <Input
               id="password"
@@ -204,7 +204,7 @@ export function ResetPasswordForm({
               onClick={() => setShowPassword(!showPassword)}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
               disabled={loading}
-              aria-label={showPassword ? "Hide password" : "Show password"}
+              aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
             >
               <HugeiconsIcon icon={showPassword ? ViewOffIcon : ViewIcon} className="size-5" />
             </button>
@@ -222,7 +222,7 @@ export function ResetPasswordForm({
         </Field>
 
         <Field>
-          <FieldLabel htmlFor="confirmPassword">Confirm New Password</FieldLabel>
+          <FieldLabel htmlFor="confirmPassword">Confirmer le mot de passe</FieldLabel>
           <div className="relative">
             <Input
               id="confirmPassword"
@@ -248,7 +248,7 @@ export function ResetPasswordForm({
             </button>
           </div>
           {confirmPassword && !passwordsMatch && (
-            <p className="text-xs text-destructive mt-1">Passwords do not match</p>
+            <p className="text-xs text-destructive mt-1">Les mots de passe ne correspondent pas</p>
           )}
         </Field>
 
@@ -261,16 +261,16 @@ export function ResetPasswordForm({
             {loading ? (
               <>
                 <HugeiconsIcon icon={Loading02Icon} className="mr-2 animate-spin" />
-                Resetting password...
+                Réinitialisation en cours...
               </>
             ) : (
               <>
                 <HugeiconsIcon icon={Key02Icon} className="mr-2" />
-                Reset Password
-              </>
-            )}
-          </Button>
-        </Field>
+Réinitialiser
+                </>
+              )}
+            </Button>
+          </Field>
       </FieldGroup>
     </form>
   )

@@ -24,7 +24,7 @@ export async function login(
   try {
     if (!csrfToken) {
       log.warn({ email }, 'CSRF token missing on login')
-      return { error: 'Security token required. Please refresh the page.' }
+      return { error: 'Jeton de sécurité requis. Veuillez rafraîchir la page.' }
     }
 
     // Validate CSRF token using ANONYMOUS_USER_ID (consistent with generation)
@@ -34,7 +34,7 @@ export async function login(
       log.warn({ email }, 'Invalid CSRF token on login')
       // Generate a fresh token so the client can retry without a full page refresh
       await refreshCsrfForClient()
-      return { error: 'Invalid security token. Please refresh the page and try again.' }
+      return { error: 'Jeton de sécurité invalide. Veuillez rafraîchir la page et réessayer.' }
     }
 
     const headersList = await headers()
@@ -48,16 +48,16 @@ export async function login(
     ])
 
     if (ipLocked) {
-      return { error: 'Too many failed attempts from this location. Please try again in 15 minutes.' }
+      return { error: 'Trop de tentatives depuis cet emplacement. Veuillez réessayer dans 15 minutes.' }
     }
 
     if (locked) {
-      return { error: 'Account is temporarily locked due to too many failed attempts. Please try again in 15 minutes.' }
+      return { error: 'Compte temporairement verrouillé suite à trop de tentatives. Veuillez réessayer dans 15 minutes.' }
     }
 
     const validationResult = loginSchema.safeParse({ email, password })
     if (!validationResult.success) {
-      return { error: 'Invalid input: ' + validationResult.error.issues.map((e) => e.message).join(', ') }
+      return { error: 'Entrée invalide : ' + validationResult.error.issues.map((e) => e.message).join(', ') }
     }
 
     const user = await prisma.user.findUnique({
@@ -69,7 +69,7 @@ export async function login(
         recordFailedAttempt(email),
         recordFailedAttemptByIp(clientIp),
       ])
-      return { error: 'Invalid email or password' }
+      return { error: 'Email ou mot de passe invalide' }
     }
 
     const isValid = await verifyPassword(password, user.password)
@@ -78,9 +78,9 @@ export async function login(
       const result = await recordFailedAttempt(email)
       await recordFailedAttemptByIp(clientIp)
       if (result.locked) {
-        return { error: 'Account locked due to too many failed attempts. Please try again in 15 minutes.' }
+        return { error: 'Compte verrouillé suite à trop de tentatives. Veuillez réessayer dans 15 minutes.' }
       }
-      return { error: `Invalid email or password. ${result.remaining} attempt${result.remaining !== 1 ? 's' : ''} remaining.` }
+      return { error: `Email ou mot de passe invalide. ${result.remaining} tentative${result.remaining !== 1 ? 's' : ''} restante${result.remaining !== 1 ? 's' : ''}.` }
     }
 
     await Promise.all([
@@ -120,7 +120,7 @@ export async function login(
     after(() => {
       Sentry.captureException(error, { tags: { action: 'login' } })
     })
-    return { error: 'An unexpected error occurred during login' }
+    return { error: 'Une erreur inattendue est survenue lors de la connexion' }
   }
 }
 
@@ -128,7 +128,7 @@ export async function logout(csrfToken?: string): Promise<{ error?: string; succ
   try {
     if (!csrfToken) {
       log.warn('CSRF token missing on logout')
-      return { error: 'Security token required. Please refresh the page.' }
+      return { error: 'Jeton de sécurité requis. Veuillez rafraîchir la page.' }
     }
 
     // For logout, the user is still authenticated, so resolve userId from JWT
@@ -147,7 +147,7 @@ export async function logout(csrfToken?: string): Promise<{ error?: string; succ
   const valid = await validateCsrfToken(csrfUserId, csrfToken, csrfCookie || '')
   if (!valid) {
     log.warn('Invalid CSRF token on logout')
-    return { error: 'Invalid security token. Please refresh the page and try again.' }
+    return { error: 'Jeton de sécurité invalide. Veuillez rafraîchir la page et réessayer.' }
   }
 
   if (authToken) {
@@ -171,7 +171,7 @@ export async function logout(csrfToken?: string): Promise<{ error?: string; succ
     after(() => {
       Sentry.captureException(error, { tags: { action: 'logout' } })
     })
-    return { error: 'Logout failed' }
+    return { error: 'Échec de la déconnexion' }
   }
 }
 

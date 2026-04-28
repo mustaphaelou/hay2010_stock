@@ -98,7 +98,7 @@ describe('LoginForm', () => {
 
   it('should display error message when login fails', async () => {
     const user = userEvent.setup()
-    vi.mocked(login).mockResolvedValue({ error: 'Invalid email or password' })
+    vi.mocked(login).mockResolvedValue({ error: 'Email ou mot de passe invalide' })
     vi.mocked(getCsrfToken).mockResolvedValue('new-csrf-token')
 
     render(<LoginForm />)
@@ -112,7 +112,7 @@ describe('LoginForm', () => {
     await user.click(submitButton)
 
     await waitFor(() => {
-      expect(screen.getByText('Invalid email or password')).toBeInTheDocument()
+      expect(screen.getByText('Email ou mot de passe invalide')).toBeInTheDocument()
     })
   })
 
@@ -147,7 +147,7 @@ describe('LoginForm', () => {
     const user = userEvent.setup()
     // First call fails with CSRF error, retry succeeds
     vi.mocked(login)
-      .mockResolvedValueOnce({ error: 'Invalid security token. Please refresh the page and try again.' })
+      .mockResolvedValueOnce({ error: 'Jeton de sécurité invalide. Veuillez rafraîchir la page et réessayer.' })
       .mockResolvedValueOnce({ success: true })
     vi.mocked(getCsrfToken)
       .mockResolvedValueOnce('initial-csrf-token')
@@ -190,7 +190,7 @@ describe('LoginForm', () => {
     const user = userEvent.setup()
     // Both calls fail with CSRF error
     vi.mocked(login)
-      .mockResolvedValue({ error: 'Invalid security token. Please refresh the page and try again.' })
+      .mockResolvedValue({ error: 'Jeton de sécurité invalide. Veuillez rafraîchir la page et réessayer.' })
     vi.mocked(getCsrfToken)
       .mockResolvedValueOnce('initial-token')
       .mockResolvedValueOnce('retry-token')
@@ -213,13 +213,13 @@ describe('LoginForm', () => {
 
     // Should show the CSRF error message
     await waitFor(() => {
-      expect(screen.getByText(/Invalid security token/i)).toBeInTheDocument()
+      expect(screen.getByText(/Jeton de sécurité invalide/i)).toBeInTheDocument()
     })
   })
 
   it('should refresh CSRF token after any non-CSRF error', async () => {
     const user = userEvent.setup()
-    vi.mocked(login).mockResolvedValue({ error: 'Invalid email or password' })
+    vi.mocked(login).mockResolvedValue({ error: 'Email ou mot de passe invalide' })
     vi.mocked(getCsrfToken)
       .mockResolvedValueOnce('initial-token')
       .mockResolvedValueOnce('refreshed-token')
@@ -235,7 +235,7 @@ describe('LoginForm', () => {
     await user.click(submitButton)
 
     await waitFor(() => {
-      expect(screen.getByText('Invalid email or password')).toBeInTheDocument()
+      expect(screen.getByText('Email ou mot de passe invalide')).toBeInTheDocument()
     })
 
     // Verify CSRF token was refreshed for next attempt
