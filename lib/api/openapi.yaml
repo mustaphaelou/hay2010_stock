@@ -1,0 +1,3098 @@
+openapi: "3.1.0"
+info:
+  title: "HAY2010 Stock API"
+  version: "1.0.0"
+  description: "API REST pour la gestion des partenaires, documents, stock et affaires"
+
+servers:
+  - url: "/api/v1"
+    description: "Base path for API v1"
+
+security:
+  - ApiKeyAuth: []
+
+paths:
+  /partenaires:
+    get:
+      operationId: listPartners
+      summary: "Lister les partenaires"
+      description: "Retourne une liste paginée de partenaires avec filtrage optionnel par type, recherche textuelle, et tri."
+      tags:
+        - Partenaires
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [CLIENT, FOURNISSEUR, LES_DEUX]
+          description: "Filtrer par type de partenaire"
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: "Recherche dans nom, code et ville"
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [id_partenaire, code_partenaire, nom_partenaire, type_partenaire, ville, pays, date_creation, date_modification]
+            default: nom_partenaire
+          description: "Champ de tri"
+        - name: order
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: asc
+          description: "Ordre de tri"
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: "Liste paginée des partenaires"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PartnerPaginatedResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+    post:
+      operationId: createPartner
+      summary: "Créer un partenaire"
+      description: "Crée un nouveau partenaire. Le champ cree_par est automatiquement renseigné à partir de la clé API."
+      tags:
+        - Partenaires
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PartnerCreate"
+      responses:
+        "201":
+          description: "Partenaire créé"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Partner"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          description: "Code partenaire déjà utilisé"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /partenaires/{id}:
+    get:
+      operationId: getPartnerById
+      summary: "Obtenir un partenaire par ID"
+      tags:
+        - Partenaires
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: "Détails du partenaire"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Partner"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    put:
+      operationId: updatePartner
+      summary: "Mettre à jour un partenaire"
+      description: "Mise à jour partielle. Le champ modifie_par est automatiquement renseigné."
+      tags:
+        - Partenaires
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PartnerUpdate"
+      responses:
+        "200":
+          description: "Partenaire mis à jour"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Partner"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: "Code partenaire déjà utilisé"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    delete:
+      operationId: deletePartner
+      summary: "Désactiver un partenaire (soft delete)"
+      description: "Désactive le partenaire (est_actif = false). Le partenaire n'est pas supprimé physiquement."
+      tags:
+        - Partenaires
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: "Partenaire désactivé"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /partenaires/{id}/documents:
+    get:
+      operationId: getPartnerDocuments
+      summary: "Lister les documents d'un partenaire"
+      tags:
+        - Partenaires
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: "Liste paginée des documents"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Document"
+                  meta:
+                    $ref: "#/components/schemas/PaginationMeta"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /produits:
+    get:
+      operationId: listProducts
+      summary: "Lister les produits"
+      description: "Retourne une liste paginée de produits avec filtrage optionnel par catégorie, famille, statut actif, recherche textuelle, et tri."
+      tags:
+        - Produits
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: categorie
+          in: query
+          schema:
+            type: integer
+          description: "Filtrer par ID de catégorie"
+        - name: famille
+          in: query
+          schema:
+            type: string
+          description: "Filtrer par famille de produit"
+        - name: actif
+          in: query
+          schema:
+            type: string
+            enum: ["true", "false"]
+          description: "Filtrer par statut actif"
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: "Recherche dans nom, code et code-barre EAN"
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [id_produit, code_produit, nom_produit, famille, prix_vente, prix_achat, date_creation, date_modification]
+            default: nom_produit
+          description: "Champ de tri"
+        - name: order
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: asc
+          description: "Ordre de tri"
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: "Liste paginée des produits"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductPaginatedResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+    post:
+      operationId: createProduct
+      summary: "Créer un produit"
+      description: "Crée un nouveau produit. Le champ cree_par est automatiquement renseigné."
+      tags:
+        - Produits
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductCreate"
+      responses:
+        "201":
+          description: "Produit créé"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          description: "Code produit déjà utilisé"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /produits/{id}:
+    get:
+      operationId: getProductById
+      summary: "Obtenir un produit par ID"
+      tags:
+        - Produits
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: "Détails du produit"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    put:
+      operationId: updateProduct
+      summary: "Mettre à jour un produit"
+      tags:
+        - Produits
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductUpdate"
+      responses:
+        "200":
+          description: "Produit mis à jour"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: "Code produit déjà utilisé"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    delete:
+      operationId: deleteProduct
+      summary: "Désactiver un produit (soft delete)"
+      description: "Désactive le produit (est_actif = false)."
+      tags:
+        - Produits
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: "Produit désactivé"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /produits/{id}/niveaux-stock:
+    get:
+      operationId: getProductStockLevels
+      summary: "Lister les niveaux de stock d'un produit"
+      tags:
+        - Produits
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: "Liste paginée des niveaux de stock"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockLevelPaginatedResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /categories-produits:
+    get:
+      operationId: listCategories
+      summary: "Lister les catégories de produits"
+      tags:
+        - CategoriesProduits
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: "Recherche dans nom et code"
+        - name: parent
+          in: query
+          schema:
+            type: string
+          description: "Filtrer par catégorie parente. Utiliser 'null' pour les racines."
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [id_categorie, code_categorie, nom_categorie, date_creation, date_modification]
+            default: nom_categorie
+        - name: order
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: asc
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: "Liste paginée des catégories"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategoryPaginatedResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+    post:
+      operationId: createCategory
+      summary: "Créer une catégorie"
+      tags:
+        - CategoriesProduits
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CategoryCreate"
+      responses:
+        "201":
+          description: "Catégorie créée"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Category"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          description: "Code catégorie déjà utilisé"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /categories-produits/{id}:
+    get:
+      operationId: getCategoryById
+      summary: "Obtenir une catégorie par ID"
+      tags:
+        - CategoriesProduits
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: "Détails de la catégorie"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Category"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    put:
+      operationId: updateCategory
+      summary: "Mettre à jour une catégorie"
+      tags:
+        - CategoriesProduits
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CategoryUpdate"
+      responses:
+        "200":
+          description: "Catégorie mise à jour"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Category"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: "Code catégorie déjà utilisé"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    delete:
+      operationId: deleteCategory
+      summary: "Supprimer une catégorie"
+      description: "Supprime la catégorie si elle n'a pas d'enfants."
+      tags:
+        - CategoriesProduits
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: "Catégorie supprimée"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: "Impossible de supprimer une catégorie qui a des enfants"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /categories-produits/{id}/enfants:
+    get:
+      operationId: getCategoryChildren
+      summary: "Lister les sous-catégories"
+      tags:
+        - CategoriesProduits
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: "Liste paginée des sous-catégories"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategoryPaginatedResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /categories-produits/{id}/produits:
+    get:
+      operationId: getCategoryProducts
+      summary: "Lister les produits d'une catégorie"
+      tags:
+        - CategoriesProduits
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: "Liste paginée des produits"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductPaginatedResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /entrepots:
+    get:
+      operationId: listWarehouses
+      summary: "Lister les entrepôts"
+      tags:
+        - Entrepots
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: "Recherche dans nom et code"
+        - name: principal
+          in: query
+          schema:
+            type: string
+            enum: ["true", "false"]
+          description: "Filtrer par statut entrepôt principal"
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [id_entrepot, code_entrepot, nom_entrepot, ville_entrepot, capacite_totale_unites, date_creation, date_modification]
+            default: nom_entrepot
+        - name: order
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: asc
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: "Liste paginée des entrepôts"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WarehousePaginatedResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+    post:
+      operationId: createWarehouse
+      summary: "Créer un entrepôt"
+      tags:
+        - Entrepots
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WarehouseCreate"
+      responses:
+        "201":
+          description: "Entrepôt créé"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Warehouse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          description: "Code entrepôt déjà utilisé"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /entrepots/{id}:
+    get:
+      operationId: getWarehouseById
+      summary: "Obtenir un entrepôt par ID"
+      tags:
+        - Entrepots
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: "Détails de l'entrepôt"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Warehouse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    put:
+      operationId: updateWarehouse
+      summary: "Mettre à jour un entrepôt"
+      tags:
+        - Entrepots
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WarehouseUpdate"
+      responses:
+        "200":
+          description: "Entrepôt mis à jour"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Warehouse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: "Code entrepôt déjà utilisé"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    delete:
+      operationId: deleteWarehouse
+      summary: "Désactiver un entrepôt (soft delete)"
+      tags:
+        - Entrepots
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: "Entrepôt désactivé"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /entrepots/{id}/niveaux-stock:
+    get:
+      operationId: getWarehouseStockLevels
+      summary: "Lister les niveaux de stock d'un entrepôt"
+      tags:
+        - Entrepots
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: "Liste paginée des niveaux de stock"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockLevelPaginatedResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /documents:
+    get:
+      operationId: listDocuments
+      summary: "Lister les documents de vente"
+      tags:
+        - Documents
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: "Recherche dans numéro, nom partenaire et référence externe"
+        - name: type
+          in: query
+          schema:
+            type: string
+          description: "Filtrer par type de document"
+        - name: domaine
+          in: query
+          schema:
+            type: string
+          description: "Filtrer par domaine"
+        - name: statut
+          in: query
+          schema:
+            type: string
+          description: "Filtrer par statut"
+        - name: partenaire
+          in: query
+          schema:
+            type: integer
+          description: "Filtrer par ID partenaire"
+        - name: affaire
+          in: query
+          schema:
+            type: integer
+          description: "Filtrer par ID affaire"
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [id_document, numero_document, type_document, domaine_document, etat_document, date_document, montant_ht, montant_ttc, statut_document, date_creation, date_modification]
+            default: date_document
+        - name: order
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: "Liste paginée des documents"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FullDocumentPaginatedResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+    post:
+      operationId: createDocument
+      summary: "Créer un document"
+      tags:
+        - Documents
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DocumentCreate"
+      responses:
+        "201":
+          description: "Document créé"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FullDocument"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: "Partenaire non trouvé"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: "Numéro de document déjà utilisé"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /documents/{id}:
+    get:
+      operationId: getDocumentById
+      summary: "Obtenir un document par ID"
+      tags:
+        - Documents
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: "Détails du document avec lignes"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FullDocument"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    put:
+      operationId: updateDocument
+      summary: "Mettre à jour un document"
+      tags:
+        - Documents
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DocumentUpdate"
+      responses:
+        "200":
+          description: "Document mis à jour"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FullDocument"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: "Numéro de document déjà utilisé"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    delete:
+      operationId: cancelDocument
+      summary: "Annuler un document"
+      description: "Change le statut du document à ANNULE."
+      tags:
+        - Documents
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: "Document annulé"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /documents/{id}/lignes:
+    get:
+      operationId: getDocumentLines
+      summary: "Lister les lignes d'un document"
+      tags:
+        - Documents
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: "Liste paginée des lignes"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentLinePaginatedResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /affaires:
+    get:
+      operationId: listAffaires
+      summary: "Lister les affaires"
+      tags:
+        - Affaires
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: "Recherche dans intitulé et code"
+        - name: type
+          in: query
+          schema:
+            type: string
+          description: "Filtrer par type d'affaire"
+        - name: statut
+          in: query
+          schema:
+            type: string
+          description: "Filtrer par statut"
+        - name: client
+          in: query
+          schema:
+            type: integer
+          description: "Filtrer par ID client"
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [id_affaire, code_affaire, intitule_affaire, type_affaire, statut_affaire, budget_prevu, chiffre_affaires, date_creation, date_modification]
+            default: date_creation
+        - name: order
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: "Liste paginée des affaires"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AffairePaginatedResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+    post:
+      operationId: createAffaire
+      summary: "Créer une affaire"
+      tags:
+        - Affaires
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AffaireCreate"
+      responses:
+        "201":
+          description: "Affaire créée"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Affaire"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          description: "Code affaire déjà utilisé"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /affaires/{id}:
+    get:
+      operationId: getAffaireById
+      summary: "Obtenir une affaire par ID"
+      tags:
+        - Affaires
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: "Détails de l'affaire"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Affaire"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    put:
+      operationId: updateAffaire
+      summary: "Mettre à jour une affaire"
+      tags:
+        - Affaires
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AffaireUpdate"
+      responses:
+        "200":
+          description: "Affaire mise à jour"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Affaire"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: "Code affaire déjà utilisé"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    delete:
+      operationId: deleteAffaire
+      summary: "Désactiver une affaire (soft delete)"
+      tags:
+        - Affaires
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: "Affaire désactivée"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /affaires/{id}/documents:
+    get:
+      operationId: getAffaireDocuments
+      summary: "Lister les documents d'une affaire"
+      tags:
+        - Affaires
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: "Liste paginée des documents"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FullDocumentPaginatedResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /niveaux-stock:
+    get:
+      operationId: listStockLevels
+      summary: "Lister les niveaux de stock"
+      tags:
+        - NiveauxStock
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: produit
+          in: query
+          schema:
+            type: integer
+          description: "Filtrer par ID produit"
+        - name: entrepot
+          in: query
+          schema:
+            type: integer
+          description: "Filtrer par ID entrepôt"
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [id_stock, id_produit, id_entrepot, quantite_en_stock, quantite_reservee, quantite_commandee, date_dernier_mouvement, date_creation, date_modification]
+            default: date_creation
+        - name: order
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: "Liste paginée des niveaux de stock"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FullStockLevelPaginatedResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+    post:
+      operationId: createStockLevel
+      summary: "Créer un niveau de stock"
+      tags:
+        - NiveauxStock
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StockLevelCreate"
+      responses:
+        "201":
+          description: "Niveau de stock créé"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockLevel"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: "Produit ou entrepôt non trouvé"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: "Combinaison produit-entrepôt déjà existante"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /niveaux-stock/{id}:
+    get:
+      operationId: getStockLevelById
+      summary: "Obtenir un niveau de stock par ID"
+      tags:
+        - NiveauxStock
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: "Détails du niveau de stock"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FullStockLevel"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    put:
+      operationId: updateStockLevel
+      summary: "Mettre à jour un niveau de stock"
+      tags:
+        - NiveauxStock
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StockLevelUpdate"
+      responses:
+        "200":
+          description: "Niveau de stock mis à jour"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockLevel"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: "Combinaison produit-entrepôt déjà existante"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    delete:
+      operationId: deleteStockLevel
+      summary: "Supprimer un niveau de stock"
+      tags:
+        - NiveauxStock
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: "Niveau de stock supprimé"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: http
+      scheme: bearer
+      description: "API key au format hay2010_sk_live_xxxxxxxxxxxxxxxx"
+
+  responses:
+    Unauthorized:
+      description: "Clé API invalide ou manquante"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    BadRequest:
+      description: "Requête invalide"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: "Ressource non trouvée"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+  schemas:
+    Partner:
+      type: object
+      properties:
+        id_partenaire:
+          type: integer
+        code_partenaire:
+          type: string
+        nom_partenaire:
+          type: string
+        type_partenaire:
+          type: string
+          enum: [CLIENT, FOURNISSEUR, LES_DEUX]
+        adresse_email:
+          type: string
+          nullable: true
+        numero_telephone:
+          type: string
+          nullable: true
+        numero_fax:
+          type: string
+          nullable: true
+        url_site_web:
+          type: string
+          nullable: true
+        adresse_rue:
+          type: string
+          nullable: true
+        code_postal:
+          type: string
+          nullable: true
+        ville:
+          type: string
+          nullable: true
+        pays:
+          type: string
+        numero_tva:
+          type: string
+          nullable: true
+        numero_ice:
+          type: string
+          nullable: true
+        numero_rc:
+          type: string
+          nullable: true
+        delai_paiement_jours:
+          type: integer
+          nullable: true
+        limite_credit:
+          type: number
+          nullable: true
+        pourcentage_remise:
+          type: number
+        numero_compte_bancaire:
+          type: string
+          nullable: true
+        code_banque:
+          type: string
+          nullable: true
+        numero_iban:
+          type: string
+          nullable: true
+        code_swift:
+          type: string
+          nullable: true
+        est_actif:
+          type: boolean
+        est_bloque:
+          type: boolean
+        date_creation:
+          type: string
+          format: date-time
+        date_modification:
+          type: string
+          format: date-time
+        cree_par:
+          type: string
+          nullable: true
+        modifie_par:
+          type: string
+          nullable: true
+        compte_collectif:
+          type: string
+          nullable: true
+        compte_auxiliaire:
+          type: string
+          nullable: true
+
+    PartnerCreate:
+      type: object
+      required:
+        - code_partenaire
+        - nom_partenaire
+      properties:
+        code_partenaire:
+          type: string
+          minLength: 1
+          maxLength: 50
+        nom_partenaire:
+          type: string
+          minLength: 1
+          maxLength: 255
+        type_partenaire:
+          type: string
+          enum: [CLIENT, FOURNISSEUR, LES_DEUX]
+          default: CLIENT
+        adresse_email:
+          type: string
+          format: email
+          nullable: true
+        numero_telephone:
+          type: string
+          maxLength: 50
+          nullable: true
+        numero_fax:
+          type: string
+          maxLength: 50
+          nullable: true
+        url_site_web:
+          type: string
+          maxLength: 255
+          nullable: true
+        adresse_rue:
+          type: string
+          nullable: true
+        code_postal:
+          type: string
+          maxLength: 20
+          nullable: true
+        ville:
+          type: string
+          maxLength: 100
+          nullable: true
+        pays:
+          type: string
+          maxLength: 100
+          default: Maroc
+        numero_tva:
+          type: string
+          maxLength: 50
+          nullable: true
+        numero_ice:
+          type: string
+          maxLength: 50
+          nullable: true
+        numero_rc:
+          type: string
+          maxLength: 50
+          nullable: true
+        delai_paiement_jours:
+          type: integer
+          nullable: true
+        limite_credit:
+          type: number
+          nullable: true
+        pourcentage_remise:
+          type: number
+          minimum: 0
+          maximum: 100
+        numero_compte_bancaire:
+          type: string
+          maxLength: 50
+          nullable: true
+        code_banque:
+          type: string
+          maxLength: 20
+          nullable: true
+        numero_iban:
+          type: string
+          maxLength: 50
+          nullable: true
+        code_swift:
+          type: string
+          maxLength: 20
+          nullable: true
+        compte_collectif:
+          type: string
+          maxLength: 20
+          nullable: true
+        compte_auxiliaire:
+          type: string
+          maxLength: 20
+          nullable: true
+
+    PartnerUpdate:
+      type: object
+      description: "Tous les champs sont optionnels pour la mise à jour partielle"
+      properties:
+        code_partenaire:
+          type: string
+          minLength: 1
+          maxLength: 50
+        nom_partenaire:
+          type: string
+          minLength: 1
+          maxLength: 255
+        type_partenaire:
+          type: string
+          enum: [CLIENT, FOURNISSEUR, LES_DEUX]
+        adresse_email:
+          type: string
+          format: email
+          nullable: true
+        numero_telephone:
+          type: string
+          maxLength: 50
+          nullable: true
+        numero_fax:
+          type: string
+          maxLength: 50
+          nullable: true
+        url_site_web:
+          type: string
+          maxLength: 255
+          nullable: true
+        adresse_rue:
+          type: string
+          nullable: true
+        code_postal:
+          type: string
+          maxLength: 20
+          nullable: true
+        ville:
+          type: string
+          maxLength: 100
+          nullable: true
+        pays:
+          type: string
+          maxLength: 100
+        numero_tva:
+          type: string
+          maxLength: 50
+          nullable: true
+        numero_ice:
+          type: string
+          maxLength: 50
+          nullable: true
+        numero_rc:
+          type: string
+          maxLength: 50
+          nullable: true
+        delai_paiement_jours:
+          type: integer
+          nullable: true
+        limite_credit:
+          type: number
+          nullable: true
+        pourcentage_remise:
+          type: number
+          minimum: 0
+          maximum: 100
+        numero_compte_bancaire:
+          type: string
+          maxLength: 50
+          nullable: true
+        code_banque:
+          type: string
+          maxLength: 20
+          nullable: true
+        numero_iban:
+          type: string
+          maxLength: 50
+          nullable: true
+        code_swift:
+          type: string
+          maxLength: 20
+          nullable: true
+        compte_collectif:
+          type: string
+          maxLength: 20
+          nullable: true
+        compte_auxiliaire:
+          type: string
+          maxLength: 20
+          nullable: true
+
+    Document:
+      type: object
+      properties:
+        id_document:
+          type: integer
+        numero_document:
+          type: string
+        type_document:
+          type: string
+        domaine_document:
+          type: string
+        etat_document:
+          type: string
+        id_partenaire:
+          type: integer
+        date_document:
+          type: string
+          format: date
+        montant_ht:
+          type: number
+        montant_ttc:
+          type: number
+        statut_document:
+          type: string
+        date_creation:
+          type: string
+          format: date-time
+        date_modification:
+          type: string
+          format: date-time
+        lignes:
+          type: array
+          items:
+            type: object
+            properties:
+              id_ligne:
+                type: integer
+
+    PartnerPaginatedResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Partner"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+
+    PaginationMeta:
+      type: object
+      properties:
+        page:
+          type: integer
+        limit:
+          type: integer
+        total:
+          type: integer
+        totalPages:
+          type: integer
+        hasMore:
+          type: boolean
+
+    Product:
+      type: object
+      properties:
+        id_produit:
+          type: integer
+        code_produit:
+          type: string
+        nom_produit:
+          type: string
+        id_categorie:
+          type: integer
+          nullable: true
+        famille:
+          type: string
+          nullable: true
+        description_produit:
+          type: string
+          nullable: true
+        code_barre_ean:
+          type: string
+          nullable: true
+        unite_mesure:
+          type: string
+        poids_kg:
+          type: number
+          nullable: true
+        volume_m3:
+          type: number
+          nullable: true
+        prix_achat:
+          type: number
+          nullable: true
+        prix_dernier_achat:
+          type: number
+          nullable: true
+        coefficient:
+          type: number
+        prix_vente:
+          type: number
+          nullable: true
+        prix_gros:
+          type: number
+          nullable: true
+        taux_tva:
+          type: number
+        type_suivi_stock:
+          type: string
+        quantite_min_commande:
+          type: integer
+        niveau_reappro_quantite:
+          type: integer
+        stock_minimum:
+          type: integer
+        stock_maximum:
+          type: integer
+          nullable: true
+        activer_suivi_stock:
+          type: boolean
+        id_fournisseur_principal:
+          type: integer
+          nullable: true
+        reference_fournisseur:
+          type: string
+          nullable: true
+        delai_livraison_fournisseur_jours:
+          type: integer
+          nullable: true
+        est_actif:
+          type: boolean
+        en_sommeil:
+          type: boolean
+        est_abandonne:
+          type: boolean
+        date_creation:
+          type: string
+          format: date-time
+        date_modification:
+          type: string
+          format: date-time
+        cree_par:
+          type: string
+          nullable: true
+        modifie_par:
+          type: string
+          nullable: true
+        compte_general_vente:
+          type: string
+          nullable: true
+        compte_general_achat:
+          type: string
+          nullable: true
+        code_taxe_vente:
+          type: string
+          nullable: true
+        code_taxe_achat:
+          type: string
+          nullable: true
+
+    ProductCreate:
+      type: object
+      required:
+        - code_produit
+        - nom_produit
+      properties:
+        code_produit:
+          type: string
+          minLength: 1
+          maxLength: 100
+        nom_produit:
+          type: string
+          minLength: 1
+          maxLength: 500
+        id_categorie:
+          type: integer
+          nullable: true
+        famille:
+          type: string
+          maxLength: 100
+          nullable: true
+        description_produit:
+          type: string
+          nullable: true
+        code_barre_ean:
+          type: string
+          maxLength: 50
+          nullable: true
+        unite_mesure:
+          type: string
+          maxLength: 20
+          default: U
+        poids_kg:
+          type: number
+          nullable: true
+        volume_m3:
+          type: number
+          nullable: true
+        prix_achat:
+          type: number
+          nullable: true
+        prix_dernier_achat:
+          type: number
+          nullable: true
+        coefficient:
+          type: number
+          default: 1.0
+        prix_vente:
+          type: number
+          nullable: true
+        prix_gros:
+          type: number
+          nullable: true
+        taux_tva:
+          type: number
+          minimum: 0
+          maximum: 100
+          default: 20.00
+        type_suivi_stock:
+          type: string
+          maxLength: 20
+          default: AUCUN
+        quantite_min_commande:
+          type: integer
+          default: 1
+        niveau_reappro_quantite:
+          type: integer
+          default: 0
+        stock_minimum:
+          type: integer
+          default: 0
+        stock_maximum:
+          type: integer
+          nullable: true
+        activer_suivi_stock:
+          type: boolean
+        id_fournisseur_principal:
+          type: integer
+          nullable: true
+        reference_fournisseur:
+          type: string
+          maxLength: 100
+          nullable: true
+        delai_livraison_fournisseur_jours:
+          type: integer
+          nullable: true
+        compte_general_vente:
+          type: string
+          maxLength: 20
+          nullable: true
+        compte_general_achat:
+          type: string
+          maxLength: 20
+          nullable: true
+        code_taxe_vente:
+          type: string
+          maxLength: 10
+          nullable: true
+        code_taxe_achat:
+          type: string
+          maxLength: 10
+          nullable: true
+
+    ProductUpdate:
+      type: object
+      description: "Tous les champs sont optionnels pour la mise à jour partielle"
+      properties:
+        code_produit:
+          type: string
+          minLength: 1
+          maxLength: 100
+        nom_produit:
+          type: string
+          minLength: 1
+          maxLength: 500
+        id_categorie:
+          type: integer
+          nullable: true
+        famille:
+          type: string
+          maxLength: 100
+          nullable: true
+        description_produit:
+          type: string
+          nullable: true
+        code_barre_ean:
+          type: string
+          maxLength: 50
+          nullable: true
+        unite_mesure:
+          type: string
+          maxLength: 20
+        poids_kg:
+          type: number
+          nullable: true
+        volume_m3:
+          type: number
+          nullable: true
+        prix_achat:
+          type: number
+          nullable: true
+        prix_dernier_achat:
+          type: number
+          nullable: true
+        coefficient:
+          type: number
+        prix_vente:
+          type: number
+          nullable: true
+        prix_gros:
+          type: number
+          nullable: true
+        taux_tva:
+          type: number
+          minimum: 0
+          maximum: 100
+        type_suivi_stock:
+          type: string
+          maxLength: 20
+        quantite_min_commande:
+          type: integer
+        niveau_reappro_quantite:
+          type: integer
+        stock_minimum:
+          type: integer
+        stock_maximum:
+          type: integer
+          nullable: true
+        activer_suivi_stock:
+          type: boolean
+        id_fournisseur_principal:
+          type: integer
+          nullable: true
+        reference_fournisseur:
+          type: string
+          maxLength: 100
+          nullable: true
+        delai_livraison_fournisseur_jours:
+          type: integer
+          nullable: true
+        compte_general_vente:
+          type: string
+          maxLength: 20
+          nullable: true
+        compte_general_achat:
+          type: string
+          maxLength: 20
+          nullable: true
+        code_taxe_vente:
+          type: string
+          maxLength: 10
+          nullable: true
+        code_taxe_achat:
+          type: string
+          maxLength: 10
+          nullable: true
+
+    ProductPaginatedResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Product"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+
+    Category:
+      type: object
+      properties:
+        id_categorie:
+          type: integer
+        code_categorie:
+          type: string
+        nom_categorie:
+          type: string
+        id_categorie_parent:
+          type: integer
+          nullable: true
+        description_categorie:
+          type: string
+          nullable: true
+        est_actif:
+          type: boolean
+        date_creation:
+          type: string
+          format: date-time
+        date_modification:
+          type: string
+          format: date-time
+
+    CategoryCreate:
+      type: object
+      required:
+        - code_categorie
+        - nom_categorie
+      properties:
+        code_categorie:
+          type: string
+          minLength: 1
+          maxLength: 50
+        nom_categorie:
+          type: string
+          minLength: 1
+          maxLength: 255
+        id_categorie_parent:
+          type: integer
+          nullable: true
+        description_categorie:
+          type: string
+          nullable: true
+
+    CategoryUpdate:
+      type: object
+      description: "Tous les champs sont optionnels pour la mise à jour partielle"
+      properties:
+        code_categorie:
+          type: string
+          minLength: 1
+          maxLength: 50
+        nom_categorie:
+          type: string
+          minLength: 1
+          maxLength: 255
+        id_categorie_parent:
+          type: integer
+          nullable: true
+        description_categorie:
+          type: string
+          nullable: true
+
+    CategoryPaginatedResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Category"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+
+    Warehouse:
+      type: object
+      properties:
+        id_entrepot:
+          type: integer
+        code_entrepot:
+          type: string
+        nom_entrepot:
+          type: string
+        adresse_entrepot:
+          type: string
+          nullable: true
+        ville_entrepot:
+          type: string
+          nullable: true
+        code_postal_entrepot:
+          type: string
+          nullable: true
+        capacite_totale_unites:
+          type: integer
+          nullable: true
+        nom_responsable:
+          type: string
+          nullable: true
+        email_responsable:
+          type: string
+          nullable: true
+        telephone_responsable:
+          type: string
+          nullable: true
+        est_actif:
+          type: boolean
+        est_entrepot_principal:
+          type: boolean
+        date_creation:
+          type: string
+          format: date-time
+        date_modification:
+          type: string
+          format: date-time
+
+    WarehouseCreate:
+      type: object
+      required:
+        - code_entrepot
+        - nom_entrepot
+      properties:
+        code_entrepot:
+          type: string
+          minLength: 1
+          maxLength: 50
+        nom_entrepot:
+          type: string
+          minLength: 1
+          maxLength: 255
+        adresse_entrepot:
+          type: string
+          nullable: true
+        ville_entrepot:
+          type: string
+          maxLength: 100
+          nullable: true
+        code_postal_entrepot:
+          type: string
+          maxLength: 20
+          nullable: true
+        capacite_totale_unites:
+          type: integer
+          nullable: true
+        nom_responsable:
+          type: string
+          maxLength: 255
+          nullable: true
+        email_responsable:
+          type: string
+          format: email
+          maxLength: 255
+          nullable: true
+        telephone_responsable:
+          type: string
+          maxLength: 50
+          nullable: true
+
+    WarehouseUpdate:
+      type: object
+      description: "Tous les champs sont optionnels pour la mise à jour partielle"
+      properties:
+        code_entrepot:
+          type: string
+          minLength: 1
+          maxLength: 50
+        nom_entrepot:
+          type: string
+          minLength: 1
+          maxLength: 255
+        adresse_entrepot:
+          type: string
+          nullable: true
+        ville_entrepot:
+          type: string
+          maxLength: 100
+          nullable: true
+        code_postal_entrepot:
+          type: string
+          maxLength: 20
+          nullable: true
+        capacite_totale_unites:
+          type: integer
+          nullable: true
+        nom_responsable:
+          type: string
+          maxLength: 255
+          nullable: true
+        email_responsable:
+          type: string
+          format: email
+          maxLength: 255
+          nullable: true
+        telephone_responsable:
+          type: string
+          maxLength: 50
+          nullable: true
+
+    WarehousePaginatedResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Warehouse"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+
+    FullDocument:
+      type: object
+      properties:
+        id_document:
+          type: integer
+        numero_document:
+          type: string
+        type_document:
+          type: string
+        domaine_document:
+          type: string
+        etat_document:
+          type: string
+        id_partenaire:
+          type: integer
+        nom_partenaire_snapshot:
+          type: string
+          nullable: true
+        id_affaire:
+          type: integer
+          nullable: true
+        numero_affaire:
+          type: string
+          nullable: true
+        date_document:
+          type: string
+          format: date
+        date_echeance:
+          type: string
+          format: date
+          nullable: true
+        date_livraison:
+          type: string
+          format: date
+          nullable: true
+        date_livraison_prevue:
+          type: string
+          format: date
+          nullable: true
+        montant_ht:
+          type: number
+        montant_remise_total:
+          type: number
+        montant_tva_total:
+          type: number
+        montant_ttc:
+          type: number
+        solde_du:
+          type: number
+        code_devise:
+          type: string
+        taux_change:
+          type: number
+        statut_document:
+          type: string
+        est_entierement_paye:
+          type: boolean
+        id_entrepot:
+          type: integer
+          nullable: true
+        notes_internes:
+          type: string
+          nullable: true
+        notes_client:
+          type: string
+          nullable: true
+        reference_externe:
+          type: string
+          nullable: true
+        date_creation:
+          type: string
+          format: date-time
+        date_modification:
+          type: string
+          format: date-time
+        cree_par:
+          type: string
+          nullable: true
+        modifie_par:
+          type: string
+          nullable: true
+        mode_expedition:
+          type: string
+          nullable: true
+        poids_total_brut:
+          type: number
+          nullable: true
+        nombre_colis:
+          type: integer
+          nullable: true
+        lignes:
+          type: array
+          items:
+            $ref: "#/components/schemas/DocumentLine"
+
+    DocumentCreate:
+      type: object
+      required:
+        - numero_document
+        - type_document
+        - id_partenaire
+      properties:
+        numero_document:
+          type: string
+          minLength: 1
+          maxLength: 50
+        type_document:
+          type: string
+          minLength: 1
+          maxLength: 30
+        domaine_document:
+          type: string
+          maxLength: 10
+          default: VENTE
+        etat_document:
+          type: string
+          maxLength: 30
+          default: Saisi
+        id_partenaire:
+          type: integer
+        nom_partenaire_snapshot:
+          type: string
+          maxLength: 255
+          nullable: true
+        id_affaire:
+          type: integer
+          nullable: true
+        numero_affaire:
+          type: string
+          maxLength: 50
+          nullable: true
+        date_document:
+          type: string
+        date_echeance:
+          type: string
+          nullable: true
+        date_livraison:
+          type: string
+          nullable: true
+        date_livraison_prevue:
+          type: string
+          nullable: true
+        montant_ht:
+          type: number
+        montant_remise_total:
+          type: number
+        montant_tva_total:
+          type: number
+        montant_ttc:
+          type: number
+        solde_du:
+          type: number
+        code_devise:
+          type: string
+          maxLength: 3
+          default: MAD
+        taux_change:
+          type: number
+          default: 1
+        statut_document:
+          type: string
+          maxLength: 20
+          default: BROUILLON
+        est_entierement_paye:
+          type: boolean
+        id_entrepot:
+          type: integer
+          nullable: true
+        notes_internes:
+          type: string
+          nullable: true
+        notes_client:
+          type: string
+          nullable: true
+        reference_externe:
+          type: string
+          maxLength: 100
+          nullable: true
+        mode_expedition:
+          type: string
+          maxLength: 50
+          nullable: true
+        poids_total_brut:
+          type: number
+          nullable: true
+        nombre_colis:
+          type: integer
+          nullable: true
+
+    DocumentUpdate:
+      type: object
+      description: "Tous les champs sont optionnels pour la mise à jour partielle"
+      properties:
+        numero_document:
+          type: string
+          minLength: 1
+          maxLength: 50
+        type_document:
+          type: string
+          minLength: 1
+          maxLength: 30
+        domaine_document:
+          type: string
+          maxLength: 10
+        etat_document:
+          type: string
+          maxLength: 30
+        id_partenaire:
+          type: integer
+        nom_partenaire_snapshot:
+          type: string
+          maxLength: 255
+          nullable: true
+        id_affaire:
+          type: integer
+          nullable: true
+        numero_affaire:
+          type: string
+          maxLength: 50
+          nullable: true
+        date_document:
+          type: string
+        date_echeance:
+          type: string
+          nullable: true
+        date_livraison:
+          type: string
+          nullable: true
+        date_livraison_prevue:
+          type: string
+          nullable: true
+        montant_ht:
+          type: number
+        montant_remise_total:
+          type: number
+        montant_tva_total:
+          type: number
+        montant_ttc:
+          type: number
+        solde_du:
+          type: number
+        code_devise:
+          type: string
+          maxLength: 3
+        taux_change:
+          type: number
+        statut_document:
+          type: string
+          maxLength: 20
+        est_entierement_paye:
+          type: boolean
+        id_entrepot:
+          type: integer
+          nullable: true
+        notes_internes:
+          type: string
+          nullable: true
+        notes_client:
+          type: string
+          nullable: true
+        reference_externe:
+          type: string
+          maxLength: 100
+          nullable: true
+        mode_expedition:
+          type: string
+          maxLength: 50
+          nullable: true
+        poids_total_brut:
+          type: number
+          nullable: true
+        nombre_colis:
+          type: integer
+          nullable: true
+
+    DocumentLine:
+      type: object
+      properties:
+        id_ligne:
+          type: integer
+        id_document:
+          type: integer
+        numero_ligne:
+          type: integer
+        id_produit:
+          type: integer
+        code_produit_snapshot:
+          type: string
+          nullable: true
+        nom_produit_snapshot:
+          type: string
+          nullable: true
+        quantite_commandee:
+          type: number
+        quantite_livree:
+          type: number
+        quantite_facturee:
+          type: number
+        prix_unitaire_ht:
+          type: number
+        pourcentage_remise:
+          type: number
+        taux_tva:
+          type: number
+        montant_remise:
+          type: number
+        montant_ht:
+          type: number
+        montant_tva:
+          type: number
+        montant_ttc:
+          type: number
+        statut_ligne:
+          type: string
+        date_creation:
+          type: string
+          format: date-time
+        date_modification:
+          type: string
+          format: date-time
+
+    FullDocumentPaginatedResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/FullDocument"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+
+    DocumentLinePaginatedResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/DocumentLine"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+
+    Affaire:
+      type: object
+      properties:
+        id_affaire:
+          type: integer
+        code_affaire:
+          type: string
+        intitule_affaire:
+          type: string
+        type_affaire:
+          type: string
+        statut_affaire:
+          type: string
+        abrege:
+          type: string
+          nullable: true
+        id_client:
+          type: integer
+          nullable: true
+        date_debut:
+          type: string
+          format: date
+          nullable: true
+        date_fin_prevue:
+          type: string
+          format: date
+          nullable: true
+        date_fin_reelle:
+          type: string
+          format: date
+          nullable: true
+        budget_prevu:
+          type: number
+          nullable: true
+        chiffre_affaires:
+          type: number
+        marge:
+          type: number
+        taux_remise_moyen:
+          type: number
+        notes:
+          type: string
+          nullable: true
+        est_actif:
+          type: boolean
+        en_sommeil:
+          type: boolean
+        date_creation:
+          type: string
+          format: date-time
+        date_modification:
+          type: string
+          format: date-time
+        cree_par:
+          type: string
+          nullable: true
+        modifie_par:
+          type: string
+          nullable: true
+
+    AffaireCreate:
+      type: object
+      required:
+        - code_affaire
+        - intitule_affaire
+      properties:
+        code_affaire:
+          type: string
+          minLength: 1
+          maxLength: 50
+        intitule_affaire:
+          type: string
+          minLength: 1
+          maxLength: 500
+        type_affaire:
+          type: string
+          maxLength: 30
+          default: Proposition
+        statut_affaire:
+          type: string
+          maxLength: 30
+          default: "En cours"
+        abrege:
+          type: string
+          maxLength: 100
+          nullable: true
+        id_client:
+          type: integer
+          nullable: true
+        date_debut:
+          type: string
+          nullable: true
+        date_fin_prevue:
+          type: string
+          nullable: true
+        date_fin_reelle:
+          type: string
+          nullable: true
+        budget_prevu:
+          type: number
+          nullable: true
+        chiffre_affaires:
+          type: number
+        marge:
+          type: number
+        taux_remise_moyen:
+          type: number
+          minimum: 0
+          maximum: 100
+        notes:
+          type: string
+          nullable: true
+
+    AffaireUpdate:
+      type: object
+      description: "Tous les champs sont optionnels pour la mise à jour partielle"
+      properties:
+        code_affaire:
+          type: string
+          minLength: 1
+          maxLength: 50
+        intitule_affaire:
+          type: string
+          minLength: 1
+          maxLength: 500
+        type_affaire:
+          type: string
+          maxLength: 30
+        statut_affaire:
+          type: string
+          maxLength: 30
+        abrege:
+          type: string
+          maxLength: 100
+          nullable: true
+        id_client:
+          type: integer
+          nullable: true
+        date_debut:
+          type: string
+          nullable: true
+        date_fin_prevue:
+          type: string
+          nullable: true
+        date_fin_reelle:
+          type: string
+          nullable: true
+        budget_prevu:
+          type: number
+          nullable: true
+        chiffre_affaires:
+          type: number
+        marge:
+          type: number
+        taux_remise_moyen:
+          type: number
+          minimum: 0
+          maximum: 100
+        notes:
+          type: string
+          nullable: true
+
+    AffairePaginatedResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Affaire"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+
+    StockLevel:
+      type: object
+      properties:
+        id_stock:
+          type: integer
+        id_produit:
+          type: integer
+        id_entrepot:
+          type: integer
+        quantite_en_stock:
+          type: number
+        quantite_reservee:
+          type: number
+        quantite_commandee:
+          type: number
+        date_dernier_mouvement:
+          type: string
+          format: date-time
+          nullable: true
+        type_dernier_mouvement:
+          type: string
+          nullable: true
+        date_creation:
+          type: string
+          format: date-time
+        date_modification:
+          type: string
+          format: date-time
+
+    StockLevelCreate:
+      type: object
+      required:
+        - id_produit
+        - id_entrepot
+      properties:
+        id_produit:
+          type: integer
+        id_entrepot:
+          type: integer
+        quantite_en_stock:
+          type: number
+        quantite_reservee:
+          type: number
+        quantite_commandee:
+          type: number
+        date_dernier_mouvement:
+          type: string
+          nullable: true
+        type_dernier_mouvement:
+          type: string
+          maxLength: 50
+          nullable: true
+
+    StockLevelUpdate:
+      type: object
+      description: "Tous les champs sont optionnels pour la mise à jour partielle"
+      properties:
+        id_produit:
+          type: integer
+        id_entrepot:
+          type: integer
+        quantite_en_stock:
+          type: number
+        quantite_reservee:
+          type: number
+        quantite_commandee:
+          type: number
+        date_dernier_mouvement:
+          type: string
+          nullable: true
+        type_dernier_mouvement:
+          type: string
+          maxLength: 50
+          nullable: true
+
+    StockLevelPaginatedResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/StockLevel"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+
+    FullStockLevel:
+      type: object
+      allOf:
+        - $ref: "#/components/schemas/StockLevel"
+        - type: object
+          properties:
+            produit:
+              type: object
+              properties:
+                id_produit:
+                  type: integer
+                code_produit:
+                  type: string
+                nom_produit:
+                  type: string
+            entrepot:
+              type: object
+              properties:
+                id_entrepot:
+                  type: integer
+                code_entrepot:
+                  type: string
+                nom_entrepot:
+                  type: string
+
+    FullStockLevelPaginatedResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/FullStockLevel"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+        details:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              message:
+                type: string
+              code:
+                type: string
+        timestamp:
+          type: string
+          format: date-time

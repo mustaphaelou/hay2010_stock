@@ -11,7 +11,7 @@ function generateNonce(): string {
   return btoa(binary)
 }
 
-const PUBLIC_PATHS = ['/login', '/register', '/forgot-password', '/reset-password', '/api/auth', '/api/csrf-token', '/api/health/public', '/favicon.ico', '/_next']
+const PUBLIC_PATHS = ['/login', '/register', '/forgot-password', '/reset-password', '/api/auth', '/api/csrf-token', '/api/health/public', '/api/v1', '/favicon.ico', '/_next']
 const AUTH_COOKIE = 'auth_token'
 
 function getJwtSecret(): Uint8Array {
@@ -81,6 +81,26 @@ function nextWithNonce(request: NextRequest, nonce: string): NextResponse {
   return response
 }
 
+function getCorsOrigin(): string {
+  return process.env.API_CORS_ORIGINS || process.env.CORS_ORIGINS || '*'
+}
+
+function addCorsHeaders(response: NextResponse, origin: string): void {
+  const allowedOrigins = getCorsOrigin()
+  if (allowedOrigins === '*' || allowedOrigins.split(',').map(s => s.trim()).includes(origin)) {
+    response.headers.set('Access-Control-Allow-Origin', origin)
+  } else {
+    response.headers.set('Access-Control-Allow-Origin', allowedOrigins.split(',')[0]?.trim() || '*')
+  }
+  response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
+  response.headers.set('Access-Control-Allow-Headers', 'Authorization, Content-Type')
+  response.headers.set('Access-Control-Max-Age', '86400')
+}
+
+function isApiV1Path(pathname: string): boolean {
+  return pathname.startsWith('/api/v1')
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
@@ -91,13 +111,26 @@ export async function middleware(request: NextRequest) {
   // it depends on Node.js APIs (net, tls) not available in the edge environment.
   // Rate limiting is enforced per-route in individual API handlers instead.
 
+  // Handle CORS preflight for /api/v1 routes
+  if (isApiV1Path(pathname) && request.method === 'OPTIONS') {
+    const origin = request.headers.get('origin') || '*'
+    const preflightResponse = new NextResponse(null, { status: 204 })
+    addCorsHeaders(preflightResponse, origin)
+    return preflightResponse
+  }
+
   const isPublicPath = PUBLIC_PATHS.some(path => pathname.startsWith(path))
 
   const token = request.cookies.get(AUTH_COOKIE)?.value
 
   if (!token) {
     if (isPublicPath) {
-      return nextWithNonce(request, nonce)
+      const response = nextWithNonce(request, nonce)
+      if (isApiV1Path(pathname)) {
+        const origin = request.headers.get('origin') || '*'
+        addCorsHeaders(response, origin)
+      }
+      return response
     }
     const response = NextResponse.redirect(new URL('/login', request.url))
     addSecurityHeaders(response, nonce)
@@ -108,7 +141,12 @@ export async function middleware(request: NextRequest) {
 
   if (!payload) {
     if (isPublicPath) {
-      return nextWithNonce(request, nonce)
+      const response = nextWithNonce(request, nonce)
+      if (isApiV1Path(pathname)) {
+        const origin = request.headers.get('origin') || '*'
+        addCorsHeaders(response, origin)
+      }
+      return response
     }
     const response = NextResponse.redirect(new URL('/login', request.url))
     response.cookies.delete(AUTH_COOKIE)
@@ -117,6 +155,17 @@ export async function middleware(request: NextRequest) {
   }
 
   if (isPublicPath && pathname !== '/favicon.ico' && !pathname.startsWith('/_next')) {
+    if (isApiV1Path(pathname)) {
+      const requestHeaders = new Headers(request.headers)
+      requestHeaders.set('x-nonce', nonce)
+      requestHeaders.set('x-user-id', payload.userId)
+      requestHeaders.set('x-user-email', payload.email)
+      requestHeaders.set('x-user-role', payload.role)
+      const response = NextResponse.next({ request: { headers: requestHeaders } })
+      addCorsHeaders(response, request.headers.get('origin') || '*')
+      addSecurityHeaders(response, nonce)
+      return response
+    }
     const response = NextResponse.redirect(new URL('/', request.url))
     addSecurityHeaders(response, nonce)
     return response
@@ -142,6 +191,10 @@ export async function middleware(request: NextRequest) {
     )
     addSecurityHeaders(forbiddenResponse, nonce)
     return forbiddenResponse
+  }
+
+  if (isApiV1Path(pathname)) {
+    addCorsHeaders(response, request.headers.get('origin') || '*')
   }
 
   addSecurityHeaders(response, nonce)
