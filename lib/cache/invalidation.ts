@@ -68,10 +68,42 @@ export class CacheInvalidationService {
         CacheVersionService.invalidateNamespace(CacheNamespaces.DOCUMENT),
         CacheVersionService.invalidateNamespace(CacheNamespaces.USER),
         CacheVersionService.invalidateNamespace(CacheNamespaces.DASHBOARD),
+        CacheVersionService.invalidateNamespace(CacheNamespaces.AFFAIRE),
+        CacheVersionService.invalidateNamespace(CacheNamespaces.WAREHOUSE),
+        CacheVersionService.invalidateNamespace(CacheNamespaces.CATEGORY),
       ])
       log.info('All caches invalidated')
     } catch (error) {
       log.error({ error }, 'Failed to invalidate all caches')
+    }
+  }
+
+  static async invalidateAffaire(affaireId: number): Promise<void> {
+    try {
+      await CacheVersionService.invalidateNamespace(CacheNamespaces.AFFAIRE)
+      log.info({ affaireId }, 'Affaire cache invalidated')
+    } catch (error) {
+      log.error({ affaireId, error }, 'Failed to invalidate affaire')
+    }
+  }
+
+  static async invalidateWarehouse(warehouseId: number): Promise<void> {
+    try {
+      await CacheVersionService.invalidateNamespace(CacheNamespaces.WAREHOUSE)
+      await CacheVersionService.invalidateNamespace(CacheNamespaces.STOCK)
+      log.info({ warehouseId }, 'Warehouse cache invalidated')
+    } catch (error) {
+      log.error({ warehouseId, error }, 'Failed to invalidate warehouse')
+    }
+  }
+
+  static async invalidateCategory(categoryId: number): Promise<void> {
+    try {
+      await CacheVersionService.invalidateNamespace(CacheNamespaces.CATEGORY)
+      await CacheVersionService.invalidateNamespace(CacheNamespaces.PRODUCT)
+      log.info({ categoryId }, 'Category cache invalidated')
+    } catch (error) {
+      log.error({ categoryId, error }, 'Failed to invalidate category')
     }
   }
 

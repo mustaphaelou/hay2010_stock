@@ -138,6 +138,9 @@ export const CacheNamespaces = {
   DOCUMENT: 'document',
   USER: 'user',
   DASHBOARD: 'dashboard',
+  AFFAIRE: 'affaire',
+  WAREHOUSE: 'warehouse',
+  CATEGORY: 'category',
 } as const
 
 export const CacheTTLSeconds = {
@@ -147,4 +150,7 @@ export const CacheTTLSeconds = {
   DOCUMENT: 300, // 5 minutes
   USER: 3600, // 1 hour
   DASHBOARD: 30, // 30 seconds
+  AFFAIRE: 900, // 15 minutes
+  WAREHOUSE: 900, // 15 minutes
+  CATEGORY: 900, // 15 minutes
 } as const

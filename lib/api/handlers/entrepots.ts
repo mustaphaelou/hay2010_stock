@@ -9,6 +9,7 @@ import {
 } from '@/lib/api/validators/entrepots'
 import { ValidationError, NotFoundError, ConflictError } from '@/lib/errors'
 import { createValidationErrorFromZod } from '@/lib/errors'
+import { CacheInvalidationService } from '@/lib/cache/invalidation'
 import { Prisma } from '@/lib/generated/prisma/client'
 
 const ALLOWED_SORT_FIELDS = [
@@ -140,6 +141,8 @@ export async function createWarehouseHandler(request: NextRequest): Promise<Next
       data: parsed.data,
     })
 
+    CacheInvalidationService.invalidateWarehouse(warehouse.id_entrepot)
+
     return apiCreated(warehouse)
   } catch (error) {
     return apiError(error)
@@ -179,6 +182,8 @@ export async function updateWarehouseHandler(request: NextRequest): Promise<Next
       data: parsed.data,
     })
 
+    CacheInvalidationService.invalidateWarehouse(warehouse.id_entrepot)
+
     return apiSuccess(warehouse)
   } catch (error) {
     return apiError(error)
@@ -202,6 +207,8 @@ export async function deleteWarehouseHandler(request: NextRequest): Promise<Next
       where: { id_entrepot: id },
       data: { est_actif: false },
     })
+
+    CacheInvalidationService.invalidateWarehouse(id)
 
     return apiNoContent()
   } catch (error) {

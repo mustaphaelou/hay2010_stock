@@ -9,6 +9,7 @@ import {
 } from '@/lib/api/validators/partenaires'
 import { ValidationError, NotFoundError, ConflictError } from '@/lib/errors'
 import { createValidationErrorFromZod } from '@/lib/errors'
+import { CacheInvalidationService } from '@/lib/cache/invalidation'
 import { Prisma } from '@/lib/generated/prisma/client'
 
 
@@ -159,6 +160,8 @@ export async function createPartnerHandler(request: NextRequest): Promise<NextRe
       },
     })
 
+    CacheInvalidationService.invalidatePartner(partner.id_partenaire)
+
     return apiCreated(partner)
   } catch (error) {
     return apiError(error)
@@ -201,6 +204,8 @@ export async function updatePartnerHandler(request: NextRequest): Promise<NextRe
       },
     })
 
+    CacheInvalidationService.invalidatePartner(partner.id_partenaire)
+
     return apiSuccess(partner)
   } catch (error) {
     return apiError(error)
@@ -224,6 +229,8 @@ export async function deletePartnerHandler(request: NextRequest): Promise<NextRe
       where: { id_partenaire: id },
       data: { est_actif: false, modifie_par: await getAuthenticatedUserId(request) },
     })
+
+    CacheInvalidationService.invalidatePartner(id)
 
     return apiNoContent()
   } catch (error) {

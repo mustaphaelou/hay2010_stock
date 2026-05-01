@@ -9,6 +9,7 @@ import {
 } from '@/lib/api/validators/documents'
 import { ValidationError, NotFoundError, ConflictError } from '@/lib/errors'
 import { createValidationErrorFromZod } from '@/lib/errors'
+import { CacheInvalidationService } from '@/lib/cache/invalidation'
 import { Prisma } from '@/lib/generated/prisma/client'
 
 const ALLOWED_SORT_FIELDS = [
@@ -197,6 +198,8 @@ export async function createDocumentHandler(request: NextRequest): Promise<NextR
 
     const document = await prisma.docVente.create({ data })
 
+    CacheInvalidationService.invalidateDocument(document.id_document)
+
     return apiCreated(document)
   } catch (error) {
     return apiError(error)
@@ -250,6 +253,8 @@ export async function updateDocumentHandler(request: NextRequest): Promise<NextR
       data,
     })
 
+    CacheInvalidationService.invalidateDocument(document.id_document)
+
     return apiSuccess(document)
   } catch (error) {
     return apiError(error)
@@ -273,6 +278,8 @@ export async function deleteDocumentHandler(request: NextRequest): Promise<NextR
       where: { id_document: id },
       data: { statut_document: 'ANNULE', modifie_par: await getAuthenticatedUserId(request) },
     })
+
+    CacheInvalidationService.invalidateDocument(id)
 
     return apiNoContent()
   } catch (error) {

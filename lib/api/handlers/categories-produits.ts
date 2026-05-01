@@ -9,6 +9,7 @@ import {
 } from '@/lib/api/validators/categories-produits'
 import { ValidationError, NotFoundError, ConflictError } from '@/lib/errors'
 import { createValidationErrorFromZod } from '@/lib/errors'
+import { CacheInvalidationService } from '@/lib/cache/invalidation'
 import { Prisma } from '@/lib/generated/prisma/client'
 
 const ALLOWED_SORT_FIELDS = [
@@ -138,6 +139,8 @@ export async function createCategoryHandler(request: NextRequest): Promise<NextR
       data: parsed.data,
     })
 
+    CacheInvalidationService.invalidateCategory(category.id_categorie)
+
     return apiCreated(category)
   } catch (error) {
     return apiError(error)
@@ -181,6 +184,8 @@ export async function updateCategoryHandler(request: NextRequest): Promise<NextR
       data: parsed.data,
     })
 
+    CacheInvalidationService.invalidateCategory(category.id_categorie)
+
     return apiSuccess(category)
   } catch (error) {
     return apiError(error)
@@ -210,6 +215,8 @@ export async function deleteCategoryHandler(request: NextRequest): Promise<NextR
     await prisma.categorieProduit.delete({
       where: { id_categorie: id },
     })
+
+    CacheInvalidationService.invalidateCategory(id)
 
     return apiNoContent()
   } catch (error) {

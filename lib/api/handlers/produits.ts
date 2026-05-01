@@ -9,6 +9,7 @@ import {
 } from '@/lib/api/validators/produits'
 import { ValidationError, NotFoundError, ConflictError } from '@/lib/errors'
 import { createValidationErrorFromZod } from '@/lib/errors'
+import { CacheInvalidationService } from '@/lib/cache/invalidation'
 import { Prisma } from '@/lib/generated/prisma/client'
 
 const ALLOWED_SORT_FIELDS = [
@@ -159,6 +160,8 @@ export async function createProductHandler(request: NextRequest): Promise<NextRe
       },
     })
 
+    CacheInvalidationService.invalidateProduct(product.id_produit)
+
     return apiCreated(product)
   } catch (error) {
     return apiError(error)
@@ -201,6 +204,8 @@ export async function updateProductHandler(request: NextRequest): Promise<NextRe
       },
     })
 
+    CacheInvalidationService.invalidateProduct(product.id_produit)
+
     return apiSuccess(product)
   } catch (error) {
     return apiError(error)
@@ -224,6 +229,8 @@ export async function deleteProductHandler(request: NextRequest): Promise<NextRe
       where: { id_produit: id },
       data: { est_actif: false, modifie_par: await getAuthenticatedUserId(request) },
     })
+
+    CacheInvalidationService.invalidateProduct(id)
 
     return apiNoContent()
   } catch (error) {

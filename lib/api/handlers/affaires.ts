@@ -9,6 +9,7 @@ import {
 } from '@/lib/api/validators/affaires'
 import { ValidationError, NotFoundError, ConflictError } from '@/lib/errors'
 import { createValidationErrorFromZod } from '@/lib/errors'
+import { CacheInvalidationService } from '@/lib/cache/invalidation'
 import { Prisma } from '@/lib/generated/prisma/client'
 
 const ALLOWED_SORT_FIELDS = [
@@ -170,6 +171,8 @@ export async function createAffaireHandler(request: NextRequest): Promise<NextRe
       data: data as Prisma.AffaireCreateInput,
     })
 
+    CacheInvalidationService.invalidateAffaire(affaire.id_affaire)
+
     return apiCreated(affaire)
   } catch (error) {
     return apiError(error)
@@ -220,6 +223,8 @@ export async function updateAffaireHandler(request: NextRequest): Promise<NextRe
       data,
     })
 
+    CacheInvalidationService.invalidateAffaire(affaire.id_affaire)
+
     return apiSuccess(affaire)
   } catch (error) {
     return apiError(error)
@@ -243,6 +248,8 @@ export async function deleteAffaireHandler(request: NextRequest): Promise<NextRe
       where: { id_affaire: id },
       data: { est_actif: false, modifie_par: await getAuthenticatedUserId(request) },
     })
+
+    CacheInvalidationService.invalidateAffaire(id)
 
     return apiNoContent()
   } catch (error) {

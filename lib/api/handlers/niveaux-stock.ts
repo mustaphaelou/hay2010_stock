@@ -9,6 +9,7 @@ import {
 } from '@/lib/api/validators/niveaux-stock'
 import { ValidationError, NotFoundError, ConflictError } from '@/lib/errors'
 import { createValidationErrorFromZod } from '@/lib/errors'
+import { CacheInvalidationService } from '@/lib/cache/invalidation'
 import { Prisma } from '@/lib/generated/prisma/client'
 
 const ALLOWED_SORT_FIELDS = [
@@ -172,6 +173,8 @@ export async function createStockLevelHandler(request: NextRequest): Promise<Nex
       data: parsed.data,
     })
 
+    CacheInvalidationService.invalidateStock(stockLevel.id_produit, stockLevel.id_entrepot)
+
     return apiCreated(stockLevel)
   } catch (error) {
     return apiError(error)
@@ -221,6 +224,8 @@ export async function updateStockLevelHandler(request: NextRequest): Promise<Nex
       data: parsed.data,
     })
 
+    CacheInvalidationService.invalidateStock(stockLevel.id_produit, stockLevel.id_entrepot)
+
     return apiSuccess(stockLevel)
   } catch (error) {
     return apiError(error)
@@ -240,9 +245,13 @@ export async function deleteStockLevelHandler(request: NextRequest): Promise<Nex
       throw new NotFoundError('Stock level')
     }
 
+    const { id_produit, id_entrepot } = existing
+
     await prisma.niveauStock.delete({
       where: { id_stock: id },
     })
+
+    CacheInvalidationService.invalidateStock(id_produit, id_entrepot)
 
     return apiNoContent()
   } catch (error) {
