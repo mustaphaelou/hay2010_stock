@@ -1,147 +1,98 @@
 # AGENTS.md — HAY2010 Stock App
 
-## Project Identity
+## Project
 
-Next.js 16 App Router monolith. Single package, single deployable.
-Domain: French-language ERP/inventory management (stock, sales, purchases, partners, affairs).
+Next.js 16 App Router monolith. French-language ERP (stock, sales, purchases, partners, affairs).
+Single package, single deployable. TypeScript strict mode.
 
 ## Commands
 
 ```bash
-npm run dev                  # Start dev server (localhost:3000)
-npm run build                # prisma generate && next build (includes generate)
-npm run lint                 # ESLint (flat config, eslint.config.mjs)
-npm run lint:fix             # ESLint with --fix
+npm run dev                  # localhost:3000
+npm run build                # prisma generate && next build
+npm run lint                 # ESLint (flat config)
+npm run lint:fix             # ESLint --fix
 npx tsc --noEmit             # TypeScript check (no npm script — run directly)
 
 # Testing
-npm run test                 # vitest in watch mode
-npm run test:ci              # vitest run --coverage (CI mode)
+npm run test                 # vitest watch
+npm run test:ci              # vitest run --coverage
 npm run test:all             # vitest run (no coverage)
-npm run test:security        # single: middleware/security.test.ts
-npm run test:errors          # single: lib/errors.test.ts
-npm run test:metrics         # single: lib/monitoring/business-metrics.test.ts
-npm run test:health          # single: api/health.test.ts
-npx vitest run src/__tests__/lib/auth/jwt.test.ts  # run a single test file
+npx vitest run <path>        # single test file
 
 # Database
-npm run db:generate          # prisma generate (required before build if schema changed)
-npm run db:push              # prisma db push (schema → DB, no migration files)
-npm run db:seed              # tsx prisma/seed.ts (seeds admin + sample data)
+npm run db:generate          # prisma generate
+npm run db:push              # prisma db push (no migration files in dev)
+npm run db:seed              # tsx prisma/seed.ts
 npm run db:reset             # force-reset DB + reseed
-npm run db:backup            # ./scripts/local-backup.sh
-npm run db:restore           # ./scripts/local-restore.sh
-
-# Docker helpers
-npm run docker:psql          # psql shell into running postgres container
-npm run docker:redis         # redis-cli into running redis container
-npm run docker:seed          # run seed inside container
-npm run docker:migrate       # run migrate service in container
-npm run docker:health        # curl /api/health/public
 ```
 
-## Required Command Order
-
-1. After any `prisma/schema.prisma` change: `npm run db:generate` before `npm run build`
-2. CI pipeline order: `lint → tsc --noEmit → test:ci → build`
-3. Fresh setup order: `db:generate → db:push → db:seed`
-
-## Prerequisites
-
-- **Node.js 20** (pinned in `.nvmrc`)
-- **PostgreSQL 16** + **Redis 7** must be running for dev server and integration tests
-- `.env.local` required (copy from `.env.example`); must set `DATABASE_URL`, `REDIS_URL`, `JWT_SECRET` (min 32 chars)
-- Docker Compose available for full local stack: `docker compose up -d`
+Required order after schema change: `db:generate` → `build`. Fresh setup: `db:generate` → `db:push` → `db:seed`.
 
 ## Architecture
 
-### Path Aliases
-
-- `@/*` → project root (tsconfig paths)
-- `@app/*` → `app/` (**vitest alias only**, not in tsconfig)
-
 ### Prisma Import
+Import from `@/lib/generated/prisma/client` — **never** from `@prisma/client`.
+Generated client outputs to `lib/generated/prisma/`.
 
-Always import from `@/lib/generated/prisma/client` — **never** from `@prisma/client` directly.
-Generated client outputs to `lib/generated/prisma/` (not `node_modules`).
+Schema datasource URL in `prisma.config.ts` (not `schema.prisma`), loaded via dotenv.
 
 ### Key Directories
 
 | Path | Purpose |
 |------|---------|
-| `app/` | Next.js App Router pages and layouts |
-| `app/(dashboard)/` | Authenticated routes (layout redirects to `/login` if unauthenticated) |
-| `app/actions/` | Next.js Server Actions (all mutations go here — not API routes) |
+| `app/(dashboard)/` | Authenticated routes (redirect to `/login` if unauthenticated) |
+| `app/actions/` | Server Actions — all mutations live here, not API routes |
 | `app/api/` | API routes: `health/`, `metrics/`, `csrf-token/`, `invoices/` |
-| `lib/` | Core business logic (auth, db, cache, queue, pdf, security, middleware, workers) |
-| `lib/generated/prisma/` | Prisma generated client output — **do not edit** |
-| `lib/db/prisma.ts` | Prisma singleton (uses `@prisma/adapter-pg` with pg Pool, global-cached in dev) |
-| `lib/db/redis.ts` | Two Redis singletons: `redis` (cache/rate-limit) + `redisSession` (sessions); supports cluster via `REDIS_CLUSTER_NODES` |
-| `components/ui/` | shadcn/ui components (style: `base-nova`, base color: `stone`, icons: `hugeicons`) |
+| `lib/` | Core logic: auth, db, cache, queue, pdf, security, workers |
+| `lib/generated/prisma/` | Prisma generated client — **do not edit** |
+| `components/ui/` | shadcn/ui (style: `base-nova`, base color: `stone`, icons: hugeicons) |
 | `components/erp/` | ERP-specific shared components |
-| `prisma/schema.prisma` | DB schema (PostgreSQL; enums: `Role`, `TypePartenaire`; UUIDs for User PKs, autoincrement ints for others) |
+| `prisma/schema.prisma` | Enums: `Role`, `TypePartenaire`; UUIDs for User PKs, autoincrement ints for others |
 
 ### Auth Flow
-
 - Edge middleware (`middleware.ts`) validates JWT from `auth_token` cookie on every request
 - User info propagated via request headers: `x-user-id`, `x-user-email`, `x-user-role`, `x-nonce`
 - RBAC: `ADMIN > MANAGER > USER > VIEWER` (`/api/admin/*` requires ADMIN or MANAGER)
-- CSP uses nonce-based headers in production, `unsafe-inline` fallback when `SECURE_COOKIES=false` or in dev
-- Rate limiting is per-route in API handlers (not in edge middleware — ioredis can't run in edge runtime)
+- CSP: nonce-based in production, `unsafe-inline` fallback when `SECURE_COOKIES=false` or in dev
+- Rate limiting is per-route in API handlers (ioredis can't run in edge runtime)
 
-### Data Flow
+### Path Aliases
+- `@/*` → project root (tsconfig)
+- `@app/*` → `app/` (vitest only, not in tsconfig)
 
-- **Server Actions** (`app/actions/*.ts`) are the primary mutation layer — not API routes
-- **Prisma** with `@prisma/adapter-pg` (pg adapter, not default Prisma pooling)
-- **Redis** used for: sessions, caching (versioned keys), rate limiting (sliding window), job queues (BullMQ), distributed locks
-
-## Prisma Quirks
-
-- Schema datasource URL configured in `prisma.config.ts` (not in `schema.prisma`), which loads `.env` and `.env.local` via dotenv
-- No migration files in active use — schema applied via `prisma db push` locally, `prisma migrate deploy` in Docker entrypoint
-- `prisma/migrations_backup/` is historical only
-- `prisma validate` and `prisma generate` must succeed before build
+## Prerequisites
+- Node.js 20 (`.nvmrc`)
+- PostgreSQL 16 + Redis 7 for dev server and integration tests
+- `.env.local` from `.env.example`; requires `DATABASE_URL`, `REDIS_URL`, `JWT_SECRET` (min 32 chars)
+- Docker Compose for full local stack: `docker compose up -d`
 
 ## Testing
-
-- **Framework**: Vitest with jsdom environment, `@testing-library/react`
-- **Setup**: `src/__tests__/setup.ts` mocks `next/navigation`, `next/cache`, and `@/lib/db/redis`
-- **Test location**: `src/__tests__/` (mirrors `lib/` and `app/actions/` structure)
-- **Redis is fully mocked** in tests — no real Redis needed for unit tests
-- **Integration tests** (`src/__tests__/integration/`) need real Postgres + Redis (CI provides service containers)
+- Vitest + jsdom + `@testing-library/react`
+- Setup: `src/__tests__/setup.ts` mocks `next/navigation`, `next/cache`, `@/lib/db/redis`
+- **Redis is fully mocked** — no real Redis for unit tests
+- Integration tests (`src/__tests__/integration/`) need real Postgres + Redis
+- Test location mirrors `lib/` and `app/actions/` structure
 - Coverage thresholds: lines 50%, functions 70%, branches 60%, statements 50%
-- Coverage only measured on `lib/**/*.ts` and `app/actions/**/*.ts`
-- **Coverage excludes** these `lib/` subdirectories: `db/`, `cache/`, `queue/`, `workers/`, `pdf/`, `config/`, `types/`, `middleware/`, `utils/client-logger.ts`
-- ESLint also ignores `lib/generated/**` and `src/__tests__/setup.ts`
+- Coverage measured on `lib/**/*.ts` and `app/actions/**/*.ts`
+- Coverage excludes: `db/`, `cache/`, `queue/`, `workers/`, `pdf/`, `config/`, `types/`, `middleware/`, `utils/client-logger.ts`
 
-## Environment & Secrets
-
-- Production supports Docker Secrets: `_FILE` suffix variants (`DATABASE_URL_FILE`, `JWT_SECRET_FILE`, `REDIS_PASSWORD_FILE`)
-- `JWT_SECRET` minimum 32 characters (enforced in `lib/config/env-validation.ts`)
-- Docker dev defaults: `SECURE_COOKIES=false`, `LOCKOUT_FAIL_CLOSED=false`, `RATE_LIMIT_FAIL_CLOSED=false`
-- Seed credentials: `admin@hay2010.com` / `Admin@2026` (override via `SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD` in `.env.local`)
-
-## Docker
-
-- Multi-stage Dockerfile: `base → deps → builder → runner` (no `migrator` target — migrations run in entrypoint)
-- `docker-compose.yml` runs app with Postgres + Redis; migrations + seed are manual steps
-- `docker-entrypoint.sh` runs `prisma migrate deploy` then starts `node server.js`
-- Production compose: `docker-compose.prod.yml`
-- Health check: `GET /api/health/public` (not `/api/health`)
-- Standalone output disabled on Windows host (`process.platform !== 'win32'` check in `next.config.ts`), but works inside Docker container (Linux)
+## Deployment
+- Multi-stage Dockerfile: `base → deps → builder → runner`
+- `docker-entrypoint.sh` runs `prisma migrate deploy` then starts `next start`
+- Standalone output disabled on Windows (`next.config.ts`), works inside Docker (Linux)
 - Docker build sets `SKIP_TYPE_CHECK=true` and `NODE_ENV=production`
+- Health check: `GET /api/health/public`
+- Production secrets: `_FILE` suffix variants (`DATABASE_URL_FILE`, etc.) for Docker Secrets
+- Image pushed to GHCR, signed with Cosign, SBOM generated
 
-## CI/CD (`.github/workflows/ci-cd.yml`)
-
-Stages: quality-checks → [test, security-scan, migration-check] → security-validation → build → [deploy-staging, deploy-production]
-- Staging deploys from `develop`, production deploys from `main` (on release publish)
-- Test job uses GitHub Actions service containers (Postgres 16, Redis 7)
-- `tsc --noEmit` is run in CI but not as an npm script — run it directly
+## CI Pipeline
+`lint → tsc --noEmit → test:ci → build` (plus prisma validate, prisma generate, Hadolint, Gitleaks, CodeQL)
+Staging deploys from `develop`, production deploys from `main` (on release publish).
 
 ## Conventions
-
 - Conventional Commits: `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`
-- TypeScript strict mode enabled
-- `@typescript-eslint/no-require-imports` is `off` — require() allowed
-- Business domain uses French terms in code: `Partenaire`, `TypePartenaire`, `DocVente`, `Entrepot`, `MouvementStock`, `Affaire`
-- `ignoreBuildErrors: true` in dev (`next.config.ts`) — type errors don't block dev builds, but `tsc --noEmit` catches them in CI
+- `@typescript-eslint/no-require-imports` is `off`
+- Business domain uses French terms: `Partenaire`, `TypePartenaire`, `DocVente`, `Entrepot`, `MouvementStock`, `Affaire`
+- `ignoreBuildErrors: true` in dev — type errors don't block dev builds, `tsc --noEmit` catches them
+- Seed credentials: `admin@hay2010.com` / `Admin@2026`
