@@ -234,7 +234,7 @@ All modifications include audit fields:
 
 ### Configuration
 
-Rate limits are configured in `lib/middleware/rate-limit.ts`:
+Rate limits are configured in `lib/security/rate-limit.ts`:
 
 ```typescript
 const RATE_LIMITS: Record<string, RateLimitConfig> = {

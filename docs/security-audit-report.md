@@ -117,7 +117,7 @@ The HAY2010 Stock Application has been audited for security compliance. The appl
 
 2. **Tiered Rate Limits**
    ```typescript
-   // lib/middleware/rate-limit.ts
+    // lib/security/rate-limit.ts
    '/api/auth/login': 10 requests / 60s
    '/api/auth/register': 5 requests / 300s
    '/api/auth/forgot-password': 3 requests / 300s

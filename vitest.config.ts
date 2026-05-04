@@ -28,7 +28,6 @@ export default defineConfig({
         'lib/pdf/**',
         'lib/config/**',
         'lib/types/**',
-        'lib/middleware/**',
         'lib/utils/client-logger.ts',
       ],
     thresholds: {

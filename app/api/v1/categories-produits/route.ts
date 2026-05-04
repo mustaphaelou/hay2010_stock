@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { withRateLimit } from '@/lib/api/middleware'
+import { withRateLimit } from '@/lib/security/rate-limit'
 import { listCategoriesHandler, createCategoryHandler } from '@/lib/api/handlers/categories-produits'
 
 export const GET = withRateLimit(

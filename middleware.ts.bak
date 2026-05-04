@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { jwtVerify } from 'jose'
-import { rateLimitMiddleware } from '@/lib/middleware/rate-limit'
 function generateNonce(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(16))
   let binary = ''
@@ -86,17 +85,6 @@ export async function middleware(request: NextRequest) {
 
   // Generate nonce for this request's CSP
   const nonce = generateNonce()
-
-  // Apply rate limiting first (except for public paths)
-  try {
-    const rateLimitResponse = await rateLimitMiddleware(request)
-    if (rateLimitResponse) {
-      addSecurityHeaders(rateLimitResponse, nonce)
-      return rateLimitResponse
-    }
-  } catch {
-    // Continue without rate limiting if it fails
-  }
 
   const isPublicPath = PUBLIC_PATHS.some(path => pathname.startsWith(path))
 

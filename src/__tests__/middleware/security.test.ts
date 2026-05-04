@@ -1,14 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { NextRequest, NextResponse } from 'next/server'
 import { middleware } from '@/middleware'
-import { rateLimitMiddleware } from '@/lib/middleware/rate-limit'
 import { jwtVerify } from 'jose'
 import * as jose from 'jose'
-
-// Mock dependencies
-vi.mock('@/lib/middleware/rate-limit', () => ({
-  rateLimitMiddleware: vi.fn()
-}))
 
 vi.mock('jose', async (importOriginal) => {
   const actual = await importOriginal<typeof jose>()
@@ -20,14 +14,11 @@ vi.mock('jose', async (importOriginal) => {
 
 describe('Security Middleware', () => {
   const mockJwtVerify = vi.mocked(jwtVerify)
-  const mockRateLimitMiddleware = vi.mocked(rateLimitMiddleware)
 
   beforeEach(() => {
     vi.clearAllMocks()
     process.env.JWT_SECRET = 'test-secret-key-minimum-32-characters-long'
 
-    // Default mock implementations
-    mockRateLimitMiddleware.mockResolvedValue(null)
     // Mock jwtVerify to return a proper result structure
     mockJwtVerify.mockImplementation(async () => ({
       payload: {
@@ -156,38 +147,6 @@ describe('Security Middleware', () => {
     expect(response.headers.get('Content-Security-Policy')).toBeDefined()
     expect(mockJwtVerify).toHaveBeenCalled()
   })
-  })
-
-  describe('Rate Limiting', () => {
-    it('should apply rate limiting middleware', async () => {
-      const request = createMockRequest({ url: 'http://localhost:3000/api/test' })
-      await middleware(request)
-      
-      expect(mockRateLimitMiddleware).toHaveBeenCalledWith(request)
-    })
-
-    it('should return rate limit response when rate limited', async () => {
-      const rateLimitResponse = NextResponse.json(
-        { error: 'Rate limit exceeded' },
-        { status: 429 }
-      )
-      mockRateLimitMiddleware.mockResolvedValue(rateLimitResponse)
-      
-      const request = createMockRequest({ url: 'http://localhost:3000/api/test' })
-      const response = await middleware(request)
-      
-      expect(response.status).toBe(429)
-      expect(response.headers.get('X-RateLimit-Limit')).toBeDefined()
-    })
-
-    it('should skip rate limiting for public paths', async () => {
-      const request = createMockRequest({ url: 'http://localhost:3000/api/health/public' })
-      await middleware(request)
-      
-      // Rate limiting should still be called, but the rate limit middleware
-      // itself should exempt public paths
-      expect(mockRateLimitMiddleware).toHaveBeenCalled()
-    })
   })
 
   describe('Role-Based Access Control', () => {
@@ -381,15 +340,6 @@ describe('Error Handling', () => {
     expect(response.headers.get('location')).toBe('http://localhost:3000/login')
   })
 
-  it('should handle rate limiting errors gracefully', async () => {
-    mockRateLimitMiddleware.mockRejectedValue(new Error('Redis connection failed'))
-
-    const request = createMockRequest({ url: 'http://localhost:3000/api/test' })
-
-    // Should redirect to login instead of continuing without auth check
-    const response = await middleware(request)
-    expect(response.status).toBe(307)
-  })
 })
 
 describe('Request Headers', () => {
@@ -409,25 +359,5 @@ describe('Request Headers', () => {
       expect(response.status).toBe(200)
     })
 
-    it('should handle X-Forwarded-For headers for client identification', async () => {
-      const request = createMockRequest({
-        url: 'http://localhost:3000/api/test',
-        headers: {
-          'X-Forwarded-For': '192.168.1.1, 10.0.0.1'
-        },
-        cookies: { auth_token: 'valid-token' }
-      })
-      
-      await middleware(request)
-      
-      // Rate limiting middleware should receive the request with X-Forwarded-For
-      expect(mockRateLimitMiddleware).toHaveBeenCalledWith(
-        expect.objectContaining({
-          headers: expect.objectContaining({
-            get: expect.any(Function)
-          })
-        })
-      )
-    })
   })
 })
