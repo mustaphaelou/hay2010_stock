@@ -89,8 +89,8 @@ describe('Dashboard Actions', () => {
       const mockMonthly = [
         { month: 'Jan 26', ventes: 1000, achats: 500 },
       ]
-      const mockRecentDocs: any[] = []
-      const mockSalesInvoices: any[] = []
+      const mockRecentDocs: Record<string, unknown>[] = []
+      const mockSalesInvoices: Record<string, unknown>[] = []
 
       mockPrismaQueryRaw
         .mockResolvedValueOnce(mockCounts)

@@ -112,8 +112,8 @@ describe('Profile Actions', () => {
     })
 
     it('should require current password when changing email', async () => {
-      mockUserFindUnique.mockImplementation((args: any) => {
-        if (args.where.id) {
+      mockUserFindUnique.mockImplementation((args: Parameters<typeof mockUserFindUnique>[0]) => {
+        if (args?.where?.id) {
           return Promise.resolve({ id: 'user-1', password: 'hashed-pw', email: 'user@test.com' })
         }
         return Promise.resolve(null)
@@ -129,8 +129,8 @@ describe('Profile Actions', () => {
     })
 
     it('should reject wrong current password when changing email', async () => {
-      mockUserFindUnique.mockImplementation((args: any) => {
-        if (args.where.id) {
+      mockUserFindUnique.mockImplementation((args: Parameters<typeof mockUserFindUnique>[0]) => {
+        if (args?.where?.id) {
           return Promise.resolve({ id: 'user-1', password: 'hashed-pw', email: 'user@test.com' })
         }
         return Promise.resolve(null)
@@ -148,11 +148,11 @@ describe('Profile Actions', () => {
     })
 
     it('should reject email already in use by another account', async () => {
-      mockUserFindUnique.mockImplementation((args: any) => {
-        if (args.where.id) {
+      mockUserFindUnique.mockImplementation((args: Parameters<typeof mockUserFindUnique>[0]) => {
+        if (args?.where?.id) {
           return Promise.resolve({ id: 'user-1', password: 'hashed-pw', email: 'user@test.com' })
         }
-        if (args.where.email === 'taken@test.com') {
+        if (args?.where && 'email' in args.where && args.where.email === 'taken@test.com') {
           return Promise.resolve({ id: 'other-user', email: 'taken@test.com' })
         }
         return Promise.resolve(null)

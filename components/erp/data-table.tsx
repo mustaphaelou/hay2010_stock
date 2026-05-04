@@ -118,7 +118,7 @@ export function DataTable<TData, TValue>({
     }, [isMobile, mobileCardRenderer])
 
 
-  const table = React.useMemo(() => useReactTable({
+  const table = useReactTable({
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
@@ -137,17 +137,7 @@ export function DataTable<TData, TValue>({
             rowSelection,
             pagination,
         },
-    }), [
-      data,
-      columns,
-      sorting,
-      columnFilters,
-      columnVisibility,
-      rowSelection,
-      pagination,
-      serverSidePagination,
-      handlePaginationChange,
-    ])
+    })
 
   const currentPage = serverSidePagination && paginationMeta ? paginationMeta.page : table.getState().pagination.pageIndex + 1
   const totalPages = serverSidePagination && paginationMeta ? Math.ceil(paginationMeta.total / paginationMeta.limit) : table.getPageCount()

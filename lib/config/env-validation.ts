@@ -55,7 +55,7 @@ export interface ValidationResult {
   secrets: Record<string, boolean>
 }
 
-export function getSecret(envVar: string, _fileVar?: string): string | undefined {
+export function getSecret(envVar: string): string | undefined {
   return process.env[envVar]
 }
 
@@ -67,7 +67,7 @@ export function validateEnvironment(): ValidationResult {
   const allSecrets = [...REQUIRED_SECRETS, ...OPTIONAL_SECRETS]
 
   for (const secret of allSecrets) {
-    const value = getSecret(secret.envVar, secret.fileVar)
+    const value = getSecret(secret.envVar)
 
     if (!value) {
       if (secret.required) {
@@ -150,7 +150,7 @@ export function assertEnvironment(): void {
 }
 
 export function getRequiredSecret(envVar: string, fileVar?: string): string {
-  const value = getSecret(envVar, fileVar)
+  const value = getSecret(envVar)
   if (!value) {
     throw new Error(`Required secret ${envVar} not found. Provide via ${envVar} or ${fileVar || `${envVar}_FILE`}`)
   }
@@ -158,5 +158,5 @@ export function getRequiredSecret(envVar: string, fileVar?: string): string {
 }
 
 export function getOptionalSecret(envVar: string, _fileVar?: string, defaultValue = ''): string {
-  return getSecret(envVar, _fileVar) || defaultValue
+  return getSecret(envVar) || defaultValue
 }

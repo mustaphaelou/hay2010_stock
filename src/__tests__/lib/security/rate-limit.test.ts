@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { NextRequest } from 'next/server'
 
 // ============ HELPERS ============
 
@@ -12,7 +13,7 @@ function makeHeaders(init?: Record<string, string>) {
   }
 }
 
-function createMockRequest(apiKeyId?: string): any {
+function createMockRequest(apiKeyId?: string): NextRequest {
   const headers = new Map<string, string>()
   if (apiKeyId) headers.set('x-api-key-id', apiKeyId)
   return {
@@ -20,10 +21,10 @@ function createMockRequest(apiKeyId?: string): any {
     headers: {
       get: (k: string) => headers.get(k) ?? null,
     },
-  }
+  } as unknown as NextRequest
 }
 
-function createMockHandler(status = 200, body = { ok: true }): any {
+function createMockHandler(status = 200, body = { ok: true }) {
   return vi.fn().mockResolvedValue({
     status,
     json: async () => body,
@@ -49,10 +50,10 @@ vi.mock('@/lib/db/redis', () => ({
 
 vi.mock('next/server', () => ({
   NextResponse: {
-    json: vi.fn((body: any, init?: any) => ({
+    json: vi.fn((body: object, init?: ResponseInit) => ({
       status: init?.status || 200,
       json: async () => body,
-      headers: makeHeaders(init?.headers),
+      headers: makeHeaders(init?.headers as Record<string, string> | undefined),
     })),
   },
   NextRequest: vi.fn(),
@@ -66,7 +67,7 @@ vi.mock('@/lib/logger', () => ({
   }),
 }))
 
-import { withRateLimit, TIER_LIMITS } from '@/lib/security/rate-limit'
+import { withRateLimit, TIER_LIMITS, type RateLimitTier } from '@/lib/security/rate-limit'
 
 // ============ TESTS ============
 
@@ -208,7 +209,7 @@ describe('withRateLimit', () => {
 
     it('defaults to read tier for unknown tier', async () => {
       const handler = createMockHandler()
-      const limited = withRateLimit(handler, 'unknown' as any)
+      const limited = withRateLimit(handler, 'unknown' as unknown as RateLimitTier)
 
       const result = await limited(createMockRequest())
 
@@ -266,10 +267,10 @@ describe('circuit breaker', () => {
 
     vi.doMock('next/server', () => ({
       NextResponse: {
-        json: vi.fn((body: any, init?: any) => ({
+        json: vi.fn((body: object, init?: ResponseInit) => ({
           status: init?.status || 200,
           json: async () => body,
-          headers: makeHeaders(init?.headers),
+          headers: makeHeaders(init?.headers as Record<string, string> | undefined),
         })),
       },
       NextRequest: vi.fn(),

@@ -48,7 +48,7 @@ import {
 
 type Partner = Awaited<ReturnType<typeof getPartners>>['data'][0]
 
-const createColumns = (onViewDetails: (partner: Partner) => void): ColumnDef<Partner>[] => [
+const createColumns = (onViewDetails: (partner: Partner) => void): ColumnDef<Partner, unknown>[] => [
     {
         accessorKey: "code_partenaire",
         header: "Compte",
@@ -103,7 +103,7 @@ const createColumns = (onViewDetails: (partner: Partner) => void): ColumnDef<Par
 const DataTable = dynamic(() => import("@/components/erp/data-table").then(m => ({ default: m.DataTable })), {
   ssr: true,
   loading: () => <div className="h-64 animate-pulse bg-muted rounded-md" />,
-})
+}) as React.ComponentType<{ columns: ColumnDef<Partner, unknown>[]; data: Partner[]; searchKey?: string; placeholder?: string }>
 
 interface PartnersViewProps {
     type: 0 | 1 // 0=Client, 1=Supplier

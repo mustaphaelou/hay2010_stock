@@ -65,7 +65,7 @@ describe('CSRF Server', () => {
       vi.mocked(cookies).mockResolvedValueOnce({
         get: vi.fn(() => undefined),
         set: vi.fn(),
-      } as any)
+      } as unknown as Awaited<ReturnType<typeof cookies>>)
 
       const { generateCsrfToken } = await import('@/lib/security/csrf-server')
 
@@ -161,7 +161,7 @@ describe('CSRF Server', () => {
       // After validation, a new token should be generated (another setex call)
       // One call for the original token generation, one for rotation
       const setexCalls = mockRedisSetex.mock.calls.filter(
-        (call: any[]) => call[0].includes('csrf:test-user:')
+        (call: unknown[]) => (call[0] as string).includes('csrf:test-user:')
       )
       expect(setexCalls.length).toBeGreaterThanOrEqual(1)
     })

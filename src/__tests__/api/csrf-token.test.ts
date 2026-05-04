@@ -54,7 +54,7 @@ describe('CSRF Token API Route', () => {
       get: vi.fn().mockReturnValue(undefined),
       set: vi.fn(),
       delete: vi.fn(),
-    } as any)
+    } as unknown as Awaited<ReturnType<typeof cookies>>)
 
     const response = await GET()
     const data = await response.json()

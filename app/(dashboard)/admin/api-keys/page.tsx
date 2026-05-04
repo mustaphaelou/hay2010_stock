@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { listApiKeys } from '@/app/actions/api-keys'
 import ApiKeysClient from './ApiKeysClient'
 import { Metadata } from 'next'

@@ -178,10 +178,13 @@ export async function createDocumentHandler(request: NextRequest): Promise<NextR
       throw new NotFoundError('Partner')
     }
 
+    const { id_partenaire, id_affaire, id_entrepot, ...rest } = parsed.data
     const data: Prisma.DocVenteCreateInput = {
-      ...parsed.data,
-      id_partenaire: parsed.data.id_partenaire,
-      cree_par: apiUser.userId,
+      ...rest,
+      partenaire: { connect: { id_partenaire } },
+      ...(id_affaire ? { affaire: { connect: { id_affaire } } } : {}),
+      ...(id_entrepot ? { entrepot: { connect: { id_entrepot } } } : {}),
+      createdBy: { connect: { id: apiUser.userId } },
     }
     if (parsed.data.date_document) {
       data.date_document = new Date(parsed.data.date_document)

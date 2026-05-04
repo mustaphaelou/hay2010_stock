@@ -61,6 +61,11 @@ export const SalesPurchasesChart = memo(function SalesPurchasesChart({
         setMounted(true)
     }, [])
 
+    const totalSales = useMemo(() => (data || []).reduce((acc, d) => acc + d.sales, 0), [data])
+    const totalPurchases = useMemo(() => (data || []).reduce((acc, d) => acc + d.purchases, 0), [data])
+    const margin = useMemo(() => totalSales - totalPurchases, [totalSales, totalPurchases])
+    const marginPercent = useMemo(() => totalSales > 0 ? (margin / totalSales) * 100 : 0, [totalSales, margin])
+
     if (!mounted || loading) {
         return (
             <ChartSkeleton
@@ -83,12 +88,6 @@ export const SalesPurchasesChart = memo(function SalesPurchasesChart({
             />
         )
     }
-
-    // Calculate totals and trends
-    const totalSales = useMemo(() => data.reduce((acc, d) => acc + d.sales, 0), [data])
-    const totalPurchases = useMemo(() => data.reduce((acc, d) => acc + d.purchases, 0), [data])
-    const margin = useMemo(() => totalSales - totalPurchases, [totalSales, totalPurchases])
-    const marginPercent = useMemo(() => totalSales > 0 ? (margin / totalSales) * 100 : 0, [totalSales, margin])
 
     // Format month for display
 const formatMonth = (monthStr: string) => {

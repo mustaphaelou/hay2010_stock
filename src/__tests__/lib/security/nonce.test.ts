@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { type ReadonlyHeaders } from 'next/dist/server/web/spec-extension/adapters/headers'
 
 vi.mock('next/headers', () => ({
   headers: vi.fn(),
@@ -13,8 +14,7 @@ describe('Nonce', () => {
   })
 
   it('should return existing nonce from x-nonce header', async () => {
-    const mockHeaders = new Map([['x-nonce', 'existing-nonce']])
-    vi.mocked(headers).mockResolvedValue(mockHeaders as any)
+    vi.mocked(headers).mockResolvedValue(new Map([['x-nonce', 'existing-nonce']]) as unknown as ReadonlyHeaders)
 
     const nonce = await getNonce()
 
@@ -22,7 +22,7 @@ describe('Nonce', () => {
   })
 
   it('should generate a new nonce when header is missing', async () => {
-    vi.mocked(headers).mockResolvedValue(new Map() as any)
+    vi.mocked(headers).mockResolvedValue(new Map() as unknown as ReadonlyHeaders)
 
     const nonce = await getNonce()
 
@@ -32,7 +32,7 @@ describe('Nonce', () => {
   })
 
   it('should generate unique nonces', async () => {
-    vi.mocked(headers).mockResolvedValue(new Map() as any)
+    vi.mocked(headers).mockResolvedValue(new Map() as unknown as ReadonlyHeaders)
 
     const nonce1 = await getNonce()
     const nonce2 = await getNonce()

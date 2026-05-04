@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { getUserProfile } from '@/app/actions/profile'
 import { SettingsClient } from './settings-client'
 

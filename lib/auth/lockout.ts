@@ -1,10 +1,6 @@
 import { redis, isRedisReady } from '@/lib/db/redis'
 import { createLogger } from '@/lib/logger'
 import { createHash } from 'node:crypto'
-function randomBytesHex(length: number): string {
-  const bytes = crypto.getRandomValues(new Uint8Array(length))
-  return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('')
-}
 
 const log = createLogger('lockout')
 

@@ -4,7 +4,9 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { SafeIcon as HugeiconsIcon } from "@/components/ui/safe-icon"
 import { FileDownloadIcon, Loading01Icon } from '@hugeicons/core-free-icons'
-import type { DocumentWithPartner } from '@/app/actions/documents'
+import type { DocumentWithComputed } from '@/lib/types'
+
+type DocumentWithPartner = DocumentWithComputed
 
 interface DownloadInvoiceButtonProps {
   doc: DocumentWithPartner

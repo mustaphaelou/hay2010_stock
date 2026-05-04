@@ -418,6 +418,6 @@ export async function getStockMovements(
     }
   } catch (error) {
     log.error({ error, productId, warehouseId }, 'Failed to fetch stock movements')
-    return { error: 'Failed to fetch stock movements' }
+    return { success: false, error: 'Failed to fetch stock movements' }
   }
 }
