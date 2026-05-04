@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/sheet"
 import { Separator } from "@/components/ui/separator"
 import { formatDate } from "@/lib/utils"
+import { formatSoldeCourant, formatPlafondCredit } from "@/lib/partners/compute-partner-balance"
 import {
   Card,
   CardHeader,
@@ -308,11 +309,11 @@ Conditions & Comptabilité
 <div className="grid grid-cols-2 gap-4">
 <div className="flex flex-col gap-1">
 <p className="text-xs text-muted-foreground uppercase">Encours Actuel</p>
-<p className="font-bold text-primary">{selectedPartner?.solde_courant ? `${selectedPartner.solde_courant} Dhs` : "0.00 Dhs"}</p>
+<p className="font-bold text-primary">{formatSoldeCourant(selectedPartner?.solde_courant)}</p>
 </div>
 <div className="flex flex-col gap-1">
 <p className="text-xs text-muted-foreground uppercase">Encours Max</p>
-<p className="font-medium">{selectedPartner?.plafond_credit ? `${selectedPartner.plafond_credit} Dhs` : "Non défini"}</p>
+<p className="font-medium">{formatPlafondCredit(selectedPartner?.plafond_credit)}</p>
 </div>
 <div className="flex flex-col gap-1">
 <p className="text-xs text-muted-foreground uppercase">Compte Collectif</p>

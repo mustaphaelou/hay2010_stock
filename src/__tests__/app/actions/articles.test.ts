@@ -22,13 +22,8 @@ const { mockCacheServiceAcquireLock, mockCacheServiceReleaseLock } = vi.hoisted(
   mockCacheServiceReleaseLock: vi.fn().mockResolvedValue(undefined),
 }))
 
-const { mockRequireCsrfToken, mockGetCsrfCookie } = vi.hoisted(() => ({
-  mockRequireCsrfToken: vi.fn().mockResolvedValue(undefined),
-  mockGetCsrfCookie: vi.fn().mockResolvedValue('csrf-cookie'),
-}))
-
-const { mockInvalidateProduct } = vi.hoisted(() => ({
-  mockInvalidateProduct: vi.fn().mockResolvedValue(undefined),
+const { mockExecuteStockWrite } = vi.hoisted(() => ({
+  mockExecuteStockWrite: vi.fn(),
 }))
 
 vi.mock('@/lib/db/prisma', () => ({
@@ -66,20 +61,8 @@ vi.mock('@/lib/db/redis', () => ({
   isRedisReady: vi.fn().mockReturnValue(true),
 }))
 
-vi.mock('@/lib/security/csrf-server', () => ({
-  requireCsrfToken: mockRequireCsrfToken,
-  getCsrfCookie: mockGetCsrfCookie,
-  validateCsrfToken: vi.fn().mockResolvedValue(true),
-  generateCsrfToken: vi.fn(),
-  setCsrfCookie: vi.fn(),
-  ANONYMOUS_USER_ID: 'anonymous',
-  CSRF_COOKIE_NAME: 'csrf_token',
-}))
-
-vi.mock('@/lib/cache/invalidation', () => ({
-  CacheInvalidationService: {
-    invalidateProduct: mockInvalidateProduct,
-  },
+vi.mock('@/lib/stock/stock-write', () => ({
+  executeStockWrite: mockExecuteStockWrite,
 }))
 
 vi.mock('@/lib/logger', () => ({
@@ -110,8 +93,6 @@ describe('Articles Actions', () => {
     mockVersionedCacheSet.mockResolvedValue(true)
     mockCacheServiceAcquireLock.mockResolvedValue('lock-token')
     mockCacheServiceReleaseLock.mockResolvedValue(undefined)
-    mockRequireCsrfToken.mockResolvedValue(undefined)
-    mockGetCsrfCookie.mockResolvedValue('csrf-cookie')
   })
 
   describe('getArticlesWithStock', () => {
@@ -210,52 +191,26 @@ describe('Articles Actions', () => {
   })
 
   describe('toggleArticleStatus', () => {
-    it('should require stock:write permission', async () => {
-      mockRequirePermission.mockRejectedValue(new Error('Forbidden'))
+    it('should delegate to executeStockWrite with correct params', async () => {
+      mockExecuteStockWrite.mockResolvedValue({ success: true })
 
-      await expect(toggleArticleStatus(1, true, 'csrf-token')).rejects.toThrow('Forbidden')
+      const result = await toggleArticleStatus(1, true, 'csrf-token')
+
+      expect(mockExecuteStockWrite).toHaveBeenCalledWith({
+        csrfToken: 'csrf-token',
+        writeFn: expect.any(Function),
+        invalidations: [{ kind: 'product', productId: 1 }],
+        revalidatePaths: ['/articles'],
+      })
+      expect(result.success).toBe(true)
     })
 
-    it('should reject invalid CSRF token', async () => {
-      mockRequireCsrfToken.mockRejectedValue(new Error('CSRF invalid'))
+    it('should propagate error from executeStockWrite', async () => {
+      mockExecuteStockWrite.mockResolvedValue({ error: 'Jeton de sécurité invalide' })
 
       const result = await toggleArticleStatus(1, true, 'bad-token')
 
-      expect(result.error).toContain('Jeton de sécurité invalide')
-    })
-
-    it('should reject when lock cannot be acquired', async () => {
-      mockCacheServiceAcquireLock.mockResolvedValue(null)
-
-      const result = await toggleArticleStatus(1, true, 'csrf-token')
-
-      expect(result.error).toBe('Operation in progress, please retry')
-    })
-
-    it('should reject invalid input (negative id)', async () => {
-      const result = await toggleArticleStatus(-1, true, 'csrf-token')
-
-      expect(result.error).toContain('Invalid input')
-    })
-
-    it('should toggle article status successfully', async () => {
-      mockPrismaTransaction.mockImplementation(async (fn) => {
-        return fn({ produit: { update: mockProduitUpdate } })
-      })
-
-      const result = await toggleArticleStatus(1, true, 'csrf-token')
-
-      expect(result.success).toBe(true)
-      expect(mockCacheServiceReleaseLock).toHaveBeenCalled()
-    })
-
-    it('should release lock even on error', async () => {
-      mockPrismaTransaction.mockRejectedValue(new Error('DB error'))
-
-      const result = await toggleArticleStatus(1, true, 'csrf-token')
-
-      expect(result.error).toBe('Failed to update status')
-      expect(mockCacheServiceReleaseLock).toHaveBeenCalledWith('article:1', 'lock-token')
+      expect(result.error).toBe('Jeton de sécurité invalide')
     })
   })
 })

@@ -180,8 +180,6 @@ export type DocumentWithComputed = DocumentBase & {
   reference: string | null
   montant_tva_num: number
   montant_remise_num: number
-  type_document_num: number
-  statut_document_num: number
   domaine: string
 }
 
@@ -295,13 +293,9 @@ export type DashboardStats = {
 
 export type DashboardData = {
   stats: DashboardStats
-  recentDocs: DocumentBase[]
+  recentDocs: DocumentWithComputed[]
   salesInvoices: SalesInvoice[]
   monthlyData: MonthlyDataPoint[]
 }
 
-export type DashboardDataWithComputed = {
-  stats: DashboardStats
-  recentDocs: DocumentWithComputed[]
-  salesInvoices: SalesInvoice[]
-}
+export type DashboardDataWithComputed = DashboardData

@@ -4,6 +4,7 @@ import * as React from "react"
 import Link from "next/link"
 import dynamic from "next/dynamic"
 import { formatPrice } from "@/lib/utils"
+import { computeGrossMargin, computeUnpaidInvoices, isPaymentComplete } from "@/lib/dashboard/compute-margins"
 import {
   Card,
   CardContent,
@@ -43,7 +44,7 @@ interface RecentDocType {
   partenaire?: { nom_partenaire: string } | null
   nom_tiers?: string | null
   montant_regle?: number | null
-  montant_ttc?: number | null
+  montant_ttc?: number | { toNumber(): number } | null
   type_document?: string
   domaine_document?: string
 }
@@ -87,17 +88,7 @@ const kpiConfig = [
 export function DashboardView({ initialStats, initialRecentDocs, paymentData, salesInvoices, lastUpdated }: DashboardViewProps) {
   const unpaidInvoices = React.useMemo(() => {
     if (!salesInvoices) return { count: 0, total: 0 }
-    let count = 0
-    let total = 0
-    salesInvoices.forEach((inv) => {
-      const ttc = Number(inv.montant_ttc)
-      const regle = Number(inv.montant_regle)
-      if (regle < ttc) {
-        count++
-        total += ttc - regle
-      }
-    })
-    return { count, total }
+    return computeUnpaidInvoices(salesInvoices)
   }, [salesInvoices])
 
   const lowStockCount = initialStats.lowStockCount ?? 0
@@ -211,7 +202,7 @@ export function DashboardView({ initialStats, initialRecentDocs, paymentData, sa
             ) : (
               <div className="divide-y">
                 {initialRecentDocs.map((doc) => {
-                  const isPaid = Number(doc.montant_regle || 0) >= Number(doc.montant_ttc || 0)
+                    const isPaid = isPaymentComplete(doc.montant_regle, doc.montant_ttc)
                   return (
                     <Link key={doc.id_document} href={`/documents/${doc.id_document}`} className="flex items-center justify-between gap-4 px-4 sm:px-6 py-3 hover:bg-muted/50 transition-colors">
                       <div className="flex items-center gap-3 min-w-0">
@@ -286,7 +277,7 @@ export function DashboardView({ initialStats, initialRecentDocs, paymentData, sa
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Chiffre d&apos;affaires ventes</p>
-                    <p className="text-lg font-bold">{formatMAD(initialStats.totalSalesAmount || 0)}</p>
+                    <p className="text-lg font-bold">{formatMAD(initialStats.totalSalesAmount ?? 0)}</p>
                   </div>
                 </div>
                 <Badge variant="success" className="gap-1">
@@ -302,7 +293,7 @@ export function DashboardView({ initialStats, initialRecentDocs, paymentData, sa
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Total achats</p>
-                    <p className="text-lg font-bold">{formatMAD(initialStats.totalPurchasesAmount || 0)}</p>
+                    <p className="text-lg font-bold">{formatMAD(initialStats.totalPurchasesAmount ?? 0)}</p>
                   </div>
                 </div>
                 <Badge variant="info" className="gap-1">
@@ -318,7 +309,7 @@ export function DashboardView({ initialStats, initialRecentDocs, paymentData, sa
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Marge brute estimée</p>
-                    <p className="text-lg font-bold text-primary">{formatMAD((initialStats.totalSalesAmount || 0) - (initialStats.totalPurchasesAmount || 0))}</p>
+                    <p className="text-lg font-bold text-primary">{formatMAD(computeGrossMargin(initialStats.totalSalesAmount, initialStats.totalPurchasesAmount))}</p>
                   </div>
                 </div>
               </div>

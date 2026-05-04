@@ -41,12 +41,7 @@ import { formatPrice } from "@/lib/utils"
 import { cn } from "@/lib/utils"
 import { ArticleDetailsSheet } from "@/components/erp/article-details-sheet"
 import type { ArticleWithStock } from "@/lib/types"
-
-function getStockBadgeVariant(stock: number, stockMinimum: number): "success" | "warning" | "destructive" {
-  if (stock <= 0) return "destructive"
-  if (stock <= stockMinimum) return "warning"
-  return "success"
-}
+import { getStockStatusVariant } from "@/lib/stock/compute-stock-status"
 
 interface ArticlesViewProps {
   data: ArticleWithStock[]
@@ -289,7 +284,7 @@ const ArticlesView = React.memo(function ArticlesView({ data, isLoading }: Artic
                       </TableCell>
                       <TableCell className="text-right py-3">
                         <div className="flex items-center justify-end gap-2">
-                          <Badge variant={getStockBadgeVariant(Number(article.stock_global), article.stock_minimum || 0)}>
+                          <Badge variant={getStockStatusVariant(Number(article.stock_global ?? 0), article.stock_minimum ?? 0)}>
                             {article.stock_global}
                           </Badge>
                         </div>

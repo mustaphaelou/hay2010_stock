@@ -1,16 +1,16 @@
 import { getAffaires } from '@/app/actions/affaires'
 import AffairesClient from './AffairesClient'
+import { loadPageData } from '@/lib/page-data-loader'
 
 export const dynamic = 'force-dynamic'
 
 export default async function AffairesPage() {
-  let initialAffaires: string[] = []
-
-  try {
-    initialAffaires = await getAffaires()
-  } catch {
-    initialAffaires = []
-  }
+  const { data: initialAffaires } = await loadPageData(
+    async () => {
+      const data = await getAffaires()
+      return { data }
+    }
+  )
 
   return <AffairesClient initialAffaires={initialAffaires} />
 }

@@ -64,18 +64,6 @@ function DashboardClientInner({ stats, recentDocs, salesInvoices, monthlyData }:
     return count > 0 ? { count, total } : null
   }, [salesInvoices])
 
-  const processedDocs = recentDocs.map(doc => ({
-    id_document: doc.id_document,
-    numero_piece: doc.numero_piece,
-    date_document: doc.date_document,
-    partenaire: doc.partenaire,
-    nom_tiers: doc.nom_tiers,
-    montant_regle: doc.montant_regle,
-    montant_ttc: doc.montant_ttc_num,
-    type_document: doc.type_document,
-    domaine_document: doc.domaine
-  }))
-
   const {
     kpiCards,
     activities,
@@ -434,7 +422,7 @@ function DashboardClientInner({ stats, recentDocs, salesInvoices, monthlyData }:
 
           <DashboardView
             initialStats={stats}
-            initialRecentDocs={processedDocs}
+            initialRecentDocs={recentDocs}
             paymentData={paymentData}
             monthlyData={monthlyData}
             salesInvoices={salesInvoices}

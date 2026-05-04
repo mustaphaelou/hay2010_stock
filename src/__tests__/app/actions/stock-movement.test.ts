@@ -1,6 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { prisma } from '@/lib/db/prisma'
-import { CacheService } from '@/lib/db/redis'
+
+const { mockExecuteStockWrite } = vi.hoisted(() => ({
+  mockExecuteStockWrite: vi.fn(),
+}))
 
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
@@ -24,11 +27,8 @@ vi.mock('@/lib/db/redis', () => ({
   },
 }))
 
-vi.mock('@/lib/cache/invalidation', () => ({
-  CacheInvalidationService: {
-    invalidateProduct: vi.fn(),
-    invalidateStock: vi.fn(),
-  },
+vi.mock('@/lib/stock/stock-write', () => ({
+  executeStockWrite: mockExecuteStockWrite,
 }))
 
 vi.mock('next/server', () => ({
@@ -75,32 +75,26 @@ describe('Stock Movement Actions', () => {
   })
 
   describe('createStockMovement', () => {
-    it('should reject negative quantity', async () => {
+    it('should delegate to executeStockWrite with correct params', async () => {
+      mockExecuteStockWrite.mockResolvedValue({ success: true, data: { movementId: 1, newQuantity: 10 } })
+
       const { createStockMovement } = await import('@/app/actions/stock-movement')
-      const result = await createStockMovement({
-        ...validInput,
-        quantity: -5,
-      }, 'valid-csrf-token')
+      const result = await createStockMovement(validInput, 'valid-csrf-token')
 
-      expect(result.error).toContain('positive')
+      expect(mockExecuteStockWrite).toHaveBeenCalledWith({
+        csrfToken: 'valid-csrf-token',
+        writeFn: expect.any(Function),
+        invalidations: [
+          { kind: 'product', productId: 1 },
+          { kind: 'stock', productId: 1, warehouseId: 1 },
+        ],
+        revalidatePaths: ['/stock'],
+      })
+      expect(result.success).toBe(true)
     })
 
-  it('should reject transfer without destination warehouse', async () => {
-    ;(CacheService.acquireLock as ReturnType<typeof vi.fn>).mockResolvedValue('lock-token')
-    const { withTransaction } = await import('@/lib/db/prisma')
-    vi.mocked(withTransaction).mockRejectedValue(new Error('Destination warehouse required'))
-
-    const { createStockMovement } = await import('@/app/actions/stock-movement')
-    const result = await createStockMovement({
-      ...validInput,
-      type: 'TRANSFERT',
-    }, 'valid-csrf-token')
-
-    expect(result.error).toContain('Destination warehouse required')
-    })
-
-  it('should reject if lock acquisition fails', async () => {
-    ;(CacheService.acquireLock as ReturnType<typeof vi.fn>).mockResolvedValue(null)
+    it('should propagate error from executeStockWrite', async () => {
+      mockExecuteStockWrite.mockResolvedValue({ error: 'Stock operation in progress, please retry' })
 
       const { createStockMovement } = await import('@/app/actions/stock-movement')
       const result = await createStockMovement(validInput, 'valid-csrf-token')

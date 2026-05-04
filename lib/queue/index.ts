@@ -106,6 +106,7 @@ export function startWorkers(): void {
         const { transformToInvoiceData } = await import('@/lib/pdf/generate-invoice')
         const { generateInvoicePdfBuffer } = await import('@/lib/pdf/generate-invoice')
         const { prisma } = await import('@/lib/db/prisma')
+        const { mapDocumentToComputed, mapLineToDocumentLine } = await import('@/lib/documents/mapping')
 
         await job.updateProgress(20)
 
@@ -123,33 +124,8 @@ export function startWorkers(): void {
 
         await job.updateProgress(40)
 
-        const documentWithComputed = {
-          ...document,
-          montant_ht_num: Number(document.montant_ht || 0),
-          montant_ttc_num: Number(document.montant_ttc || 0),
-          solde_du_num: Number(document.solde_du || 0),
-          montant_regle: Number(document.montant_ttc || 0) - Number(document.solde_du || 0),
-          numero_piece: document.numero_document,
-          nom_tiers: document.nom_partenaire_snapshot || document.partenaire?.nom_partenaire || null,
-          reference: document.reference_externe || null,
-          montant_tva_num: Number(document.montant_tva_total || 0),
-          montant_remise_num: Number(document.montant_remise_total || 0),
-          type_document_num: Number(document.type_document || 0),
-          statut_document_num: Number(document.statut_document || 0),
-          domaine: document.domaine_document
-        }
-
-        const linesWithComputed = document.lignes.map((line) => ({
-          ...line,
-          quantite: Number(line.quantite_commandee || 0),
-          prix_unitaire: Number(line.prix_unitaire_ht || 0),
-          montant_ht_num: Number(line.montant_ht || 0),
-          montant_ttc_num: Number(line.montant_ttc || 0),
-          designation: line.nom_produit_snapshot || line.produit?.nom_produit || null,
-          reference_article: line.code_produit_snapshot || null,
-          ordre: line.numero_ligne,
-          code_taxe: null
-        }))
+        const documentWithComputed = mapDocumentToComputed(document)
+        const linesWithComputed = document.lignes.map(mapLineToDocumentLine)
 
         const invoiceData = transformToInvoiceData(documentWithComputed, linesWithComputed, document.partenaire)
         await generateInvoicePdfBuffer(invoiceData)

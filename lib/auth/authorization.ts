@@ -1,10 +1,8 @@
-import { cookies } from 'next/headers'
-import { verifyToken } from './jwt'
-import { getSession } from './session'
 import { createLogger } from '@/lib/logger'
-import { AUTH_COOKIE_NAME } from '@/lib/constants/auth'
 import { ROLE_HIERARCHY } from './roles'
 import type { UserRole } from './roles'
+import { resolveAuthUserDetailed, AuthError } from '@/lib/auth/user-utils'
+import type { CurrentUser } from '@/lib/auth/user-utils'
 
 export type { UserRole }
 export { ROLE_HIERARCHY }
@@ -48,61 +46,22 @@ export function hasRole(userRole: UserRole, minRole: UserRole): boolean {
   return (ROLE_HIERARCHY[userRole] || 0) >= (ROLE_HIERARCHY[minRole] || 0)
 }
 
-export async function requirePermission(permission: Permission): Promise<{ id: string; email: string; name: string; role: string }> {
-  const cookieStore = await cookies()
-  const token = cookieStore.get(AUTH_COOKIE_NAME)?.value
-
-  if (!token) {
+export async function requirePermission(permission: Permission): Promise<CurrentUser> {
+  let user: CurrentUser
+  try {
+    user = await resolveAuthUserDetailed()
+  } catch (error) {
+    if (error instanceof AuthError) throw error
     throw new Error('Unauthorized: Authentication required')
   }
 
-  const payload = await verifyToken(token)
-  if (!payload) {
-    throw new Error('Unauthorized: Invalid token')
-  }
-
-  const session = await getSession(payload.sessionId)
-  if (!session) {
-    throw new Error('Unauthorized: Session expired or revoked')
-  }
-
-  const userRole = payload.role as UserRole
+  const userRole = user.role as UserRole
   if (!hasPermission(userRole, permission)) {
-  log.warn({ userId: payload.userId, role: userRole, permission, code: 'INSUFFICIENT_PERMISSION' }, 'Permission denied')
-  throw new Error('Forbidden')
+    log.warn({ userId: user.id, role: userRole, permission, code: 'INSUFFICIENT_PERMISSION' }, 'Permission denied')
+    throw new Error('Forbidden')
   }
 
-  return {
-    id: payload.userId,
-    email: payload.email,
-    name: session.name,
-    role: payload.role,
-  }
-}
-
-export async function getUserFromToken(): Promise<{ id: string; email: string; role: UserRole } | null> {
-  try {
-    const cookieStore = await cookies()
-    const token = cookieStore.get(AUTH_COOKIE_NAME)?.value
-
-    if (!token) return null
-
-    const payload = await verifyToken(token)
-    if (!payload) return null
-
-    const session = await getSession(payload.sessionId)
-    if (!session) return null
-
-    return {
-      id: payload.userId,
-      email: payload.email,
-      role: payload.role as UserRole,
-    }
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-    log.debug({ error: errorMessage }, 'Failed to get user from token')
-    return null
-  }
+  return user
 }
 
 export function getRoleLevel(role: UserRole): number {

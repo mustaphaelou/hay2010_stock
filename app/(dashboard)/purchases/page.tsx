@@ -1,22 +1,14 @@
 import { getPurchasesDocuments } from '@/app/actions/documents'
 import PurchasesClient from './PurchasesClient'
+import { loadPageData } from '@/lib/page-data-loader'
 
 export const dynamic = 'force-dynamic'
 
 export default async function PurchasesPage() {
-  let initialData: Awaited<ReturnType<typeof getPurchasesDocuments>>['data'] = []
-  let initialError: string | null = null
-
-  try {
-    const result = await getPurchasesDocuments()
-    if (result.error) {
-      initialError = result.error
-    } else {
-      initialData = result.data || []
-    }
-  } catch (err) {
-    initialError = err instanceof Error ? err.message : 'Erreur réseau'
-  }
+  const { data: initialData, error: initialError } = await loadPageData(
+    () => getPurchasesDocuments(),
+    { errorMessage: 'Erreur réseau' }
+  )
 
   return <PurchasesClient initialData={initialData} initialError={initialError} />
 }

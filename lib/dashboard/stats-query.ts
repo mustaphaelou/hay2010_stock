@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/db/prisma'
 import { Prisma } from '@/lib/generated/prisma/client'
-import type { DashboardStats, SalesInvoice, DocumentBase, MonthlyDataPoint } from '@/lib/types'
+import type { DashboardStats, SalesInvoice, DocumentWithComputed, MonthlyDataPoint } from '@/lib/types'
+import { mapDocumentToComputed } from '@/lib/documents/mapping'
 
 const SIX_MONTHS_AGO = new Date(new Date().getFullYear(), new Date().getMonth() - 5, 1)
 
@@ -147,8 +148,8 @@ export function buildStats(countsResult: Array<CountsRow>): DashboardStats {
   }
 }
 
-export function buildRecentDocs(recentDocsResult: Array<RecentDocRow>): DocumentBase[] {
-  return recentDocsResult.map((doc): DocumentBase => ({
+export function buildRecentDocs(recentDocsResult: Array<RecentDocRow>): DocumentWithComputed[] {
+  return recentDocsResult.map((doc) => mapDocumentToComputed({
     id_document: doc.id_document,
     numero_document: doc.numero_document,
     type_document: doc.type_document,
