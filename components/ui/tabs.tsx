@@ -1,4 +1,3 @@
-/* eslint-disable react-refresh/only-export-components */
 "use client"
 
 import { Tabs as TabsPrimitive } from "@base-ui/react/tabs"
@@ -107,4 +106,4 @@ function TabsContent({ className, children, ...props }: TabsPrimitive.Panel.Prop
   )
 }
 
-export { Tabs, TabsList, TabsTrigger, TabsContent, tabsListVariants }
+export { Tabs, TabsList, TabsTrigger, TabsContent }

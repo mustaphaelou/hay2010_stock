@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { useMemo, memo } from "react"
+import { memo } from "react"
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Legend } from "recharts"
 import {
     ChartConfig,
@@ -61,11 +61,6 @@ export const SalesPurchasesChart = memo(function SalesPurchasesChart({
         setMounted(true)
     }, [])
 
-    const totalSales = useMemo(() => (data || []).reduce((acc, d) => acc + d.sales, 0), [data])
-    const totalPurchases = useMemo(() => (data || []).reduce((acc, d) => acc + d.purchases, 0), [data])
-    const margin = useMemo(() => totalSales - totalPurchases, [totalSales, totalPurchases])
-    const marginPercent = useMemo(() => totalSales > 0 ? (margin / totalSales) * 100 : 0, [totalSales, margin])
-
     if (!mounted || loading) {
         return (
             <ChartSkeleton
@@ -88,6 +83,11 @@ export const SalesPurchasesChart = memo(function SalesPurchasesChart({
             />
         )
     }
+
+    const totalSales = data.reduce((acc, d) => acc + d.sales, 0)
+    const totalPurchases = data.reduce((acc, d) => acc + d.purchases, 0)
+    const margin = totalSales - totalPurchases
+    const marginPercent = totalSales > 0 ? (margin / totalSales) * 100 : 0
 
     // Format month for display
 const formatMonth = (monthStr: string) => {
