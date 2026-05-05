@@ -48,7 +48,7 @@ describe('Dashboard Data Actions', () => {
       await expect(getDashboardData()).rejects.toThrow('Unauthorized')
     })
 
-    it('should return all data categories in parallel', async () => {
+    it('should return { data, error?: undefined } with all data categories', async () => {
       mockProduitFindMany.mockResolvedValue([
         { id_produit: 1, code_produit: 'P001', nom_produit: 'Product A', prix_vente: 100, prix_achat: 50, stock_maximum: 500, niveau_reappro_quantite: 10, categorie: { nom_categorie: 'Cat A' } },
       ])
@@ -81,13 +81,15 @@ describe('Dashboard Data Actions', () => {
 
       const result = await getDashboardData()
 
-      expect(result.products).toHaveLength(1)
-      expect(result.products[0].prix_vente).toBe(100)
-      expect(result.partners).toHaveLength(1)
-      expect(result.documents).toHaveLength(1)
-      expect(result.documents[0].montant_ttc).toBe(1200)
-      expect(result.movements).toHaveLength(1)
-      expect(result.movements[0].type).toBe('Sortie')
+      expect(result.data).toBeDefined()
+      expect(result.data?.products).toHaveLength(1)
+      expect(result.data?.products[0].prix_vente).toBe(100)
+      expect(result.data?.partners).toHaveLength(1)
+      expect(result.data?.documents).toHaveLength(1)
+      expect(result.data?.documents[0].montant_ttc).toBe(1200)
+      expect(result.data?.movements).toHaveLength(1)
+      expect(result.data?.movements[0].type).toBe('Sortie')
+      expect(result.error).toBeUndefined()
     })
 
     it('should infer movement type from document type', async () => {
@@ -106,7 +108,7 @@ describe('Dashboard Data Actions', () => {
 
       const result = await getDashboardData()
 
-      expect(result.movements[0].type).toBe('Entrée')
+      expect(result.data?.movements[0].type).toBe('Entrée')
     })
 
     it('should default movement type to Ajustement', async () => {
@@ -125,18 +127,19 @@ describe('Dashboard Data Actions', () => {
 
       const result = await getDashboardData()
 
-      expect(result.movements[0].type).toBe('Ajustement')
+      expect(result.data?.movements[0].type).toBe('Ajustement')
     })
 
-    it('should return empty arrays on error', async () => {
+    it('should return { data, error } on error', async () => {
       mockProduitFindMany.mockRejectedValue(new Error('DB error'))
 
       const result = await getDashboardData()
 
-      expect(result.products).toEqual([])
-      expect(result.partners).toEqual([])
-      expect(result.documents).toEqual([])
-      expect(result.movements).toEqual([])
+      expect(result.data?.products).toEqual([])
+      expect(result.data?.partners).toEqual([])
+      expect(result.data?.documents).toEqual([])
+      expect(result.data?.movements).toEqual([])
+      expect(result.error).toBe('Failed to fetch dashboard data')
     })
   })
 })

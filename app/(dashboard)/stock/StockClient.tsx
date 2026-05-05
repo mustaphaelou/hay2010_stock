@@ -133,7 +133,7 @@ export default function StockClient({ initialStockData, initialDepots, initialEr
       } else {
         setStockLevels(stockResult.data || [])
       }
-      setDepots(depotsData || [])
+      setDepots(depotsData?.data ?? [])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur lors du chargement des niveaux de stock')
     } finally {

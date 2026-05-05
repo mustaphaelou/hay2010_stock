@@ -64,8 +64,11 @@ export default function AffairesClient({ initialAffaires }: AffairesClientProps)
     setLoadingDocs(true)
     setError(null)
     try {
-      const data = await getDocumentsByAffaire(selectedAffaire)
-      setDocuments(data || [])
+      const result = await getDocumentsByAffaire(selectedAffaire)
+      setDocuments(result.data ?? [])
+      if (result.error) {
+        setError(result.error)
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur lors du chargement')
     } finally {

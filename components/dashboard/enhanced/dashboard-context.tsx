@@ -153,10 +153,15 @@ function DashboardProvider({
     dispatch({ type: "SET_LOADING", payload: true })
 
     try {
-      const data = await getDashboardStats()
+      const result = await getDashboardStats()
       const endTime = performance.now()
 
-      dispatch({ type: "SET_DATA", payload: data })
+      if (result.error) {
+        dispatch({ type: "SET_ERROR", payload: result.error })
+        return
+      }
+
+      dispatch({ type: "SET_DATA", payload: result.data ?? null })
       dispatch({ type: "SET_LAST_UPDATED", payload: new Date() })
       dispatch({
         type: "SET_PERFORMANCE_METRIC",
@@ -164,7 +169,7 @@ function DashboardProvider({
       })
 
       subscribersRef.current.forEach((callback) => {
-        callback({ type: "refresh", timestamp: new Date(), data })
+        callback({ type: "refresh", timestamp: new Date(), data: result.data ?? null })
       })
     } catch (error) {
       dispatch({

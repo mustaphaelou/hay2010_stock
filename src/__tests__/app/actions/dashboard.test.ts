@@ -58,22 +58,25 @@ describe('Dashboard Actions', () => {
       await expect(getDashboardStats()).rejects.toThrow('Unauthorized')
     })
 
-    it('should return cached data when available', async () => {
+    it('should return { data, error?: undefined } when cached data available', async () => {
       const cached = {
-        stats: { clients: 10, suppliers: 5, products: 100, families: 10, salesCount: 50, purchasesCount: 30, lowStockCount: 2, totalStockProducts: 80, totalSalesAmount: 50000, totalPurchasesAmount: 20000 },
-        recentDocs: [],
-        salesInvoices: [],
-        monthlyData: [],
+        data: {
+          stats: { clients: 10, suppliers: 5, products: 100, families: 10, salesCount: 50, purchasesCount: 30, lowStockCount: 2, totalStockProducts: 80, totalSalesAmount: 50000, totalPurchasesAmount: 20000 },
+          recentDocs: [],
+          salesInvoices: [],
+          monthlyData: [],
+        },
       }
-      mockVersionedCacheGet.mockResolvedValue(cached)
+      mockVersionedCacheGet.mockResolvedValue(cached.data)
 
       const result = await getDashboardStats()
 
-      expect(result).toEqual(cached)
+      expect(result.data?.stats.clients).toBe(10)
+      expect(result.error).toBeUndefined()
       expect(mockPrismaQueryRaw).not.toHaveBeenCalled()
     })
 
-    it('should query and process dashboard stats', async () => {
+    it('should return { data, error?: undefined } on successful query', async () => {
       const mockCounts = [{
         clients: BigInt(10),
         suppliers: BigInt(5),
@@ -100,25 +103,27 @@ describe('Dashboard Actions', () => {
 
       const result = await getDashboardStats()
 
-      expect(result.stats.clients).toBe(10)
-      expect(result.stats.products).toBe(100)
-      expect(result.stats.totalSalesAmount).toBe(50000)
-      expect(result.monthlyData).toBeDefined()
-      expect(result.recentDocs).toEqual([])
-      expect(result.salesInvoices).toEqual([])
+      expect(result.data?.stats.clients).toBe(10)
+      expect(result.data?.stats.products).toBe(100)
+      expect(result.data?.stats.totalSalesAmount).toBe(50000)
+      expect(result.data?.monthlyData).toBeDefined()
+      expect(result.data?.recentDocs).toEqual([])
+      expect(result.data?.salesInvoices).toEqual([])
+      expect(result.error).toBeUndefined()
       expect(mockVersionedCacheSet).toHaveBeenCalled()
     })
 
-    it('should return zeroed stats on error', async () => {
+    it('should return { data, error } on DB error', async () => {
       mockPrismaQueryRaw.mockRejectedValue(new Error('DB error'))
 
       const result = await getDashboardStats()
 
-      expect(result.stats.clients).toBe(0)
-      expect(result.stats.products).toBe(0)
-      expect(result.recentDocs).toEqual([])
-      expect(result.salesInvoices).toEqual([])
-      expect(result.monthlyData).toEqual([])
+      expect(result.data?.stats.clients).toBe(0)
+      expect(result.data?.stats.products).toBe(0)
+      expect(result.data?.recentDocs).toEqual([])
+      expect(result.data?.salesInvoices).toEqual([])
+      expect(result.data?.monthlyData).toEqual([])
+      expect(result.error).toBe('Failed to fetch dashboard stats')
     })
   })
 })

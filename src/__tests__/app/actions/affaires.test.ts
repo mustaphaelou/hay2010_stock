@@ -45,7 +45,7 @@ describe('Affaires Actions', () => {
       expect(mockRequirePermission).toHaveBeenCalledWith('affairs:read')
     })
 
-    it('should return affaire codes from active affaires', async () => {
+    it('should return { data, error?: undefined } from active affaires', async () => {
       mockAffaireFindMany.mockResolvedValue([
         { code_affaire: 'AFF-001', intitule_affaire: 'Project A' },
         { code_affaire: 'AFF-002', intitule_affaire: 'Project B' },
@@ -53,7 +53,8 @@ describe('Affaires Actions', () => {
 
       const result = await getAffaires()
 
-      expect(result).toEqual(['AFF-001', 'AFF-002'])
+      expect(result.data).toEqual(['AFF-001', 'AFF-002'])
+      expect(result.error).toBeUndefined()
       expect(mockAffaireFindMany).toHaveBeenCalledWith({
         select: { code_affaire: true, intitule_affaire: true },
         where: { est_actif: true },
@@ -61,12 +62,13 @@ describe('Affaires Actions', () => {
       })
     })
 
-    it('should return empty array on error', async () => {
+    it('should return { data: [], error } on error', async () => {
       mockAffaireFindMany.mockRejectedValue(new Error('DB error'))
 
       const result = await getAffaires()
 
-      expect(result).toEqual([])
+      expect(result.data).toEqual([])
+      expect(result.error).toBe('Failed to fetch affaires')
     })
   })
 
@@ -77,13 +79,14 @@ describe('Affaires Actions', () => {
       await expect(getDocumentsByAffaire('AFF-001')).rejects.toThrow('Forbidden')
     })
 
-    it('should return empty array for invalid affaire code', async () => {
+    it('should return { data: [], error } for invalid affaire code', async () => {
       const result = await getDocumentsByAffaire('')
 
-      expect(result).toEqual([])
+      expect(result.data).toEqual([])
+      expect(result.error).toBe('Invalid affaire code')
     })
 
-    it('should return documents for a valid affaire code', async () => {
+    it('should return { data, error?: undefined } for a valid affaire code', async () => {
       const mockDocs = [
         {
           id_document: 1,
@@ -100,8 +103,9 @@ describe('Affaires Actions', () => {
 
       const result = await getDocumentsByAffaire('AFF-001')
 
-      expect(result).toHaveLength(1)
-      expect(result[0].type_document).toBe('Facture')
+      expect(result.data).toHaveLength(1)
+      expect(result.data[0].type_document).toBe('Facture')
+      expect(result.error).toBeUndefined()
       expect(mockDocVenteFindMany).toHaveBeenCalledWith({
         where: { numero_affaire: 'AFF-001' },
         include: { partenaire: { select: { nom_partenaire: true, type_partenaire: true } } },
@@ -109,12 +113,13 @@ describe('Affaires Actions', () => {
       })
     })
 
-    it('should return empty array on DB error', async () => {
+    it('should return { data: [], error } on DB error', async () => {
       mockDocVenteFindMany.mockRejectedValue(new Error('DB error'))
 
       const result = await getDocumentsByAffaire('AFF-001')
 
-      expect(result).toEqual([])
+      expect(result.data).toEqual([])
+      expect(result.error).toBe('Failed to fetch documents for affaire')
     })
   })
 })

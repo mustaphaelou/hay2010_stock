@@ -202,11 +202,11 @@ export async function getStockLevels(page: number = 1, limit: number = 50): Prom
   }
 }
 
-export async function getDepots(): Promise<Depot[]> {
+export async function getDepots(): Promise<{ data: Depot[]; error?: string }> {
   try {
     const cacheKey = 'depots:active'
     const cached = await VersionedCacheService.get<Depot[]>(CacheNamespaces.STOCK, cacheKey)
-    if (cached) return cached
+    if (cached) return { data: cached }
 
     const depots = await prisma.entrepot.findMany({
       where: { est_actif: true },
@@ -218,10 +218,10 @@ export async function getDepots(): Promise<Depot[]> {
       nom_depot: depot.nom_entrepot
     }))
     await VersionedCacheService.set(CacheNamespaces.STOCK, cacheKey, result, CacheTTLSeconds.STOCK * 5)
-    return result
+    return { data: result }
   } catch (error) {
     log.error({ error }, 'Failed to fetch depots')
-    return []
+    return { data: [], error: 'Failed to fetch depots' }
   }
 }
 

@@ -1,19 +1,20 @@
 import { getStockLevels, getDepots } from '@/app/actions/stock'
 import StockClient from './StockClient'
 import { loadPageData } from '@/lib/page-data-loader'
+import type { Depot } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
 
 export default async function StockPage() {
-  let initialDepots: Awaited<ReturnType<typeof getDepots>> = []
+  let initialDepots: Depot[] = []
 
   const { data: initialStockData, error: initialError } = await loadPageData(
     async () => {
-      const [stockResult, depotsData] = await Promise.all([
+      const [stockResult, depotsResult] = await Promise.all([
         getStockLevels(),
         getDepots()
       ])
-      initialDepots = depotsData || []
+      initialDepots = depotsResult.data ?? []
       return stockResult
     },
     { errorMessage: 'Erreur lors du chargement des niveaux de stock' }

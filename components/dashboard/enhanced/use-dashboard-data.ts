@@ -179,7 +179,13 @@ function useSWRLike<T>(
 
 function useDashboardStats(options?: FetchOptions<DashboardData>) {
   const fetcher = React.useCallback(async (): Promise<DashboardData> => {
-    return await getDashboardStats()
+    const result = await getDashboardStats()
+    return result.data ?? {
+      stats: { clients: 0, suppliers: 0, products: 0, families: 0, salesCount: 0, purchasesCount: 0, lowStockCount: 0, totalStockProducts: 0, totalSalesAmount: 0, totalPurchasesAmount: 0 },
+      recentDocs: [],
+      salesInvoices: [],
+      monthlyData: [],
+    }
   }, [])
 
   return useSWRLike("dashboard-stats", fetcher, options)
@@ -190,7 +196,13 @@ function useChartData(
   options?: FetchOptions<DashboardData>
 ) {
   const fetcher = React.useCallback(async (): Promise<DashboardData> => {
-    return await getDashboardStats()
+    const result = await getDashboardStats()
+    return result.data ?? {
+      stats: { clients: 0, suppliers: 0, products: 0, families: 0, salesCount: 0, purchasesCount: 0, lowStockCount: 0, totalStockProducts: 0, totalSalesAmount: 0, totalPurchasesAmount: 0 },
+      recentDocs: [],
+      salesInvoices: [],
+      monthlyData: [],
+    }
   }, [])
 
   return useSWRLike(`chart-data-${timeRange}`, fetcher, options)
@@ -201,7 +213,13 @@ function useRecentActivity(
   options?: FetchOptions<DashboardData>
 ) {
   const fetcher = React.useCallback(async (): Promise<DashboardData> => {
-    return await getDashboardStats()
+    const result = await getDashboardStats()
+    return result.data ?? {
+      stats: { clients: 0, suppliers: 0, products: 0, families: 0, salesCount: 0, purchasesCount: 0, lowStockCount: 0, totalStockProducts: 0, totalSalesAmount: 0, totalPurchasesAmount: 0 },
+      recentDocs: [],
+      salesInvoices: [],
+      monthlyData: [],
+    }
   }, [])
 
   return useSWRLike(`recent-activity-${limit}`, fetcher, options)

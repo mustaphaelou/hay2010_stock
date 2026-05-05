@@ -1,8 +1,57 @@
 /**
  * Centralized Error Handling System
- * 
+ *
  * Provides consistent error classes and handling across the application.
  * All errors extend AppError for consistent structure and logging.
+ *
+ * ## Error Handling Idioms
+ *
+ * This project uses TWO distinct error handling patterns, each chosen for its layer:
+ *
+ * ### 1. Service Layer: `{ data: T; error?: string }` Return Pattern
+ *
+ * All service modules (`lib/stock/`, `lib/documents/`, `lib/partners/`, `lib/auth/`,
+ * `lib/affaires/`, `lib/dashboard/`) return `{ data, error? }` objects. Functions
+ * never throw — they catch exceptions internally and return `{ error: message }`.
+ * Consumers check `if (result.error)` before using `result.data`.
+ *
+ * ```ts
+ * // Service function
+ * export async function getStock(): Promise<{ data: Item[]; error?: string }> {
+ *   try { return { data: await prisma.item.findMany() } }
+ *   catch (e) { return { data: [], error: getErrorMessage(e) } }
+ * }
+ *
+ * // Consumer
+ * const result = await getStock()
+ * if (result.error) return { error: result.error }
+ * ```
+ *
+ * This pattern is the contract for `executeWrite` (server actions) and `loadPageData`
+ * (React Server Components). Both expect `{ error?: string }` on the return value.
+ *
+ * ### 2. API Route Handlers: `throw AppError subclass`
+ *
+ * API handlers (`lib/api/handlers/`) validate input and throw typed errors:
+ * `ValidationError`, `NotFoundError`, `ConflictError`, etc. A centralized
+ * `try/catch → apiError()` wrapper converts these to standardized JSON responses:
+ * `{ error: string, code: string, details?: object, timestamp: string }`.
+ *
+ * ```ts
+ * // API handler
+ * export async function getDocument(id: number) {
+ *   try {
+ *     if (!id) throw new ValidationError('ID requis')
+ *     const doc = await findDocument(id)
+ *     if (!doc) throw new NotFoundError('Document introuvable')
+ *     return NextResponse.json({ data: doc })
+ *   } catch (error) {
+ *     return apiError(error)
+ *   }
+ * }
+ * ```
+ *
+ * @see {@link ./result.ts} — Deprecated Result monad; kept for reference, do not use.
  */
 
 import { createLogger } from './logger'

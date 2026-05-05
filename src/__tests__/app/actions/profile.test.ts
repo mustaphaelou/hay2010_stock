@@ -8,13 +8,9 @@ const { mockExecuteWrite } = vi.hoisted(() => ({
   mockExecuteWrite: vi.fn(),
 }))
 
-const { mockVerifyPassword } = vi.hoisted(() => ({
-  mockVerifyPassword: vi.fn().mockResolvedValue(true),
-}))
-
-const { mockUserFindUnique, mockUserUpdate } = vi.hoisted(() => ({
-  mockUserFindUnique: vi.fn(),
-  mockUserUpdate: vi.fn().mockResolvedValue({ id: 'user-1' }),
+const { mockUpdateUserProfile, mockGetUserProfile } = vi.hoisted(() => ({
+  mockUpdateUserProfile: vi.fn().mockResolvedValue({ success: true }),
+  mockGetUserProfile: vi.fn(),
 }))
 
 vi.mock('@/lib/auth/user-utils', () => ({
@@ -26,18 +22,9 @@ vi.mock('@/lib/actions/execute-write', () => ({
   executeWrite: mockExecuteWrite,
 }))
 
-vi.mock('@/lib/auth/password', () => ({
-  verifyPassword: mockVerifyPassword,
-  hashPassword: vi.fn().mockResolvedValue('hashed'),
-}))
-
-vi.mock('@/lib/db/prisma', () => ({
-  prisma: {
-    user: {
-      findUnique: mockUserFindUnique,
-      update: mockUserUpdate,
-    },
-  },
+vi.mock('@/lib/auth/profile-service', () => ({
+  updateUserProfile: mockUpdateUserProfile,
+  getUserProfile: mockGetUserProfile,
 }))
 
 vi.mock('@/lib/logger', () => ({
@@ -47,14 +34,6 @@ vi.mock('@/lib/logger', () => ({
     error: vi.fn(),
     debug: vi.fn(),
   }),
-}))
-
-vi.mock('next/server', () => ({
-  after: vi.fn((fn) => fn()),
-}))
-
-vi.mock('@sentry/nextjs', () => ({
-  captureException: vi.fn(),
 }))
 
 import { updateProfile, getUserProfile } from '@/app/actions/profile'
@@ -78,7 +57,7 @@ describe('Profile Actions', () => {
       mockExecuteWrite.mockImplementation(async (options: { writeFn: (_user: unknown) => Promise<unknown> }) => {
         return options.writeFn({ id: 'user-1', email: 'user@test.com', name: 'Test User', role: 'USER' })
       })
-      mockUserFindUnique.mockResolvedValue(null)
+      mockUpdateUserProfile.mockResolvedValue({ data: { id: 'user-1', name: 'New Name', email: 'user@test.com', role: 'USER', createdAt: null, lastLoginAt: null } })
 
       const fd = createFormData({ name: 'New Name', email: 'user@test.com', csrfToken: 'valid-token' })
       const result = await updateProfile(fd)
@@ -114,6 +93,7 @@ describe('Profile Actions', () => {
       mockExecuteWrite.mockImplementation(async (options: { writeFn: (_user: unknown) => Promise<unknown> }) => {
         return options.writeFn({ id: 'user-1', email: 'user@test.com', name: 'Test User', role: 'USER' })
       })
+      mockUpdateUserProfile.mockResolvedValue({ error: "Votre mot de passe actuel est requis pour changer l'adresse email." })
 
       const fd = new FormData()
       fd.set('name', 'Test User')
@@ -129,13 +109,7 @@ describe('Profile Actions', () => {
       mockExecuteWrite.mockImplementation(async (options: { writeFn: (_user: unknown) => Promise<unknown> }) => {
         return options.writeFn({ id: 'user-1', email: 'user@test.com', name: 'Test User', role: 'USER' })
       })
-      mockUserFindUnique.mockImplementation((args: Parameters<typeof mockUserFindUnique>[0]) => {
-        if (args?.where?.id) {
-          return Promise.resolve({ id: 'user-1', password: 'hashed-pw', email: 'user@test.com' })
-        }
-        return Promise.resolve(null)
-      })
-      mockVerifyPassword.mockResolvedValue(false)
+      mockUpdateUserProfile.mockResolvedValue({ error: 'Mot de passe actuel incorrect.' })
 
       const fd = new FormData()
       fd.set('name', 'Test User')
@@ -152,16 +126,7 @@ describe('Profile Actions', () => {
       mockExecuteWrite.mockImplementation(async (options: { writeFn: (_user: unknown) => Promise<unknown> }) => {
         return options.writeFn({ id: 'user-1', email: 'user@test.com', name: 'Test User', role: 'USER' })
       })
-      mockUserFindUnique.mockImplementation((args: Parameters<typeof mockUserFindUnique>[0]) => {
-        if (args?.where?.id) {
-          return Promise.resolve({ id: 'user-1', password: 'hashed-pw', email: 'user@test.com' })
-        }
-        if (args?.where && 'email' in args.where && args.where.email === 'taken@test.com') {
-          return Promise.resolve({ id: 'other-user', email: 'taken@test.com' })
-        }
-        return Promise.resolve(null)
-      })
-      mockVerifyPassword.mockResolvedValue(true)
+      mockUpdateUserProfile.mockResolvedValue({ error: 'Cette adresse email est déjà utilisée par un autre compte.' })
 
       const fd = new FormData()
       fd.set('name', 'Test User')
@@ -178,7 +143,7 @@ describe('Profile Actions', () => {
       mockExecuteWrite.mockImplementation(async (options: { writeFn: (_user: unknown) => Promise<unknown> }) => {
         return options.writeFn({ id: 'user-1', email: 'user@test.com', name: 'Test User', role: 'USER' })
       })
-      mockUserFindUnique.mockResolvedValue(null)
+      mockUpdateUserProfile.mockResolvedValue({ data: { id: 'user-1', name: 'New Name', email: 'user@test.com', role: 'USER', createdAt: null, lastLoginAt: null } })
 
       const fd = new FormData()
       fd.set('name', 'New Name')
@@ -188,18 +153,13 @@ describe('Profile Actions', () => {
       const result = await updateProfile(fd)
 
       expect(result.success).toBe(true)
-      expect(mockUserUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { id: 'user-1' },
-          data: expect.objectContaining({ name: 'New Name', email: 'user@test.com' }),
-        })
-      )
+      expect(mockUpdateUserProfile).toHaveBeenCalledWith('user-1', 'New Name', 'user@test.com', undefined)
     })
   })
 
   describe('getUserProfile', () => {
     it('should return null when user not found in DB', async () => {
-      mockUserFindUnique.mockResolvedValue(null)
+      mockGetUserProfile.mockResolvedValue({ error: 'Utilisateur introuvable.' })
 
       const result = await getUserProfile()
 
@@ -207,27 +167,21 @@ describe('Profile Actions', () => {
     })
 
     it('should return user profile', async () => {
-      mockUserFindUnique.mockResolvedValue({
-        id: 'user-1',
-        email: 'user@test.com',
-        name: 'Test User',
-        role: 'USER',
-        createdAt: new Date(),
-        lastLoginAt: null,
+      mockGetUserProfile.mockResolvedValue({
+        data: {
+          id: 'user-1',
+          email: 'user@test.com',
+          name: 'Test User',
+          role: 'USER',
+          createdAt: new Date(),
+          lastLoginAt: null,
+        },
       })
 
       const result = await getUserProfile()
 
       expect(result).not.toBeNull()
       expect(result?.email).toBe('user@test.com')
-    })
-
-    it('should return null on error', async () => {
-      mockUserFindUnique.mockRejectedValue(new Error('DB error'))
-
-      const result = await getUserProfile()
-
-      expect(result).toBeNull()
     })
   })
 })

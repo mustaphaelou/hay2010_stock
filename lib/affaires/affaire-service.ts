@@ -5,25 +5,25 @@ import { createLogger } from '@/lib/logger'
 
 const log = createLogger('affaire-service')
 
-export async function getAffaires(): Promise<string[]> {
+export async function getAffaires(): Promise<{ data: string[]; error?: string }> {
   try {
     const affaires = await prisma.affaire.findMany({
       select: { code_affaire: true, intitule_affaire: true },
       where: { est_actif: true },
       orderBy: { code_affaire: 'asc' }
     })
-    return affaires.map((a: { code_affaire: string }) => a.code_affaire)
+    return { data: affaires.map((a: { code_affaire: string }) => a.code_affaire) }
   } catch (error) {
     log.error({ error }, 'Failed to fetch affaires')
-    return []
+    return { data: [], error: 'Failed to fetch affaires' }
   }
 }
 
-export async function getDocumentsByAffaire(code_affaire: string): Promise<DocumentBase[]> {
+export async function getDocumentsByAffaire(code_affaire: string): Promise<{ data: DocumentBase[]; error?: string }> {
   const validationResult = getDocumentsByAffaireSchema.safeParse({ code_affaire })
   if (!validationResult.success) {
     log.error({ error: validationResult.error, code_affaire }, 'Invalid affaire code')
-    return []
+    return { data: [], error: 'Invalid affaire code' }
   }
 
   try {
@@ -35,15 +35,17 @@ export async function getDocumentsByAffaire(code_affaire: string): Promise<Docum
       orderBy: { date_document: 'desc' }
     })
 
-    return documents.map((doc: typeof documents[0]) => ({
-      ...doc,
-      type_document: String(doc.type_document),
-      montant_ht: doc.montant_ht,
-      montant_ttc: doc.montant_ttc,
-      solde_du: doc.solde_du
-    }))
+    return {
+      data: documents.map((doc: typeof documents[0]) => ({
+        ...doc,
+        type_document: String(doc.type_document),
+        montant_ht: doc.montant_ht,
+        montant_ttc: doc.montant_ttc,
+        solde_du: doc.solde_du
+      }))
+    }
   } catch (error) {
     log.error({ error, code_affaire }, 'Failed to fetch documents for affaire')
-    return []
+    return { data: [], error: 'Failed to fetch documents for affaire' }
   }
 }

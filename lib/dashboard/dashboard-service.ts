@@ -1,5 +1,5 @@
 import { VersionedCacheService, CacheNamespaces, CacheTTLSeconds } from '@/lib/cache/versioned'
-import type { DashboardData} from '@/lib/types'
+import type { DashboardData } from '@/lib/types'
 import { createLogger } from '@/lib/logger'
 import {
   runStatsQueries,
@@ -21,12 +21,12 @@ export type {
   DashboardMovementData,
 } from './data-query'
 
-export async function getDashboardStats(): Promise<DashboardData> {
+export async function getDashboardStats(): Promise<{ data: DashboardData; error?: string }> {
   const cacheKey = 'stats'
 
   try {
     const cached = await VersionedCacheService.get<DashboardData>(CacheNamespaces.DASHBOARD, cacheKey)
-    if (cached) return cached
+    if (cached) return { data: cached }
 
     const { countsResult, monthlyResult, recentDocsResult, salesInvoicesResult } = await runStatsQueries()
 
@@ -39,27 +39,30 @@ export async function getDashboardStats(): Promise<DashboardData> {
 
     await VersionedCacheService.set(CacheNamespaces.DASHBOARD, cacheKey, result, CacheTTLSeconds.DASHBOARD)
 
-    return result
+    return { data: result }
   } catch (error) {
     log.error({ error }, 'Failed to fetch dashboard stats')
     return {
-      stats: {
-        clients: 0, suppliers: 0, products: 0, families: 0,
-        salesCount: 0, purchasesCount: 0, lowStockCount: 0,
-        totalStockProducts: 0, totalSalesAmount: 0, totalPurchasesAmount: 0,
+      data: {
+        stats: {
+          clients: 0, suppliers: 0, products: 0, families: 0,
+          salesCount: 0, purchasesCount: 0, lowStockCount: 0,
+          totalStockProducts: 0, totalSalesAmount: 0, totalPurchasesAmount: 0,
+        },
+        recentDocs: [],
+        salesInvoices: [],
+        monthlyData: [],
       },
-      recentDocs: [],
-      salesInvoices: [],
-      monthlyData: [],
+      error: 'Failed to fetch dashboard stats',
     }
   }
 }
 
-export async function getDashboardData(): Promise<DashboardDataResult> {
+export async function getDashboardData(): Promise<{ data: DashboardDataResult; error?: string }> {
   try {
-    return await runDashboardDataQueries()
+    return { data: await runDashboardDataQueries() }
   } catch (error) {
     log.error({ error }, 'Failed to fetch dashboard data')
-    return { products: [], partners: [], documents: [], movements: [] }
+    return { data: { products: [], partners: [], documents: [], movements: [] }, error: 'Failed to fetch dashboard data' }
   }
 }
