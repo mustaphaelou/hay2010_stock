@@ -35,7 +35,7 @@ Required order after schema change: `db:generate` → `build`. Fresh setup: `db:
 Import from `@/lib/generated/prisma/client` — **never** from `@prisma/client`.
 Generated client outputs to `lib/generated/prisma/`.
 
-Schema datasource URL in `prisma.config.ts` (not `schema.prisma`), loaded via dotenv.
+Schema datasource URL in `prisma.config.ts` (not `schema.prisma`). Config auto-loads `.env.local` in dev — you don't need to prefix Prisma commands with `dotenv`.
 
 ### Key Directories
 
@@ -75,7 +75,7 @@ Schema datasource URL in `prisma.config.ts` (not `schema.prisma`), loaded via do
 - Test location mirrors `lib/` and `app/actions/` structure
 - Coverage thresholds: lines 50%, functions 70%, branches 60%, statements 50%
 - Coverage measured on `lib/**/*.ts` and `app/actions/**/*.ts`
-- Coverage excludes: `db/`, `cache/`, `queue/`, `workers/`, `pdf/`, `config/`, `types/`, `middleware/`, `utils/client-logger.ts`
+- Coverage excludes: `lib/generated/`, `lib/db/**`, `lib/cache/**`, `lib/queue/**`, `lib/workers/**`, `lib/pdf/**`, `lib/config/**`, `lib/types/**`, `lib/utils/client-logger.ts`
 
 ## Deployment
 - Multi-stage Dockerfile: `base → deps → builder → runner`
@@ -94,5 +94,5 @@ Staging deploys from `develop`, production deploys from `main` (on release publi
 - Conventional Commits: `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`
 - `@typescript-eslint/no-require-imports` is `off`
 - Business domain uses French terms: `Partenaire`, `TypePartenaire`, `DocVente`, `Entrepot`, `MouvementStock`, `Affaire`
-- `ignoreBuildErrors: true` in dev — type errors don't block dev builds, `tsc --noEmit` catches them
+- `ignoreBuildErrors` when `NODE_ENV=development` or `SKIP_TYPE_CHECK=true` — production builds (non-Docker) DO enforce types, so run `npx tsc --noEmit` before building for production
 - Seed credentials: `admin@hay2010.com` / `Admin@2026`
