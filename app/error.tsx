@@ -3,6 +3,7 @@
 import { useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { captureClientError } from '@/lib/utils/client-logger'
 
 export default function Error({
 	error,
@@ -12,7 +13,7 @@ export default function Error({
 	reset: () => void
 }) {
 	useEffect(() => {
-		console.error('Application error:', error)
+		captureClientError(error, { tags: { component: 'AppErrorBoundary', route: '/' } })
 	}, [error])
 
 	return (

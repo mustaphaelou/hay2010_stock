@@ -1,11 +1,8 @@
 import { SignJWT, jwtVerify } from 'jose'
-function randomBytesHex(length: number): string {
-  const bytes = crypto.getRandomValues(new Uint8Array(length))
-  return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('')
-}
 import { createLogger } from '@/lib/logger'
 import { getRequiredSecret } from '@/lib/config/env-validation'
 import { redis, isRedisReady } from '@/lib/db/redis'
+import { randomBytesHex } from '@/lib/utils/crypto'
 
 const log = createLogger('jwt')
 

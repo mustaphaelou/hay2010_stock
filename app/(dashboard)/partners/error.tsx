@@ -4,6 +4,7 @@ import { useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { SafeIcon as HugeiconsIcon } from "@/components/ui/safe-icon"
 import { RefreshIcon, AlertCircleIcon } from '@hugeicons/core-free-icons'
+import { captureClientError } from '@/lib/utils/client-logger'
 
 export default function PartnersError({
   error,
@@ -13,7 +14,7 @@ export default function PartnersError({
   reset: () => void
 }) {
   useEffect(() => {
-    console.error('Partners page error:', error)
+    captureClientError(error, { tags: { component: 'PartnersErrorBoundary', route: '/partners' } })
   }, [error])
 
   return (

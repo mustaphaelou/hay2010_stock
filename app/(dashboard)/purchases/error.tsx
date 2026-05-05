@@ -4,6 +4,7 @@ import { useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { SafeIcon as HugeiconsIcon } from "@/components/ui/safe-icon"
 import { RefreshIcon, AlertCircleIcon } from '@hugeicons/core-free-icons'
+import { captureClientError } from '@/lib/utils/client-logger'
 
 export default function PurchasesError({
   error,
@@ -13,7 +14,7 @@ export default function PurchasesError({
   reset: () => void
 }) {
   useEffect(() => {
-    console.error('Purchases page error:', error)
+    captureClientError(error, { tags: { component: 'PurchasesErrorBoundary', route: '/purchases' } })
   }, [error])
 
   return (

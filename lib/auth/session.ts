@@ -1,8 +1,5 @@
-function randomBytesHex(length: number): string {
-  const bytes = crypto.getRandomValues(new Uint8Array(length))
-  return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('')
-}
 import { createLogger } from '@/lib/logger'
+import { randomBytesHex } from '@/lib/utils/crypto'
 
 const SESSION_PREFIX = 'session:'
 const SESSION_TTL = 60 * 60 * 24 * 7 // 7 days in seconds
@@ -48,10 +45,6 @@ export async function createSession(userId: string, email: string, name: string,
   }
 
   const redisClient = await getRedis()
-  
-  if (!redisClient) {
-    throw new Error('Session service unavailable. Please try again later.')
-  }
 
   await redisClient.setex(
     `${SESSION_PREFIX}${sessionId}`,
@@ -66,10 +59,6 @@ export async function getSession(sessionId: string): Promise<SessionData | null>
   const key = `${SESSION_PREFIX}${sessionId}`
 
   const redisClient = await getRedis()
-  
-  if (!redisClient) {
-    throw new Error('Session service unavailable. Please try again later.')
-  }
 
   const data = await redisClient.get(key)
   if (!data) return null
@@ -86,10 +75,6 @@ export async function deleteSession(sessionId: string): Promise<void> {
   const key = `${SESSION_PREFIX}${sessionId}`
 
   const redisClient = await getRedis()
-  
-  if (!redisClient) {
-    throw new Error('Session service unavailable. Please try again later.')
-  }
   await redisClient.del(key)
 }
 
@@ -97,10 +82,6 @@ export async function refreshSession(sessionId: string): Promise<void> {
   const key = `${SESSION_PREFIX}${sessionId}`
 
   const redisClient = await getRedis()
-
-  if (!redisClient) {
-    throw new Error('Session service unavailable. Please try again later.')
-  }
 
   await redisClient.expire(key, SESSION_TTL)
 }

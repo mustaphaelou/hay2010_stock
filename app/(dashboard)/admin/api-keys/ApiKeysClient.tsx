@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { useRouter } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'
+import { getCsrfToken } from '@/lib/security/csrf-client'
 
 type ApiKeyWithUser = {
   id: string
@@ -36,13 +37,19 @@ export default function ApiKeysClient({ keys }: ApiKeyListClientProps) {
     if (!name) return
     setLoading(true)
     try {
-      const result = await createApiKey(name)
+      const csrfToken = await getCsrfToken()
+      if (!csrfToken) {
+        alert('Erreur de sécurité. Veuillez actualiser la page.')
+        return
+      }
+      const result = await createApiKey(name, csrfToken)
+      if ('error' in result) {
+        alert(result.error)
+        return
+      }
       setNewKey({ rawKey: result.rawKey, name: result.name })
       setName('')
       router.refresh()
-    } catch (error) {
-      console.error(error)
-      alert('Failed to create API key')
     } finally {
       setLoading(false)
     }
@@ -51,11 +58,18 @@ export default function ApiKeysClient({ keys }: ApiKeyListClientProps) {
   async function handleRevoke(id: string) {
     if (!confirm('Are you sure you want to revoke this API key?')) return
     try {
-      await revokeApiKey(id)
+      const csrfToken = await getCsrfToken()
+      if (!csrfToken) {
+        alert('Erreur de sécurité. Veuillez actualiser la page.')
+        return
+      }
+      const result = await revokeApiKey(id, csrfToken)
+      if ('error' in result) {
+        alert(result.error)
+        return
+      }
       router.refresh()
-    } catch (error) {
-      console.error(error)
-      alert('Failed to revoke API key')
+    } finally {
     }
   }
 
