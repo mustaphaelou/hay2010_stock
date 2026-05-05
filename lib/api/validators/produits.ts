@@ -1,4 +1,7 @@
 import { z } from 'zod'
+import { paginationSchema } from '@/lib/pagination'
+
+export { paginationSchema }
 
 export const productCreateSchema = z.object({
   code_produit: z.string().min(1).max(100),
@@ -35,11 +38,6 @@ export const productCreateSchema = z.object({
 })
 
 export const productUpdateSchema = productCreateSchema.partial()
-
-export const paginationSchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(50),
-})
 
 export type ProductCreateInput = z.infer<typeof productCreateSchema>
 export type ProductUpdateInput = z.infer<typeof productUpdateSchema>

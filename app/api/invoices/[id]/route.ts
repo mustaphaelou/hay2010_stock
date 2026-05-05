@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
-import { verifyToken } from '@/lib/auth/jwt'
-import { AUTH_COOKIE_NAME } from '@/lib/constants/auth'
+import { requireAuth } from '@/lib/auth/user-utils'
 import { generateInvoicePdfBuffer, transformToInvoiceData } from '@/lib/pdf/generate-invoice'
 import { createLogger } from '@/lib/logger'
 import { mapDocumentToComputed, mapLineToDocumentLine } from '@/lib/documents/mapping'
@@ -13,15 +12,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const token = request.cookies.get(AUTH_COOKIE_NAME)?.value
-    if (!token) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
-    }
-
-    const payload = await verifyToken(token)
-    if (!payload) {
-      return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401 })
-    }
+    const user = await requireAuth()
 
     const { id } = await params
     const documentId = parseInt(id, 10)
@@ -41,7 +32,7 @@ export async function GET(
       return NextResponse.json({ error: 'Document not found' }, { status: 404 })
     }
 
-    if (payload.role !== 'ADMIN' && payload.role !== 'MANAGER' && document.cree_par !== payload.userId) {
+    if (user.role !== 'ADMIN' && user.role !== 'MANAGER' && document.cree_par !== user.id) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
@@ -62,6 +53,9 @@ export async function GET(
       },
     })
   } catch (error) {
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
     log.error({ error }, 'Failed to generate invoice PDF')
     return NextResponse.json({ error: 'Failed to generate PDF' }, { status: 500 })
   }

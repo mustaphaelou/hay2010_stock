@@ -1,6 +1,6 @@
 'use server'
 
-import { getCurrentUser } from '@/lib/auth/user-utils'
+import { requirePermission } from '@/lib/auth/authorization'
 import { prisma } from '@/lib/db/prisma'
 import { randomBytes, createHash } from 'crypto'
 import { Role } from '@/lib/generated/prisma/client'
@@ -13,10 +13,7 @@ function generateKey() {
 }
 
 export async function createApiKey(name: string) {
-  const user = await getCurrentUser()
-  if (!user || (user.role !== 'ADMIN' && user.role !== 'MANAGER')) {
-    throw new Error('Unauthorized')
-  }
+  const user = await requirePermission('users:write')
 
   const { rawKey, prefix, hash } = generateKey()
 
@@ -34,10 +31,7 @@ export async function createApiKey(name: string) {
 }
 
 export async function listApiKeys() {
-  const user = await getCurrentUser()
-  if (!user || (user.role !== 'ADMIN' && user.role !== 'MANAGER')) {
-    throw new Error('Unauthorized')
-  }
+  await requirePermission('users:read')
 
   const keys = await prisma.apiKey.findMany({
     orderBy: { createdAt: 'desc' },
@@ -55,10 +49,7 @@ export async function listApiKeys() {
 }
 
 export async function revokeApiKey(id: string) {
-  const user = await getCurrentUser()
-  if (!user || (user.role !== 'ADMIN' && user.role !== 'MANAGER')) {
-    throw new Error('Unauthorized')
-  }
+  await requirePermission('users:write')
 
   await prisma.apiKey.update({
     where: { id },

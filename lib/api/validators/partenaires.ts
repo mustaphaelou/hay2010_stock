@@ -1,4 +1,7 @@
 import { z } from 'zod'
+import { paginationSchema } from '@/lib/pagination'
+
+export { paginationSchema }
 
 export const partnerCreateSchema = z.object({
   code_partenaire: z.string().min(1).max(50),
@@ -28,11 +31,6 @@ export const partnerCreateSchema = z.object({
 })
 
 export const partnerUpdateSchema = partnerCreateSchema.partial()
-
-export const paginationSchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(50),
-})
 
 export type PartnerCreateInput = z.infer<typeof partnerCreateSchema>
 export type PartnerUpdateInput = z.infer<typeof partnerUpdateSchema>

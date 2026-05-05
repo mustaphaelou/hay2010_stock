@@ -1,4 +1,7 @@
 import { z } from 'zod'
+import { paginationSchema } from '@/lib/pagination'
+
+export { paginationSchema }
 
 export const affaireCreateSchema = z.object({
   code_affaire: z.string().min(1).max(50),
@@ -20,11 +23,6 @@ export const affaireCreateSchema = z.object({
 })
 
 export const affaireUpdateSchema = affaireCreateSchema.partial()
-
-export const paginationSchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(50),
-})
 
 export type AffaireCreateInput = z.infer<typeof affaireCreateSchema>
 export type AffaireUpdateInput = z.infer<typeof affaireUpdateSchema>

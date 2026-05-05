@@ -15,6 +15,10 @@ const { mockUserFindUnique, mockUserUpdate } = vi.hoisted(() => ({
   mockUserUpdate: vi.fn().mockResolvedValue({ id: 'user-1' }),
 }))
 
+const { mockExecuteWrite } = vi.hoisted(() => ({
+  mockExecuteWrite: vi.fn(),
+}))
+
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
     user: {
@@ -33,6 +37,10 @@ vi.mock('@/lib/auth/password-reset', () => ({
 vi.mock('@/lib/auth/password', () => ({
   hashPassword: mockHashPassword,
   verifyPassword: vi.fn(),
+}))
+
+vi.mock('@/lib/actions/execute-write', () => ({
+  executeWrite: mockExecuteWrite,
 }))
 
 vi.mock('@/lib/logger', () => ({
@@ -120,7 +128,10 @@ describe('Password Reset Actions', () => {
   })
 
   describe('resetPassword', () => {
-    it('should reject invalid/expired token', async () => {
+    it('should reject invalid/expired token inside writeFn', async () => {
+      mockExecuteWrite.mockImplementation(async (options: { writeFn: () => Promise<unknown> }) => {
+        return options.writeFn()
+      })
       mockConsumeResetToken.mockResolvedValue({ valid: false, error: 'Invalid or expired reset token' })
 
       const result = await resetPassword('bad-token', 'NewPass123')
@@ -128,15 +139,20 @@ describe('Password Reset Actions', () => {
       expect(result.error).toContain('Invalid or expired reset token')
     })
 
-    it('should reject weak password', async () => {
-      mockConsumeResetToken.mockResolvedValue({ valid: true, email: 'user@test.com' })
+    it('should return validation error for weak password via executeWrite', async () => {
+      mockExecuteWrite.mockResolvedValue({ error: 'Le mot de passe doit contenir au moins 8 caractères' })
 
       const result = await resetPassword('valid-token', 'weak')
 
       expect(result.error).toBeDefined()
     })
 
-    it('should reset password with valid token and strong password', async () => {
+    it('should reset password with valid token and strong password inside writeFn', async () => {
+      mockExecuteWrite.mockImplementation(async (options: { writeFn: () => Promise<unknown> }) => {
+        return options.writeFn()
+      })
+      mockConsumeResetToken.mockResolvedValue({ valid: true, email: 'user@test.com' })
+
       const result = await resetPassword('valid-token', 'StrongPass123')
 
       expect(result.success).toBe(true)
@@ -148,7 +164,10 @@ describe('Password Reset Actions', () => {
       )
     })
 
-    it('should return error on unexpected failure', async () => {
+    it('should return error on unexpected failure inside writeFn', async () => {
+      mockExecuteWrite.mockImplementation(async (options: { writeFn: () => Promise<unknown> }) => {
+        return options.writeFn()
+      })
       mockConsumeResetToken.mockRejectedValue(new Error('Redis error'))
 
       const result = await resetPassword('valid-token', 'StrongPass123')

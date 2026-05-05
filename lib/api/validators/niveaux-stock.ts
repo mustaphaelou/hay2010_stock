@@ -1,4 +1,7 @@
 import { z } from 'zod'
+import { paginationSchema } from '@/lib/pagination'
+
+export { paginationSchema }
 
 export const stockLevelCreateSchema = z.object({
   id_produit: z.number().int().positive(),
@@ -11,11 +14,6 @@ export const stockLevelCreateSchema = z.object({
 })
 
 export const stockLevelUpdateSchema = stockLevelCreateSchema.partial()
-
-export const paginationSchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(50),
-})
 
 export type StockLevelCreateInput = z.infer<typeof stockLevelCreateSchema>
 export type StockLevelUpdateInput = z.infer<typeof stockLevelUpdateSchema>

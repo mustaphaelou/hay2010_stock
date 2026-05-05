@@ -6,7 +6,7 @@ import { registerSchema } from '@/lib/auth/validation'
 import { createLogger } from '@/lib/logger'
 import { redis, isRedisReady } from '@/lib/db/redis'
 import { headers } from 'next/headers'
-import { validateCsrfToken, getCsrfCookie, ANONYMOUS_USER_ID, generateCsrfToken, setCsrfCookie } from '@/lib/security/csrf-server'
+import { executeWrite } from '@/lib/actions/execute-write'
 
 const log = createLogger('registration-actions')
 
@@ -53,62 +53,44 @@ export async function publicRegister(
   name: string,
   csrfToken?: string
 ): Promise<{ error?: string; success?: boolean; message?: string }> {
-  try {
-    if (!csrfToken) {
-      log.warn('CSRF token missing on registration')
-      return { error: 'Jeton de sécurité requis. Veuillez actualiser la page.' }
-    }
-
-    const csrfCookie = await getCsrfCookie()
-    const valid = await validateCsrfToken(ANONYMOUS_USER_ID, csrfToken, csrfCookie || '')
-    if (!valid) {
-      log.warn('Invalid CSRF token on registration')
+  return executeWrite({
+    csrfToken,
+    validation: { schema: registerSchema, input: { email, password, name } },
+    writeFn: async () => {
       try {
-        const { cookieValue: newCookie } = await generateCsrfToken(ANONYMOUS_USER_ID)
-        await setCsrfCookie(newCookie)
-      } catch { /* non-fatal */ }
-      return { error: 'Jeton de sécurité invalide. Veuillez actualiser la page et réessayer.' }
-    }
+        const clientIdentifier = await getClientIdentifier()
+        const rateCheck = await checkRegistrationRateLimit(clientIdentifier)
 
-    const clientIdentifier = await getClientIdentifier()
-    const rateCheck = await checkRegistrationRateLimit(clientIdentifier)
+        if (!rateCheck.allowed) {
+          return { error: 'Too many registration attempts. Please try again later.' }
+        }
 
-    if (!rateCheck.allowed) {
-      return { error: 'Too many registration attempts. Please try again later.' }
-    }
+        const normalizedEmail = email.toLowerCase().trim()
 
-    // Validate input
-    const validationResult = registerSchema.safeParse({ email, password, name })
-    if (!validationResult.success) {
-      return { error: 'Invalid input: ' + validationResult.error.issues.map((e: { message: string }) => e.message).join(', ') }
-    }
+        const existingUser = await prisma.user.findUnique({
+          where: { email: normalizedEmail }
+        })
 
-    const normalizedEmail = email.toLowerCase().trim()
+        if (existingUser) {
+          return { error: 'An account with this email already exists. Please try logging in instead.' }
+        }
 
-    // Check if user already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email: normalizedEmail }
-    })
+        const hashedPassword = await hashPassword(password)
 
-    if (existingUser) {
-      return { error: 'An account with this email already exists. Please try logging in instead.' }
-    }
+        await prisma.user.create({
+          data: {
+            email: normalizedEmail,
+            password: hashedPassword,
+            name: name.trim(),
+            role: 'USER'
+          }
+        })
 
-    // Create user with default role
-    const hashedPassword = await hashPassword(password)
-
-    await prisma.user.create({
-      data: {
-        email: normalizedEmail,
-        password: hashedPassword,
-        name: name.trim(),
-        role: 'USER'
+        return { success: true, message: 'Account created successfully! You can now log in.' }
+      } catch (error) {
+        log.error({ error, email }, 'Registration error')
+        return { error: 'An unexpected error occurred during registration' }
       }
-    })
-
-    return { success: true, message: 'Account created successfully! You can now log in.' }
-  } catch (error) {
-    log.error({ error, email }, 'Registration error')
-    return { error: 'An unexpected error occurred during registration' }
-  }
+    }
+  })
 }

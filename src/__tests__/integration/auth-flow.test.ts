@@ -65,13 +65,23 @@ vi.mock('@/lib/auth/lockout', () => ({
   clearFailedAttemptsByIp: vi.fn().mockResolvedValue(undefined),
 }))
 
-vi.mock('@/lib/security/csrf-server', () => ({
-  validateCsrfToken: vi.fn().mockResolvedValue(true),
-  getCsrfCookie: vi.fn().mockResolvedValue('csrf-cookie-value'),
-  generateCsrfToken: vi.fn().mockResolvedValue({ token: 'new-csrf-token', cookieValue: 'new-csrf-cookie' }),
-  setCsrfCookie: vi.fn().mockResolvedValue(undefined),
-  ANONYMOUS_USER_ID: 'anonymous',
-}))
+vi.mock('@/lib/security/csrf-server', () => {
+  const mockValidateCsrfToken = vi.fn().mockResolvedValue(true)
+  const mockGetCsrfCookie = vi.fn().mockResolvedValue('csrf-cookie-value')
+  const mockRequireCsrfToken = vi.fn(async (userId: string, token: string, cookieValue: string) => {
+    const valid = await mockValidateCsrfToken(userId, token, cookieValue)
+    if (!valid) throw new Error('Invalid CSRF token')
+  })
+
+  return {
+    validateCsrfToken: mockValidateCsrfToken,
+    getCsrfCookie: mockGetCsrfCookie,
+    requireCsrfToken: mockRequireCsrfToken,
+    generateCsrfToken: vi.fn().mockResolvedValue({ token: 'new-csrf-token', cookieValue: 'new-csrf-cookie' }),
+    setCsrfCookie: vi.fn().mockResolvedValue(undefined),
+    ANONYMOUS_USER_ID: 'anonymous',
+  }
+})
 
 vi.mock('next/headers', () => ({
   cookies: vi.fn().mockResolvedValue({
@@ -94,6 +104,7 @@ vi.mock('next/headers', () => ({
 
 vi.mock('@/lib/auth/user-utils', () => ({
   getCurrentUser: vi.fn(),
+  requireAuth: vi.fn().mockResolvedValue({ id: 'user-1', email: 'user@example.com', name: 'Test User', role: 'USER' }),
 }))
 
 vi.mock('next/server', () => ({

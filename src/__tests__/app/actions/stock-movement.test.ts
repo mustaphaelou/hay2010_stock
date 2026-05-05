@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { prisma } from '@/lib/db/prisma'
 
-const { mockExecuteStockWrite } = vi.hoisted(() => ({
-  mockExecuteStockWrite: vi.fn(),
+const { mockExecuteWrite } = vi.hoisted(() => ({
+  mockExecuteWrite: vi.fn(),
 }))
 
 vi.mock('@/lib/db/prisma', () => ({
@@ -27,8 +27,8 @@ vi.mock('@/lib/db/redis', () => ({
   },
 }))
 
-vi.mock('@/lib/stock/stock-write', () => ({
-  executeStockWrite: mockExecuteStockWrite,
+vi.mock('@/lib/actions/execute-write', () => ({
+  executeWrite: mockExecuteWrite,
 }))
 
 vi.mock('next/server', () => ({
@@ -75,13 +75,14 @@ describe('Stock Movement Actions', () => {
   })
 
   describe('createStockMovement', () => {
-    it('should delegate to executeStockWrite with correct params', async () => {
-      mockExecuteStockWrite.mockResolvedValue({ success: true, data: { movementId: 1, newQuantity: 10 } })
+    it('should delegate to executeWrite with correct params', async () => {
+      mockExecuteWrite.mockResolvedValue({ success: true, data: { movementId: 1, newQuantity: 10 } })
 
       const { createStockMovement } = await import('@/app/actions/stock-movement')
       const result = await createStockMovement(validInput, 'valid-csrf-token')
 
-      expect(mockExecuteStockWrite).toHaveBeenCalledWith({
+      expect(mockExecuteWrite).toHaveBeenCalledWith({
+        permission: 'stock:write',
         csrfToken: 'valid-csrf-token',
         writeFn: expect.any(Function),
         invalidations: [
@@ -93,8 +94,8 @@ describe('Stock Movement Actions', () => {
       expect(result.success).toBe(true)
     })
 
-    it('should propagate error from executeStockWrite', async () => {
-      mockExecuteStockWrite.mockResolvedValue({ error: 'Stock operation in progress, please retry' })
+    it('should propagate error from executeWrite', async () => {
+      mockExecuteWrite.mockResolvedValue({ error: 'Stock operation in progress, please retry' })
 
       const { createStockMovement } = await import('@/app/actions/stock-movement')
       const result = await createStockMovement(validInput, 'valid-csrf-token')

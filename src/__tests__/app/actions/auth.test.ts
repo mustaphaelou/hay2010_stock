@@ -24,11 +24,8 @@ const { mockRecordFailedAttempt, mockClearFailedAttempts, mockIsAccountLocked, m
   mockClearFailedAttemptsByIp: vi.fn(),
 }))
 
-const { mockValidateCsrf, mockGetCsrfCookie, mockGenerateCsrfToken, mockSetCsrfCookie } = vi.hoisted(() => ({
-  mockValidateCsrf: vi.fn().mockResolvedValue(true),
-  mockGetCsrfCookie: vi.fn().mockResolvedValue('mock-csrf-cookie'),
-  mockGenerateCsrfToken: vi.fn(),
-  mockSetCsrfCookie: vi.fn(),
+const { mockExecuteWrite } = vi.hoisted(() => ({
+  mockExecuteWrite: vi.fn(),
 }))
 
 const { mockPrismaFindUnique, mockPrismaUpdate } = vi.hoisted(() => ({
@@ -70,12 +67,8 @@ vi.mock('@/lib/auth/lockout', () => ({
   clearFailedAttemptsByIp: mockClearFailedAttemptsByIp,
 }))
 
-vi.mock('@/lib/security/csrf-server', () => ({
-  validateCsrfToken: mockValidateCsrf,
-  getCsrfCookie: mockGetCsrfCookie,
-  generateCsrfToken: mockGenerateCsrfToken,
-  setCsrfCookie: mockSetCsrfCookie,
-  ANONYMOUS_USER_ID: 'anonymous',
+vi.mock('@/lib/actions/execute-write', () => ({
+  executeWrite: mockExecuteWrite,
 }))
 
 vi.mock('@/lib/logger', () => ({
@@ -109,31 +102,36 @@ import * as authModule from '@/app/actions/auth'
 describe('Auth Actions', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockValidateCsrf.mockResolvedValue(true)
-    mockGetCsrfCookie.mockResolvedValue('mock-csrf-cookie')
-    mockRecordFailedAttempt.mockResolvedValue({ remaining: 4, locked: false })
-    mockIsAccountLocked.mockResolvedValue(false)
     mockIsLockedByIp.mockResolvedValue(false)
+    mockIsAccountLocked.mockResolvedValue(false)
+    mockRecordFailedAttempt.mockResolvedValue({ remaining: 4, locked: false })
     mockPrismaFindUnique.mockReset()
     mockPrismaUpdate.mockReset()
   })
 
   describe('login', () => {
-    it('should reject missing CSRF token', async () => {
-      const result = await authModule.login('test@test.com', 'password', false)
+    it('should call executeWrite with csrfToken and loginSchema validation', async () => {
+      mockExecuteWrite.mockImplementation(async (options: { writeFn: () => Promise<unknown> }) => {
+        return options.writeFn()
+      })
 
-      expect(result.error).toBe('Jeton de sécurité requis. Veuillez rafraîchir la page.')
+      await authModule.login('test@test.com', 'password', false, 'valid-token')
+
+      expect(mockExecuteWrite).toHaveBeenCalledWith(
+        expect.objectContaining({
+          csrfToken: 'valid-token',
+          validation: expect.objectContaining({
+            schema: expect.anything(),
+            input: { email: 'test@test.com', password: 'password' },
+          }),
+        })
+      )
     })
 
-    it('should reject invalid CSRF token', async () => {
-      mockValidateCsrf.mockResolvedValue(false)
-
-      const result = await authModule.login('test@test.com', 'password', false, 'bad-token')
-
-      expect(result.error).toContain('Jeton de sécurité invalide')
-    })
-
-    it('should reject locked IP', async () => {
+    it('should reject locked IP inside writeFn', async () => {
+      mockExecuteWrite.mockImplementation(async (options: { writeFn: () => Promise<unknown> }) => {
+        return options.writeFn()
+      })
       mockIsLockedByIp.mockResolvedValue(true)
 
       const result = await authModule.login('test@test.com', 'password', false, 'valid-token')
@@ -141,7 +139,10 @@ describe('Auth Actions', () => {
       expect(result.error).toContain('Trop de tentatives depuis cet emplacement')
     })
 
-    it('should reject locked account', async () => {
+    it('should reject locked account inside writeFn', async () => {
+      mockExecuteWrite.mockImplementation(async (options: { writeFn: () => Promise<unknown> }) => {
+        return options.writeFn()
+      })
       mockIsAccountLocked.mockResolvedValue(true)
 
       const result = await authModule.login('test@test.com', 'password', false, 'valid-token')
@@ -149,13 +150,10 @@ describe('Auth Actions', () => {
       expect(result.error).toContain('Compte temporairement verrouillé')
     })
 
-    it('should reject invalid input', async () => {
-      const result = await authModule.login('', '', false, 'valid-token')
-
-      expect(result.error).toContain('Entrée invalide')
-    })
-
-    it('should reject non-existent user', async () => {
+    it('should reject non-existent user inside writeFn', async () => {
+      mockExecuteWrite.mockImplementation(async (options: { writeFn: () => Promise<unknown> }) => {
+        return options.writeFn()
+      })
       mockPrismaFindUnique.mockResolvedValue(null)
 
       const result = await authModule.login('nonexistent@test.com', 'password', false, 'valid-token')
@@ -165,7 +163,10 @@ describe('Auth Actions', () => {
       expect(mockRecordFailedAttemptByIp).toHaveBeenCalled()
     })
 
-    it('should reject wrong password', async () => {
+    it('should reject wrong password inside writeFn', async () => {
+      mockExecuteWrite.mockImplementation(async (options: { writeFn: () => Promise<unknown> }) => {
+        return options.writeFn()
+      })
       mockPrismaFindUnique.mockResolvedValue({
         id: 'user-1',
         email: 'test@test.com',
@@ -178,7 +179,10 @@ describe('Auth Actions', () => {
       expect(result.error).toContain('Email ou mot de passe invalide')
     })
 
-    it('should login successfully with valid credentials', async () => {
+    it('should login successfully with valid credentials inside writeFn', async () => {
+      mockExecuteWrite.mockImplementation(async (options: { writeFn: () => Promise<unknown> }) => {
+        return options.writeFn()
+      })
       mockPrismaFindUnique.mockResolvedValue({
         id: 'user-1',
         email: 'test@test.com',
@@ -197,7 +201,10 @@ describe('Auth Actions', () => {
       expect(mockGenerateToken).toHaveBeenCalled()
     })
 
-    it('should clear lockout on successful login', async () => {
+    it('should clear lockout on successful login inside writeFn', async () => {
+      mockExecuteWrite.mockImplementation(async (options: { writeFn: () => Promise<unknown> }) => {
+        return options.writeFn()
+      })
       mockPrismaFindUnique.mockResolvedValue({
         id: 'user-1',
         email: 'test@test.com',
@@ -212,29 +219,49 @@ describe('Auth Actions', () => {
       expect(mockClearFailedAttempts).toHaveBeenCalled()
       expect(mockClearFailedAttemptsByIp).toHaveBeenCalled()
     })
-  })
 
-  describe('logout', () => {
-    it('should reject missing CSRF token', async () => {
-      const result = await authModule.logout()
+    it('should return CSRF error when executeWrite returns CSRF error', async () => {
+      mockExecuteWrite.mockResolvedValue({ error: 'Jeton de sécurité invalide. Veuillez rafraîchir la page et réessayer.' })
 
-      expect(result.error).toBe('Jeton de sécurité requis. Veuillez rafraîchir la page.')
-    })
-
-    it('should reject invalid CSRF token', async () => {
-      mockValidateCsrf.mockResolvedValue(false)
-
-      const result = await authModule.logout('bad-token')
+      const result = await authModule.login('test@test.com', 'password', false, 'bad-token')
 
       expect(result.error).toContain('Jeton de sécurité invalide')
     })
 
-    it('should logout successfully with valid CSRF token', async () => {
+    it('should return validation error when executeWrite returns validation error', async () => {
+      mockExecuteWrite.mockResolvedValue({ error: 'Entrée invalide : Adresse email invalide' })
+
+      const result = await authModule.login('', '', false, 'valid-token')
+
+      expect(result.error).toContain('Entrée invalide')
+    })
+  })
+
+  describe('logout', () => {
+    it('should call executeWrite with permission authenticated', async () => {
+      mockExecuteWrite.mockImplementation(async (options: { writeFn: () => Promise<unknown> }) => {
+        return options.writeFn()
+      })
+
       const result = await authModule.logout('valid-csrf-token')
 
+      expect(mockExecuteWrite).toHaveBeenCalledWith(
+        expect.objectContaining({
+          permission: 'authenticated',
+          csrfToken: 'valid-csrf-token',
+        })
+      )
       expect(result.success).toBe(true)
       expect(mockDeleteSession).toHaveBeenCalled()
       expect(mockRevokeToken).toHaveBeenCalled()
+    })
+
+    it('should return CSRF error when executeWrite returns CSRF error', async () => {
+      mockExecuteWrite.mockResolvedValue({ error: 'Jeton de sécurité invalide. Veuillez rafraîchir la page et réessayer.' })
+
+      const result = await authModule.logout('bad-token')
+
+      expect(result.error).toContain('Jeton de sécurité invalide')
     })
   })
 

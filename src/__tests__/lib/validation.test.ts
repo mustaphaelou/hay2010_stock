@@ -127,18 +127,20 @@ describe('paginationSchema', () => {
       expect(result.success).toBe(false)
     })
 
-    it('should reject string page', () => {
+    it('should coerce string page to number', () => {
       const result = paginationSchema.safeParse({
         page: '2',
       })
-      expect(result.success).toBe(false)
+      expect(result.success).toBe(true)
+      expect(result.data?.page).toBe(2)
     })
 
-    it('should reject string limit', () => {
+    it('should coerce string limit to number', () => {
       const result = paginationSchema.safeParse({
         limit: '50',
       })
-      expect(result.success).toBe(false)
+      expect(result.success).toBe(true)
+      expect(result.data?.limit).toBe(50)
     })
   })
 })

@@ -1,12 +1,7 @@
-import { revalidatePath } from 'next/cache'
-import { after } from 'next/server'
-import { requirePermission, type Permission } from '@/lib/auth/authorization'
-import { validateActionCsrf } from '@/lib/utils/action-helpers'
-import { CacheInvalidationService } from '@/lib/cache/invalidation'
+import { executeWrite, type CacheInvalidation } from '@/lib/actions/execute-write'
+import type { Permission } from '@/lib/auth/authorization'
 
-export type CacheInvalidation =
-  | { kind: 'product'; productId: number }
-  | { kind: 'stock'; productId: number; warehouseId: number }
+export type { CacheInvalidation }
 
 export interface StockWriteOptions<T> {
   permission?: Permission
@@ -19,35 +14,11 @@ export interface StockWriteOptions<T> {
 export async function executeStockWrite<T extends { error?: string }>(
   options: StockWriteOptions<T>
 ): Promise<T> {
-  const {
-    permission = 'stock:write',
-    csrfToken,
-    writeFn,
-    invalidations = [],
-    revalidatePaths = [],
-  } = options
-
-  const user = await requirePermission(permission)
-
-  const csrfError = await validateActionCsrf(user.id, csrfToken)
-  if (csrfError) return { error: csrfError } as T
-
-  const result = await writeFn(user)
-
-  if (!result.error) {
-    after(async () => {
-      for (const inv of invalidations) {
-        if (inv.kind === 'product') {
-          await CacheInvalidationService.invalidateProduct(inv.productId)
-        } else if (inv.kind === 'stock') {
-          await CacheInvalidationService.invalidateStock(inv.productId, inv.warehouseId)
-        }
-      }
-      for (const path of revalidatePaths) {
-        revalidatePath(path)
-      }
-    })
-  }
-
-  return result
+  return executeWrite({
+    permission: options.permission ?? 'stock:write',
+    csrfToken: options.csrfToken,
+    writeFn: options.writeFn,
+    invalidations: options.invalidations,
+    revalidatePaths: options.revalidatePaths,
+  }) as Promise<T>
 }

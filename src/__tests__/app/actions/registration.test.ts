@@ -4,11 +4,8 @@ const { mockHashPassword } = vi.hoisted(() => ({
   mockHashPassword: vi.fn().mockResolvedValue('hashed-password'),
 }))
 
-const { mockValidateCsrf, mockGetCsrfCookie, mockGenerateCsrfToken, mockSetCsrfCookie } = vi.hoisted(() => ({
-  mockValidateCsrf: vi.fn().mockResolvedValue(true),
-  mockGetCsrfCookie: vi.fn().mockResolvedValue('mock-csrf-cookie'),
-  mockGenerateCsrfToken: vi.fn(),
-  mockSetCsrfCookie: vi.fn(),
+const { mockExecuteWrite } = vi.hoisted(() => ({
+  mockExecuteWrite: vi.fn(),
 }))
 
 const { mockRedisIncrFn, mockRedisExpireFn } = vi.hoisted(() => ({
@@ -35,12 +32,8 @@ vi.mock('@/lib/auth/password', () => ({
   verifyPassword: vi.fn(),
 }))
 
-vi.mock('@/lib/security/csrf-server', () => ({
-  validateCsrfToken: mockValidateCsrf,
-  getCsrfCookie: mockGetCsrfCookie,
-  generateCsrfToken: mockGenerateCsrfToken,
-  setCsrfCookie: mockSetCsrfCookie,
-  ANONYMOUS_USER_ID: 'anonymous',
+vi.mock('@/lib/actions/execute-write', () => ({
+  executeWrite: mockExecuteWrite,
 }))
 
 vi.mock('@/lib/db/redis', () => ({
@@ -71,8 +64,6 @@ import * as registrationModule from '@/app/actions/registration'
 describe('Registration Actions', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockValidateCsrf.mockResolvedValue(true)
-    mockGetCsrfCookie.mockResolvedValue('mock-csrf-cookie')
     mockRedisIncrFn.mockResolvedValue(1)
     mockRedisExpireFn.mockResolvedValue(1)
     mockPrismaFindUnique.mockReset()
@@ -80,15 +71,8 @@ describe('Registration Actions', () => {
   })
 
   describe('publicRegister', () => {
-    it('should reject missing CSRF token', async () => {
-      const result = await registrationModule.publicRegister('test@test.com', 'password123', 'Test User')
-
-      expect(result.error).toBeDefined()
-      expect(result.error).toContain('Jeton')
-    })
-
-    it('should reject invalid CSRF token', async () => {
-      mockValidateCsrf.mockResolvedValue(false)
+    it('should return CSRF error when executeWrite returns CSRF error', async () => {
+      mockExecuteWrite.mockResolvedValue({ error: 'Jeton de sécurité invalide. Veuillez actualiser la page et réessayer.' })
 
       const result = await registrationModule.publicRegister('test@test.com', 'password123', 'Test User', 'bad-token')
 
@@ -96,33 +80,29 @@ describe('Registration Actions', () => {
       expect(result.error).toContain('Jeton')
     })
 
-    it('should reject when rate limited', async () => {
-      mockRedisIncrFn.mockResolvedValue(100)
+    it('should return validation error when executeWrite returns validation error', async () => {
+      mockExecuteWrite.mockResolvedValue({ error: 'Invalid input: Adresse email invalide' })
 
-      const result = await registrationModule.publicRegister('test@test.com', 'password123', 'Test User', 'valid-token')
-
-      expect(result.error).toContain('Too many registration attempts')
-    })
-
-    it('should reject invalid email', async () => {
       const result = await registrationModule.publicRegister('not-an-email', 'password123', 'Test User', 'valid-token')
 
       expect(result.error).toContain('Invalid input')
     })
 
-    it('should reject short password', async () => {
-      const result = await registrationModule.publicRegister('test@test.com', 'short', 'Test User', 'valid-token')
+    it('should reject when rate limited inside writeFn', async () => {
+      mockExecuteWrite.mockImplementation(async (options: { writeFn: () => Promise<unknown> }) => {
+        return options.writeFn()
+      })
+      mockRedisIncrFn.mockResolvedValue(100)
 
-      expect(result.error).toContain('Invalid input')
+      const result = await registrationModule.publicRegister('test@test.com', 'Password123!', 'Test User', 'valid-token')
+
+      expect(result.error).toContain('Too many registration attempts')
     })
 
-    it('should reject empty name', async () => {
-      const result = await registrationModule.publicRegister('test@test.com', 'password123', '', 'valid-token')
-
-      expect(result.error).toContain('Invalid input')
-    })
-
-    it('should reject existing user', async () => {
+    it('should reject existing user inside writeFn', async () => {
+      mockExecuteWrite.mockImplementation(async (options: { writeFn: () => Promise<unknown> }) => {
+        return options.writeFn()
+      })
       mockPrismaFindUnique.mockResolvedValue({
         id: 'existing-user',
         email: 'test@test.com',
@@ -133,7 +113,10 @@ describe('Registration Actions', () => {
       expect(result.error).toContain('already exists')
     })
 
-    it('should register successfully with valid data', async () => {
+    it('should register successfully with valid data inside writeFn', async () => {
+      mockExecuteWrite.mockImplementation(async (options: { writeFn: () => Promise<unknown> }) => {
+        return options.writeFn()
+      })
       mockPrismaFindUnique.mockResolvedValue(null)
       mockPrismaCreate.mockResolvedValue({
         id: 'new-user',
@@ -155,7 +138,10 @@ describe('Registration Actions', () => {
       )
     })
 
-    it('should normalize email to lowercase', async () => {
+    it('should normalize email to lowercase inside writeFn', async () => {
+      mockExecuteWrite.mockImplementation(async (options: { writeFn: () => Promise<unknown> }) => {
+        return options.writeFn()
+      })
       mockPrismaFindUnique.mockResolvedValue(null)
       mockPrismaCreate.mockResolvedValue({ id: 'new-user' })
 

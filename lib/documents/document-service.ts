@@ -1,16 +1,18 @@
 import { prisma } from '@/lib/db/prisma'
-import { paginationSchema } from '@/lib/validation'
+import { paginationSchema } from '@/lib/pagination'
 import { getDocLinesSchema } from '@/lib/documents/validation'
 import type { DocumentWithComputed, DocumentLine } from '@/lib/types'
 import { createLogger } from '@/lib/logger'
 import { createEmptyResult, buildPaginationMeta, getPaginationParams } from '@/lib/pagination'
 import type { PaginatedResult } from '@/lib/pagination'
 import { mapDocumentToComputed, mapLineToDocumentLine } from '@/lib/documents/mapping'
+import { hasRole } from '@/lib/auth/authorization'
+import type { UserRole } from '@/lib/auth/authorization'
 
 const log = createLogger('document-service')
 
 function applyRowLevelSecurity(user: { id: string; role: string }, whereClause: Record<string, unknown> = {}): Record<string, unknown> {
-  if (user.role === 'ADMIN') return whereClause
+  if (hasRole(user.role as UserRole, 'ADMIN')) return whereClause
   return { ...whereClause, cree_par: user.id }
 }
 

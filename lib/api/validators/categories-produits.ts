@@ -1,4 +1,7 @@
 import { z } from 'zod'
+import { paginationSchema } from '@/lib/pagination'
+
+export { paginationSchema }
 
 export const categoryCreateSchema = z.object({
   code_categorie: z.string().min(1).max(50),
@@ -9,11 +12,6 @@ export const categoryCreateSchema = z.object({
 })
 
 export const categoryUpdateSchema = categoryCreateSchema.partial()
-
-export const paginationSchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(50),
-})
 
 export type CategoryCreateInput = z.infer<typeof categoryCreateSchema>
 export type CategoryUpdateInput = z.infer<typeof categoryUpdateSchema>

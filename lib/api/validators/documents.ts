@@ -1,4 +1,7 @@
 import { z } from 'zod'
+import { paginationSchema } from '@/lib/pagination'
+
+export { paginationSchema }
 
 export const documentCreateSchema = z.object({
   numero_document: z.string().min(1).max(50),
@@ -32,11 +35,6 @@ export const documentCreateSchema = z.object({
 })
 
 export const documentUpdateSchema = documentCreateSchema.partial()
-
-export const paginationSchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(50),
-})
 
 export type DocumentCreateInput = z.infer<typeof documentCreateSchema>
 export type DocumentUpdateInput = z.infer<typeof documentUpdateSchema>

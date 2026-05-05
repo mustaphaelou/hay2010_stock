@@ -22,8 +22,8 @@ const { mockCacheServiceAcquireLock, mockCacheServiceReleaseLock } = vi.hoisted(
   mockCacheServiceReleaseLock: vi.fn().mockResolvedValue(undefined),
 }))
 
-const { mockExecuteStockWrite } = vi.hoisted(() => ({
-  mockExecuteStockWrite: vi.fn(),
+const { mockExecuteWrite } = vi.hoisted(() => ({
+  mockExecuteWrite: vi.fn(),
 }))
 
 vi.mock('@/lib/db/prisma', () => ({
@@ -61,8 +61,8 @@ vi.mock('@/lib/db/redis', () => ({
   isRedisReady: vi.fn().mockReturnValue(true),
 }))
 
-vi.mock('@/lib/stock/stock-write', () => ({
-  executeStockWrite: mockExecuteStockWrite,
+vi.mock('@/lib/actions/execute-write', () => ({
+  executeWrite: mockExecuteWrite,
 }))
 
 vi.mock('@/lib/logger', () => ({
@@ -191,12 +191,13 @@ describe('Articles Actions', () => {
   })
 
   describe('toggleArticleStatus', () => {
-    it('should delegate to executeStockWrite with correct params', async () => {
-      mockExecuteStockWrite.mockResolvedValue({ success: true })
+    it('should delegate to executeWrite with correct params', async () => {
+      mockExecuteWrite.mockResolvedValue({ success: true })
 
       const result = await toggleArticleStatus(1, true, 'csrf-token')
 
-      expect(mockExecuteStockWrite).toHaveBeenCalledWith({
+      expect(mockExecuteWrite).toHaveBeenCalledWith({
+        permission: 'stock:write',
         csrfToken: 'csrf-token',
         writeFn: expect.any(Function),
         invalidations: [{ kind: 'product', productId: 1 }],
@@ -205,8 +206,8 @@ describe('Articles Actions', () => {
       expect(result.success).toBe(true)
     })
 
-    it('should propagate error from executeStockWrite', async () => {
-      mockExecuteStockWrite.mockResolvedValue({ error: 'Jeton de sécurité invalide' })
+    it('should propagate error from executeWrite', async () => {
+      mockExecuteWrite.mockResolvedValue({ error: 'Jeton de sécurité invalide' })
 
       const result = await toggleArticleStatus(1, true, 'bad-token')
 
