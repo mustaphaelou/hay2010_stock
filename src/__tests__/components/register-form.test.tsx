@@ -8,6 +8,10 @@ vi.mock('@/app/actions/registration', () => ({
   publicRegister: vi.fn(),
 }))
 
+vi.mock('@/lib/security/csrf-client', () => ({
+  getCsrfToken: vi.fn().mockResolvedValue('test-csrf-token'),
+}))
+
 vi.mock('next/link', () => ({
   default: ({ children, ...props }: React.PropsWithChildren<Record<string, unknown>>) =>
     React.createElement('a', props, children),

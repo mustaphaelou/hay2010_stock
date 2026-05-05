@@ -57,7 +57,8 @@ export function LoginForm({
    * These errors are retryable with a fresh token.
    */
   function isCsrfError(errorMessage: string): boolean {
-    return errorMessage.toLowerCase().includes('security token') ||
+    return errorMessage.toLowerCase().includes('jeton') ||
+           errorMessage.toLowerCase().includes('security token') ||
            errorMessage.toLowerCase().includes('csrf')
   }
 
