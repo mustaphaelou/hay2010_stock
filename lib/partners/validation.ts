@@ -23,7 +23,7 @@ export const createPartnerSchema = z.object({
   numero_tva: z.string().max(50).nullable().optional(),
   numero_ice: z.string().max(50).nullable().optional(),
   numero_rc: z.string().max(50).nullable().optional(),
-  delai_paiement_jours: z.number().int().default(30).optional(),
+  delai_paiement_jours: z.number().int().nullable().default(30).optional(),
   limite_credit: z.number().nullable().optional(),
   pourcentage_remise: z.number().min(0).max(100).default(0).optional(),
   numero_compte_bancaire: z.string().max(50).nullable().optional(),

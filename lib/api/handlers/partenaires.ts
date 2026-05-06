@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db/prisma'
 import { getApiUser, requireApiKey } from '@/lib/api/auth'
 import { apiSuccess, apiPaginated, apiCreated, apiNoContent, apiError } from '@/lib/api/response'
 import {
@@ -9,22 +8,8 @@ import {
 } from '@/lib/api/validators/partenaires'
 import { ValidationError, NotFoundError, ConflictError } from '@/lib/errors'
 import { createValidationErrorFromZod } from '@/lib/errors'
-import { CacheInvalidationService } from '@/lib/cache/invalidation'
-import { Prisma } from '@/lib/generated/prisma/client'
+import { getPartnerById, deletePartner as deletePartnerService, createPartner as createPartnerService, updatePartner as updatePartnerService, getPartners as getPartnersService, getPartnerDocuments as getPartnerDocumentsService } from '@/lib/partners/partner-service'
 
-
-const ALLOWED_SORT_FIELDS = [
-  'id_partenaire',
-  'code_partenaire',
-  'nom_partenaire',
-  'type_partenaire',
-  'ville',
-  'pays',
-  'date_creation',
-  'date_modification',
-] as const
-
-type AllowedSortField = (typeof ALLOWED_SORT_FIELDS)[number]
 
 function extractIdFromUrl(request: NextRequest): number {
   const segments = request.nextUrl.pathname.split('/')
@@ -64,53 +49,20 @@ export async function listPartnersHandler(request: NextRequest): Promise<NextRes
     const sortParam = url.searchParams.get('sort') || 'nom_partenaire'
     const orderParam = (url.searchParams.get('order') || 'asc').toLowerCase()
 
-    const sort = ALLOWED_SORT_FIELDS.includes(sortParam as AllowedSortField)
-      ? (sortParam as AllowedSortField)
-      : 'nom_partenaire'
     const order = orderParam === 'desc' ? ('desc' as const) : ('asc' as const)
 
     const validTypes = ['CLIENT', 'FOURNISSEUR', 'LES_DEUX']
-    let typeFilter = undefined
-    if (type && type !== 'all') {
-      if (!validTypes.includes(type)) {
-        throw new ValidationError('Invalid type filter. Must be CLIENT, FOURNISSEUR, or LES_DEUX')
-      }
-      typeFilter = type
+    if (type && type !== 'all' && !validTypes.includes(type)) {
+      throw new ValidationError('Invalid type filter. Must be CLIENT, FOURNISSEUR, or LES_DEUX')
     }
 
-    const skip = (page - 1) * limit
+    const result = await getPartnersService(type, page, limit, search, sortParam, order)
 
-    const where: Prisma.PartenaireWhereInput = {}
-    if (typeFilter) {
-      where.type_partenaire = typeFilter as Prisma.EnumTypePartenaireFilter['equals']
-    }
-    if (search) {
-      where.OR = [
-        { nom_partenaire: { contains: search, mode: 'insensitive' } },
-        { code_partenaire: { contains: search, mode: 'insensitive' } },
-        { ville: { contains: search, mode: 'insensitive' } },
-      ]
+    if (result.error) {
+      throw new Error(result.error)
     }
 
-    const [partners, total] = await Promise.all([
-      prisma.partenaire.findMany({
-        skip,
-        take: limit,
-        where,
-        orderBy: { [sort]: order },
-      }),
-      prisma.partenaire.count({ where }),
-    ])
-
-    const totalPages = Math.ceil(total / limit)
-
-    return apiPaginated(partners, {
-      page,
-      limit,
-      total,
-      totalPages,
-      hasMore: page < totalPages,
-    })
+    return apiPaginated(result.data, result.meta)
   } catch (error) {
     return apiError(error)
   }
@@ -122,15 +74,16 @@ export async function getPartnerByIdHandler(request: NextRequest): Promise<NextR
 
     const id = extractIdFromUrl(request)
 
-    const partner = await prisma.partenaire.findUnique({
-      where: { id_partenaire: id },
-    })
+    const result = await getPartnerById(id)
 
-    if (!partner) {
+    if (result.error && result.error !== 'Partner not found') {
+      throw new Error(result.error)
+    }
+    if (!result.data) {
       throw new NotFoundError('Partner')
     }
 
-    return apiSuccess(partner)
+    return apiSuccess(result.data)
   } catch (error) {
     return apiError(error)
   }
@@ -146,23 +99,16 @@ export async function createPartnerHandler(request: NextRequest): Promise<NextRe
       throw createValidationErrorFromZod(parsed.error)
     }
 
-    const existing = await prisma.partenaire.findUnique({
-      where: { code_partenaire: parsed.data.code_partenaire },
-    })
-    if (existing) {
-      throw new ConflictError(`Partner with code ${parsed.data.code_partenaire} already exists`)
+    const result = await createPartnerService(parsed.data, apiUser.userId)
+
+    if (result.error) {
+      if (result.error.includes('already exists')) {
+        throw new ConflictError(result.error)
+      }
+      throw new Error(result.error)
     }
 
-    const partner = await prisma.partenaire.create({
-      data: {
-        ...parsed.data,
-        cree_par: apiUser.userId,
-      },
-    })
-
-    CacheInvalidationService.invalidatePartner(partner.id_partenaire)
-
-    return apiCreated(partner)
+    return apiCreated(result.data)
   } catch (error) {
     return apiError(error)
   }
@@ -180,33 +126,19 @@ export async function updatePartnerHandler(request: NextRequest): Promise<NextRe
       throw createValidationErrorFromZod(parsed.error)
     }
 
-    const existing = await prisma.partenaire.findUnique({
-      where: { id_partenaire: id },
-    })
-    if (!existing) {
-      throw new NotFoundError('Partner')
-    }
+    const result = await updatePartnerService(id, parsed.data, apiUser.userId)
 
-    if (parsed.data.code_partenaire && parsed.data.code_partenaire !== existing.code_partenaire) {
-      const duplicate = await prisma.partenaire.findUnique({
-        where: { code_partenaire: parsed.data.code_partenaire },
-      })
-      if (duplicate) {
-        throw new ConflictError(`Partner with code ${parsed.data.code_partenaire} already exists`)
+    if (result.error) {
+      if (result.error === 'Partner not found') {
+        throw new NotFoundError('Partner')
       }
+      if (result.error.includes('already exists')) {
+        throw new ConflictError(result.error)
+      }
+      throw new Error(result.error)
     }
 
-    const partner = await prisma.partenaire.update({
-      where: { id_partenaire: id },
-      data: {
-        ...parsed.data,
-        modifie_par: apiUser.userId,
-      },
-    })
-
-    CacheInvalidationService.invalidatePartner(partner.id_partenaire)
-
-    return apiSuccess(partner)
+    return apiSuccess(result.data)
   } catch (error) {
     return apiError(error)
   }
@@ -217,20 +149,16 @@ export async function deletePartnerHandler(request: NextRequest): Promise<NextRe
     await requireApiKey(request)
 
     const id = extractIdFromUrl(request)
+    const userId = await getAuthenticatedUserId(request)
 
-    const existing = await prisma.partenaire.findUnique({
-      where: { id_partenaire: id },
-    })
-    if (!existing) {
-      throw new NotFoundError('Partner')
+    const result = await deletePartnerService(id, userId)
+
+    if (result.error) {
+      if (result.error === 'Partner not found') {
+        throw new NotFoundError('Partner')
+      }
+      throw new Error(result.error)
     }
-
-    await prisma.partenaire.update({
-      where: { id_partenaire: id },
-      data: { est_actif: false, modifie_par: await getAuthenticatedUserId(request) },
-    })
-
-    CacheInvalidationService.invalidatePartner(id)
 
     return apiNoContent()
   } catch (error) {
@@ -249,38 +177,18 @@ export async function getPartnerDocumentsHandler(request: NextRequest): Promise<
       throw new ValidationError('Invalid partner ID')
     }
 
-    const partner = await prisma.partenaire.findUnique({
-      where: { id_partenaire: partnerId },
-    })
-    if (!partner) {
-      throw new NotFoundError('Partner')
+    const { page, limit } = parsePagination(request)
+
+    const result = await getPartnerDocumentsService(partnerId, page, limit)
+
+    if (result.error) {
+      if (result.error === 'Partner not found') {
+        throw new NotFoundError('Partner')
+      }
+      throw new Error(result.error)
     }
 
-    const { page, limit } = parsePagination(request)
-    const skip = (page - 1) * limit
-
-    const [documents, total] = await Promise.all([
-      prisma.docVente.findMany({
-        where: { id_partenaire: partnerId },
-        skip,
-        take: limit,
-        orderBy: { date_creation: 'desc' },
-        include: {
-          lignes: { select: { id_ligne: true } },
-        },
-      }),
-      prisma.docVente.count({ where: { id_partenaire: partnerId } }),
-    ])
-
-    const totalPages = Math.ceil(total / limit)
-
-    return apiPaginated(documents, {
-      page,
-      limit,
-      total,
-      totalPages,
-      hasMore: page < totalPages,
-    })
+    return apiPaginated(result.data, result.meta)
   } catch (error) {
     return apiError(error)
   }
