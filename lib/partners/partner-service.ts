@@ -221,7 +221,7 @@ export async function updatePartner(
 export async function deletePartner(
   id_partenaire: number,
   userId?: string,
-): Promise<{ success?: boolean; error?: string }> {
+): Promise<{ data?: { success: boolean }; error?: string }> {
   const validationResult = deletePartnerSchema.safeParse({ id_partenaire })
   if (!validationResult.success) {
     return { error: 'Invalid input: ' + validationResult.error.issues.map((e) => e.message).join(', ') }
@@ -242,7 +242,7 @@ export async function deletePartner(
 
     CacheInvalidationService.invalidatePartner(id_partenaire)
 
-    return { success: true }
+    return { data: { success: true } }
   } catch (error) {
     log.error({ error, id_partenaire }, 'Failed to delete partner')
     return { error: 'Failed to delete partner' }

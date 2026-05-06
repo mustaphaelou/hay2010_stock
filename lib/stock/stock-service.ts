@@ -112,7 +112,7 @@ export async function getArticlesWithStock(page: number = 1, limit: number = 50)
 export async function toggleArticleStatus(
   id_produit: number,
   newStatus: boolean,
-): Promise<{ success?: boolean; error?: string }> {
+): Promise<{ data?: { success: boolean }; error?: string }> {
   const validationResult = toggleArticleStatusSchema.safeParse({ id_produit, newStatus })
   if (!validationResult.success) {
     return { error: 'Invalid input: ' + validationResult.error.issues.map((e: { message: string }) => e.message).join(', ') }
@@ -133,7 +133,7 @@ export async function toggleArticleStatus(
 
     await CacheInvalidationService.invalidateProduct(id_produit)
 
-    return { success: true }
+    return { data: { success: true } }
   } catch (error) {
     log.error({ error, id_produit }, 'Failed to toggle article status')
     return { error: 'Failed to update status' }
@@ -237,16 +237,12 @@ export interface CreateMovementInput {
   destinationWarehouseId?: number
 }
 
-export interface MovementResult {
-  success?: boolean
-  error?: string
-  data?: {
-    movementId: number
-    newQuantity: number
-  }
+export type MovementResult = {
+  movementId: number
+  newQuantity: number
 }
 
-export async function createStockMovement(input: CreateMovementInput, userId: string): Promise<MovementResult> {
+export async function createStockMovement(input: CreateMovementInput, userId: string): Promise<{ data?: MovementResult; error?: string }> {
   const validation = createMovementSchema.safeParse(input)
   if (!validation.success) {
     return { error: validation.error.issues.map(e => e.message).join(', ') }
@@ -368,7 +364,7 @@ export async function createStockMovement(input: CreateMovementInput, userId: st
       }
     })
 
-    return { success: true, data: result }
+    return { data: result }
   } catch (error) {
     log.error({ error, input: validatedInput }, 'Stock movement failed')
     return {
@@ -383,7 +379,7 @@ export async function getStockMovements(
   productId?: number,
   warehouseId?: number,
   limit: number = 100
-): Promise<{ success: boolean; data?: Array<Record<string, unknown>>; error?: string }> {
+): Promise<{ data: Array<Record<string, unknown>>; error?: string }> {
   if (limit > 500) limit = 500
 
   try {
@@ -402,7 +398,6 @@ export async function getStockMovements(
     })
 
     return {
-      success: true,
       data: movements.map((m) => ({
         id_mouvement: m.id_mouvement,
         id_produit: m.id_produit,
@@ -418,6 +413,6 @@ export async function getStockMovements(
     }
   } catch (error) {
     log.error({ error, productId, warehouseId }, 'Failed to fetch stock movements')
-    return { success: false, error: 'Failed to fetch stock movements' }
+    return { data: [], error: 'Failed to fetch stock movements' }
   }
 }

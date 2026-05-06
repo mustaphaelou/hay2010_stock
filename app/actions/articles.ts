@@ -13,7 +13,7 @@ export async function toggleArticleStatus(
   id_produit: number,
   newStatus: boolean,
   csrfToken: string
-): Promise<{ success?: boolean; error?: string }> {
+) {
   return executeWrite({
     permission: 'stock:write',
     csrfToken,

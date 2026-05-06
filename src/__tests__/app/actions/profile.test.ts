@@ -60,7 +60,7 @@ describe('Profile Actions', () => {
       mockUpdateUserProfile.mockResolvedValue({ data: { id: 'user-1', name: 'New Name', email: 'user@test.com', role: 'USER', createdAt: null, lastLoginAt: null } })
 
       const fd = createFormData({ name: 'New Name', email: 'user@test.com', csrfToken: 'valid-token' })
-      const result = await updateProfile(fd)
+      const result = await updateProfile(fd) as any
 
       expect(mockExecuteWrite).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -68,7 +68,8 @@ describe('Profile Actions', () => {
           csrfToken: 'valid-token',
         })
       )
-      expect(result.success).toBe(true)
+      expect(result.error).toBeUndefined()
+      expect(result.data?.name).toBe('New Name')
     })
 
     it('should return CSRF error when executeWrite returns CSRF error', async () => {
@@ -150,9 +151,10 @@ describe('Profile Actions', () => {
       fd.set('email', 'user@test.com')
       fd.set('csrfToken', 'valid-token')
 
-      const result = await updateProfile(fd)
+      const result = await updateProfile(fd) as any
 
-      expect(result.success).toBe(true)
+      expect(result.error).toBeUndefined()
+      expect(result.data?.name).toBe('New Name')
       expect(mockUpdateUserProfile).toHaveBeenCalledWith('user-1', 'New Name', 'user@test.com', undefined)
     })
   })

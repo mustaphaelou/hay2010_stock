@@ -9,26 +9,17 @@ import { executeWrite } from '@/lib/actions/execute-write'
 export type MovementType = 'ENTREE' | 'SORTIE' | 'TRANSFERT' | 'INVENTAIRE'
 
 export interface CreateMovementInput {
-productId: number
-warehouseId: number
-quantity: number
-type: MovementType
-reference?: string
-motif?: string
-destinationWarehouseId?: number
+  productId: number
+  warehouseId: number
+  quantity: number
+  type: MovementType
+  reference?: string
+  motif?: string
+  destinationWarehouseId?: number
 }
 
-export interface MovementResult {
-success?: boolean
-error?: string
-data?: {
-movementId: number
-newQuantity: number
-}
-}
-
-export async function createStockMovement(input: CreateMovementInput, csrfToken: string): Promise<MovementResult> {
-  return executeWrite<MovementResult>({
+export async function createStockMovement(input: CreateMovementInput, csrfToken: string) {
+  return executeWrite({
     permission: 'stock:write',
     csrfToken,
     writeFn: (user) => createMovement(input, user.id),
@@ -41,10 +32,10 @@ export async function createStockMovement(input: CreateMovementInput, csrfToken:
 }
 
 export async function getStockMovements(
-productId?: number,
-warehouseId?: number,
-limit: number = 100
+  productId?: number,
+  warehouseId?: number,
+  limit: number = 100
 ) {
-await requirePermission('stock:read')
-return getMovements(productId, warehouseId, limit)
+  await requirePermission('stock:read')
+  return getMovements(productId, warehouseId, limit)
 }

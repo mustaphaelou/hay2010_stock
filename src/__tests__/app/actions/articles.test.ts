@@ -192,9 +192,9 @@ describe('Articles Actions', () => {
 
   describe('toggleArticleStatus', () => {
     it('should delegate to executeWrite with correct params', async () => {
-      mockExecuteWrite.mockResolvedValue({ success: true })
+      mockExecuteWrite.mockResolvedValue({ data: { success: true } })
 
-      const result = await toggleArticleStatus(1, true, 'csrf-token')
+      const result = await toggleArticleStatus(1, true, 'csrf-token') as { data?: { success: boolean }; error?: string }
 
       expect(mockExecuteWrite).toHaveBeenCalledWith({
         permission: 'stock:write',
@@ -203,7 +203,7 @@ describe('Articles Actions', () => {
         invalidations: [{ kind: 'product', productId: 1 }],
         revalidatePaths: ['/articles'],
       })
-      expect(result.success).toBe(true)
+      expect(result.data?.success).toBe(true)
     })
 
     it('should propagate error from executeWrite', async () => {

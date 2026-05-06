@@ -110,8 +110,7 @@ export function SettingsClient({ profile }: SettingsClientProps) {
 
       if (result.error) {
         toast.error(result.error)
-      }
-      if (result.success) {
+      } else {
         toast.success('Profil mis à jour avec succès')
         router.refresh()
       }

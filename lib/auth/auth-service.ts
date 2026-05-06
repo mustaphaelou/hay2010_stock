@@ -87,13 +87,18 @@ export async function loginUser(
 
 export async function logoutUser(
   tokenValue: string
-): Promise<{ data?: void; error?: string }> {
-  const payload = await verifyToken(tokenValue)
-  if (payload?.sessionId) {
-    await deleteSession(payload.sessionId)
+): Promise<{ data: { loggedOut: boolean }; error?: string }> {
+  try {
+    const payload = await verifyToken(tokenValue)
+    if (payload?.sessionId) {
+      await deleteSession(payload.sessionId)
+    }
+    if (payload?.jti) {
+      await revokeToken(payload.jti)
+    }
+    return { data: { loggedOut: true } }
+  } catch (error) {
+    log.error({ error }, 'Failed to logout user')
+    return { data: { loggedOut: false }, error: 'Failed to logout user' }
   }
-  if (payload?.jti) {
-    await revokeToken(payload.jti)
-  }
-  return { data: undefined }
 }

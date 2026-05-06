@@ -309,7 +309,7 @@ describe('Partner Service', () => {
       const result = await deletePartner(1, 'user-1')
 
       expect(result.error).toBeUndefined()
-      expect(result.success).toBe(true)
+      expect(result.data?.success).toBe(true)
       expect(mockPartenaireUpdate).toHaveBeenCalledWith({
         where: { id_partenaire: 1 },
         data: expect.objectContaining({ est_actif: false, modifie_par: 'user-1' }),
@@ -328,7 +328,7 @@ describe('Partner Service', () => {
       const result = await deletePartner(-1, 'user-1')
 
       expect(result.error).toBeDefined()
-      expect(result.success).toBeUndefined()
+      expect(result.data?.success).toBeUndefined()
     })
 
     it('should return { error } on DB failure', async () => {
@@ -338,7 +338,7 @@ describe('Partner Service', () => {
       const result = await deletePartner(1, 'user-1')
 
       expect(result.error).toBe('Failed to delete partner')
-      expect(result.success).toBeUndefined()
+      expect(result.data?.success).toBeUndefined()
     })
   })
 

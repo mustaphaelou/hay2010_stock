@@ -1,41 +1,45 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 
-const { mockPartenaireFindMany, mockPartenaireCount, mockPartenaireFindUnique, mockPartenaireCreate, mockPartenaireUpdate, mockDocVenteFindMany, mockDocVenteCount, mockRequireApiKey, mockGetApiUser, mockCacheIncrement } = vi.hoisted(() => ({
-  mockPartenaireFindMany: vi.fn(),
-  mockPartenaireCount: vi.fn(),
-  mockPartenaireFindUnique: vi.fn(),
-  mockPartenaireCreate: vi.fn(),
-  mockPartenaireUpdate: vi.fn(),
-  mockDocVenteFindMany: vi.fn(),
-  mockDocVenteCount: vi.fn(),
+const {
+  mockGetPartners,
+  mockGetPartnerById,
+  mockCreatePartner,
+  mockUpdatePartner,
+  mockDeletePartner,
+  mockGetPartnerDocuments,
+  mockRequireApiKey,
+  mockGetApiUser,
+  mockRedisIncr,
+} = vi.hoisted(() => ({
+  mockGetPartners: vi.fn(),
+  mockGetPartnerById: vi.fn(),
+  mockCreatePartner: vi.fn(),
+  mockUpdatePartner: vi.fn(),
+  mockDeletePartner: vi.fn(),
+  mockGetPartnerDocuments: vi.fn(),
   mockRequireApiKey: vi.fn(),
   mockGetApiUser: vi.fn(),
-  mockCacheIncrement: vi.fn(),
+  mockRedisIncr: vi.fn(),
 }))
 
-vi.mock('@/lib/db/prisma', () => ({
-  prisma: {
-    partenaire: {
-      findMany: mockPartenaireFindMany,
-      count: mockPartenaireCount,
-      findUnique: mockPartenaireFindUnique,
-      create: mockPartenaireCreate,
-      update: mockPartenaireUpdate,
-    },
-    docVente: {
-      findMany: mockDocVenteFindMany,
-      count: mockDocVenteCount,
-    },
-  },
+vi.mock('@/lib/partners/partner-service', () => ({
+  getPartners: mockGetPartners,
+  getPartnerById: mockGetPartnerById,
+  createPartner: mockCreatePartner,
+  updatePartner: mockUpdatePartner,
+  deletePartner: mockDeletePartner,
+  getPartnerDocuments: mockGetPartnerDocuments,
 }))
 
 vi.mock('@/lib/db/redis', async () => {
   const actual = await vi.importActual('@/lib/db/redis')
   return {
     ...actual,
-    CacheService: {
-      increment: mockCacheIncrement,
+    redis: {
+      ...(actual as Record<string, { redis?: Record<string, unknown> }>).redis,
+      incr: mockRedisIncr,
+      expire: vi.fn().mockResolvedValue('OK'),
     },
   }
 })
@@ -80,43 +84,58 @@ function makeRequest(method: string, path: string, body?: unknown): NextRequest 
   return req
 }
 
-const mockPartner = {
-  id_partenaire: 1,
-  code_partenaire: 'P-001',
-  nom_partenaire: 'Client Alpha',
-  type_partenaire: 'CLIENT',
-  adresse_email: 'alpha@test.com',
-  numero_telephone: null,
-  numero_fax: null,
-  url_site_web: null,
-  adresse_rue: null,
-  code_postal: null,
-  ville: 'Casablanca',
-  pays: 'Maroc',
-  numero_tva: null,
-  numero_ice: null,
-  numero_rc: null,
-  delai_paiement_jours: 30,
-  limite_credit: 10000,
-  pourcentage_remise: 0,
-  numero_compte_bancaire: null,
-  code_banque: null,
-  numero_iban: null,
-  code_swift: null,
-  est_actif: true,
-  est_bloque: false,
-  date_creation: new Date('2025-01-01'),
-  date_modification: new Date('2025-06-01'),
-  cree_par: null,
-  modifie_par: null,
-  compte_collectif: null,
-  compte_auxiliaire: null,
+function makePaginatedMeta(total: number, page: number = 1, limit: number = 50) {
+  return {
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit),
+    hasMore: page * limit < total,
+  }
+}
+
+function makePartner(overrides: Record<string, unknown> = {}) {
+  return {
+    id_partenaire: 1,
+    code_partenaire: 'P-001',
+    nom_partenaire: 'Client Alpha',
+    type_partenaire: 'CLIENT',
+    adresse_email: 'alpha@test.com',
+    numero_telephone: null,
+    numero_fax: null,
+    url_site_web: null,
+    adresse_rue: null,
+    code_postal: null,
+    ville: 'Casablanca',
+    pays: 'Maroc',
+    numero_tva: null,
+    numero_ice: null,
+    numero_rc: null,
+    delai_paiement_jours: 30,
+    limite_credit: 10000,
+    pourcentage_remise: 0,
+    numero_compte_bancaire: null,
+    code_banque: null,
+    numero_iban: null,
+    code_swift: null,
+    est_actif: true,
+    est_bloque: false,
+    date_creation: new Date('2025-01-01'),
+    date_modification: new Date('2025-06-01'),
+    cree_par: null,
+    modifie_par: null,
+    compte_collectif: null,
+    compte_auxiliaire: null,
+    solde_courant: 0,
+    plafond_credit: 10000,
+    ...overrides,
+  }
 }
 
 describe('Partenaire API Handlers', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockCacheIncrement.mockResolvedValue(1)
+    mockRedisIncr.mockResolvedValue(1)
   })
 
   describe('GET list', () => {
@@ -133,8 +152,8 @@ describe('Partenaire API Handlers', () => {
 
     it('should return paginated partners', async () => {
       mockRequireApiKey.mockResolvedValue(API_USER)
-      mockPartenaireFindMany.mockResolvedValue([mockPartner])
-      mockPartenaireCount.mockResolvedValue(1)
+      const partner = makePartner()
+      mockGetPartners.mockResolvedValue({ data: [partner], meta: makePaginatedMeta(1) })
 
       const request = makeRequest('GET', '/api/v1/partenaires')
       const response = await listPartnersHandler(request)
@@ -149,16 +168,13 @@ describe('Partenaire API Handlers', () => {
 
     it('should filter by type', async () => {
       mockRequireApiKey.mockResolvedValue(API_USER)
-      mockPartenaireFindMany.mockResolvedValue([{ ...mockPartner, type_partenaire: 'FOURNISSEUR' }])
-      mockPartenaireCount.mockResolvedValue(1)
+      mockGetPartners.mockResolvedValue({ data: [], meta: makePaginatedMeta(0) })
 
       const request = makeRequest('GET', '/api/v1/partenaires?type=FOURNISSEUR')
       const response = await listPartnersHandler(request)
 
       expect(response.status).toBe(200)
-      expect(mockPartenaireFindMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { type_partenaire: 'FOURNISSEUR' } })
-      )
+      expect(mockGetPartners).toHaveBeenCalledWith('FOURNISSEUR', 1, 50, undefined, 'nom_partenaire', 'asc')
     })
 
     it('should reject invalid type', async () => {
@@ -172,52 +188,35 @@ describe('Partenaire API Handlers', () => {
 
     it('should search by nom_partenaire and code_partenaire', async () => {
       mockRequireApiKey.mockResolvedValue(API_USER)
-      mockPartenaireFindMany.mockResolvedValue([mockPartner])
-      mockPartenaireCount.mockResolvedValue(1)
+      mockGetPartners.mockResolvedValue({ data: [], meta: makePaginatedMeta(0) })
 
       const request = makeRequest('GET', '/api/v1/partenaires?search=Alpha')
       const response = await listPartnersHandler(request)
 
       expect(response.status).toBe(200)
-      expect(mockPartenaireFindMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({
-            OR: expect.arrayContaining([
-              { nom_partenaire: { contains: 'Alpha', mode: 'insensitive' } },
-              { code_partenaire: { contains: 'Alpha', mode: 'insensitive' } },
-              { ville: { contains: 'Alpha', mode: 'insensitive' } },
-            ]),
-          }),
-        })
-      )
+      expect(mockGetPartners).toHaveBeenCalledWith(undefined, 1, 50, 'Alpha', 'nom_partenaire', 'asc')
     })
 
     it('should sort by specified field', async () => {
       mockRequireApiKey.mockResolvedValue(API_USER)
-      mockPartenaireFindMany.mockResolvedValue([])
-      mockPartenaireCount.mockResolvedValue(0)
+      mockGetPartners.mockResolvedValue({ data: [], meta: makePaginatedMeta(0) })
 
       const request = makeRequest('GET', '/api/v1/partenaires?sort=ville&order=desc')
       const response = await listPartnersHandler(request)
 
       expect(response.status).toBe(200)
-      expect(mockPartenaireFindMany).toHaveBeenCalledWith(
-        expect.objectContaining({ orderBy: { ville: 'desc' } })
-      )
+      expect(mockGetPartners).toHaveBeenCalledWith(undefined, 1, 50, undefined, 'ville', 'desc')
     })
 
     it('should default to nom_partenaire for invalid sort field', async () => {
       mockRequireApiKey.mockResolvedValue(API_USER)
-      mockPartenaireFindMany.mockResolvedValue([])
-      mockPartenaireCount.mockResolvedValue(0)
+      mockGetPartners.mockResolvedValue({ data: [], meta: makePaginatedMeta(0) })
 
       const request = makeRequest('GET', '/api/v1/partenaires?sort=invalid_field')
       const response = await listPartnersHandler(request)
 
       expect(response.status).toBe(200)
-      expect(mockPartenaireFindMany).toHaveBeenCalledWith(
-        expect.objectContaining({ orderBy: { nom_partenaire: 'asc' } })
-      )
+      expect(mockGetPartners).toHaveBeenCalledWith(undefined, 1, 50, undefined, 'invalid_field', 'asc')
     })
   })
 
@@ -233,7 +232,8 @@ describe('Partenaire API Handlers', () => {
 
     it('should return partner by id', async () => {
       mockRequireApiKey.mockResolvedValue(API_USER)
-      mockPartenaireFindUnique.mockResolvedValue(mockPartner)
+      const partner = makePartner()
+      mockGetPartnerById.mockResolvedValue({ data: partner })
 
       const request = makeRequest('GET', '/api/v1/partenaires/1')
       const response = await getPartnerByIdHandler(request)
@@ -246,7 +246,7 @@ describe('Partenaire API Handlers', () => {
 
     it('should return 404 for non-existent partner', async () => {
       mockRequireApiKey.mockResolvedValue(API_USER)
-      mockPartenaireFindUnique.mockResolvedValue(null)
+      mockGetPartnerById.mockResolvedValue({ data: undefined, error: 'Partner not found' })
 
       const request = makeRequest('GET', '/api/v1/partenaires/999')
       const response = await getPartnerByIdHandler(request)
@@ -282,8 +282,9 @@ describe('Partenaire API Handlers', () => {
 
     it('should create a partner and return 201', async () => {
       mockRequireApiKey.mockResolvedValue(API_USER)
-      mockPartenaireFindUnique.mockResolvedValue(null)
-      mockPartenaireCreate.mockResolvedValue({ ...mockPartner, code_partenaire: 'P-002', nom_partenaire: 'New Partner' })
+      mockCreatePartner.mockResolvedValue({
+        data: makePartner({ code_partenaire: 'P-002', nom_partenaire: 'New Partner' }),
+      })
 
       const request = makeRequest('POST', '/api/v1/partenaires', createBody)
       const response = await createPartnerHandler(request)
@@ -291,20 +292,22 @@ describe('Partenaire API Handlers', () => {
       expect(response.status).toBe(201)
       const data = await response.json()
       expect(data.nom_partenaire).toBe('New Partner')
-      expect(mockPartenaireCreate).toHaveBeenCalledWith(
+      expect(mockCreatePartner).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({
-            code_partenaire: 'P-002',
-            nom_partenaire: 'New Partner',
-            cree_par: 'user-api-1',
-          }),
-        })
+          code_partenaire: 'P-002',
+          nom_partenaire: 'New Partner',
+          type_partenaire: 'CLIENT',
+        }),
+        'user-api-1'
       )
     })
 
     it('should return 409 on duplicate code', async () => {
       mockRequireApiKey.mockResolvedValue(API_USER)
-      mockPartenaireFindUnique.mockResolvedValue(mockPartner)
+      mockCreatePartner.mockResolvedValue({
+        data: undefined,
+        error: 'Partner with code P-001 already exists',
+      })
 
       const request = makeRequest('POST', '/api/v1/partenaires', { ...createBody, code_partenaire: 'P-001' })
       const response = await createPartnerHandler(request)
@@ -350,8 +353,9 @@ describe('Partenaire API Handlers', () => {
 
     it('should update a partner', async () => {
       mockRequireApiKey.mockResolvedValue(API_USER)
-      mockPartenaireFindUnique.mockResolvedValue(mockPartner)
-      mockPartenaireUpdate.mockResolvedValue({ ...mockPartner, nom_partenaire: 'Updated Partner' })
+      mockUpdatePartner.mockResolvedValue({
+        data: makePartner({ nom_partenaire: 'Updated Partner' }),
+      })
 
       const request = makeRequest('PUT', '/api/v1/partenaires/1', updateBody)
       const response = await updatePartnerHandler(request)
@@ -359,20 +363,16 @@ describe('Partenaire API Handlers', () => {
       expect(response.status).toBe(200)
       const data = await response.json()
       expect(data.nom_partenaire).toBe('Updated Partner')
-      expect(mockPartenaireUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { id_partenaire: 1 },
-          data: expect.objectContaining({
-            nom_partenaire: 'Updated Partner',
-            modifie_par: 'user-api-1',
-          }),
-        })
+      expect(mockUpdatePartner).toHaveBeenCalledWith(
+        1,
+        expect.objectContaining({ nom_partenaire: 'Updated Partner' }),
+        'user-api-1'
       )
     })
 
     it('should return 404 for non-existent partner', async () => {
       mockRequireApiKey.mockResolvedValue(API_USER)
-      mockPartenaireFindUnique.mockResolvedValue(null)
+      mockUpdatePartner.mockResolvedValue({ data: undefined, error: 'Partner not found' })
 
       const request = makeRequest('PUT', '/api/v1/partenaires/999', updateBody)
       const response = await updatePartnerHandler(request)
@@ -382,9 +382,10 @@ describe('Partenaire API Handlers', () => {
 
     it('should return 409 on duplicate code change', async () => {
       mockRequireApiKey.mockResolvedValue(API_USER)
-      mockPartenaireFindUnique
-        .mockResolvedValueOnce(mockPartner)
-        .mockResolvedValueOnce({ ...mockPartner, id_partenaire: 2 })
+      mockUpdatePartner.mockResolvedValue({
+        data: undefined,
+        error: 'Partner with code P-999 already exists',
+      })
 
       const request = makeRequest('PUT', '/api/v1/partenaires/1', { code_partenaire: 'P-999' })
       const response = await updatePartnerHandler(request)
@@ -406,24 +407,18 @@ describe('Partenaire API Handlers', () => {
     it('should soft-delete a partner', async () => {
       mockRequireApiKey.mockResolvedValue(API_USER)
       mockGetApiUser.mockResolvedValue(API_USER)
-      mockPartenaireFindUnique.mockResolvedValue(mockPartner)
-      mockPartenaireUpdate.mockResolvedValue({ ...mockPartner, est_actif: false })
+      mockDeletePartner.mockResolvedValue({ success: true })
 
       const request = makeRequest('DELETE', '/api/v1/partenaires/1')
       const response = await deletePartnerHandler(request)
 
       expect(response.status).toBe(204)
-      expect(mockPartenaireUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { id_partenaire: 1 },
-          data: expect.objectContaining({ est_actif: false }),
-        })
-      )
+      expect(mockDeletePartner).toHaveBeenCalledWith(1, 'user-api-1')
     })
 
     it('should return 404 for non-existent partner', async () => {
       mockRequireApiKey.mockResolvedValue(API_USER)
-      mockPartenaireFindUnique.mockResolvedValue(null)
+      mockDeletePartner.mockResolvedValue({ success: undefined, error: 'Partner not found' })
 
       const request = makeRequest('DELETE', '/api/v1/partenaires/999')
       const response = await deletePartnerHandler(request)
@@ -435,9 +430,10 @@ describe('Partenaire API Handlers', () => {
   describe('GET documents', () => {
     it('should return partner documents', async () => {
       mockRequireApiKey.mockResolvedValue(API_USER)
-      mockPartenaireFindUnique.mockResolvedValue(mockPartner)
-      mockDocVenteFindMany.mockResolvedValue([{ id_document: 1, numero_document: 'FAC-001' }])
-      mockDocVenteCount.mockResolvedValue(1)
+      mockGetPartnerDocuments.mockResolvedValue({
+        data: [{ id_document: 1, numero_document: 'FAC-001' }],
+        meta: makePaginatedMeta(1),
+      })
 
       const request = makeRequest('GET', '/api/v1/partenaires/1/documents')
       const response = await getPartnerDocumentsHandler(request)
@@ -450,7 +446,7 @@ describe('Partenaire API Handlers', () => {
 
     it('should return 404 for non-existent partner', async () => {
       mockRequireApiKey.mockResolvedValue(API_USER)
-      mockPartenaireFindUnique.mockResolvedValue(null)
+      mockGetPartnerDocuments.mockResolvedValue({ data: [], meta: makePaginatedMeta(0, 1, 50), error: 'Partner not found' })
 
       const request = makeRequest('GET', '/api/v1/partenaires/999/documents')
       const response = await getPartnerDocumentsHandler(request)
@@ -462,10 +458,9 @@ describe('Partenaire API Handlers', () => {
 
 describe('Rate Limiting', () => {
   it('should return 429 when rate limit exceeded', async () => {
-    mockCacheIncrement.mockResolvedValue(31)
+    mockRedisIncr.mockResolvedValue(31)
     mockRequireApiKey.mockResolvedValue({ userId: 'user-1', role: 'ADMIN' as const, keyId: 'key-1' })
-    mockPartenaireCreate.mockResolvedValue(mockPartner)
-    mockPartenaireFindUnique.mockResolvedValue(null)
+    mockCreatePartner.mockResolvedValue({ data: makePartner() })
 
     const { POST } = await import('@/app/api/v1/partenaires/route')
     const request = makeRequest('POST', '/api/v1/partenaires', {

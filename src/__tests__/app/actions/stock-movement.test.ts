@@ -76,7 +76,7 @@ describe('Stock Movement Actions', () => {
 
   describe('createStockMovement', () => {
     it('should delegate to executeWrite with correct params', async () => {
-      mockExecuteWrite.mockResolvedValue({ success: true, data: { movementId: 1, newQuantity: 10 } })
+      mockExecuteWrite.mockResolvedValue({ data: { movementId: 1, newQuantity: 10 } })
 
       const { createStockMovement } = await import('@/app/actions/stock-movement')
       const result = await createStockMovement(validInput, 'valid-csrf-token')
@@ -91,7 +91,7 @@ describe('Stock Movement Actions', () => {
         ],
         revalidatePaths: ['/stock'],
       })
-      expect(result.success).toBe(true)
+      expect(result.error).toBeUndefined()
     })
 
     it('should propagate error from executeWrite', async () => {
@@ -124,8 +124,8 @@ describe('Stock Movement Actions', () => {
       const { getStockMovements } = await import('@/app/actions/stock-movement')
       const result = await getStockMovements()
 
-      expect(result.success).toBe(true)
       expect(result.data).toHaveLength(1)
+      expect(result.error).toBeUndefined()
     })
 
     it('should cap limit at 500', async () => {
