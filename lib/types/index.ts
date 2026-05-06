@@ -221,6 +221,42 @@ export type DocumentLine = {
 }
 
 // =====================================================
+// AFFAIRE TYPES
+// =====================================================
+
+export type AffaireWithComputed = {
+  id_affaire: number
+  code_affaire: string
+  intitule_affaire: string
+  type_affaire: string
+  statut_affaire: string | null
+  abrege: string | null
+  id_client: number | null
+  date_debut: Date | null
+  date_fin_prevue: Date | null
+  date_fin_reelle: Date | null
+  budget_prevu: Prisma.Decimal | null
+  chiffre_affaires: Prisma.Decimal | null
+  marge: Prisma.Decimal | null
+  taux_remise_moyen: Prisma.Decimal | null
+  notes: string | null
+  est_actif: boolean
+  en_sommeil: boolean
+  date_creation: Date
+  date_modification: Date
+  cree_par: string | null
+  modifie_par: string | null
+  client: {
+    nom_partenaire: string
+    code_partenaire: string
+    type_partenaire: string
+  } | null
+  budget_prevu_num: number
+  chiffre_affaires_num: number
+  marge_num: number
+}
+
+// =====================================================
 // PARTNER TYPES
 // =====================================================
 

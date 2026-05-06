@@ -38,11 +38,11 @@ import {
 import { getDocumentsByAffaire } from '@/app/actions/affaires'
 import { formatPrice, formatDate } from '@/lib/utils'
 
-import type { DocumentBase } from '@/lib/types'
+import type { DocumentBase, AffaireWithComputed } from '@/lib/types'
 type AffaireDocument = DocumentBase
 
 interface AffairesClientProps {
-  initialAffaires: string[]
+  initialAffaires: AffaireWithComputed[]
 }
 
 const getDomaineBadge = (domaine: string) => {
@@ -53,8 +53,8 @@ const getDomaineBadge = (domaine: string) => {
 }
 
 export default function AffairesClient({ initialAffaires }: AffairesClientProps) {
-  const [affaires] = useState<string[]>(initialAffaires)
-  const [selectedAffaire, setSelectedAffaire] = useState<string>(initialAffaires.length > 0 ? initialAffaires[0] : '')
+  const [affaires] = useState<AffaireWithComputed[]>(initialAffaires)
+  const [selectedAffaire, setSelectedAffaire] = useState<string>(initialAffaires.length > 0 ? initialAffaires[0].code_affaire : '')
   const [documents, setDocuments] = useState<AffaireDocument[]>([])
   const [loadingDocs, setLoadingDocs] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -120,8 +120,8 @@ export default function AffairesClient({ initialAffaires }: AffairesClientProps)
             <SelectContent>
               <SelectGroup>
                 {affaires.map((affaire) => (
-                  <SelectItem key={affaire} value={affaire}>
-                    {affaire}
+                  <SelectItem key={affaire.code_affaire} value={affaire.code_affaire}>
+                    {affaire.code_affaire} — {affaire.intitule_affaire}
                   </SelectItem>
                 ))}
               </SelectGroup>
