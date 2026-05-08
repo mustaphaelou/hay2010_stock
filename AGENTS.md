@@ -41,7 +41,7 @@ Every function in `lib/stock/`, `lib/partners/`, `lib/documents/`, `lib/affaires
 ```ts
 // Success
 { data: items, error: undefined }
-// Failure  
+// Failure
 { data: [], error: 'message' }
 ```
 
