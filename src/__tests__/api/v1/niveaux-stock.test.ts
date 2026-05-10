@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 
-const { mockNiveauStockFindMany, mockNiveauStockCount, mockNiveauStockFindUnique, mockNiveauStockCreate, mockNiveauStockUpdate, mockNiveauStockDelete, mockProduitFindUnique, mockEntrepotFindUnique, mockRequireApiKey, mockCacheIncrement } = vi.hoisted(() => ({
+const { mockNiveauStockFindMany, mockNiveauStockCount, mockNiveauStockFindUnique, mockNiveauStockCreate, mockNiveauStockUpdate, mockNiveauStockDelete, mockProduitFindUnique, mockEntrepotFindUnique, mockRequireApiKey, mockRedisIncr } = vi.hoisted(() => ({
   mockNiveauStockFindMany: vi.fn(),
   mockNiveauStockCount: vi.fn(),
   mockNiveauStockFindUnique: vi.fn(),
@@ -11,7 +11,7 @@ const { mockNiveauStockFindMany, mockNiveauStockCount, mockNiveauStockFindUnique
   mockProduitFindUnique: vi.fn(),
   mockEntrepotFindUnique: vi.fn(),
   mockRequireApiKey: vi.fn(),
-  mockCacheIncrement: vi.fn(),
+  mockRedisIncr: vi.fn(),
 }))
 
 vi.mock('@/lib/db/prisma', () => ({
@@ -37,8 +37,10 @@ vi.mock('@/lib/db/redis', async () => {
   const actual = await vi.importActual('@/lib/db/redis')
   return {
     ...actual,
-    CacheService: {
-      increment: mockCacheIncrement,
+    redis: {
+      ...(actual as Record<string, { redis?: Record<string, unknown> }>).redis,
+      incr: mockRedisIncr,
+      expire: vi.fn().mockResolvedValue('OK'),
     },
   }
 })
@@ -107,7 +109,7 @@ const mockWarehouse = { id_entrepot: 1, code_entrepot: 'ENT-001', nom_entrepot: 
 describe('NiveauStock API Handlers', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockCacheIncrement.mockResolvedValue(1)
+    mockRedisIncr.mockResolvedValue(1)
   })
 
   describe('GET list', () => {
@@ -467,7 +469,7 @@ describe('NiveauStock API Handlers', () => {
 
 describe('Rate Limiting', () => {
   it('should return 429 when rate limit exceeded', async () => {
-    mockCacheIncrement.mockResolvedValue(31)
+    mockRedisIncr.mockResolvedValue(31)
     mockRequireApiKey.mockResolvedValue({ userId: 'user-1', role: 'ADMIN' as const, keyId: 'key-1' })
     mockNiveauStockCreate.mockResolvedValue(mockStockLevel)
     mockNiveauStockFindUnique.mockResolvedValue(null)

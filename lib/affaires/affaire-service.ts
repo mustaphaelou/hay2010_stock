@@ -1,10 +1,24 @@
 import { prisma } from '@/lib/db/prisma'
-import { getAffairesSchema, getAffaireByCodeSchema } from '@/lib/affaires/validation'
+import {
+  getAffairesSchema,
+  getAffaireByCodeSchema,
+  affaireCreateSchema,
+  affaireUpdateSchema,
+  getAffaireByIdSchema,
+  deleteAffaireSchema,
+  ALLOWED_AFFAIRE_SORT_FIELDS,
+} from '@/lib/affaires/validation'
+import type {
+  GetAffairesInput,
+  AffaireCreateInput,
+  AffaireUpdateInput,
+  AllowedAffaireSortField,
+} from '@/lib/affaires/validation'
 import type { AffaireWithComputed, DocumentBase } from '@/lib/types'
 import { createLogger } from '@/lib/logger'
 import { createEmptyResult, buildPaginationMeta, getPaginationParams } from '@/lib/pagination'
 import type { PaginatedResult } from '@/lib/pagination'
-import type { GetAffairesInput } from '@/lib/affaires/validation'
+import { CacheInvalidationService } from '@/lib/cache/invalidation'
 
 const log = createLogger('affaire-service')
 
@@ -38,14 +52,24 @@ function mapAffaireToComputed(affaire: Record<string, unknown>): AffaireWithComp
   }
 }
 
-export async function getAffaires(page: number = 1, limit: number = 50, filters?: Partial<GetAffairesInput>): Promise<PaginatedResult<AffaireWithComputed> & { error?: string }> {
+export async function getAffaires(
+  page: number = 1,
+  limit: number = 50,
+  filters?: Partial<GetAffairesInput>,
+  sort: string = 'date_creation',
+  order: 'asc' | 'desc' = 'desc',
+): Promise<PaginatedResult<AffaireWithComputed> & { error?: string }> {
   const validationResult = getAffairesSchema.safeParse({ page, limit, ...filters })
   if (!validationResult.success) {
-    return createEmptyResult<AffaireWithComputed>(page, limit, 'Invalid filter parameters')
+    return createEmptyResult<AffaireWithComputed>(page, limit, 'Paramètres de filtre invalides')
   }
 
   const validated = validationResult.data
   const { skip } = getPaginationParams({ page: validated.page, limit: validated.limit })
+
+  const effectiveSort = ALLOWED_AFFAIRE_SORT_FIELDS.includes(sort as AllowedAffaireSortField)
+    ? (sort as AllowedAffaireSortField)
+    : 'date_creation'
 
   try {
     const where: Record<string, unknown> = {}
@@ -67,7 +91,7 @@ export async function getAffaires(page: number = 1, limit: number = 50, filters?
         include: {
           client: { select: { nom_partenaire: true, code_partenaire: true, type_partenaire: true } },
         },
-        orderBy: { code_affaire: 'asc' },
+        orderBy: { [effectiveSort]: order },
       }),
       prisma.affaire.count({ where }),
     ])
@@ -77,15 +101,192 @@ export async function getAffaires(page: number = 1, limit: number = 50, filters?
       meta: buildPaginationMeta(total, validated.page, validated.limit),
     }
   } catch (error) {
-    log.error({ error }, 'Failed to fetch affaires')
-    return createEmptyResult<AffaireWithComputed>(page, limit, 'Failed to fetch affaires')
+    log.error({ error }, 'Échec de la récupération des affaires')
+    return createEmptyResult<AffaireWithComputed>(page, limit, 'Échec de la récupération des affaires')
+  }
+}
+
+export async function getAffaireById(
+  id_affaire: number,
+): Promise<{ data?: AffaireWithComputed | null; error?: string }> {
+  const validationResult = getAffaireByIdSchema.safeParse({ id_affaire })
+  if (!validationResult.success) {
+    return { error: 'ID d\'affaire invalide' }
+  }
+
+  try {
+    const affaire = await prisma.affaire.findUnique({
+      where: { id_affaire },
+      include: {
+        client: { select: { id_partenaire: true, code_partenaire: true, nom_partenaire: true } },
+      },
+    })
+
+    if (!affaire) {
+      return { data: null, error: 'Affaire introuvable' }
+    }
+
+    return { data: mapAffaireToComputed(affaire as unknown as Record<string, unknown>) }
+  } catch (error) {
+    log.error({ error, id_affaire }, 'Échec de la récupération de l\'affaire')
+    return { error: 'Échec de la récupération de l\'affaire' }
+  }
+}
+
+export async function createAffaire(
+  input: AffaireCreateInput,
+  userId: string,
+): Promise<{ data?: AffaireWithComputed; error?: string }> {
+  const validationResult = affaireCreateSchema.safeParse(input)
+  if (!validationResult.success) {
+    return { error: 'Validation échouée: ' + validationResult.error.issues.map((e) => e.message).join(', ') }
+  }
+
+  const validatedInput = validationResult.data
+
+  try {
+    const existing = await prisma.affaire.findUnique({
+      where: { code_affaire: validatedInput.code_affaire },
+    })
+    if (existing) {
+      return { error: `L'affaire ${validatedInput.code_affaire} existe déjà` }
+    }
+
+    const affaire = await prisma.affaire.create({
+      data: {
+        ...validatedInput,
+        cree_par: userId,
+      },
+    })
+
+    CacheInvalidationService.invalidateAffaire(affaire.id_affaire)
+
+    return { data: mapAffaireToComputed(affaire as unknown as Record<string, unknown>) }
+  } catch (error) {
+    log.error({ error, input: validatedInput }, 'Échec de la création de l\'affaire')
+    return { error: 'Échec de la création de l\'affaire' }
+  }
+}
+
+export async function updateAffaire(
+  id_affaire: number,
+  input: AffaireUpdateInput,
+  userId: string,
+): Promise<{ data?: AffaireWithComputed; error?: string }> {
+  const validationResult = affaireUpdateSchema.safeParse(input)
+  if (!validationResult.success) {
+    return { error: 'Validation échouée: ' + validationResult.error.issues.map((e) => e.message).join(', ') }
+  }
+
+  const validatedInput = validationResult.data
+
+  try {
+    const existing = await prisma.affaire.findUnique({
+      where: { id_affaire },
+    })
+    if (!existing) {
+      return { error: 'Affaire introuvable' }
+    }
+
+    if (validatedInput.code_affaire && validatedInput.code_affaire !== existing.code_affaire) {
+      const duplicate = await prisma.affaire.findUnique({
+        where: { code_affaire: validatedInput.code_affaire },
+      })
+      if (duplicate) {
+        return { error: `L'affaire ${validatedInput.code_affaire} existe déjà` }
+      }
+    }
+
+    const affaire = await prisma.affaire.update({
+      where: { id_affaire },
+      data: {
+        ...validatedInput,
+        modifie_par: userId,
+      },
+    })
+
+    CacheInvalidationService.invalidateAffaire(affaire.id_affaire)
+
+    return { data: mapAffaireToComputed(affaire as unknown as Record<string, unknown>) }
+  } catch (error) {
+    log.error({ error, id_affaire, input: validatedInput }, 'Échec de la mise à jour de l\'affaire')
+    return { error: 'Échec de la mise à jour de l\'affaire' }
+  }
+}
+
+export async function deleteAffaire(
+  id_affaire: number,
+  userId: string,
+): Promise<{ data?: { success: boolean }; error?: string }> {
+  const validationResult = deleteAffaireSchema.safeParse({ id_affaire })
+  if (!validationResult.success) {
+    return { error: 'ID d\'affaire invalide' }
+  }
+
+  try {
+    const existing = await prisma.affaire.findUnique({
+      where: { id_affaire },
+    })
+    if (!existing) {
+      return { error: 'Affaire introuvable' }
+    }
+
+    await prisma.affaire.update({
+      where: { id_affaire },
+      data: { est_actif: false, modifie_par: userId },
+    })
+
+    CacheInvalidationService.invalidateAffaire(id_affaire)
+
+    return { data: { success: true } }
+  } catch (error) {
+    log.error({ error, id_affaire }, 'Échec de la suppression de l\'affaire')
+    return { error: 'Échec de la suppression de l\'affaire' }
+  }
+}
+
+export async function getAffaireDocumentsById(
+  id_affaire: number,
+  page: number = 1,
+  limit: number = 50,
+): Promise<PaginatedResult<Record<string, unknown>> & { error?: string }> {
+  try {
+    const affaire = await prisma.affaire.findUnique({
+      where: { id_affaire },
+    })
+    if (!affaire) {
+      return { ...createEmptyResult(page, limit, 'Affaire introuvable'), data: [] as Record<string, unknown>[] }
+    }
+
+    const { skip } = getPaginationParams({ page, limit })
+
+    const [documents, total] = await Promise.all([
+      prisma.docVente.findMany({
+        where: { id_affaire },
+        skip,
+        take: limit,
+        orderBy: { date_creation: 'desc' },
+        include: {
+          lignes: { select: { id_ligne: true } },
+        },
+      }),
+      prisma.docVente.count({ where: { id_affaire } }),
+    ])
+
+    return {
+      data: documents as unknown as Record<string, unknown>[],
+      meta: buildPaginationMeta(total, page, limit),
+    }
+  } catch (error) {
+    log.error({ error, id_affaire }, 'Échec de la récupération des documents de l\'affaire')
+    return { ...createEmptyResult(page, limit, 'Échec de la récupération des documents'), data: [] as Record<string, unknown>[] }
   }
 }
 
 export async function getAffaireByCode(code_affaire: string): Promise<{ data?: AffaireWithComputed | null; error?: string }> {
   const validationResult = getAffaireByCodeSchema.safeParse({ code_affaire })
   if (!validationResult.success) {
-    return { error: 'Invalid input: ' + validationResult.error.issues.map((e) => e.message).join(', ') }
+    return { error: 'Entrée invalide: ' + validationResult.error.issues.map((e) => e.message).join(', ') }
   }
 
   try {
@@ -97,21 +298,21 @@ export async function getAffaireByCode(code_affaire: string): Promise<{ data?: A
     })
 
     if (!affaire) {
-      return { data: null, error: 'Affaire not found' }
+      return { data: null, error: 'Affaire introuvable' }
     }
 
     return { data: mapAffaireToComputed(affaire as unknown as Record<string, unknown>) }
   } catch (error) {
-    log.error({ error, code_affaire }, 'Failed to fetch affaire')
-    return { error: 'Failed to fetch affaire' }
+    log.error({ error, code_affaire }, 'Échec de la récupération de l\'affaire')
+    return { error: 'Échec de la récupération de l\'affaire' }
   }
 }
 
 export async function getDocumentsByAffaire(code_affaire: string): Promise<{ data: DocumentBase[]; error?: string }> {
   const validationResult = getAffaireByCodeSchema.safeParse({ code_affaire })
   if (!validationResult.success) {
-    log.error({ error: validationResult.error, code_affaire }, 'Invalid affaire code')
-    return { data: [], error: 'Invalid affaire code' }
+    log.error({ error: validationResult.error, code_affaire }, 'Code affaire invalide')
+    return { data: [], error: 'Code affaire invalide' }
   }
 
   try {
@@ -124,7 +325,7 @@ export async function getDocumentsByAffaire(code_affaire: string): Promise<{ dat
     })
 
     return {
-      data: documents.map((doc: typeof documents[0]) => ({
+      data: documents.map((doc) => ({
         ...doc,
         type_document: String(doc.type_document),
         montant_ht: doc.montant_ht,
@@ -133,7 +334,7 @@ export async function getDocumentsByAffaire(code_affaire: string): Promise<{ dat
       }))
     }
   } catch (error) {
-    log.error({ error, code_affaire }, 'Failed to fetch documents for affaire')
-    return { data: [], error: 'Failed to fetch documents for affaire' }
+    log.error({ error, code_affaire }, 'Échec de la récupération des documents de l\'affaire')
+    return { data: [], error: 'Échec de la récupération des documents de l\'affaire' }
   }
 }

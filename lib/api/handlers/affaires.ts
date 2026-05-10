@@ -1,139 +1,63 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db/prisma'
-import { getApiUser, requireApiKey } from '@/lib/api/auth'
+import { requireApiKey } from '@/lib/api/auth'
 import { apiSuccess, apiPaginated, apiCreated, apiNoContent, apiError } from '@/lib/api/response'
+import { handleServiceError } from '@/lib/api/service-error'
+import { ValidationError } from '@/lib/errors'
 import {
-  affaireCreateSchema,
-  affaireUpdateSchema,
-  paginationSchema,
-} from '@/lib/api/validators/affaires'
-import { ValidationError, NotFoundError, ConflictError } from '@/lib/errors'
-import { createValidationErrorFromZod } from '@/lib/errors'
-import { CacheInvalidationService } from '@/lib/cache/invalidation'
-import { Prisma } from '@/lib/generated/prisma/client'
-
-const ALLOWED_SORT_FIELDS = [
-  'id_affaire',
-  'code_affaire',
-  'intitule_affaire',
-  'type_affaire',
-  'statut_affaire',
-  'budget_prevu',
-  'chiffre_affaires',
-  'date_creation',
-  'date_modification',
-] as const
-
-type AllowedSortField = (typeof ALLOWED_SORT_FIELDS)[number]
-
-function extractIdFromUrl(request: NextRequest): number {
-  const segments = request.nextUrl.pathname.split('/')
-  const lastSegment = segments[segments.length - 1]
-  const id = parseInt(lastSegment, 10)
-  if (isNaN(id)) {
-    throw new ValidationError('Invalid affair ID')
-  }
-  return id
-}
-
-function parsePagination(request: NextRequest) {
-  const url = request.nextUrl
-  const page = parseInt(url.searchParams.get('page') || '1', 10)
-  const limit = parseInt(url.searchParams.get('limit') || '50', 10)
-  const parsed = paginationSchema.safeParse({ page, limit })
-  if (!parsed.success) {
-    throw createValidationErrorFromZod(parsed.error)
-  }
-  return parsed.data
-}
-
-async function getAuthenticatedUserId(request: NextRequest): Promise<string> {
-  const apiUser = await getApiUser(request)
-  if (!apiUser) return 'system'
-  return apiUser.userId
-}
+  getAffaires,
+  getAffaireById,
+  createAffaire,
+  updateAffaire,
+  deleteAffaire,
+  getAffaireDocumentsById,
+} from '@/lib/affaires/affaire-service'
+import type { GetAffairesInput } from '@/lib/affaires/validation'
 
 export async function listAffairesHandler(request: NextRequest): Promise<NextResponse> {
   try {
     await requireApiKey(request)
 
-    const { page, limit } = parsePagination(request)
     const url = request.nextUrl
-    const search = url.searchParams.get('search') || undefined
+    const page = parseInt(url.searchParams.get('page') || '1', 10)
+    const limit = parseInt(url.searchParams.get('limit') || '50', 10)
+
+    const filters: Partial<GetAffairesInput> = {}
     const type = url.searchParams.get('type') || undefined
     const statut = url.searchParams.get('statut') || undefined
     const client = url.searchParams.get('client') || undefined
-    const sortParam = url.searchParams.get('sort') || 'date_creation'
-    const orderParam = (url.searchParams.get('order') || 'desc').toLowerCase()
+    const search = url.searchParams.get('search') || undefined
 
-    const sort = ALLOWED_SORT_FIELDS.includes(sortParam as AllowedSortField)
-      ? (sortParam as AllowedSortField)
-      : 'date_creation'
-    const order = orderParam === 'desc' ? ('desc' as const) : ('asc' as const)
+    if (type) filters.type_affaire = type
+    if (statut) filters.statut_affaire = statut
+    if (search) filters.search = search
+    if (client) (filters as Record<string, unknown>).id_client = parseInt(client, 10) || undefined
 
-    const skip = (page - 1) * limit
+    const sort = url.searchParams.get('sort') || undefined
+    const order = (url.searchParams.get('order') || 'desc').toLowerCase() === 'asc' ? 'asc' as const : 'desc' as const
 
-    const where: Prisma.AffaireWhereInput = {}
-    if (type) {
-      where.type_affaire = type
-    }
-    if (statut) {
-      where.statut_affaire = statut
-    }
-    if (client) {
-      where.id_client = parseInt(client, 10) || undefined
-    }
-    if (search) {
-      where.OR = [
-        { intitule_affaire: { contains: search, mode: 'insensitive' } },
-        { code_affaire: { contains: search, mode: 'insensitive' } },
-      ]
-    }
+    const result = await getAffaires(page, limit, filters, sort, order)
 
-    const [affaires, total] = await Promise.all([
-      prisma.affaire.findMany({
-        skip,
-        take: limit,
-        where,
-        orderBy: { [sort]: order },
-      }),
-      prisma.affaire.count({ where }),
-    ])
+    handleServiceError(result)
 
-    const totalPages = Math.ceil(total / limit)
-
-    return apiPaginated(affaires, {
-      page,
-      limit,
-      total,
-      totalPages,
-      hasMore: page < totalPages,
-    })
+    return apiPaginated(result.data, result.meta)
   } catch (error) {
     return apiError(error)
   }
 }
 
-export async function getAffaireByIdHandler(request: NextRequest): Promise<NextResponse> {
+export async function getAffaireByIdHandler(request: NextRequest, id: number): Promise<NextResponse> {
   try {
     await requireApiKey(request)
 
-    const id = extractIdFromUrl(request)
-
-    const affaire = await prisma.affaire.findUnique({
-      where: { id_affaire: id },
-      include: {
-        client: {
-          select: { id_partenaire: true, code_partenaire: true, nom_partenaire: true },
-        },
-      },
-    })
-
-    if (!affaire) {
-      throw new NotFoundError('Affair')
+    if (isNaN(id)) {
+      throw new ValidationError('ID d\'affaire invalide')
     }
 
-    return apiSuccess(affaire)
+    const result = await getAffaireById(id)
+
+    handleServiceError(result)
+
+    return apiSuccess(result.data)
   } catch (error) {
     return apiError(error)
   }
@@ -144,112 +68,46 @@ export async function createAffaireHandler(request: NextRequest): Promise<NextRe
     const apiUser = await requireApiKey(request)
 
     const body = await request.json()
-    const parsed = affaireCreateSchema.safeParse(body)
-    if (!parsed.success) {
-      throw createValidationErrorFromZod(parsed.error)
-    }
+    const result = await createAffaire(body, apiUser.userId)
 
-    const existing = await prisma.affaire.findUnique({
-      where: { code_affaire: parsed.data.code_affaire },
-    })
-    if (existing) {
-      throw new ConflictError(`Affair with code ${parsed.data.code_affaire} already exists`)
-    }
+    handleServiceError(result)
 
-    const data: Record<string, unknown> = { ...parsed.data, cree_par: apiUser.userId }
-    if (parsed.data.date_debut) {
-      data.date_debut = new Date(parsed.data.date_debut)
-    }
-    if (parsed.data.date_fin_prevue) {
-      data.date_fin_prevue = new Date(parsed.data.date_fin_prevue)
-    }
-    if (parsed.data.date_fin_reelle) {
-      data.date_fin_reelle = new Date(parsed.data.date_fin_reelle)
-    }
-
-    const affaire = await prisma.affaire.create({
-      data: data as Prisma.AffaireCreateInput,
-    })
-
-    CacheInvalidationService.invalidateAffaire(affaire.id_affaire)
-
-    return apiCreated(affaire)
+    return apiCreated(result.data)
   } catch (error) {
     return apiError(error)
   }
 }
 
-export async function updateAffaireHandler(request: NextRequest): Promise<NextResponse> {
+export async function updateAffaireHandler(request: NextRequest, id: number): Promise<NextResponse> {
   try {
     const apiUser = await requireApiKey(request)
 
-    const id = extractIdFromUrl(request)
+    if (isNaN(id)) {
+      throw new ValidationError('ID d\'affaire invalide')
+    }
 
     const body = await request.json()
-    const parsed = affaireUpdateSchema.safeParse(body)
-    if (!parsed.success) {
-      throw createValidationErrorFromZod(parsed.error)
-    }
+    const result = await updateAffaire(id, body, apiUser.userId)
 
-    const existing = await prisma.affaire.findUnique({
-      where: { id_affaire: id },
-    })
-    if (!existing) {
-      throw new NotFoundError('Affair')
-    }
+    handleServiceError(result)
 
-    if (parsed.data.code_affaire && parsed.data.code_affaire !== existing.code_affaire) {
-      const duplicate = await prisma.affaire.findUnique({
-        where: { code_affaire: parsed.data.code_affaire },
-      })
-      if (duplicate) {
-        throw new ConflictError(`Affair with code ${parsed.data.code_affaire} already exists`)
-      }
-    }
-
-    const data: Record<string, unknown> = { ...parsed.data, modifie_par: apiUser.userId }
-    if (parsed.data.date_debut) {
-      data.date_debut = new Date(parsed.data.date_debut)
-    }
-    if (parsed.data.date_fin_prevue) {
-      data.date_fin_prevue = new Date(parsed.data.date_fin_prevue)
-    }
-    if (parsed.data.date_fin_reelle) {
-      data.date_fin_reelle = new Date(parsed.data.date_fin_reelle)
-    }
-
-    const affaire = await prisma.affaire.update({
-      where: { id_affaire: id },
-      data,
-    })
-
-    CacheInvalidationService.invalidateAffaire(affaire.id_affaire)
-
-    return apiSuccess(affaire)
+    return apiSuccess(result.data)
   } catch (error) {
     return apiError(error)
   }
 }
 
-export async function deleteAffaireHandler(request: NextRequest): Promise<NextResponse> {
+export async function deleteAffaireHandler(request: NextRequest, id: number): Promise<NextResponse> {
   try {
-    await requireApiKey(request)
+    const apiUser = await requireApiKey(request)
 
-    const id = extractIdFromUrl(request)
-
-    const existing = await prisma.affaire.findUnique({
-      where: { id_affaire: id },
-    })
-    if (!existing) {
-      throw new NotFoundError('Affair')
+    if (isNaN(id)) {
+      throw new ValidationError('ID d\'affaire invalide')
     }
 
-    await prisma.affaire.update({
-      where: { id_affaire: id },
-      data: { est_actif: false, modifie_par: await getAuthenticatedUserId(request) },
-    })
+    const result = await deleteAffaire(id, apiUser.userId)
 
-    CacheInvalidationService.invalidateAffaire(id)
+    handleServiceError(result)
 
     return apiNoContent()
   } catch (error) {
@@ -257,49 +115,23 @@ export async function deleteAffaireHandler(request: NextRequest): Promise<NextRe
   }
 }
 
-export async function getAffaireDocumentsHandler(request: NextRequest): Promise<NextResponse> {
+export async function getAffaireDocumentsHandler(request: NextRequest, id: number): Promise<NextResponse> {
   try {
     await requireApiKey(request)
 
-    const segments = request.nextUrl.pathname.split('/')
-    const idSegment = segments[segments.length - 2] ?? ''
-    const affaireId = parseInt(idSegment, 10)
-    if (isNaN(affaireId)) {
-      throw new ValidationError('Invalid affair ID')
+    if (isNaN(id)) {
+      throw new ValidationError('ID d\'affaire invalide')
     }
 
-    const affaire = await prisma.affaire.findUnique({
-      where: { id_affaire: affaireId },
-    })
-    if (!affaire) {
-      throw new NotFoundError('Affair')
-    }
+    const url = request.nextUrl
+    const page = parseInt(url.searchParams.get('page') || '1', 10)
+    const limit = parseInt(url.searchParams.get('limit') || '50', 10)
 
-    const { page, limit } = parsePagination(request)
-    const skip = (page - 1) * limit
+    const result = await getAffaireDocumentsById(id, page, limit)
 
-    const [documents, total] = await Promise.all([
-      prisma.docVente.findMany({
-        where: { id_affaire: affaireId },
-        skip,
-        take: limit,
-        orderBy: { date_creation: 'desc' },
-        include: {
-          lignes: { select: { id_ligne: true } },
-        },
-      }),
-      prisma.docVente.count({ where: { id_affaire: affaireId } }),
-    ])
+    handleServiceError(result)
 
-    const totalPages = Math.ceil(total / limit)
-
-    return apiPaginated(documents, {
-      page,
-      limit,
-      total,
-      totalPages,
-      hasMore: page < totalPages,
-    })
+    return apiPaginated(result.data, result.meta)
   } catch (error) {
     return apiError(error)
   }

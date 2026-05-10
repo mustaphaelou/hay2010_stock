@@ -1,52 +1,62 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 
-const { mockDocVenteFindMany, mockDocVenteCount, mockDocVenteFindUnique, mockDocVenteCreate, mockDocVenteUpdate, mockLigneDocumentFindMany, mockLigneDocumentCount, mockPartenaireFindUnique, mockRequireApiKey, mockGetApiUser, mockCacheIncrement } = vi.hoisted(() => ({
-  mockDocVenteFindMany: vi.fn(),
-  mockDocVenteCount: vi.fn(),
-  mockDocVenteFindUnique: vi.fn(),
-  mockDocVenteCreate: vi.fn(),
-  mockDocVenteUpdate: vi.fn(),
-  mockLigneDocumentFindMany: vi.fn(),
-  mockLigneDocumentCount: vi.fn(),
-  mockPartenaireFindUnique: vi.fn(),
+const {
+  mockListDocuments,
+  mockGetDocumentById,
+  mockCreateDocument,
+  mockUpdateDocument,
+  mockDeleteDocument,
+  mockGetDocumentLinesById,
+  mockRequireApiKey,
+  mockRedisIncr,
+} = vi.hoisted(() => ({
+  mockListDocuments: vi.fn(),
+  mockGetDocumentById: vi.fn(),
+  mockCreateDocument: vi.fn(),
+  mockUpdateDocument: vi.fn(),
+  mockDeleteDocument: vi.fn(),
+  mockGetDocumentLinesById: vi.fn(),
   mockRequireApiKey: vi.fn(),
-  mockGetApiUser: vi.fn(),
-  mockCacheIncrement: vi.fn(),
+  mockRedisIncr: vi.fn(),
 }))
 
-vi.mock('@/lib/db/prisma', () => ({
-  prisma: {
-    docVente: {
-      findMany: mockDocVenteFindMany,
-      count: mockDocVenteCount,
-      findUnique: mockDocVenteFindUnique,
-      create: mockDocVenteCreate,
-      update: mockDocVenteUpdate,
-    },
-    ligneDocument: {
-      findMany: mockLigneDocumentFindMany,
-      count: mockLigneDocumentCount,
-    },
-    partenaire: {
-      findUnique: mockPartenaireFindUnique,
-    },
-  },
+vi.mock('@/lib/documents/document-service', () => ({
+  listDocuments: mockListDocuments,
+  getDocumentById: mockGetDocumentById,
+  createDocument: mockCreateDocument,
+  updateDocument: mockUpdateDocument,
+  deleteDocument: mockDeleteDocument,
+  getDocumentLinesById: mockGetDocumentLinesById,
 }))
+
+vi.mock('@/lib/api/service-error', async () => {
+  const errors = await vi.importActual<typeof import('@/lib/errors')>('@/lib/errors')
+  return {
+    handleServiceError: (result: { error?: string }) => {
+      if (!result.error) return
+      if (result.error.includes('introuvable')) throw new errors.NotFoundError(result.error)
+      if (result.error.includes('existe déjà')) throw new errors.ConflictError(result.error)
+      if (result.error.includes('invalide') || result.error.includes('requis')) throw new errors.ValidationError(result.error)
+      throw new errors.BusinessError(result.error)
+    },
+  }
+})
 
 vi.mock('@/lib/db/redis', async () => {
   const actual = await vi.importActual('@/lib/db/redis')
   return {
     ...actual,
-    CacheService: {
-      increment: mockCacheIncrement,
+    redis: {
+      ...(actual as Record<string, { redis?: Record<string, unknown> }>).redis,
+      incr: mockRedisIncr,
+      expire: vi.fn().mockResolvedValue('OK'),
     },
   }
 })
 
 vi.mock('@/lib/api/auth', () => ({
   requireApiKey: mockRequireApiKey,
-  getApiUser: mockGetApiUser,
 }))
 
 vi.mock('@/lib/logger', () => ({
@@ -89,80 +99,22 @@ const mockDocument = {
   numero_document: 'FAC-001',
   type_document: 'Facture',
   domaine_document: 'VENTE',
-  etat_document: 'Saisi',
-  id_partenaire: 1,
-  nom_partenaire_snapshot: null,
-  id_affaire: null,
-  numero_affaire: null,
   date_document: new Date('2025-01-01'),
-  date_echeance: null,
-  date_livraison: null,
-  date_livraison_prevue: null,
   montant_ht: 1000.00,
-  montant_remise_total: 0,
-  montant_tva_total: 200.00,
   montant_ttc: 1200.00,
   solde_du: 0,
-  code_devise: 'MAD',
-  taux_change: 1,
-  statut_document: 'BROUILLON',
-  est_entierement_paye: false,
-  id_entrepot: null,
-  notes_internes: null,
-  notes_client: null,
-  reference_externe: null,
-  date_creation: new Date('2025-01-01'),
-  date_modification: new Date('2025-06-01'),
-  cree_par: null,
-  modifie_par: null,
-  mode_expedition: null,
-  poids_total_brut: null,
-  nombre_colis: null,
-}
-
-const mockDocumentLine = {
-  id_ligne: 1,
-  id_document: 1,
-  numero_ligne: 1,
-  id_produit: 1,
-  code_produit_snapshot: 'PROD-001',
-  nom_produit_snapshot: 'Product 1',
-  quantite_commandee: 5,
-  quantite_livree: 0,
-  prix_unitaire_ht: 100,
-  montant_ht: 500,
-  montant_tva: 100,
-  montant_ttc: 600,
-}
-
-const mockPartenaire = {
-  id_partenaire: 1,
-  code_partenaire: 'P-001',
-  nom_partenaire: 'Client Alpha',
-  type_partenaire: 'CLIENT',
-  adresse_email: 'alpha@test.com',
-  est_actif: true,
 }
 
 describe('Document API Handlers', () => {
   beforeEach(() => {
-    vi.resetAllMocks()
-    mockCacheIncrement.mockResolvedValue(1)
+    vi.clearAllMocks()
+    mockRedisIncr.mockResolvedValue(1)
     mockRequireApiKey.mockResolvedValue(API_USER)
-    mockGetApiUser.mockResolvedValue(API_USER)
-    mockDocVenteFindUnique.mockResolvedValue(mockDocument)
-    mockDocVenteCreate.mockResolvedValue(mockDocument)
-    mockDocVenteUpdate.mockResolvedValue(mockDocument)
-    mockDocVenteFindMany.mockResolvedValue([mockDocument])
-    mockDocVenteCount.mockResolvedValue(1)
-    mockPartenaireFindUnique.mockResolvedValue(mockPartenaire)
-    mockLigneDocumentFindMany.mockResolvedValue([mockDocumentLine])
-    mockLigneDocumentCount.mockResolvedValue(1)
   })
 
   describe('GET list', () => {
     it('should return 401 without API key', async () => {
-      mockRequireApiKey.mockRejectedValue(new AuthenticationError('Invalid or missing API key'))
+      mockRequireApiKey.mockRejectedValue(new AuthenticationError('Clé API invalide'))
 
       const request = makeRequest('GET', '/api/v1/documents')
       const response = await listDocumentsHandler(request)
@@ -173,9 +125,10 @@ describe('Document API Handlers', () => {
     })
 
     it('should return paginated documents', async () => {
-      mockRequireApiKey.mockResolvedValue(API_USER)
-      mockDocVenteFindMany.mockResolvedValue([mockDocument])
-      mockDocVenteCount.mockResolvedValue(1)
+      mockListDocuments.mockResolvedValue({
+        data: [mockDocument],
+        meta: { page: 1, limit: 50, total: 1, totalPages: 1 },
+      })
 
       const request = makeRequest('GET', '/api/v1/documents')
       const response = await listDocumentsHandler(request)
@@ -183,164 +136,66 @@ describe('Document API Handlers', () => {
       expect(response.status).toBe(200)
       const data = await response.json()
       expect(data.data).toHaveLength(1)
-      expect(data.data[0].numero_document).toBe('FAC-001')
-      expect(data.meta.total).toBe(1)
-      expect(data.meta.page).toBe(1)
     })
 
-    it('should filter by type_document', async () => {
-      mockRequireApiKey.mockResolvedValue(API_USER)
-      mockDocVenteFindMany.mockResolvedValue([{ ...mockDocument, type_document: 'BL' }])
-      mockDocVenteCount.mockResolvedValue(1)
+    it('should pass filter params to service', async () => {
+      mockListDocuments.mockResolvedValue({
+        data: [mockDocument],
+        meta: { page: 1, limit: 50, total: 1, totalPages: 1 },
+      })
 
       const request = makeRequest('GET', '/api/v1/documents?type_document=BL')
       const response = await listDocumentsHandler(request)
 
       expect(response.status).toBe(200)
-      expect(mockDocVenteFindMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: expect.objectContaining({ type_document: 'BL' }) })
+      expect(mockListDocuments).toHaveBeenCalledWith(
+        expect.objectContaining({ type_document: 'BL' }),
+        expect.any(Object)
       )
     })
 
-    it('should filter by domaine_document', async () => {
-      mockRequireApiKey.mockResolvedValue(API_USER)
-      mockDocVenteFindMany.mockResolvedValue([{ ...mockDocument, domaine_document: 'ACHAT' }])
-      mockDocVenteCount.mockResolvedValue(1)
+    it('should handle service error', async () => {
+      mockListDocuments.mockResolvedValue({
+        data: [],
+        meta: { page: 1, limit: 50, total: 0, totalPages: 0 },
+        error: 'Échec de la récupération des documents',
+      })
 
-      const request = makeRequest('GET', '/api/v1/documents?domaine_document=ACHAT')
+      const request = makeRequest('GET', '/api/v1/documents')
       const response = await listDocumentsHandler(request)
 
-      expect(response.status).toBe(200)
-      expect(mockDocVenteFindMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: expect.objectContaining({ domaine_document: 'ACHAT' }) })
-      )
-    })
-
-    it('should filter by statut_document', async () => {
-      mockRequireApiKey.mockResolvedValue(API_USER)
-      mockDocVenteFindMany.mockResolvedValue([{ ...mockDocument, statut_document: 'VALIDE' }])
-      mockDocVenteCount.mockResolvedValue(1)
-
-      const request = makeRequest('GET', '/api/v1/documents?statut_document=VALIDE')
-      const response = await listDocumentsHandler(request)
-
-      expect(response.status).toBe(200)
-      expect(mockDocVenteFindMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: expect.objectContaining({ statut_document: 'VALIDE' }) })
-      )
-    })
-
-    it('should filter by id_partenaire', async () => {
-      mockRequireApiKey.mockResolvedValue(API_USER)
-      mockDocVenteFindMany.mockResolvedValue([mockDocument])
-      mockDocVenteCount.mockResolvedValue(1)
-
-      const request = makeRequest('GET', '/api/v1/documents?id_partenaire=1')
-      const response = await listDocumentsHandler(request)
-
-      expect(response.status).toBe(200)
-      expect(mockDocVenteFindMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: expect.objectContaining({ id_partenaire: 1 }) })
-      )
-    })
-
-    it('should search by numero_document', async () => {
-      mockRequireApiKey.mockResolvedValue(API_USER)
-      mockDocVenteFindMany.mockResolvedValue([mockDocument])
-      mockDocVenteCount.mockResolvedValue(1)
-
-      const request = makeRequest('GET', '/api/v1/documents?search=FAC')
-      const response = await listDocumentsHandler(request)
-
-      expect(response.status).toBe(200)
-      expect(mockDocVenteFindMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({
-            OR: expect.arrayContaining([
-              { numero_document: { contains: 'FAC', mode: 'insensitive' } },
-              { nom_partenaire_snapshot: { contains: 'FAC', mode: 'insensitive' } },
-              { reference_externe: { contains: 'FAC', mode: 'insensitive' } },
-            ]),
-          }),
-        })
-      )
-    })
-
-    it('should sort by specified field', async () => {
-      mockRequireApiKey.mockResolvedValue(API_USER)
-      mockDocVenteFindMany.mockResolvedValue([])
-      mockDocVenteCount.mockResolvedValue(0)
-
-      const request = makeRequest('GET', '/api/v1/documents?sort=date_document&order=desc')
-      const response = await listDocumentsHandler(request)
-
-      expect(response.status).toBe(200)
-      expect(mockDocVenteFindMany).toHaveBeenCalledWith(
-        expect.objectContaining({ orderBy: { date_document: 'desc' } })
-      )
-    })
-
-    it('should default to date_document for invalid sort field', async () => {
-      mockRequireApiKey.mockResolvedValue(API_USER)
-      mockDocVenteFindMany.mockResolvedValue([])
-      mockDocVenteCount.mockResolvedValue(0)
-
-      const request = makeRequest('GET', '/api/v1/documents?sort=invalid_field')
-      const response = await listDocumentsHandler(request)
-
-      expect(response.status).toBe(200)
-      expect(mockDocVenteFindMany).toHaveBeenCalledWith(
-        expect.objectContaining({ orderBy: { date_document: 'desc' } })
-      )
+      expect(response.status).toBe(422)
     })
   })
 
   describe('GET by id', () => {
     it('should return 401 without API key', async () => {
-      mockRequireApiKey.mockRejectedValue(new AuthenticationError('Invalid or missing API key'))
+      mockRequireApiKey.mockRejectedValue(new AuthenticationError('Clé API invalide'))
 
       const request = makeRequest('GET', '/api/v1/documents/1')
-      const response = await getDocumentByIdHandler(request)
+      const response = await getDocumentByIdHandler(request, 1)
 
       expect(response.status).toBe(401)
     })
 
-    it('should return document by id with lignes and partenaire', async () => {
-      mockRequireApiKey.mockResolvedValue(API_USER)
-      mockDocVenteFindUnique.mockResolvedValue({
-        ...mockDocument,
-        lignes: [mockDocumentLine],
-        partenaire: mockPartenaire,
-      })
+    it('should return document by id', async () => {
+      mockGetDocumentById.mockResolvedValue({ data: mockDocument })
 
       const request = makeRequest('GET', '/api/v1/documents/1')
-      const response = await getDocumentByIdHandler(request)
+      const response = await getDocumentByIdHandler(request, 1)
 
       expect(response.status).toBe(200)
       const data = await response.json()
       expect(data.numero_document).toBe('FAC-001')
-      expect(data.id_document).toBe(1)
-      expect(data.lignes).toHaveLength(1)
-      expect(data.partenaire).toBeDefined()
     })
 
     it('should return 404 for non-existent document', async () => {
-      mockRequireApiKey.mockResolvedValue(API_USER)
-      mockDocVenteFindUnique.mockResolvedValue(null)
+      mockGetDocumentById.mockResolvedValue({ data: null, error: 'Document introuvable' })
 
       const request = makeRequest('GET', '/api/v1/documents/999')
-      const response = await getDocumentByIdHandler(request)
+      const response = await getDocumentByIdHandler(request, 999)
 
       expect(response.status).toBe(404)
-    })
-
-    it('should return 400 for invalid id', async () => {
-      mockRequireApiKey.mockResolvedValue(API_USER)
-
-      const request = makeRequest('GET', '/api/v1/documents/abc')
-      const response = await getDocumentByIdHandler(request)
-
-      expect(response.status).toBe(400)
     })
   })
 
@@ -356,7 +211,7 @@ describe('Document API Handlers', () => {
     }
 
     it('should return 401 without API key', async () => {
-      mockRequireApiKey.mockRejectedValue(new AuthenticationError('Invalid or missing API key'))
+      mockRequireApiKey.mockRejectedValue(new AuthenticationError('Clé API invalide'))
 
       const request = makeRequest('POST', '/api/v1/documents', createBody)
       const response = await createDocumentHandler(request)
@@ -365,16 +220,7 @@ describe('Document API Handlers', () => {
     })
 
     it('should create a document and return 201', async () => {
-      mockRequireApiKey.mockResolvedValue(API_USER)
-      mockDocVenteFindUnique.mockResolvedValue(null)
-      mockPartenaireFindUnique.mockResolvedValue(mockPartenaire)
-      mockDocVenteCreate.mockResolvedValue({
-        ...mockDocument,
-        numero_document: 'FAC-002',
-        montant_ht: 500.00,
-        lignes: [],
-        partenaire: mockPartenaire,
-      })
+      mockCreateDocument.mockResolvedValue({ data: { ...mockDocument, numero_document: 'FAC-002' } })
 
       const request = makeRequest('POST', '/api/v1/documents', createBody)
       const response = await createDocumentHandler(request)
@@ -382,22 +228,10 @@ describe('Document API Handlers', () => {
       expect(response.status).toBe(201)
       const data = await response.json()
       expect(data.numero_document).toBe('FAC-002')
-      expect(mockDocVenteCreate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({
-            numero_document: 'FAC-002',
-            type_document: 'Facture',
-            id_partenaire: 1,
-            cree_par: 'user-api-1',
-            date_document: expect.any(Date),
-          }),
-        })
-      )
     })
 
     it('should return 409 on duplicate numero_document', async () => {
-      mockRequireApiKey.mockResolvedValue(API_USER)
-      mockDocVenteFindUnique.mockResolvedValue(mockDocument)
+      mockCreateDocument.mockResolvedValue({ error: 'Le document FAC-001 existe déjà' })
 
       const request = makeRequest('POST', '/api/v1/documents', { ...createBody, numero_document: 'FAC-001' })
       const response = await createDocumentHandler(request)
@@ -405,10 +239,8 @@ describe('Document API Handlers', () => {
       expect(response.status).toBe(409)
     })
 
-    it('should return 404 when id_partenaire does not exist', async () => {
-      mockRequireApiKey.mockResolvedValue(API_USER)
-      mockDocVenteFindUnique.mockResolvedValue(null)
-      mockPartenaireFindUnique.mockResolvedValue(null)
+    it('should return 404 when id_partenaire introuvable', async () => {
+      mockCreateDocument.mockResolvedValue({ error: 'Partenaire introuvable' })
 
       const request = makeRequest('POST', '/api/v1/documents', { ...createBody, id_partenaire: 999 })
       const response = await createDocumentHandler(request)
@@ -416,45 +248,13 @@ describe('Document API Handlers', () => {
       expect(response.status).toBe(404)
     })
 
-    it('should return 400 for missing required fields', async () => {
-      mockRequireApiKey.mockResolvedValue(API_USER)
+    it('should return 400 for validation errors', async () => {
+      mockCreateDocument.mockResolvedValue({ error: 'Validation échouée: requis' })
 
       const request = makeRequest('POST', '/api/v1/documents', { numero_document: 'No Date' })
       const response = await createDocumentHandler(request)
 
       expect(response.status).toBe(400)
-      const data = await response.json()
-      expect(data.code).toBe('VALIDATION_ERROR')
-    })
-
-    it('should convert date strings to Date objects', async () => {
-      mockRequireApiKey.mockResolvedValue(API_USER)
-      mockDocVenteFindUnique.mockResolvedValue(null)
-      mockPartenaireFindUnique.mockResolvedValue(mockPartenaire)
-      mockDocVenteCreate.mockResolvedValue({
-        ...mockDocument,
-        lignes: [],
-        partenaire: mockPartenaire,
-      })
-
-      const request = makeRequest('POST', '/api/v1/documents', {
-        ...createBody,
-        date_echeance: '2025-04-01',
-        date_livraison: '2025-03-15',
-        date_livraison_prevue: '2025-03-10',
-      })
-      const response = await createDocumentHandler(request)
-
-      expect(response.status).toBe(201)
-      expect(mockDocVenteCreate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({
-            date_echeance: expect.any(Date),
-            date_livraison: expect.any(Date),
-            date_livraison_prevue: expect.any(Date),
-          }),
-        })
-      )
     })
   })
 
@@ -462,123 +262,66 @@ describe('Document API Handlers', () => {
     const updateBody = { numero_document: 'FAC-001-UPD', montant_ht: 1500.00 }
 
     it('should return 401 without API key', async () => {
-      mockRequireApiKey.mockRejectedValue(new AuthenticationError('Invalid or missing API key'))
+      mockRequireApiKey.mockRejectedValue(new AuthenticationError('Clé API invalide'))
 
       const request = makeRequest('PUT', '/api/v1/documents/1', updateBody)
-      const response = await updateDocumentHandler(request)
+      const response = await updateDocumentHandler(request, 1)
 
       expect(response.status).toBe(401)
     })
 
     it('should update a document', async () => {
-      mockRequireApiKey.mockResolvedValue(API_USER)
-      mockDocVenteFindUnique
-        .mockResolvedValueOnce(mockDocument)
-        .mockResolvedValueOnce(null)
-      mockDocVenteUpdate.mockResolvedValue({
-        ...mockDocument,
-        numero_document: 'FAC-001-UPD',
-        montant_ht: 1500.00,
-      })
+      mockUpdateDocument.mockResolvedValue({ data: { ...mockDocument, numero_document: 'FAC-001-UPD' } })
 
       const request = makeRequest('PUT', '/api/v1/documents/1', updateBody)
-      const response = await updateDocumentHandler(request)
+      const response = await updateDocumentHandler(request, 1)
 
       expect(response.status).toBe(200)
-      const data = await response.json()
-      expect(data.numero_document).toBe('FAC-001-UPD')
-      expect(mockDocVenteUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { id_document: 1 },
-          data: expect.objectContaining({
-            numero_document: 'FAC-001-UPD',
-            modifie_par: 'user-api-1',
-          }),
-        })
-      )
     })
 
     it('should return 404 for non-existent document', async () => {
-      mockRequireApiKey.mockResolvedValue(API_USER)
-      mockDocVenteFindUnique.mockResolvedValue(null)
+      mockUpdateDocument.mockResolvedValue({ error: 'Document introuvable' })
 
       const request = makeRequest('PUT', '/api/v1/documents/999', updateBody)
-      const response = await updateDocumentHandler(request)
+      const response = await updateDocumentHandler(request, 999)
 
       expect(response.status).toBe(404)
     })
 
-    it('should return 409 on duplicate numero_document change', async () => {
-      mockRequireApiKey.mockResolvedValue(API_USER)
-      mockDocVenteFindUnique
-        .mockResolvedValueOnce(mockDocument)
-        .mockResolvedValueOnce({ ...mockDocument, id_document: 2 })
+    it('should return 409 on duplicate numero_document', async () => {
+      mockUpdateDocument.mockResolvedValue({ error: 'Le document FAC-999 existe déjà' })
 
       const request = makeRequest('PUT', '/api/v1/documents/1', { numero_document: 'FAC-999' })
-      const response = await updateDocumentHandler(request)
+      const response = await updateDocumentHandler(request, 1)
 
       expect(response.status).toBe(409)
-    })
-
-    it('should convert date strings to Date objects on update', async () => {
-      mockRequireApiKey.mockResolvedValue(API_USER)
-      mockDocVenteFindUnique
-        .mockResolvedValueOnce(mockDocument)
-        .mockResolvedValueOnce(null)
-      mockDocVenteUpdate.mockResolvedValue(mockDocument)
-
-      const request = makeRequest('PUT', '/api/v1/documents/1', {
-        date_document: '2025-07-01',
-        date_echeance: '2025-08-01',
-      })
-      const response = await updateDocumentHandler(request)
-
-      expect(response.status).toBe(200)
-      expect(mockDocVenteUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({
-            date_document: expect.any(Date),
-            date_echeance: expect.any(Date),
-          }),
-        })
-      )
     })
   })
 
   describe('DELETE', () => {
     it('should return 401 without API key', async () => {
-      mockRequireApiKey.mockRejectedValue(new AuthenticationError('Invalid or missing API key'))
+      mockRequireApiKey.mockRejectedValue(new AuthenticationError('Clé API invalide'))
 
       const request = makeRequest('DELETE', '/api/v1/documents/1')
-      const response = await deleteDocumentHandler(request)
+      const response = await deleteDocumentHandler(request, 1)
 
       expect(response.status).toBe(401)
     })
 
-    it('should set statut_document to ANNULE', async () => {
-      mockRequireApiKey.mockResolvedValue(API_USER)
-      mockGetApiUser.mockResolvedValue(API_USER)
-      mockDocVenteFindUnique.mockResolvedValue(mockDocument)
-      mockDocVenteUpdate.mockResolvedValue({ ...mockDocument, statut_document: 'ANNULE' })
+    it('should soft-delete a document', async () => {
+      mockDeleteDocument.mockResolvedValue({ data: { success: true } })
 
       const request = makeRequest('DELETE', '/api/v1/documents/1')
-      const response = await deleteDocumentHandler(request)
+      const response = await deleteDocumentHandler(request, 1)
 
       expect(response.status).toBe(204)
-      expect(mockDocVenteUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { id_document: 1 },
-          data: expect.objectContaining({ statut_document: 'ANNULE' }),
-        })
-      )
     })
 
     it('should return 404 for non-existent document', async () => {
-      mockRequireApiKey.mockResolvedValue(API_USER)
-      mockDocVenteFindUnique.mockResolvedValue(null)
+      mockDeleteDocument.mockResolvedValue({ error: 'Document introuvable' })
 
       const request = makeRequest('DELETE', '/api/v1/documents/999')
-      const response = await deleteDocumentHandler(request)
+      const response = await deleteDocumentHandler(request, 999)
 
       expect(response.status).toBe(404)
     })
@@ -586,27 +329,28 @@ describe('Document API Handlers', () => {
 
   describe('GET lines', () => {
     it('should return document lines', async () => {
-      mockRequireApiKey.mockResolvedValue(API_USER)
-      mockDocVenteFindUnique.mockResolvedValue(mockDocument)
-      mockLigneDocumentFindMany.mockResolvedValue([mockDocumentLine])
-      mockLigneDocumentCount.mockResolvedValue(1)
+      mockGetDocumentLinesById.mockResolvedValue({
+        data: [{ id_ligne: 1, id_document: 1 }],
+        meta: { page: 1, limit: 50, total: 1, totalPages: 1 },
+      })
 
       const request = makeRequest('GET', '/api/v1/documents/1/lines')
-      const response = await getDocumentLinesHandler(request)
+      const response = await getDocumentLinesHandler(request, 1)
 
       expect(response.status).toBe(200)
       const data = await response.json()
       expect(data.data).toHaveLength(1)
-      expect(data.data[0].id_ligne).toBe(1)
-      expect(data.data[0].code_produit_snapshot).toBe('PROD-001')
     })
 
     it('should return 404 for non-existent document', async () => {
-      mockRequireApiKey.mockResolvedValue(API_USER)
-      mockDocVenteFindUnique.mockResolvedValue(null)
+      mockGetDocumentLinesById.mockResolvedValue({
+        data: [],
+        meta: { page: 1, limit: 50, total: 0, totalPages: 0 },
+        error: 'Document introuvable',
+      })
 
       const request = makeRequest('GET', '/api/v1/documents/999/lines')
-      const response = await getDocumentLinesHandler(request)
+      const response = await getDocumentLinesHandler(request, 999)
 
       expect(response.status).toBe(404)
     })
@@ -615,11 +359,9 @@ describe('Document API Handlers', () => {
 
 describe('Rate Limiting', () => {
   it('should return 429 when rate limit exceeded', async () => {
-    mockCacheIncrement.mockResolvedValue(31)
+    mockRedisIncr.mockResolvedValue(31)
     mockRequireApiKey.mockResolvedValue({ userId: 'user-1', role: 'ADMIN' as const, keyId: 'key-1' })
-    mockDocVenteCreate.mockResolvedValue(mockDocument)
-    mockDocVenteFindUnique.mockResolvedValue(null)
-    mockPartenaireFindUnique.mockResolvedValue(mockPartenaire)
+    mockCreateDocument.mockResolvedValue({ data: mockDocument })
 
     const { POST } = await import('@/app/api/v1/documents/route')
     const request = makeRequest('POST', '/api/v1/documents', {

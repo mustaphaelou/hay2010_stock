@@ -1,136 +1,61 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db/prisma'
-import { getApiUser, requireApiKey } from '@/lib/api/auth'
+import { requireApiKey } from '@/lib/api/auth'
 import { apiSuccess, apiPaginated, apiCreated, apiNoContent, apiError } from '@/lib/api/response'
+import { handleServiceError } from '@/lib/api/service-error'
+import { ValidationError } from '@/lib/errors'
 import {
-  productCreateSchema,
-  productUpdateSchema,
-  paginationSchema,
-} from '@/lib/api/validators/produits'
-import { ValidationError, NotFoundError, ConflictError } from '@/lib/errors'
-import { createValidationErrorFromZod } from '@/lib/errors'
-import { CacheInvalidationService } from '@/lib/cache/invalidation'
-import { Prisma } from '@/lib/generated/prisma/client'
-
-const ALLOWED_SORT_FIELDS = [
-  'id_produit',
-  'code_produit',
-  'nom_produit',
-  'famille',
-  'prix_vente',
-  'prix_achat',
-  'date_creation',
-  'date_modification',
-] as const
-
-type AllowedSortField = (typeof ALLOWED_SORT_FIELDS)[number]
-
-function extractIdFromUrl(request: NextRequest): number {
-  const segments = request.nextUrl.pathname.split('/')
-  const lastSegment = segments[segments.length - 1]
-  const id = parseInt(lastSegment, 10)
-  if (isNaN(id)) {
-    throw new ValidationError('Invalid product ID')
-  }
-  return id
-}
-
-function parsePagination(request: NextRequest) {
-  const url = request.nextUrl
-  const page = parseInt(url.searchParams.get('page') || '1', 10)
-  const limit = parseInt(url.searchParams.get('limit') || '50', 10)
-  const parsed = paginationSchema.safeParse({ page, limit })
-  if (!parsed.success) {
-    throw createValidationErrorFromZod(parsed.error)
-  }
-  return parsed.data
-}
-
-async function getAuthenticatedUserId(request: NextRequest): Promise<string> {
-  const apiUser = await getApiUser(request)
-  if (!apiUser) return 'system'
-  return apiUser.userId
-}
+  listArticles,
+  getArticleById,
+  createArticle,
+  updateArticle,
+  deleteArticle,
+  getStockLevelsByArticle,
+} from '@/lib/stock/stock-service'
 
 export async function listProductsHandler(request: NextRequest): Promise<NextResponse> {
   try {
     await requireApiKey(request)
 
-    const { page, limit } = parsePagination(request)
     const url = request.nextUrl
+    const page = parseInt(url.searchParams.get('page') || '1', 10)
+    const limit = parseInt(url.searchParams.get('limit') || '50', 10)
     const search = url.searchParams.get('search') || undefined
-    const category = url.searchParams.get('categorie') || undefined
+    const categorie = url.searchParams.get('categorie')
     const famille = url.searchParams.get('famille') || undefined
-    const actif = url.searchParams.get('actif') || undefined
-    const sortParam = url.searchParams.get('sort') || 'nom_produit'
-    const orderParam = (url.searchParams.get('order') || 'asc').toLowerCase()
+    const actif = url.searchParams.get('actif')
+    const sort = url.searchParams.get('sort') || undefined
+    const order = (url.searchParams.get('order') || 'asc').toLowerCase() === 'desc' ? 'desc' as const : 'asc' as const
 
-    const sort = ALLOWED_SORT_FIELDS.includes(sortParam as AllowedSortField)
-      ? (sortParam as AllowedSortField)
-      : 'nom_produit'
-    const order = orderParam === 'desc' ? ('desc' as const) : ('asc' as const)
+    const filters: { search?: string; categorie?: number; famille?: string; actif?: boolean } = {}
+    if (search) filters.search = search
+    if (categorie) filters.categorie = parseInt(categorie, 10) || undefined
+    if (famille) filters.famille = famille
+    if (actif === 'true') filters.actif = true
+    else if (actif === 'false') filters.actif = false
 
-    const skip = (page - 1) * limit
+    const result = await listArticles(page, limit, filters, sort, order)
 
-    const where: Prisma.ProduitWhereInput = {}
-    if (category) {
-      where.id_categorie = parseInt(category, 10) || undefined
-    }
-    if (famille) {
-      where.famille = famille
-    }
-    if (actif === 'true') {
-      where.est_actif = true
-    } else if (actif === 'false') {
-      where.est_actif = false
-    }
-    if (search) {
-      where.OR = [
-        { nom_produit: { contains: search, mode: 'insensitive' } },
-        { code_produit: { contains: search, mode: 'insensitive' } },
-        { code_barre_ean: { contains: search, mode: 'insensitive' } },
-      ]
-    }
+    handleServiceError(result)
 
-    const [products, total] = await Promise.all([
-      prisma.produit.findMany({
-        skip,
-        take: limit,
-        where,
-        orderBy: { [sort]: order },
-      }),
-      prisma.produit.count({ where }),
-    ])
-
-    const totalPages = Math.ceil(total / limit)
-
-    return apiPaginated(products, {
-      page,
-      limit,
-      total,
-      totalPages,
-      hasMore: page < totalPages,
-    })
+    return apiPaginated(result.data, result.meta)
   } catch (error) {
     return apiError(error)
   }
 }
 
-export async function getProductByIdHandler(request: NextRequest): Promise<NextResponse> {
+export async function getProductByIdHandler(request: NextRequest, id: number): Promise<NextResponse> {
   try {
     await requireApiKey(request)
 
-    const id = extractIdFromUrl(request)
-
-    const product = await prisma.produit.findUnique({
-      where: { id_produit: id },
-    })
-
-    if (!product) {
-      throw new NotFoundError('Product')
+    if (isNaN(id)) {
+      throw new ValidationError('ID d\'article invalide')
     }
 
-    return apiSuccess(product)
+    const result = await getArticleById(id)
+
+    handleServiceError(result)
+
+    return apiSuccess(result.data)
   } catch (error) {
     return apiError(error)
   }
@@ -141,96 +66,46 @@ export async function createProductHandler(request: NextRequest): Promise<NextRe
     const apiUser = await requireApiKey(request)
 
     const body = await request.json()
-    const parsed = productCreateSchema.safeParse(body)
-    if (!parsed.success) {
-      throw createValidationErrorFromZod(parsed.error)
-    }
+    const result = await createArticle(body, apiUser.userId)
 
-    const existing = await prisma.produit.findUnique({
-      where: { code_produit: parsed.data.code_produit },
-    })
-    if (existing) {
-      throw new ConflictError(`Product with code ${parsed.data.code_produit} already exists`)
-    }
+    handleServiceError(result)
 
-    const product = await prisma.produit.create({
-      data: {
-        ...parsed.data,
-        cree_par: apiUser.userId,
-      },
-    })
-
-    CacheInvalidationService.invalidateProduct(product.id_produit)
-
-    return apiCreated(product)
+    return apiCreated(result.data)
   } catch (error) {
     return apiError(error)
   }
 }
 
-export async function updateProductHandler(request: NextRequest): Promise<NextResponse> {
+export async function updateProductHandler(request: NextRequest, id: number): Promise<NextResponse> {
   try {
     const apiUser = await requireApiKey(request)
 
-    const id = extractIdFromUrl(request)
+    if (isNaN(id)) {
+      throw new ValidationError('ID d\'article invalide')
+    }
 
     const body = await request.json()
-    const parsed = productUpdateSchema.safeParse(body)
-    if (!parsed.success) {
-      throw createValidationErrorFromZod(parsed.error)
-    }
+    const result = await updateArticle(id, body, apiUser.userId)
 
-    const existing = await prisma.produit.findUnique({
-      where: { id_produit: id },
-    })
-    if (!existing) {
-      throw new NotFoundError('Product')
-    }
+    handleServiceError(result)
 
-    if (parsed.data.code_produit && parsed.data.code_produit !== existing.code_produit) {
-      const duplicate = await prisma.produit.findUnique({
-        where: { code_produit: parsed.data.code_produit },
-      })
-      if (duplicate) {
-        throw new ConflictError(`Product with code ${parsed.data.code_produit} already exists`)
-      }
-    }
-
-    const product = await prisma.produit.update({
-      where: { id_produit: id },
-      data: {
-        ...parsed.data,
-        modifie_par: apiUser.userId,
-      },
-    })
-
-    CacheInvalidationService.invalidateProduct(product.id_produit)
-
-    return apiSuccess(product)
+    return apiSuccess(result.data)
   } catch (error) {
     return apiError(error)
   }
 }
 
-export async function deleteProductHandler(request: NextRequest): Promise<NextResponse> {
+export async function deleteProductHandler(request: NextRequest, id: number): Promise<NextResponse> {
   try {
-    await requireApiKey(request)
+    const apiUser = await requireApiKey(request)
 
-    const id = extractIdFromUrl(request)
-
-    const existing = await prisma.produit.findUnique({
-      where: { id_produit: id },
-    })
-    if (!existing) {
-      throw new NotFoundError('Product')
+    if (isNaN(id)) {
+      throw new ValidationError('ID d\'article invalide')
     }
 
-    await prisma.produit.update({
-      where: { id_produit: id },
-      data: { est_actif: false, modifie_par: await getAuthenticatedUserId(request) },
-    })
+    const result = await deleteArticle(id, apiUser.userId)
 
-    CacheInvalidationService.invalidateProduct(id)
+    handleServiceError(result)
 
     return apiNoContent()
   } catch (error) {
@@ -238,51 +113,23 @@ export async function deleteProductHandler(request: NextRequest): Promise<NextRe
   }
 }
 
-export async function getProductStockLevelsHandler(request: NextRequest): Promise<NextResponse> {
+export async function getProductStockLevelsHandler(request: NextRequest, id: number): Promise<NextResponse> {
   try {
     await requireApiKey(request)
 
-    const segments = request.nextUrl.pathname.split('/')
-    const idSegment = segments[segments.length - 2] ?? ''
-    const productId = parseInt(idSegment, 10)
-    if (isNaN(productId)) {
-      throw new ValidationError('Invalid product ID')
+    if (isNaN(id)) {
+      throw new ValidationError('ID d\'article invalide')
     }
 
-    const product = await prisma.produit.findUnique({
-      where: { id_produit: productId },
-    })
-    if (!product) {
-      throw new NotFoundError('Product')
-    }
+    const url = request.nextUrl
+    const page = parseInt(url.searchParams.get('page') || '1', 10)
+    const limit = parseInt(url.searchParams.get('limit') || '50', 10)
 
-    const { page, limit } = parsePagination(request)
-    const skip = (page - 1) * limit
+    const result = await getStockLevelsByArticle(id, page, limit)
 
-    const [stockLevels, total] = await Promise.all([
-      prisma.niveauStock.findMany({
-        where: { id_produit: productId },
-        skip,
-        take: limit,
-        orderBy: { date_creation: 'desc' },
-        include: {
-          entrepot: {
-            select: { id_entrepot: true, code_entrepot: true, nom_entrepot: true },
-          },
-        },
-      }),
-      prisma.niveauStock.count({ where: { id_produit: productId } }),
-    ])
+    handleServiceError(result)
 
-    const totalPages = Math.ceil(total / limit)
-
-    return apiPaginated(stockLevels, {
-      page,
-      limit,
-      total,
-      totalPages,
-      hasMore: page < totalPages,
-    })
+    return apiPaginated(result.data, result.meta)
   } catch (error) {
     return apiError(error)
   }

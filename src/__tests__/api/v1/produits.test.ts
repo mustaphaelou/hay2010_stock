@@ -1,48 +1,62 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 
-const { mockProduitFindMany, mockProduitCount, mockProduitFindUnique, mockProduitCreate, mockProduitUpdate, mockNiveauStockFindMany, mockNiveauStockCount, mockRequireApiKey, mockGetApiUser, mockCacheIncrement } = vi.hoisted(() => ({
-  mockProduitFindMany: vi.fn(),
-  mockProduitCount: vi.fn(),
-  mockProduitFindUnique: vi.fn(),
-  mockProduitCreate: vi.fn(),
-  mockProduitUpdate: vi.fn(),
-  mockNiveauStockFindMany: vi.fn(),
-  mockNiveauStockCount: vi.fn(),
+const {
+  mockListArticles,
+  mockGetArticleById,
+  mockCreateArticle,
+  mockUpdateArticle,
+  mockDeleteArticle,
+  mockGetStockLevelsByArticle,
+  mockRequireApiKey,
+  mockRedisIncr,
+} = vi.hoisted(() => ({
+  mockListArticles: vi.fn(),
+  mockGetArticleById: vi.fn(),
+  mockCreateArticle: vi.fn(),
+  mockUpdateArticle: vi.fn(),
+  mockDeleteArticle: vi.fn(),
+  mockGetStockLevelsByArticle: vi.fn(),
   mockRequireApiKey: vi.fn(),
-  mockGetApiUser: vi.fn(),
-  mockCacheIncrement: vi.fn(),
+  mockRedisIncr: vi.fn(),
 }))
 
-vi.mock('@/lib/db/prisma', () => ({
-  prisma: {
-    produit: {
-      findMany: mockProduitFindMany,
-      count: mockProduitCount,
-      findUnique: mockProduitFindUnique,
-      create: mockProduitCreate,
-      update: mockProduitUpdate,
-    },
-    niveauStock: {
-      findMany: mockNiveauStockFindMany,
-      count: mockNiveauStockCount,
-    },
-  },
+vi.mock('@/lib/stock/stock-service', () => ({
+  listArticles: mockListArticles,
+  getArticleById: mockGetArticleById,
+  createArticle: mockCreateArticle,
+  updateArticle: mockUpdateArticle,
+  deleteArticle: mockDeleteArticle,
+  getStockLevelsByArticle: mockGetStockLevelsByArticle,
 }))
+
+vi.mock('@/lib/api/service-error', async () => {
+  const errors = await vi.importActual<typeof import('@/lib/errors')>('@/lib/errors')
+  return {
+    handleServiceError: (result: { error?: string }) => {
+      if (!result.error) return
+      if (result.error.includes('introuvable')) throw new errors.NotFoundError(result.error)
+      if (result.error.includes('existe déjà')) throw new errors.ConflictError(result.error)
+      if (result.error.includes('invalide') || result.error.includes('requis')) throw new errors.ValidationError(result.error)
+      throw new errors.BusinessError(result.error)
+    },
+  }
+})
 
 vi.mock('@/lib/db/redis', async () => {
   const actual = await vi.importActual('@/lib/db/redis')
   return {
     ...actual,
-    CacheService: {
-      increment: mockCacheIncrement,
+    redis: {
+      ...(actual as Record<string, { redis?: Record<string, unknown> }>).redis,
+      incr: mockRedisIncr,
+      expire: vi.fn().mockResolvedValue('OK'),
     },
   }
 })
 
 vi.mock('@/lib/api/auth', () => ({
   requireApiKey: mockRequireApiKey,
-  getApiUser: mockGetApiUser,
 }))
 
 vi.mock('@/lib/logger', () => ({
@@ -84,39 +98,13 @@ const mockProduit = {
   id_produit: 1,
   code_produit: 'PROD-001',
   nom_produit: 'Produit Test',
-  id_categorie: null,
-  famille: null,
-  description_produit: null,
-  code_barre_ean: null,
-  unite_mesure: 'U',
-  poids_kg: null,
-  volume_m3: null,
-  prix_achat: 100.00,
-  prix_dernier_achat: 95.00,
-  coefficient: 1.0,
   prix_vente: 150.00,
-  prix_gros: 130.00,
-  taux_tva: 20.00,
-  type_suivi_stock: 'AUCUN',
-  quantite_min_commande: 1,
-  niveau_reappro_quantite: 0,
-  stock_minimum: 0,
-  stock_maximum: null,
-  activer_suivi_stock: true,
-  id_fournisseur_principal: null,
-  reference_fournisseur: null,
-  delai_livraison_fournisseur_jours: null,
+  prix_achat: 100.00,
   est_actif: true,
   en_sommeil: false,
-  est_abandonne: false,
-  date_creation: new Date('2025-01-01'),
-  date_modification: new Date('2025-06-01'),
-  cree_par: null,
-  modifie_par: null,
-  compte_general_vente: null,
-  compte_general_achat: null,
-  code_taxe_vente: null,
-  code_taxe_achat: null,
+  stock_global: 50,
+  niveaux_stock: [],
+  categorie: null,
 }
 
 const mockNiveauStock = {
@@ -125,11 +113,7 @@ const mockNiveauStock = {
   id_entrepot: 1,
   quantite_en_stock: 50,
   quantite_reservee: 5,
-  quantite_commandee: 10,
-  date_dernier_mouvement: new Date('2025-05-01'),
-  type_dernier_mouvement: 'ENTREE',
   date_creation: new Date('2025-01-01'),
-  date_modification: new Date('2025-06-01'),
   entrepot: {
     id_entrepot: 1,
     code_entrepot: 'WH-001',
@@ -140,12 +124,12 @@ const mockNiveauStock = {
 describe('Produit API Handlers', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockCacheIncrement.mockResolvedValue(1)
+    mockRedisIncr.mockResolvedValue(1)
   })
 
   describe('GET list', () => {
     it('should return 401 without API key', async () => {
-      mockRequireApiKey.mockRejectedValue(new AuthenticationError('Invalid or missing API key'))
+      mockRequireApiKey.mockRejectedValue(new AuthenticationError('Clé API invalide'))
 
       const request = makeRequest('GET', '/api/v1/produits')
       const response = await listProductsHandler(request)
@@ -157,8 +141,10 @@ describe('Produit API Handlers', () => {
 
     it('should return paginated produits', async () => {
       mockRequireApiKey.mockResolvedValue(API_USER)
-      mockProduitFindMany.mockResolvedValue([mockProduit])
-      mockProduitCount.mockResolvedValue(1)
+      mockListArticles.mockResolvedValue({
+        data: [mockProduit],
+        meta: { page: 1, limit: 50, total: 1, totalPages: 1 },
+      })
 
       const request = makeRequest('GET', '/api/v1/produits')
       const response = await listProductsHandler(request)
@@ -168,117 +154,71 @@ describe('Produit API Handlers', () => {
       expect(data.data).toHaveLength(1)
       expect(data.data[0].nom_produit).toBe('Produit Test')
       expect(data.meta.total).toBe(1)
-      expect(data.meta.page).toBe(1)
     })
 
-    it('should filter by famille', async () => {
+    it('should pass search and filter params to service', async () => {
       mockRequireApiKey.mockResolvedValue(API_USER)
-      mockProduitFindMany.mockResolvedValue([{ ...mockProduit, famille: 'BIO' }])
-      mockProduitCount.mockResolvedValue(1)
+      mockListArticles.mockResolvedValue({
+        data: [],
+        meta: { page: 1, limit: 50, total: 0, totalPages: 0 },
+      })
 
-      const request = makeRequest('GET', '/api/v1/produits?famille=BIO')
+      const request = makeRequest('GET', '/api/v1/produits?search=Test&famille=BIO')
       const response = await listProductsHandler(request)
 
       expect(response.status).toBe(200)
-      expect(mockProduitFindMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: expect.objectContaining({ famille: 'BIO' }) })
+      expect(mockListArticles).toHaveBeenCalledWith(
+        1, 50,
+        expect.objectContaining({ search: 'Test', famille: 'BIO' }),
+        undefined, 'asc'
       )
     })
 
-    it('should filter by actif status', async () => {
+    it('should pass sort params to service', async () => {
       mockRequireApiKey.mockResolvedValue(API_USER)
-      mockProduitFindMany.mockResolvedValue([mockProduit])
-      mockProduitCount.mockResolvedValue(1)
-
-      const request = makeRequest('GET', '/api/v1/produits?actif=true')
-      const response = await listProductsHandler(request)
-
-      expect(response.status).toBe(200)
-      expect(mockProduitFindMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: expect.objectContaining({ est_actif: true }) })
-      )
-    })
-
-    it('should search by nom_produit and code_produit', async () => {
-      mockRequireApiKey.mockResolvedValue(API_USER)
-      mockProduitFindMany.mockResolvedValue([mockProduit])
-      mockProduitCount.mockResolvedValue(1)
-
-      const request = makeRequest('GET', '/api/v1/produits?search=Test')
-      const response = await listProductsHandler(request)
-
-      expect(response.status).toBe(200)
-      expect(mockProduitFindMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({
-            OR: expect.arrayContaining([
-              { nom_produit: { contains: 'Test', mode: 'insensitive' } },
-              { code_produit: { contains: 'Test', mode: 'insensitive' } },
-              { code_barre_ean: { contains: 'Test', mode: 'insensitive' } },
-            ]),
-          }),
-        })
-      )
-    })
-
-    it('should sort by specified field', async () => {
-      mockRequireApiKey.mockResolvedValue(API_USER)
-      mockProduitFindMany.mockResolvedValue([])
-      mockProduitCount.mockResolvedValue(0)
+      mockListArticles.mockResolvedValue({
+        data: [],
+        meta: { page: 1, limit: 50, total: 0, totalPages: 0 },
+      })
 
       const request = makeRequest('GET', '/api/v1/produits?sort=prix_vente&order=desc')
       const response = await listProductsHandler(request)
 
       expect(response.status).toBe(200)
-      expect(mockProduitFindMany).toHaveBeenCalledWith(
-        expect.objectContaining({ orderBy: { prix_vente: 'desc' } })
-      )
-    })
-
-    it('should default to nom_produit for invalid sort field', async () => {
-      mockRequireApiKey.mockResolvedValue(API_USER)
-      mockProduitFindMany.mockResolvedValue([])
-      mockProduitCount.mockResolvedValue(0)
-
-      const request = makeRequest('GET', '/api/v1/produits?sort=invalid_field')
-      const response = await listProductsHandler(request)
-
-      expect(response.status).toBe(200)
-      expect(mockProduitFindMany).toHaveBeenCalledWith(
-        expect.objectContaining({ orderBy: { nom_produit: 'asc' } })
+      expect(mockListArticles).toHaveBeenCalledWith(
+        1, 50, {}, 'prix_vente', 'desc'
       )
     })
   })
 
   describe('GET by id', () => {
     it('should return 401 without API key', async () => {
-      mockRequireApiKey.mockRejectedValue(new AuthenticationError('Invalid or missing API key'))
+      mockRequireApiKey.mockRejectedValue(new AuthenticationError('Clé API invalide'))
 
       const request = makeRequest('GET', '/api/v1/produits/1')
-      const response = await getProductByIdHandler(request)
+      const response = await getProductByIdHandler(request, 1)
 
       expect(response.status).toBe(401)
     })
 
     it('should return produit by id', async () => {
       mockRequireApiKey.mockResolvedValue(API_USER)
-      mockProduitFindUnique.mockResolvedValue(mockProduit)
+      mockGetArticleById.mockResolvedValue({ data: mockProduit })
 
       const request = makeRequest('GET', '/api/v1/produits/1')
-      const response = await getProductByIdHandler(request)
+      const response = await getProductByIdHandler(request, 1)
 
       expect(response.status).toBe(200)
       const data = await response.json()
       expect(data.nom_produit).toBe('Produit Test')
-      expect(data.id_produit).toBe(1)
     })
 
     it('should return 404 for non-existent produit', async () => {
       mockRequireApiKey.mockResolvedValue(API_USER)
-      mockProduitFindUnique.mockResolvedValue(null)
+      mockGetArticleById.mockResolvedValue({ data: null, error: 'Article introuvable' })
 
       const request = makeRequest('GET', '/api/v1/produits/999')
-      const response = await getProductByIdHandler(request)
+      const response = await getProductByIdHandler(request, 999)
 
       expect(response.status).toBe(404)
     })
@@ -287,7 +227,7 @@ describe('Produit API Handlers', () => {
       mockRequireApiKey.mockResolvedValue(API_USER)
 
       const request = makeRequest('GET', '/api/v1/produits/abc')
-      const response = await getProductByIdHandler(request)
+      const response = await getProductByIdHandler(request, NaN)
 
       expect(response.status).toBe(400)
     })
@@ -300,7 +240,7 @@ describe('Produit API Handlers', () => {
     }
 
     it('should return 401 without API key', async () => {
-      mockRequireApiKey.mockRejectedValue(new AuthenticationError('Invalid or missing API key'))
+      mockRequireApiKey.mockRejectedValue(new AuthenticationError('Clé API invalide'))
 
       const request = makeRequest('POST', '/api/v1/produits', createBody)
       const response = await createProductHandler(request)
@@ -310,8 +250,7 @@ describe('Produit API Handlers', () => {
 
     it('should create a produit and return 201', async () => {
       mockRequireApiKey.mockResolvedValue(API_USER)
-      mockProduitFindUnique.mockResolvedValue(null)
-      mockProduitCreate.mockResolvedValue({ ...mockProduit, code_produit: 'PROD-002', nom_produit: 'New Product' })
+      mockCreateArticle.mockResolvedValue({ data: { ...mockProduit, code_produit: 'PROD-002', nom_produit: 'New Product' } })
 
       const request = makeRequest('POST', '/api/v1/produits', createBody)
       const response = await createProductHandler(request)
@@ -319,20 +258,18 @@ describe('Produit API Handlers', () => {
       expect(response.status).toBe(201)
       const data = await response.json()
       expect(data.nom_produit).toBe('New Product')
-      expect(mockProduitCreate).toHaveBeenCalledWith(
+      expect(mockCreateArticle).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({
-            code_produit: 'PROD-002',
-            nom_produit: 'New Product',
-            cree_par: 'user-api-1',
-          }),
-        })
+          code_produit: 'PROD-002',
+          nom_produit: 'New Product',
+        }),
+        'user-api-1'
       )
     })
 
     it('should return 409 on duplicate code', async () => {
       mockRequireApiKey.mockResolvedValue(API_USER)
-      mockProduitFindUnique.mockResolvedValue(mockProduit)
+      mockCreateArticle.mockResolvedValue({ error: "L'article PROD-001 existe déjà" })
 
       const request = makeRequest('POST', '/api/v1/produits', { ...createBody, code_produit: 'PROD-001' })
       const response = await createProductHandler(request)
@@ -342,22 +279,9 @@ describe('Produit API Handlers', () => {
 
     it('should return 400 for missing required fields', async () => {
       mockRequireApiKey.mockResolvedValue(API_USER)
+      mockCreateArticle.mockResolvedValue({ error: 'Validation échouée: requis' })
 
       const request = makeRequest('POST', '/api/v1/produits', { nom_produit: 'No Code' })
-      const response = await createProductHandler(request)
-
-      expect(response.status).toBe(400)
-      const data = await response.json()
-      expect(data.code).toBe('VALIDATION_ERROR')
-    })
-
-    it('should return 400 for invalid numeric value', async () => {
-      mockRequireApiKey.mockResolvedValue(API_USER)
-
-      const request = makeRequest('POST', '/api/v1/produits', {
-        ...createBody,
-        prix_vente: 'not-a-number',
-      })
       const response = await createProductHandler(request)
 
       expect(response.status).toBe(400)
@@ -368,54 +292,42 @@ describe('Produit API Handlers', () => {
     const updateBody = { nom_produit: 'Updated Product' }
 
     it('should return 401 without API key', async () => {
-      mockRequireApiKey.mockRejectedValue(new AuthenticationError('Invalid or missing API key'))
+      mockRequireApiKey.mockRejectedValue(new AuthenticationError('Clé API invalide'))
 
       const request = makeRequest('PUT', '/api/v1/produits/1', updateBody)
-      const response = await updateProductHandler(request)
+      const response = await updateProductHandler(request, 1)
 
       expect(response.status).toBe(401)
     })
 
     it('should update a produit', async () => {
       mockRequireApiKey.mockResolvedValue(API_USER)
-      mockProduitFindUnique.mockResolvedValue(mockProduit)
-      mockProduitUpdate.mockResolvedValue({ ...mockProduit, nom_produit: 'Updated Product' })
+      mockUpdateArticle.mockResolvedValue({ data: { ...mockProduit, nom_produit: 'Updated Product' } })
 
       const request = makeRequest('PUT', '/api/v1/produits/1', updateBody)
-      const response = await updateProductHandler(request)
+      const response = await updateProductHandler(request, 1)
 
       expect(response.status).toBe(200)
       const data = await response.json()
       expect(data.nom_produit).toBe('Updated Product')
-      expect(mockProduitUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { id_produit: 1 },
-          data: expect.objectContaining({
-            nom_produit: 'Updated Product',
-            modifie_par: 'user-api-1',
-          }),
-        })
-      )
     })
 
     it('should return 404 for non-existent produit', async () => {
       mockRequireApiKey.mockResolvedValue(API_USER)
-      mockProduitFindUnique.mockResolvedValue(null)
+      mockUpdateArticle.mockResolvedValue({ error: 'Article introuvable' })
 
       const request = makeRequest('PUT', '/api/v1/produits/999', updateBody)
-      const response = await updateProductHandler(request)
+      const response = await updateProductHandler(request, 999)
 
       expect(response.status).toBe(404)
     })
 
-    it('should return 409 on duplicate code change', async () => {
+    it('should return 409 on duplicate code', async () => {
       mockRequireApiKey.mockResolvedValue(API_USER)
-      mockProduitFindUnique
-        .mockResolvedValueOnce(mockProduit)
-        .mockResolvedValueOnce({ ...mockProduit, id_produit: 2 })
+      mockUpdateArticle.mockResolvedValue({ error: "L'article PROD-999 existe déjà" })
 
       const request = makeRequest('PUT', '/api/v1/produits/1', { code_produit: 'PROD-999' })
-      const response = await updateProductHandler(request)
+      const response = await updateProductHandler(request, 1)
 
       expect(response.status).toBe(409)
     })
@@ -423,38 +335,30 @@ describe('Produit API Handlers', () => {
 
   describe('DELETE', () => {
     it('should return 401 without API key', async () => {
-      mockRequireApiKey.mockRejectedValue(new AuthenticationError('Invalid or missing API key'))
+      mockRequireApiKey.mockRejectedValue(new AuthenticationError('Clé API invalide'))
 
       const request = makeRequest('DELETE', '/api/v1/produits/1')
-      const response = await deleteProductHandler(request)
+      const response = await deleteProductHandler(request, 1)
 
       expect(response.status).toBe(401)
     })
 
     it('should soft-delete a produit', async () => {
       mockRequireApiKey.mockResolvedValue(API_USER)
-      mockGetApiUser.mockResolvedValue(API_USER)
-      mockProduitFindUnique.mockResolvedValue(mockProduit)
-      mockProduitUpdate.mockResolvedValue({ ...mockProduit, est_actif: false })
+      mockDeleteArticle.mockResolvedValue({ data: { success: true } })
 
       const request = makeRequest('DELETE', '/api/v1/produits/1')
-      const response = await deleteProductHandler(request)
+      const response = await deleteProductHandler(request, 1)
 
       expect(response.status).toBe(204)
-      expect(mockProduitUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { id_produit: 1 },
-          data: expect.objectContaining({ est_actif: false }),
-        })
-      )
     })
 
     it('should return 404 for non-existent produit', async () => {
       mockRequireApiKey.mockResolvedValue(API_USER)
-      mockProduitFindUnique.mockResolvedValue(null)
+      mockDeleteArticle.mockResolvedValue({ error: 'Article introuvable' })
 
       const request = makeRequest('DELETE', '/api/v1/produits/999')
-      const response = await deleteProductHandler(request)
+      const response = await deleteProductHandler(request, 999)
 
       expect(response.status).toBe(404)
     })
@@ -463,49 +367,40 @@ describe('Produit API Handlers', () => {
   describe('GET stock levels', () => {
     it('should return product stock levels', async () => {
       mockRequireApiKey.mockResolvedValue(API_USER)
-      mockProduitFindUnique.mockResolvedValue(mockProduit)
-      mockNiveauStockFindMany.mockResolvedValue([mockNiveauStock])
-      mockNiveauStockCount.mockResolvedValue(1)
+      mockGetStockLevelsByArticle.mockResolvedValue({
+        data: [mockNiveauStock],
+        meta: { page: 1, limit: 50, total: 1, totalPages: 1 },
+      })
 
       const request = makeRequest('GET', '/api/v1/produits/1/stock-levels')
-      const response = await getProductStockLevelsHandler(request)
+      const response = await getProductStockLevelsHandler(request, 1)
 
       expect(response.status).toBe(200)
       const data = await response.json()
       expect(data.data).toHaveLength(1)
       expect(data.data[0].id_produit).toBe(1)
       expect(data.data[0].entrepot.code_entrepot).toBe('WH-001')
-      expect(mockNiveauStockFindMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { id_produit: 1 },
-          include: {
-            entrepot: {
-              select: {
-                id_entrepot: true,
-                code_entrepot: true,
-                nom_entrepot: true,
-              },
-            },
-          },
-        })
-      )
     })
 
     it('should return 404 for non-existent produit', async () => {
       mockRequireApiKey.mockResolvedValue(API_USER)
-      mockProduitFindUnique.mockResolvedValue(null)
+      mockGetStockLevelsByArticle.mockResolvedValue({
+        data: [],
+        meta: { page: 1, limit: 50, total: 0, totalPages: 0 },
+        error: 'Article introuvable',
+      })
 
       const request = makeRequest('GET', '/api/v1/produits/999/stock-levels')
-      const response = await getProductStockLevelsHandler(request)
+      const response = await getProductStockLevelsHandler(request, 999)
 
       expect(response.status).toBe(404)
     })
 
     it('should return 401 without API key', async () => {
-      mockRequireApiKey.mockRejectedValue(new AuthenticationError('Invalid or missing API key'))
+      mockRequireApiKey.mockRejectedValue(new AuthenticationError('Clé API invalide'))
 
       const request = makeRequest('GET', '/api/v1/produits/1/stock-levels')
-      const response = await getProductStockLevelsHandler(request)
+      const response = await getProductStockLevelsHandler(request, 1)
 
       expect(response.status).toBe(401)
     })
@@ -514,10 +409,9 @@ describe('Produit API Handlers', () => {
 
 describe('Rate Limiting', () => {
   it('should return 429 when rate limit exceeded', async () => {
-    mockCacheIncrement.mockResolvedValue(31)
+    mockRedisIncr.mockResolvedValue(31)
     mockRequireApiKey.mockResolvedValue({ userId: 'user-1', role: 'ADMIN' as const, keyId: 'key-1' })
-    mockProduitCreate.mockResolvedValue(mockProduit)
-    mockProduitFindUnique.mockResolvedValue(null)
+    mockCreateArticle.mockResolvedValue({ data: mockProduit })
 
     const { POST } = await import('@/app/api/v1/produits/route')
     const request = makeRequest('POST', '/api/v1/produits', {

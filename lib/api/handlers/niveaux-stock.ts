@@ -1,16 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { prisma } from '@/lib/db/prisma'
 import { requireApiKey } from '@/lib/api/auth'
 import { apiSuccess, apiPaginated, apiCreated, apiNoContent, apiError } from '@/lib/api/response'
-import {
-  stockLevelCreateSchema,
-  stockLevelUpdateSchema,
-  paginationSchema,
-} from '@/lib/api/validators/niveaux-stock'
 import { ValidationError, NotFoundError, ConflictError } from '@/lib/errors'
 import { createValidationErrorFromZod } from '@/lib/errors'
 import { CacheInvalidationService } from '@/lib/cache/invalidation'
+import { paginationSchema } from '@/lib/pagination'
 import { Prisma } from '@/lib/generated/prisma/client'
+
+const stockLevelCreateSchema = z.object({
+  id_produit: z.number().int().positive(),
+  id_entrepot: z.number().int().positive(),
+  quantite_en_stock: z.number().default(0).optional(),
+  quantite_reservee: z.number().default(0).optional(),
+  quantite_commandee: z.number().default(0).optional(),
+  date_dernier_mouvement: z.string().nullable().optional(),
+  type_dernier_mouvement: z.string().max(50).nullable().optional(),
+})
+
+const stockLevelUpdateSchema = stockLevelCreateSchema.partial()
 
 const ALLOWED_SORT_FIELDS = [
   'id_stock',

@@ -70,8 +70,8 @@ export async function getPartners(
 ): Promise<PaginatedResult<PartnerWithComputed> & { error?: string }> {
   const validationResult = getPartnersSchema.safeParse({ type })
   if (!validationResult.success) {
-    log.error({ error: validationResult.error }, 'Invalid partners filter')
-    return createEmptyResult<PartnerWithComputed>(page, limit, 'Invalid filter parameters')
+    log.error({ error: validationResult.error }, 'Filtres partenaires invalides')
+    return createEmptyResult<PartnerWithComputed>(page, limit, 'Paramètres de filtre invalides')
   }
 
   const { skip } = getPaginationParams({ page, limit })
@@ -107,8 +107,8 @@ export async function getPartners(
       meta: buildPaginationMeta(total, page, limit)
     }
   } catch (error) {
-    log.error({ error, type }, 'Failed to fetch partners')
-    return createEmptyResult<PartnerWithComputed>(page, limit, 'Failed to fetch partners')
+    log.error({ error, type }, 'Échec de la récupération des partenaires')
+    return createEmptyResult<PartnerWithComputed>(page, limit, 'Échec de la récupération des partenaires')
   }
 }
 
@@ -116,7 +116,7 @@ export async function getPartnerById(
   id_partenaire: number,
 ): Promise<{ data?: PartnerWithComputed; error?: string }> {
   if (!Number.isFinite(id_partenaire) || id_partenaire <= 0) {
-    return { error: 'Invalid partner ID' }
+    return { error: 'ID partenaire invalide' }
   }
 
   try {
@@ -125,13 +125,13 @@ export async function getPartnerById(
     })
 
     if (!partner) {
-      return { error: 'Partner not found' }
+      return { error: 'Partenaire introuvable' }
     }
 
     return { data: mapPartnerToComputed(partner as unknown as Record<string, unknown>) }
   } catch (error) {
-    log.error({ error, id_partenaire }, 'Failed to fetch partner')
-    return { error: 'Failed to fetch partner' }
+    log.error({ error, id_partenaire }, 'Échec de la récupération du partenaire')
+    return { error: 'Échec de la récupération du partenaire' }
   }
 }
 
@@ -141,7 +141,7 @@ export async function createPartner(
 ): Promise<{ data?: PartnerWithComputed; error?: string }> {
   const validationResult = createPartnerSchema.safeParse(input)
   if (!validationResult.success) {
-    return { error: 'Invalid input: ' + validationResult.error.issues.map((e) => e.message).join(', ') }
+    return { error: 'Validation échouée: ' + validationResult.error.issues.map((e) => e.message).join(', ') }
   }
 
   const validatedInput = validationResult.data
@@ -151,7 +151,7 @@ export async function createPartner(
       where: { code_partenaire: validatedInput.code_partenaire },
     })
     if (existing) {
-      return { error: `Partner with code ${validatedInput.code_partenaire} already exists` }
+      return { error: `Le partenaire ${validatedInput.code_partenaire} existe déjà` }
     }
 
     const partner = await prisma.partenaire.create({
@@ -166,8 +166,8 @@ export async function createPartner(
 
     return { data: mapPartnerToComputed(partner as unknown as Record<string, unknown>) }
   } catch (error) {
-    log.error({ error, input: validatedInput }, 'Failed to create partner')
-    return { error: 'Failed to create partner' }
+    log.error({ error, input: validatedInput }, 'Échec de la création du partenaire')
+    return { error: 'Échec de la création du partenaire' }
   }
 }
 
@@ -178,7 +178,7 @@ export async function updatePartner(
 ): Promise<{ data?: PartnerWithComputed; error?: string }> {
   const validationResult = updatePartnerSchema.safeParse(input)
   if (!validationResult.success) {
-    return { error: 'Invalid input: ' + validationResult.error.issues.map((e) => e.message).join(', ') }
+    return { error: 'Validation échouée: ' + validationResult.error.issues.map((e) => e.message).join(', ') }
   }
 
   const validatedInput = validationResult.data
@@ -188,7 +188,7 @@ export async function updatePartner(
       where: { id_partenaire },
     })
     if (!existing) {
-      return { error: 'Partner not found' }
+      return { error: 'Partenaire introuvable' }
     }
 
     if (validatedInput.code_partenaire && validatedInput.code_partenaire !== existing.code_partenaire) {
@@ -196,7 +196,7 @@ export async function updatePartner(
         where: { code_partenaire: validatedInput.code_partenaire },
       })
       if (duplicate) {
-        return { error: `Partner with code ${validatedInput.code_partenaire} already exists` }
+        return { error: `Le partenaire ${validatedInput.code_partenaire} existe déjà` }
       }
     }
 
@@ -213,8 +213,8 @@ export async function updatePartner(
 
     return { data: mapPartnerToComputed(partner as unknown as Record<string, unknown>) }
   } catch (error) {
-    log.error({ error, id_partenaire, input: validatedInput }, 'Failed to update partner')
-    return { error: 'Failed to update partner' }
+    log.error({ error, id_partenaire, input: validatedInput }, 'Échec de la mise à jour du partenaire')
+    return { error: 'Échec de la mise à jour du partenaire' }
   }
 }
 
@@ -224,7 +224,7 @@ export async function deletePartner(
 ): Promise<{ data?: { success: boolean }; error?: string }> {
   const validationResult = deletePartnerSchema.safeParse({ id_partenaire })
   if (!validationResult.success) {
-    return { error: 'Invalid input: ' + validationResult.error.issues.map((e) => e.message).join(', ') }
+    return { error: 'Validation échouée: ' + validationResult.error.issues.map((e) => e.message).join(', ') }
   }
 
   try {
@@ -232,7 +232,7 @@ export async function deletePartner(
       where: { id_partenaire },
     })
     if (!existing) {
-      return { error: 'Partner not found' }
+      return { error: 'Partenaire introuvable' }
     }
 
     await prisma.partenaire.update({
@@ -244,8 +244,8 @@ export async function deletePartner(
 
     return { data: { success: true } }
   } catch (error) {
-    log.error({ error, id_partenaire }, 'Failed to delete partner')
-    return { error: 'Failed to delete partner' }
+    log.error({ error, id_partenaire }, 'Échec de la suppression du partenaire')
+    return { error: 'Échec de la suppression du partenaire' }
   }
 }
 
@@ -259,7 +259,7 @@ export async function getPartnerDocuments(
       where: { id_partenaire: partnerId },
     })
     if (!partner) {
-      return { ...createEmptyResult(page, limit, 'Partner not found'), data: [] as Record<string, unknown>[] }
+      return { ...createEmptyResult(page, limit, 'Partenaire introuvable'), data: [] as Record<string, unknown>[] }
     }
 
     const { skip } = getPaginationParams({ page, limit })
@@ -282,7 +282,7 @@ export async function getPartnerDocuments(
       meta: buildPaginationMeta(total, page, limit),
     }
   } catch (error) {
-    log.error({ error, partnerId }, 'Failed to fetch partner documents')
-    return { ...createEmptyResult(page, limit, 'Failed to fetch documents'), data: [] as Record<string, unknown>[] }
+    log.error({ error, partnerId }, 'Échec de la récupération des documents du partenaire')
+    return { ...createEmptyResult(page, limit, 'Échec de la récupération des documents'), data: [] as Record<string, unknown>[] }
   }
 }

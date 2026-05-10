@@ -7,16 +7,28 @@ import {
 } from '@/lib/api/handlers/affaires'
 
 export const GET = withRateLimit(
-  (request: NextRequest) => getAffaireByIdHandler(request),
+  (request: NextRequest) => {
+    const segments = request.nextUrl.pathname.split('/')
+    const id = parseInt(segments[segments.length - 1], 10)
+    return getAffaireByIdHandler(request, id)
+  },
   'read'
 )
 
 export const PUT = withRateLimit(
-  (request: NextRequest) => updateAffaireHandler(request),
+  (request: NextRequest) => {
+    const segments = request.nextUrl.pathname.split('/')
+    const id = parseInt(segments[segments.length - 1], 10)
+    return updateAffaireHandler(request, id)
+  },
   'write'
 )
 
 export const DELETE = withRateLimit(
-  (request: NextRequest) => deleteAffaireHandler(request),
+  (request: NextRequest) => {
+    const segments = request.nextUrl.pathname.split('/')
+    const id = parseInt(segments[segments.length - 1], 10)
+    return deleteAffaireHandler(request, id)
+  },
   'write'
 )

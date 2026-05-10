@@ -1,16 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { prisma } from '@/lib/db/prisma'
 import { requireApiKey } from '@/lib/api/auth'
 import { apiSuccess, apiPaginated, apiCreated, apiNoContent, apiError } from '@/lib/api/response'
-import {
-  categoryCreateSchema,
-  categoryUpdateSchema,
-  paginationSchema,
-} from '@/lib/api/validators/categories-produits'
 import { ValidationError, NotFoundError, ConflictError } from '@/lib/errors'
 import { createValidationErrorFromZod } from '@/lib/errors'
 import { CacheInvalidationService } from '@/lib/cache/invalidation'
+import { paginationSchema } from '@/lib/pagination'
 import { Prisma } from '@/lib/generated/prisma/client'
+
+const categoryCreateSchema = z.object({
+  code_categorie: z.string().min(1).max(50),
+  nom_categorie: z.string().min(1).max(255),
+  id_categorie_parent: z.number().int().positive().nullable().optional(),
+  description_categorie: z.string().nullable().optional(),
+  est_actif: z.boolean().default(true).optional(),
+})
+
+const categoryUpdateSchema = categoryCreateSchema.partial()
 
 const ALLOWED_SORT_FIELDS = [
   'id_categorie',

@@ -100,7 +100,7 @@ describe('Partner Service', () => {
       const result = await getPartners()
 
       expect(result.data).toEqual([])
-      expect(result.error).toBe('Failed to fetch partners')
+      expect(result.error).toBe('Échec de la récupération des partenaires')
     })
 
     it('should search by nom_partenaire, code_partenaire, and ville', async () => {
@@ -167,7 +167,7 @@ describe('Partner Service', () => {
       const result = await getPartnerById(999)
 
       expect(result.error).toBeDefined()
-      expect(result.error).toBe('Partner not found')
+      expect(result.error).toBe('Partenaire introuvable')
       expect(result.data).toBeUndefined()
     })
 
@@ -183,7 +183,7 @@ describe('Partner Service', () => {
 
       const result = await getPartnerById(1)
 
-      expect(result.error).toBe('Failed to fetch partner')
+      expect(result.error).toBe('Échec de la récupération du partenaire')
       expect(result.data).toBeUndefined()
     })
   })
@@ -226,7 +226,7 @@ describe('Partner Service', () => {
       const input = { code_partenaire: 'CLI-003', nom_partenaire: 'Fail Partner', type_partenaire: 'CLIENT' as const }
       const result = await createPartner(input, 'user-1')
 
-      expect(result.error).toBe('Failed to create partner')
+      expect(result.error).toBe('Échec de la création du partenaire')
       expect(result.data).toBeUndefined()
     })
 
@@ -237,7 +237,7 @@ describe('Partner Service', () => {
       const result = await createPartner(input, 'user-1')
 
       expect(result.error).toBeDefined()
-      expect(result.error).toContain('already exists')
+      expect(result.error).toContain('existe déjà')
       expect(result.data).toBeUndefined()
     })
   })
@@ -275,7 +275,7 @@ describe('Partner Service', () => {
 
       const result = await updatePartner(1, { nom_partenaire: 'Fail' }, 'user-1')
 
-      expect(result.error).toBe('Failed to update partner')
+      expect(result.error).toBe('Échec de la mise à jour du partenaire')
       expect(result.data).toBeUndefined()
     })
 
@@ -284,7 +284,7 @@ describe('Partner Service', () => {
 
       const result = await updatePartner(999, { nom_partenaire: 'Ghost' }, 'user-1')
 
-      expect(result.error).toBe('Partner not found')
+      expect(result.error).toBe('Partenaire introuvable')
       expect(result.data).toBeUndefined()
     })
 
@@ -296,7 +296,7 @@ describe('Partner Service', () => {
       const result = await updatePartner(1, { code_partenaire: 'CLI-002' }, 'user-1')
 
       expect(result.error).toBeDefined()
-      expect(result.error).toContain('already exists')
+      expect(result.error).toContain('existe déjà')
       expect(result.data).toBeUndefined()
     })
   })
@@ -321,7 +321,7 @@ describe('Partner Service', () => {
 
       const result = await deletePartner(999, 'user-1')
 
-      expect(result.error).toBe('Partner not found')
+      expect(result.error).toBe('Partenaire introuvable')
     })
 
     it('should return { error } for invalid input', async () => {
@@ -337,7 +337,7 @@ describe('Partner Service', () => {
 
       const result = await deletePartner(1, 'user-1')
 
-      expect(result.error).toBe('Failed to delete partner')
+      expect(result.error).toBe('Échec de la suppression du partenaire')
       expect(result.data?.success).toBeUndefined()
     })
   })
@@ -361,7 +361,7 @@ describe('Partner Service', () => {
 
       const result = await getPartnerDocuments(999)
 
-      expect(result.error).toBe('Partner not found')
+      expect(result.error).toBe('Partenaire introuvable')
       expect(result.data).toEqual([])
     })
 
@@ -371,7 +371,7 @@ describe('Partner Service', () => {
 
       const result = await getPartnerDocuments(1)
 
-      expect(result.error).toBe('Failed to fetch documents')
+      expect(result.error).toBe('Échec de la récupération des documents')
       expect(result.data).toEqual([])
     })
   })

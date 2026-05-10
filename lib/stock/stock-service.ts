@@ -8,7 +8,21 @@ import type { ArticleWithStock, StockLevelWithProduct, Depot } from '@/lib/types
 import { getPaginationParams, buildPaginationMeta, createEmptyResult } from '@/lib/pagination'
 import type { PaginatedResult } from '@/lib/pagination'
 import { paginationSchema } from '@/lib/validation'
-import { toggleArticleStatusSchema, createMovementSchema } from '@/lib/stock/validation'
+import {
+  toggleArticleStatusSchema,
+  createMovementSchema,
+  articleCreateSchema,
+  articleUpdateSchema,
+  getArticleByIdSchema,
+  deleteArticleSchema,
+  getStockLevelsByArticleSchema,
+  ALLOWED_ARTICLE_SORT_FIELDS,
+} from '@/lib/stock/validation'
+import type {
+  ArticleCreateInput,
+  ArticleUpdateInput,
+  AllowedArticleSortField,
+} from '@/lib/stock/validation'
 
 const log = createLogger('stock-service')
 
@@ -413,6 +427,297 @@ export async function getStockMovements(
     }
   } catch (error) {
     log.error({ error, productId, warehouseId }, 'Failed to fetch stock movements')
-    return { data: [], error: 'Failed to fetch stock movements' }
+    return { data: [], error: 'Échec de la récupération des mouvements de stock' }
+  }
+}
+
+export async function listArticles(
+  page: number = 1,
+  limit: number = 50,
+  filters?: {
+    search?: string
+    categorie?: number
+    famille?: string
+    actif?: boolean
+  },
+  sort: string = 'nom_produit',
+  order: 'asc' | 'desc' = 'asc',
+): Promise<PaginatedResult<ArticleWithStock> & { error?: string }> {
+  const parsed = paginationSchema.safeParse({ page, limit })
+  if (!parsed.success) {
+    return createEmptyResult<ArticleWithStock>(page, limit, 'Paramètres de pagination invalides')
+  }
+  const safePage = parsed.data?.page ?? page
+  const safeLimit = parsed.data?.limit ?? limit
+  const { skip } = getPaginationParams({ page: safePage, limit: safeLimit })
+
+  const effectiveSort = ALLOWED_ARTICLE_SORT_FIELDS.includes(sort as AllowedArticleSortField)
+    ? (sort as AllowedArticleSortField)
+    : 'nom_produit'
+
+  try {
+    const where: Prisma.ProduitWhereInput = {}
+    if (filters?.categorie) {
+      where.id_categorie = filters.categorie
+    }
+    if (filters?.famille) {
+      where.famille = filters.famille
+    }
+    if (filters?.actif !== undefined) {
+      where.est_actif = filters.actif
+    }
+    if (filters?.search) {
+      where.OR = [
+        { nom_produit: { contains: filters.search, mode: 'insensitive' } },
+        { code_produit: { contains: filters.search, mode: 'insensitive' } },
+        { code_barre_ean: { contains: filters.search, mode: 'insensitive' } },
+      ]
+    }
+
+    const [products, total] = await Promise.all([
+      prisma.produit.findMany({
+        skip,
+        take: safeLimit,
+        where,
+        orderBy: { [effectiveSort]: order },
+      }),
+      prisma.produit.count({ where }),
+    ])
+
+    return {
+      data: products as unknown as ArticleWithStock[],
+      meta: buildPaginationMeta(total, safePage, safeLimit),
+    }
+  } catch (error) {
+    log.error({ error }, 'Échec de la récupération des articles')
+    return createEmptyResult<ArticleWithStock>(safePage, safeLimit, 'Échec de la récupération des articles')
+  }
+}
+
+export async function getArticleById(
+  id_produit: number,
+): Promise<{ data?: ArticleWithStock | null; error?: string }> {
+  const validationResult = getArticleByIdSchema.safeParse({ id_produit })
+  if (!validationResult.success) {
+    return { error: 'ID d\'article invalide' }
+  }
+
+  try {
+    const product = await prisma.produit.findUnique({
+      where: { id_produit },
+    })
+
+    if (!product) {
+      return { data: null, error: 'Article introuvable' }
+    }
+
+    const productIds = [product.id_produit]
+    const stockMap = await getStockAggregates(productIds)
+
+    const article: ArticleWithStock = {
+      id_produit: product.id_produit,
+      code_produit: product.code_produit,
+      nom_produit: product.nom_produit,
+      famille: product.famille || null,
+      id_categorie: product.id_categorie,
+      description_produit: product.description_produit,
+      code_barre_ean: product.code_barre_ean,
+      unite_mesure: product.unite_mesure,
+      poids_kg: product.poids_kg,
+      volume_m3: product.volume_m3,
+      prix_achat: product.prix_achat,
+      prix_dernier_achat: product.prix_dernier_achat,
+      coefficient: product.coefficient,
+      prix_vente: product.prix_vente,
+      prix_gros: product.prix_gros,
+      taux_tva: product.taux_tva,
+      type_suivi_stock: product.type_suivi_stock,
+      quantite_min_commande: product.quantite_min_commande,
+      niveau_reappro_quantite: product.niveau_reappro_quantite,
+      stock_minimum: product.stock_minimum,
+      stock_maximum: product.stock_maximum,
+      activer_suivi_stock: product.activer_suivi_stock,
+      id_fournisseur_principal: product.id_fournisseur_principal,
+      reference_fournisseur: product.reference_fournisseur,
+      delai_livraison_fournisseur_jours: product.delai_livraison_fournisseur_jours,
+      est_actif: product.est_actif,
+      en_sommeil: product.en_sommeil,
+      est_abandonne: product.est_abandonne,
+      date_creation: product.date_creation,
+      date_modification: product.date_modification,
+      cree_par: product.cree_par,
+      modifie_par: product.modifie_par,
+      compte_general_vente: product.compte_general_vente,
+      compte_general_achat: product.compte_general_achat,
+      code_taxe_vente: product.code_taxe_vente,
+      code_taxe_achat: product.code_taxe_achat,
+      categorie: null,
+      niveaux_stock: [],
+      stock_global: stockMap.get(product.id_produit) || 0,
+    }
+
+    return { data: article }
+  } catch (error) {
+    log.error({ error, id_produit }, 'Échec de la récupération de l\'article')
+    return { error: 'Échec de la récupération de l\'article' }
+  }
+}
+
+export async function createArticle(
+  input: ArticleCreateInput,
+  userId: string,
+): Promise<{ data?: ArticleWithStock; error?: string }> {
+  const validationResult = articleCreateSchema.safeParse(input)
+  if (!validationResult.success) {
+    return { error: 'Validation échouée: ' + validationResult.error.issues.map((e) => e.message).join(', ') }
+  }
+
+  const validatedInput = validationResult.data
+
+  try {
+    const existing = await prisma.produit.findUnique({
+      where: { code_produit: validatedInput.code_produit },
+    })
+    if (existing) {
+      return { error: `L'article ${validatedInput.code_produit} existe déjà` }
+    }
+
+    const product = await prisma.produit.create({
+      data: {
+        ...validatedInput,
+        cree_par: userId,
+      },
+    })
+
+    CacheInvalidationService.invalidateProduct(product.id_produit)
+
+    const article = product as unknown as ArticleWithStock
+    return { data: article }
+  } catch (error) {
+    log.error({ error, input: validatedInput }, 'Échec de la création de l\'article')
+    return { error: 'Échec de la création de l\'article' }
+  }
+}
+
+export async function updateArticle(
+  id_produit: number,
+  input: ArticleUpdateInput,
+  userId: string,
+): Promise<{ data?: ArticleWithStock; error?: string }> {
+  const validationResult = articleUpdateSchema.safeParse(input)
+  if (!validationResult.success) {
+    return { error: 'Validation échouée: ' + validationResult.error.issues.map((e) => e.message).join(', ') }
+  }
+
+  const validatedInput = validationResult.data
+
+  try {
+    const existing = await prisma.produit.findUnique({
+      where: { id_produit },
+    })
+    if (!existing) {
+      return { error: 'Article introuvable' }
+    }
+
+    if (validatedInput.code_produit && validatedInput.code_produit !== existing.code_produit) {
+      const duplicate = await prisma.produit.findUnique({
+        where: { code_produit: validatedInput.code_produit },
+      })
+      if (duplicate) {
+        return { error: `L'article ${validatedInput.code_produit} existe déjà` }
+      }
+    }
+
+    const product = await prisma.produit.update({
+      where: { id_produit },
+      data: {
+        ...validatedInput,
+        modifie_par: userId,
+      },
+    })
+
+    CacheInvalidationService.invalidateProduct(product.id_produit)
+
+    const article = product as unknown as ArticleWithStock
+    return { data: article }
+  } catch (error) {
+    log.error({ error, id_produit, input: validatedInput }, 'Échec de la mise à jour de l\'article')
+    return { error: 'Échec de la mise à jour de l\'article' }
+  }
+}
+
+export async function deleteArticle(
+  id_produit: number,
+  userId: string,
+): Promise<{ data?: { success: boolean }; error?: string }> {
+  const validationResult = deleteArticleSchema.safeParse({ id_produit })
+  if (!validationResult.success) {
+    return { error: 'ID d\'article invalide' }
+  }
+
+  try {
+    const existing = await prisma.produit.findUnique({
+      where: { id_produit },
+    })
+    if (!existing) {
+      return { error: 'Article introuvable' }
+    }
+
+    await prisma.produit.update({
+      where: { id_produit },
+      data: { est_actif: false, modifie_par: userId },
+    })
+
+    CacheInvalidationService.invalidateProduct(id_produit)
+
+    return { data: { success: true } }
+  } catch (error) {
+    log.error({ error, id_produit }, 'Échec de la suppression de l\'article')
+    return { error: 'Échec de la suppression de l\'article' }
+  }
+}
+
+export async function getStockLevelsByArticle(
+  id_produit: number,
+  page: number = 1,
+  limit: number = 50,
+): Promise<PaginatedResult<Record<string, unknown>> & { error?: string }> {
+  const validationResult = getStockLevelsByArticleSchema.safeParse({ id_produit })
+  if (!validationResult.success) {
+    return { ...createEmptyResult(page, limit, 'ID d\'article invalide'), data: [] as Record<string, unknown>[] }
+  }
+
+  try {
+    const product = await prisma.produit.findUnique({
+      where: { id_produit },
+    })
+    if (!product) {
+      return { ...createEmptyResult(page, limit, 'Article introuvable'), data: [] as Record<string, unknown>[] }
+    }
+
+    const { skip } = getPaginationParams({ page, limit })
+
+    const [stockLevels, total] = await Promise.all([
+      prisma.niveauStock.findMany({
+        where: { id_produit },
+        skip,
+        take: limit,
+        orderBy: { date_creation: 'desc' },
+        include: {
+          entrepot: {
+            select: { id_entrepot: true, code_entrepot: true, nom_entrepot: true },
+          },
+        },
+      }),
+      prisma.niveauStock.count({ where: { id_produit } }),
+    ])
+
+    return {
+      data: stockLevels as unknown as Record<string, unknown>[],
+      meta: buildPaginationMeta(total, page, limit),
+    }
+  } catch (error) {
+    log.error({ error, id_produit }, 'Échec de la récupération des niveaux de stock')
+    return { ...createEmptyResult(page, limit, 'Échec de la récupération des niveaux de stock'), data: [] as Record<string, unknown>[] }
   }
 }

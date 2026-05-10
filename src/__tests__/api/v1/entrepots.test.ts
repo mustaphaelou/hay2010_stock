@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 
-const { mockEntrepotFindMany, mockEntrepotCount, mockEntrepotFindUnique, mockEntrepotCreate, mockEntrepotUpdate, mockNiveauStockFindMany, mockNiveauStockCount, mockRequireApiKey, mockGetApiUser, mockCacheIncrement } = vi.hoisted(() => ({
+const { mockEntrepotFindMany, mockEntrepotCount, mockEntrepotFindUnique, mockEntrepotCreate, mockEntrepotUpdate, mockNiveauStockFindMany, mockNiveauStockCount, mockRequireApiKey, mockGetApiUser, mockRedisIncr } = vi.hoisted(() => ({
   mockEntrepotFindMany: vi.fn(),
   mockEntrepotCount: vi.fn(),
   mockEntrepotFindUnique: vi.fn(),
@@ -11,7 +11,7 @@ const { mockEntrepotFindMany, mockEntrepotCount, mockEntrepotFindUnique, mockEnt
   mockNiveauStockCount: vi.fn(),
   mockRequireApiKey: vi.fn(),
   mockGetApiUser: vi.fn(),
-  mockCacheIncrement: vi.fn(),
+  mockRedisIncr: vi.fn(),
 }))
 
 vi.mock('@/lib/db/prisma', () => ({
@@ -34,8 +34,10 @@ vi.mock('@/lib/db/redis', async () => {
   const actual = await vi.importActual('@/lib/db/redis')
   return {
     ...actual,
-    CacheService: {
-      increment: mockCacheIncrement,
+    redis: {
+      ...(actual as Record<string, { redis?: Record<string, unknown> }>).redis,
+      incr: mockRedisIncr,
+      expire: vi.fn().mockResolvedValue('OK'),
     },
   }
 })
@@ -100,7 +102,7 @@ const mockEntrepot = {
 describe('Entrepot API Handlers', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockCacheIncrement.mockResolvedValue(1)
+    mockRedisIncr.mockResolvedValue(1)
   })
 
   describe('GET list', () => {
@@ -433,7 +435,7 @@ describe('Entrepot API Handlers', () => {
 
 describe('Rate Limiting', () => {
   it('should return 429 when rate limit exceeded', async () => {
-    mockCacheIncrement.mockResolvedValue(31)
+    mockRedisIncr.mockResolvedValue(31)
     mockRequireApiKey.mockResolvedValue({ userId: 'user-1', role: 'ADMIN' as const, keyId: 'key-1' })
     mockEntrepotCreate.mockResolvedValue(mockEntrepot)
     mockEntrepotFindUnique.mockResolvedValue(null)

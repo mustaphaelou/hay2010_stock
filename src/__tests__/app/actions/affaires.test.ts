@@ -95,7 +95,7 @@ describe('Affaires Actions', () => {
       const result = await getAffaires()
 
       expect(result.data).toEqual([])
-      expect(result.error).toBe('Failed to fetch affaires')
+      expect(result.error).toBe('Échec de la récupération des affaires')
     })
   })
 
@@ -150,7 +150,7 @@ describe('Affaires Actions', () => {
       const result = await getDocumentsByAffaire('')
 
       expect(result.data).toEqual([])
-      expect(result.error).toBe('Invalid affaire code')
+      expect(result.error).toBe('Code affaire invalide')
     })
 
     it('should return { data, error?: undefined } for a valid affaire code', async () => {
@@ -180,7 +180,7 @@ describe('Affaires Actions', () => {
       const result = await getDocumentsByAffaire('AFF-001')
 
       expect(result.data).toEqual([])
-      expect(result.error).toBe('Failed to fetch documents for affaire')
+      expect(result.error).toBe('Échec de la récupération des documents de l\'affaire')
     })
   })
 })

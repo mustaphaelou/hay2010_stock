@@ -91,7 +91,7 @@ describe('Affaire Service', () => {
       const result = await getAffaires()
 
       expect(result.data).toEqual([])
-      expect(result.error).toBe('Failed to fetch affaires')
+      expect(result.error).toBe('Échec de la récupération des affaires')
     })
 
     it('should handle null client gracefully', async () => {
@@ -151,7 +151,7 @@ describe('Affaire Service', () => {
 
       const result = await getAffaireByCode('AFF-999')
 
-      expect(result.error).toBe('Affaire not found')
+      expect(result.error).toBe('Affaire introuvable')
       expect(result.data).toBeNull()
     })
 
@@ -160,7 +160,7 @@ describe('Affaire Service', () => {
 
       const result = await getAffaireByCode('AFF-001')
 
-      expect(result.error).toBe('Failed to fetch affaire')
+      expect(result.error).toBe('Échec de la récupération de l\'affaire')
       expect(result.data).toBeUndefined()
     })
   })
@@ -190,7 +190,7 @@ describe('Affaire Service', () => {
       const result = await getDocumentsByAffaire('')
 
       expect(result.data).toEqual([])
-      expect(result.error).toBe('Invalid affaire code')
+      expect(result.error).toBe('Code affaire invalide')
     })
 
     it('should return { data: [], error } on DB error', async () => {
@@ -199,7 +199,7 @@ describe('Affaire Service', () => {
       const result = await getDocumentsByAffaire('AFF-001')
 
       expect(result.data).toEqual([])
-      expect(result.error).toBe('Failed to fetch documents for affaire')
+      expect(result.error).toBe('Échec de la récupération des documents de l\'affaire')
     })
   })
 })

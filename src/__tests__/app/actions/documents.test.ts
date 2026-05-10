@@ -16,6 +16,7 @@ vi.mock('@/lib/db/prisma', () => ({
 
 vi.mock('@/lib/auth/authorization', () => ({
   requirePermission: vi.fn().mockResolvedValue({ id: 'user-1', email: 'test@example.com', name: 'Test User', role: 'ADMIN' }),
+  hasRole: vi.fn().mockReturnValue(true),
 }))
 
 describe('Document Actions', () => {
@@ -123,8 +124,7 @@ describe('Document Actions', () => {
       const result = await documentsModule.getDocuments(1, 50)
 
       expect(result.data).toEqual([])
-      expect(result.error).toContain('Failed to fetch')
-      expect(result.error).toContain('documents')
+      expect(result.error).toBe('Échec de la récupération des documents')
     })
   })
 
@@ -170,7 +170,7 @@ describe('Document Actions', () => {
     it('should validate docId is positive', async () => {
       const result = await documentsModule.getDocLines(0)
 
-      expect(result.error).toBe('Invalid document ID')
+      expect(result.error).toBe('ID de document invalide')
       expect(result.data).toEqual([])
     })
   })

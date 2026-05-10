@@ -1,16 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { prisma } from '@/lib/db/prisma'
 import { requireApiKey } from '@/lib/api/auth'
 import { apiSuccess, apiPaginated, apiCreated, apiNoContent, apiError } from '@/lib/api/response'
-import {
-  warehouseCreateSchema,
-  warehouseUpdateSchema,
-  paginationSchema,
-} from '@/lib/api/validators/entrepots'
 import { ValidationError, NotFoundError, ConflictError } from '@/lib/errors'
 import { createValidationErrorFromZod } from '@/lib/errors'
 import { CacheInvalidationService } from '@/lib/cache/invalidation'
+import { paginationSchema } from '@/lib/pagination'
 import { Prisma } from '@/lib/generated/prisma/client'
+
+const warehouseCreateSchema = z.object({
+  code_entrepot: z.string().min(1).max(50),
+  nom_entrepot: z.string().min(1).max(255),
+  adresse_entrepot: z.string().nullable().optional(),
+  ville_entrepot: z.string().max(100).nullable().optional(),
+  code_postal_entrepot: z.string().max(20).nullable().optional(),
+  capacite_totale_unites: z.number().int().positive().nullable().optional(),
+  nom_responsable: z.string().max(255).nullable().optional(),
+  email_responsable: z.string().email().max(255).nullable().optional(),
+  telephone_responsable: z.string().max(50).nullable().optional(),
+  est_actif: z.boolean().default(true).optional(),
+  est_entrepot_principal: z.boolean().default(false).optional(),
+})
+
+const warehouseUpdateSchema = warehouseCreateSchema.partial()
 
 const ALLOWED_SORT_FIELDS = [
   'id_entrepot',

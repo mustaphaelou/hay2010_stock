@@ -53,7 +53,7 @@ describe('Partners Actions', () => {
     it('should return error for invalid type filter', async () => {
       const result = await getPartners('INVALID_TYPE')
 
-      expect(result.error).toBe('Invalid filter parameters')
+      expect(result.error).toBe('Paramètres de filtre invalides')
       expect(result.data).toEqual([])
     })
 
@@ -136,7 +136,7 @@ describe('Partners Actions', () => {
       const result = await getPartners()
 
       expect(result.data).toEqual([])
-      expect(result.error).toBe('Failed to fetch partners')
+      expect(result.error).toBe('Échec de la récupération des partenaires')
     })
 
     it('should compute pagination correctly', async () => {
