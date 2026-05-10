@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+﻿import { describe, it, expect } from 'vitest'
 import { computeGrossMargin, computeUnpaidInvoices, isPaymentComplete } from '@/lib/dashboard/compute-margins'
 
 describe('computeGrossMargin', () => {
