@@ -73,6 +73,48 @@ services have no knowledge of HTTP status codes or AppError subclasses.
 **Decision date:** 2026-05-05
 **Decision:** Deprecate `Result<T,E>` in favor of the two-idiom approach above.
 
+## Stock Mutation Model
+
+All writes to `NiveauStock` go through the stock-mutation module in `lib/stock/stock-service.ts`. There is no direct CRUD on `NiveauStock` outside this module.
+
+### Movement Types
+
+- **ENTREE** — stock received (purchase, return, transfer-in)
+- **SORTIE** — stock removed (sale, transfer-out)
+- **TRANSFERT** — atomic move from one Entrepot to another (creates two movements: SORTIE at source + ENTREE at destination)
+- **INVENTAIRE** — physical inventory count adjustment
+
+### Inventory Adjustment (Ajustement Inventaire)
+
+When a physical count sets `quantite_en_stock` to a new absolute value, the `adjustStockLevel` function:
+
+1. Reads current level
+2. Computes `delta = newQuantity - currentQty`
+3. Creates two `INVENTAIRE`-typed MouvementStock records:
+   - One with `motif='Ajustement inventaire: sortie ancien stock'`
+   - One with `motif='Ajustement inventaire: entrée nouveau stock'`
+4. Both movements record `quantite = |delta|`
+5. Sets `NiveauStock.quantite_en_stock` to the new absolute value
+6. Enforces non-negative stock
+
+If delta = 0, the adjustment is idempotent (no movements, no update).
+
+### Initial Stock Level
+
+`createStockLevel` initializes a `NiveauStock` row for a product-warehouse pair. If `quantite_en_stock > 0`, it also creates a single `INVENTAIRE` ENTREE movement as the initial audit record.
+
+### Stock Level Deletion
+
+`deleteStockLevel` performs a hard delete, only permitted when `quantite_en_stock = 0`. No movement record is created.
+
+### Composite Key Immutability
+
+The `id_produit` + `id_entrepot` composite key on `NiveauStock` is immutable. To move stock between warehouses, use `createStockMovement` with type `TRANSFERT`. To reassign a product, delete the old level (if qty=0) and create a new one.
+
+### API Handler Contract
+
+API handlers for NiveauStock (`lib/api/handlers/niveaux-stock.ts`) delegate all writes to the service module. They do not call Prisma directly or bypass the mutation invariants. Read operations (list, getById) may query Prisma directly since they carry no mutation risk.
+
 ## Architecture
 
 See `AGENTS.md` for directory layout, commands, and conventions.
