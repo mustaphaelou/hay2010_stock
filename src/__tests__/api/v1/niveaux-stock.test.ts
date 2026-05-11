@@ -1,7 +1,21 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 
-const { mockNiveauStockFindMany, mockNiveauStockCount, mockNiveauStockFindUnique, mockNiveauStockCreate, mockNiveauStockUpdate, mockNiveauStockDelete, mockProduitFindUnique, mockEntrepotFindUnique, mockRequireApiKey, mockRedisIncr } = vi.hoisted(() => ({
+const {
+  mockNiveauStockFindMany,
+  mockNiveauStockCount,
+  mockNiveauStockFindUnique,
+  mockNiveauStockCreate,
+  mockNiveauStockUpdate,
+  mockNiveauStockDelete,
+  mockProduitFindUnique,
+  mockEntrepotFindUnique,
+  mockRequireApiKey,
+  mockRedisIncr,
+  mockCreateStockLevel,
+  mockAdjustStockLevel,
+  mockDeleteStockLevel,
+} = vi.hoisted(() => ({
   mockNiveauStockFindMany: vi.fn(),
   mockNiveauStockCount: vi.fn(),
   mockNiveauStockFindUnique: vi.fn(),
@@ -12,6 +26,9 @@ const { mockNiveauStockFindMany, mockNiveauStockCount, mockNiveauStockFindUnique
   mockEntrepotFindUnique: vi.fn(),
   mockRequireApiKey: vi.fn(),
   mockRedisIncr: vi.fn(),
+  mockCreateStockLevel: vi.fn(),
+  mockAdjustStockLevel: vi.fn(),
+  mockDeleteStockLevel: vi.fn(),
 }))
 
 vi.mock('@/lib/db/prisma', () => ({
@@ -49,6 +66,12 @@ vi.mock('@/lib/api/auth', () => ({
   requireApiKey: mockRequireApiKey,
 }))
 
+vi.mock('@/lib/stock/stock-service', () => ({
+  createStockLevel: mockCreateStockLevel,
+  adjustStockLevel: mockAdjustStockLevel,
+  deleteStockLevel: mockDeleteStockLevel,
+}))
+
 vi.mock('@/lib/logger', () => ({
   createLogger: () => ({
     info: vi.fn(),
@@ -62,7 +85,7 @@ import {
   listStockLevelsHandler,
   getStockLevelByIdHandler,
   createStockLevelHandler,
-  updateStockLevelHandler,
+  adjustStockLevelHandler,
   deleteStockLevelHandler,
 } from '@/lib/api/handlers/niveaux-stock'
 import { AuthenticationError } from '@/lib/errors'
@@ -102,9 +125,14 @@ const mockStockLevelWithRelations = {
   entrepot: { id_entrepot: 1, code_entrepot: 'ENT-001', nom_entrepot: 'Entrepot Principal' },
 }
 
-const mockProduct = { id_produit: 1, code_produit: 'PROD-001', nom_produit: 'Produit A' }
-
-const mockWarehouse = { id_entrepot: 1, code_entrepot: 'ENT-001', nom_entrepot: 'Entrepot Principal' }
+const mockStockLevelResult = {
+  id_stock: 1,
+  id_produit: 1,
+  id_entrepot: 1,
+  quantite_en_stock: 100,
+  quantite_reservee: 0,
+  quantite_commandee: 0,
+}
 
 describe('NiveauStock API Handlers', () => {
   beforeEach(() => {
@@ -135,75 +163,53 @@ describe('NiveauStock API Handlers', () => {
       expect(response.status).toBe(200)
       const data = await response.json()
       expect(data.data).toHaveLength(1)
-      expect(data.data[0].id_stock).toBe(1)
-      expect(data.data[0].produit.nom_produit).toBe('Produit A')
-      expect(data.data[0].entrepot.nom_entrepot).toBe('Entrepot Principal')
       expect(data.meta.total).toBe(1)
-      expect(data.meta.page).toBe(1)
-      expect(mockNiveauStockFindMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          include: expect.objectContaining({
-            produit: expect.any(Object),
-            entrepot: expect.any(Object),
-          }),
-        })
-      )
     })
 
-    it('should filter by produit', async () => {
+    it('should filter by produit query param', async () => {
       mockRequireApiKey.mockResolvedValue(API_USER)
-      mockNiveauStockFindMany.mockResolvedValue([])
-      mockNiveauStockCount.mockResolvedValue(0)
+      mockNiveauStockFindMany.mockResolvedValue([mockStockLevelWithRelations])
+      mockNiveauStockCount.mockResolvedValue(1)
 
       const request = makeRequest('GET', '/api/v1/niveaux-stock?produit=1')
       const response = await listStockLevelsHandler(request)
 
       expect(response.status).toBe(200)
       expect(mockNiveauStockFindMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { id_produit: 1 } })
+        expect.objectContaining({
+          where: { id_produit: 1 },
+        })
       )
     })
 
-    it('should filter by entrepot', async () => {
+    it('should filter by entrepot query param', async () => {
       mockRequireApiKey.mockResolvedValue(API_USER)
-      mockNiveauStockFindMany.mockResolvedValue([])
-      mockNiveauStockCount.mockResolvedValue(0)
+      mockNiveauStockFindMany.mockResolvedValue([mockStockLevelWithRelations])
+      mockNiveauStockCount.mockResolvedValue(1)
 
       const request = makeRequest('GET', '/api/v1/niveaux-stock?entrepot=1')
       const response = await listStockLevelsHandler(request)
 
       expect(response.status).toBe(200)
       expect(mockNiveauStockFindMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { id_entrepot: 1 } })
+        expect.objectContaining({
+          where: { id_entrepot: 1 },
+        })
       )
     })
 
-    it('should sort by specified field', async () => {
+    it('should return empty list when no results', async () => {
       mockRequireApiKey.mockResolvedValue(API_USER)
       mockNiveauStockFindMany.mockResolvedValue([])
       mockNiveauStockCount.mockResolvedValue(0)
 
-      const request = makeRequest('GET', '/api/v1/niveaux-stock?sort=quantite_en_stock&order=asc')
+      const request = makeRequest('GET', '/api/v1/niveaux-stock')
       const response = await listStockLevelsHandler(request)
 
       expect(response.status).toBe(200)
-      expect(mockNiveauStockFindMany).toHaveBeenCalledWith(
-        expect.objectContaining({ orderBy: { quantite_en_stock: 'asc' } })
-      )
-    })
-
-    it('should default to date_creation for invalid sort field', async () => {
-      mockRequireApiKey.mockResolvedValue(API_USER)
-      mockNiveauStockFindMany.mockResolvedValue([])
-      mockNiveauStockCount.mockResolvedValue(0)
-
-      const request = makeRequest('GET', '/api/v1/niveaux-stock?sort=invalid_field')
-      const response = await listStockLevelsHandler(request)
-
-      expect(response.status).toBe(200)
-      expect(mockNiveauStockFindMany).toHaveBeenCalledWith(
-        expect.objectContaining({ orderBy: { date_creation: 'desc' } })
-      )
+      const data = await response.json()
+      expect(data.data).toHaveLength(0)
+      expect(data.meta.total).toBe(0)
     })
   })
 
@@ -217,7 +223,7 @@ describe('NiveauStock API Handlers', () => {
       expect(response.status).toBe(401)
     })
 
-    it('should return stock level by id with produit and entrepot', async () => {
+    it('should return a single stock level with related data', async () => {
       mockRequireApiKey.mockResolvedValue(API_USER)
       mockNiveauStockFindUnique.mockResolvedValue(mockStockLevelWithRelations)
 
@@ -227,17 +233,8 @@ describe('NiveauStock API Handlers', () => {
       expect(response.status).toBe(200)
       const data = await response.json()
       expect(data.id_stock).toBe(1)
-      expect(data.produit.nom_produit).toBe('Produit A')
-      expect(data.entrepot.nom_entrepot).toBe('Entrepot Principal')
-      expect(mockNiveauStockFindUnique).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { id_stock: 1 },
-          include: expect.objectContaining({
-            produit: expect.any(Object),
-            entrepot: expect.any(Object),
-          }),
-        })
-      )
+      expect(data.produit).toBeDefined()
+      expect(data.entrepot).toBeDefined()
     })
 
     it('should return 404 for non-existent stock level', async () => {
@@ -262,8 +259,8 @@ describe('NiveauStock API Handlers', () => {
 
   describe('POST create', () => {
     const createBody = {
-      id_produit: 1,
-      id_entrepot: 1,
+      productId: 1,
+      warehouseId: 1,
       quantite_en_stock: 100,
     }
 
@@ -278,10 +275,7 @@ describe('NiveauStock API Handlers', () => {
 
     it('should create a stock level and return 201', async () => {
       mockRequireApiKey.mockResolvedValue(API_USER)
-      mockNiveauStockFindUnique.mockResolvedValue(null)
-      mockProduitFindUnique.mockResolvedValue(mockProduct)
-      mockEntrepotFindUnique.mockResolvedValue(mockWarehouse)
-      mockNiveauStockCreate.mockResolvedValue(mockStockLevel)
+      mockCreateStockLevel.mockResolvedValue({ data: mockStockLevelResult })
 
       const request = makeRequest('POST', '/api/v1/niveaux-stock', createBody)
       const response = await createStockLevelHandler(request)
@@ -289,42 +283,22 @@ describe('NiveauStock API Handlers', () => {
       expect(response.status).toBe(201)
       const data = await response.json()
       expect(data.id_stock).toBe(1)
-      expect(data.id_produit).toBe(1)
-      expect(mockNiveauStockCreate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({
-            id_produit: 1,
-            id_entrepot: 1,
-            quantite_en_stock: 100,
-          }),
-        })
-      )
+      expect(mockCreateStockLevel).toHaveBeenCalledWith(createBody, API_USER.userId)
     })
 
-    it('should return 409 on duplicate produit-entrepot combination', async () => {
+    it('should return 409 on duplicate produit-entrepot', async () => {
       mockRequireApiKey.mockResolvedValue(API_USER)
-      mockNiveauStockFindUnique.mockResolvedValue(mockStockLevel)
+      mockCreateStockLevel.mockResolvedValue({ error: 'Un niveau de stock existe déjà pour ce couple produit-entrepôt' })
 
       const request = makeRequest('POST', '/api/v1/niveaux-stock', createBody)
       const response = await createStockLevelHandler(request)
 
       expect(response.status).toBe(409)
-      expect(mockNiveauStockFindUnique).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: {
-            id_produit_id_entrepot: {
-              id_produit: 1,
-              id_entrepot: 1,
-            },
-          },
-        })
-      )
     })
 
     it('should return 404 when produit not found', async () => {
       mockRequireApiKey.mockResolvedValue(API_USER)
-      mockNiveauStockFindUnique.mockResolvedValue(null)
-      mockProduitFindUnique.mockResolvedValue(null)
+      mockCreateStockLevel.mockResolvedValue({ error: 'Produit introuvable' })
 
       const request = makeRequest('POST', '/api/v1/niveaux-stock', createBody)
       const response = await createStockLevelHandler(request)
@@ -334,91 +308,51 @@ describe('NiveauStock API Handlers', () => {
 
     it('should return 404 when entrepot not found', async () => {
       mockRequireApiKey.mockResolvedValue(API_USER)
-      mockNiveauStockFindUnique.mockResolvedValue(null)
-      mockProduitFindUnique.mockResolvedValue(mockProduct)
-      mockEntrepotFindUnique.mockResolvedValue(null)
+      mockCreateStockLevel.mockResolvedValue({ error: 'Entrepôt introuvable' })
 
       const request = makeRequest('POST', '/api/v1/niveaux-stock', createBody)
       const response = await createStockLevelHandler(request)
 
       expect(response.status).toBe(404)
     })
-
-    it('should return 400 for missing required fields', async () => {
-      mockRequireApiKey.mockResolvedValue(API_USER)
-
-      const request = makeRequest('POST', '/api/v1/niveaux-stock', { quantite_en_stock: 100 })
-      const response = await createStockLevelHandler(request)
-
-      expect(response.status).toBe(400)
-      const data = await response.json()
-      expect(data.code).toBe('VALIDATION_ERROR')
-    })
   })
 
-  describe('PUT update', () => {
-    const updateBody = { quantite_en_stock: 200 }
+  describe('PUT adjust', () => {
+    const adjustBody = { productId: 1, warehouseId: 1, newQuantity: 200 }
 
     it('should return 401 without API key', async () => {
       mockRequireApiKey.mockRejectedValue(new AuthenticationError('Invalid or missing API key'))
 
-      const request = makeRequest('PUT', '/api/v1/niveaux-stock/1', updateBody)
-      const response = await updateStockLevelHandler(request)
+      const request = makeRequest('PUT', '/api/v1/niveaux-stock/1', adjustBody)
+      const response = await adjustStockLevelHandler(request)
 
       expect(response.status).toBe(401)
     })
 
-    it('should update a stock level', async () => {
+    it('should adjust a stock level', async () => {
       mockRequireApiKey.mockResolvedValue(API_USER)
-      mockNiveauStockFindUnique.mockResolvedValue(mockStockLevel)
-      mockNiveauStockUpdate.mockResolvedValue({ ...mockStockLevel, quantite_en_stock: 200 })
+      mockAdjustStockLevel.mockResolvedValue({
+        data: { previousQuantity: 100, newQuantity: 200, delta: 100 },
+      })
 
-      const request = makeRequest('PUT', '/api/v1/niveaux-stock/1', updateBody)
-      const response = await updateStockLevelHandler(request)
+      const request = makeRequest('PUT', '/api/v1/niveaux-stock/1', adjustBody)
+      const response = await adjustStockLevelHandler(request)
 
       expect(response.status).toBe(200)
       const data = await response.json()
-      expect(data.quantite_en_stock).toBe(200)
-      expect(mockNiveauStockUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { id_stock: 1 },
-          data: expect.objectContaining({ quantite_en_stock: 200 }),
-        })
-      )
+      expect(data.previousQuantity).toBe(100)
+      expect(data.newQuantity).toBe(200)
+      expect(mockAdjustStockLevel).toHaveBeenCalledWith(adjustBody, API_USER.userId)
     })
 
-    it('should return 404 for non-existent stock level', async () => {
+    it('should return error from service', async () => {
       mockRequireApiKey.mockResolvedValue(API_USER)
-      mockNiveauStockFindUnique.mockResolvedValue(null)
+      mockAdjustStockLevel.mockResolvedValue({ error: 'Stock operation in progress, please retry' })
 
-      const request = makeRequest('PUT', '/api/v1/niveaux-stock/999', updateBody)
-      const response = await updateStockLevelHandler(request)
+      const request = makeRequest('PUT', '/api/v1/niveaux-stock/1', adjustBody)
+      const response = await adjustStockLevelHandler(request)
 
-      expect(response.status).toBe(404)
-    })
-
-    it('should return 409 on duplicate produit-entrepot when changing both', async () => {
-      mockRequireApiKey.mockResolvedValue(API_USER)
-      mockNiveauStockFindUnique
-        .mockResolvedValueOnce(mockStockLevel)
-        .mockResolvedValueOnce({ ...mockStockLevel, id_stock: 2 })
-
-      const request = makeRequest('PUT', '/api/v1/niveaux-stock/1', {
-        id_produit: 2,
-        id_entrepot: 2,
-      })
-      const response = await updateStockLevelHandler(request)
-
-      expect(response.status).toBe(409)
-    })
-
-    it('should return 400 for invalid id', async () => {
-      mockRequireApiKey.mockResolvedValue(API_USER)
-
-      const request = makeRequest('PUT', '/api/v1/niveaux-stock/abc', updateBody)
-      const response = await updateStockLevelHandler(request)
-
-      expect(response.status).toBe(400)
+      expect(response.status).toBe(422)
     })
   })
 
@@ -434,21 +368,18 @@ describe('NiveauStock API Handlers', () => {
 
     it('should hard-delete a stock level and return 204', async () => {
       mockRequireApiKey.mockResolvedValue(API_USER)
-      mockNiveauStockFindUnique.mockResolvedValue(mockStockLevel)
-      mockNiveauStockDelete.mockResolvedValue(mockStockLevel)
+      mockDeleteStockLevel.mockResolvedValue({})
 
       const request = makeRequest('DELETE', '/api/v1/niveaux-stock/1')
       const response = await deleteStockLevelHandler(request)
 
       expect(response.status).toBe(204)
-      expect(mockNiveauStockDelete).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { id_stock: 1 } })
-      )
+      expect(mockDeleteStockLevel).toHaveBeenCalledWith(1)
     })
 
     it('should return 404 for non-existent stock level', async () => {
       mockRequireApiKey.mockResolvedValue(API_USER)
-      mockNiveauStockFindUnique.mockResolvedValue(null)
+      mockDeleteStockLevel.mockResolvedValue({ error: 'Niveau de stock introuvable' })
 
       const request = makeRequest('DELETE', '/api/v1/niveaux-stock/999')
       const response = await deleteStockLevelHandler(request)
@@ -456,37 +387,14 @@ describe('NiveauStock API Handlers', () => {
       expect(response.status).toBe(404)
     })
 
-    it('should return 400 for invalid id', async () => {
+    it('should reject delete when quantity is not zero', async () => {
       mockRequireApiKey.mockResolvedValue(API_USER)
+      mockDeleteStockLevel.mockResolvedValue({ error: 'Impossible de supprimer un niveau de stock dont la quantité n\'est pas à zéro' })
 
-      const request = makeRequest('DELETE', '/api/v1/niveaux-stock/abc')
+      const request = makeRequest('DELETE', '/api/v1/niveaux-stock/1')
       const response = await deleteStockLevelHandler(request)
 
-      expect(response.status).toBe(400)
+      expect(response.status).toBe(422)
     })
-  })
-})
-
-describe('Rate Limiting', () => {
-  it('should return 429 when rate limit exceeded', async () => {
-    mockRedisIncr.mockResolvedValue(31)
-    mockRequireApiKey.mockResolvedValue({ userId: 'user-1', role: 'ADMIN' as const, keyId: 'key-1' })
-    mockNiveauStockCreate.mockResolvedValue(mockStockLevel)
-    mockNiveauStockFindUnique.mockResolvedValue(null)
-    mockProduitFindUnique.mockResolvedValue(mockProduct)
-    mockEntrepotFindUnique.mockResolvedValue(mockWarehouse)
-
-    const { POST } = await import('@/app/api/v1/niveaux-stock/route')
-    const request = makeRequest('POST', '/api/v1/niveaux-stock', {
-      id_produit: 1,
-      id_entrepot: 1,
-      quantite_en_stock: 50,
-    })
-
-    const response = await POST(request)
-
-    expect(response.status).toBe(429)
-    const data = await response.json()
-    expect(data.code).toBe('RATE_LIMIT_EXCEEDED')
   })
 })

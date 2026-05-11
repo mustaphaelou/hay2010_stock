@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { withRateLimit } from '@/lib/security/rate-limit'
 import {
   getStockLevelByIdHandler,
-  updateStockLevelHandler,
+  adjustStockLevelHandler,
   deleteStockLevelHandler,
 } from '@/lib/api/handlers/niveaux-stock'
 
@@ -12,7 +12,7 @@ export const GET = withRateLimit(
 )
 
 export const PUT = withRateLimit(
-  (request: NextRequest) => updateStockLevelHandler(request),
+  (request: NextRequest) => adjustStockLevelHandler(request),
   'write'
 )
 

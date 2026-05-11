@@ -1,25 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { z } from 'zod'
-import { prisma } from '@/lib/db/prisma'
 import { requireApiKey } from '@/lib/api/auth'
 import { apiSuccess, apiPaginated, apiCreated, apiNoContent, apiError } from '@/lib/api/response'
-import { ValidationError, NotFoundError, ConflictError } from '@/lib/errors'
+import { handleServiceError } from '@/lib/api/service-error'
+import { ValidationError, NotFoundError } from '@/lib/errors'
 import { createValidationErrorFromZod } from '@/lib/errors'
-import { CacheInvalidationService } from '@/lib/cache/invalidation'
+import { prisma } from '@/lib/db/prisma'
 import { paginationSchema } from '@/lib/pagination'
 import { Prisma } from '@/lib/generated/prisma/client'
-
-const stockLevelCreateSchema = z.object({
-  id_produit: z.number().int().positive(),
-  id_entrepot: z.number().int().positive(),
-  quantite_en_stock: z.number().default(0).optional(),
-  quantite_reservee: z.number().default(0).optional(),
-  quantite_commandee: z.number().default(0).optional(),
-  date_dernier_mouvement: z.string().nullable().optional(),
-  type_dernier_mouvement: z.string().max(50).nullable().optional(),
-})
-
-const stockLevelUpdateSchema = stockLevelCreateSchema.partial()
+import {
+  createStockLevel,
+  adjustStockLevel,
+  deleteStockLevel,
+} from '@/lib/stock/stock-service'
 
 const ALLOWED_SORT_FIELDS = [
   'id_stock',
@@ -144,98 +136,34 @@ export async function getStockLevelByIdHandler(request: NextRequest): Promise<Ne
 
 export async function createStockLevelHandler(request: NextRequest): Promise<NextResponse> {
   try {
-    await requireApiKey(request)
+    const apiUser = await requireApiKey(request)
 
     const body = await request.json()
-    const parsed = stockLevelCreateSchema.safeParse(body)
-    if (!parsed.success) {
-      throw createValidationErrorFromZod(parsed.error)
+    const result = await createStockLevel(body, apiUser.userId)
+
+    handleServiceError(result)
+
+    if (!result.data) {
+      return apiCreated({})
     }
 
-    const existing = await prisma.niveauStock.findUnique({
-      where: {
-        id_produit_id_entrepot: {
-          id_produit: parsed.data.id_produit,
-          id_entrepot: parsed.data.id_entrepot,
-        },
-      },
-    })
-    if (existing) {
-      throw new ConflictError('Stock level already exists for this product-warehouse combination')
-    }
-
-    const product = await prisma.produit.findUnique({
-      where: { id_produit: parsed.data.id_produit },
-    })
-    if (!product) {
-      throw new NotFoundError('Product')
-    }
-
-    const warehouse = await prisma.entrepot.findUnique({
-      where: { id_entrepot: parsed.data.id_entrepot },
-    })
-    if (!warehouse) {
-      throw new NotFoundError('Warehouse')
-    }
-
-    const stockLevel = await prisma.niveauStock.create({
-      data: parsed.data,
-    })
-
-    CacheInvalidationService.invalidateStock(stockLevel.id_produit, stockLevel.id_entrepot)
-
-    return apiCreated(stockLevel)
+    return apiCreated(result.data)
   } catch (error) {
     return apiError(error)
   }
 }
 
-export async function updateStockLevelHandler(request: NextRequest): Promise<NextResponse> {
+export async function adjustStockLevelHandler(request: NextRequest): Promise<NextResponse> {
   try {
-    await requireApiKey(request)
-
-    const id = extractIdFromUrl(request)
+    const apiUser = await requireApiKey(request)
 
     const body = await request.json()
-    const parsed = stockLevelUpdateSchema.safeParse(body)
-    if (!parsed.success) {
-      throw createValidationErrorFromZod(parsed.error)
-    }
 
-    const existing = await prisma.niveauStock.findUnique({
-      where: { id_stock: id },
-    })
-    if (!existing) {
-      throw new NotFoundError('Stock level')
-    }
+    const result = await adjustStockLevel(body, apiUser.userId)
 
-    if (
-      parsed.data.id_produit !== undefined &&
-      parsed.data.id_entrepot !== undefined &&
-      (parsed.data.id_produit !== existing.id_produit ||
-        parsed.data.id_entrepot !== existing.id_entrepot)
-    ) {
-      const duplicate = await prisma.niveauStock.findUnique({
-        where: {
-          id_produit_id_entrepot: {
-            id_produit: parsed.data.id_produit,
-            id_entrepot: parsed.data.id_entrepot,
-          },
-        },
-      })
-      if (duplicate) {
-        throw new ConflictError('Stock level already exists for this product-warehouse combination')
-      }
-    }
+    handleServiceError(result)
 
-    const stockLevel = await prisma.niveauStock.update({
-      where: { id_stock: id },
-      data: parsed.data,
-    })
-
-    CacheInvalidationService.invalidateStock(stockLevel.id_produit, stockLevel.id_entrepot)
-
-    return apiSuccess(stockLevel)
+    return apiSuccess(result.data)
   } catch (error) {
     return apiError(error)
   }
@@ -246,21 +174,9 @@ export async function deleteStockLevelHandler(request: NextRequest): Promise<Nex
     await requireApiKey(request)
 
     const id = extractIdFromUrl(request)
+    const result = await deleteStockLevel(id)
 
-    const existing = await prisma.niveauStock.findUnique({
-      where: { id_stock: id },
-    })
-    if (!existing) {
-      throw new NotFoundError('Stock level')
-    }
-
-    const { id_produit, id_entrepot } = existing
-
-    await prisma.niveauStock.delete({
-      where: { id_stock: id },
-    })
-
-    CacheInvalidationService.invalidateStock(id_produit, id_entrepot)
+    handleServiceError(result)
 
     return apiNoContent()
   } catch (error) {

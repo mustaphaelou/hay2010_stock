@@ -16,6 +16,9 @@ import {
   getArticleByIdSchema,
   deleteArticleSchema,
   getStockLevelsByArticleSchema,
+  createStockLevelSchema,
+  adjustStockLevelSchema,
+  deleteStockLevelSchema,
   ALLOWED_ARTICLE_SORT_FIELDS,
 } from '@/lib/stock/validation'
 import type {
@@ -428,6 +431,264 @@ export async function getStockMovements(
   } catch (error) {
     log.error({ error, productId, warehouseId }, 'Failed to fetch stock movements')
     return { data: [], error: 'Échec de la récupération des mouvements de stock' }
+  }
+}
+
+export type StockLevelResult = {
+  id_stock: number
+  id_produit: number
+  id_entrepot: number
+  quantite_en_stock: number
+  quantite_reservee: number
+  quantite_commandee: number
+}
+
+export async function createStockLevel(
+  input: { productId: number; warehouseId: number; quantite_en_stock?: number; quantite_reservee?: number; quantite_commandee?: number },
+  userId: string,
+): Promise<{ data?: StockLevelResult; error?: string }> {
+  const validation = createStockLevelSchema.safeParse(input)
+  if (!validation.success) {
+    return { error: validation.error.issues.map(e => e.message).join(', ') }
+  }
+
+  try {
+    const product = await prisma.produit.findUnique({
+      where: { id_produit: validation.data.productId },
+    })
+    if (!product) {
+      return { error: 'Produit introuvable' }
+    }
+
+    const warehouse = await prisma.entrepot.findUnique({
+      where: { id_entrepot: validation.data.warehouseId },
+    })
+    if (!warehouse) {
+      return { error: 'Entrepôt introuvable' }
+    }
+
+    const existing = await prisma.niveauStock.findUnique({
+      where: {
+        id_produit_id_entrepot: {
+          id_produit: validation.data.productId,
+          id_entrepot: validation.data.warehouseId,
+        },
+      },
+    })
+    if (existing) {
+      return { error: 'Un niveau de stock existe déjà pour ce couple produit-entrepôt' }
+    }
+
+    const qty = validation.data.quantite_en_stock ?? 0
+    const reserved = validation.data.quantite_reservee ?? 0
+    const ordered = validation.data.quantite_commandee ?? 0
+
+    if (qty > 0) {
+      const result = await withTransaction(async (tx) => {
+        const stockLevel = await tx.niveauStock.create({
+          data: {
+            id_produit: validation.data.productId,
+            id_entrepot: validation.data.warehouseId,
+            quantite_en_stock: qty,
+            quantite_reservee: reserved,
+            quantite_commandee: ordered,
+          },
+        })
+
+        await tx.mouvementStock.create({
+          data: {
+            id_produit: validation.data.productId,
+            id_entrepot: validation.data.warehouseId,
+            type_mouvement: 'INVENTAIRE',
+            quantite: qty,
+            motif: 'Mouvement initial du niveau de stock',
+            cree_par: userId,
+          },
+        })
+
+        return stockLevel
+      })
+
+      CacheInvalidationService.invalidateStock(validation.data.productId, validation.data.warehouseId)
+
+      return {
+        data: {
+          id_stock: result.id_stock,
+          id_produit: result.id_produit,
+          id_entrepot: result.id_entrepot,
+          quantite_en_stock: Number(result.quantite_en_stock),
+          quantite_reservee: Number(result.quantite_reservee),
+          quantite_commandee: Number(result.quantite_commandee),
+        },
+      }
+    }
+
+    const stockLevel = await prisma.niveauStock.create({
+      data: {
+        id_produit: validation.data.productId,
+        id_entrepot: validation.data.warehouseId,
+        quantite_en_stock: qty,
+        quantite_reservee: reserved,
+        quantite_commandee: ordered,
+      },
+    })
+
+    CacheInvalidationService.invalidateStock(validation.data.productId, validation.data.warehouseId)
+
+    return {
+      data: {
+        id_stock: stockLevel.id_stock,
+        id_produit: stockLevel.id_produit,
+        id_entrepot: stockLevel.id_entrepot,
+        quantite_en_stock: Number(stockLevel.quantite_en_stock),
+        quantite_reservee: Number(stockLevel.quantite_reservee),
+        quantite_commandee: Number(stockLevel.quantite_commandee),
+      },
+    }
+  } catch (error) {
+    log.error({ error, input: validation.data }, 'createStockLevel failed')
+    return { error: error instanceof Error ? error.message : 'Échec de la création du niveau de stock' }
+  }
+}
+
+export type AdjustmentResult = {
+  previousQuantity: number
+  newQuantity: number
+  delta: number
+}
+
+export async function adjustStockLevel(
+  input: { productId: number; warehouseId: number; newQuantity: number; motif?: string },
+  userId: string,
+): Promise<{ data?: AdjustmentResult; error?: string }> {
+  const validation = adjustStockLevelSchema.safeParse(input)
+  if (!validation.success) {
+    return { error: validation.error.issues.map(e => e.message).join(', ') }
+  }
+
+  const validatedInput = validation.data
+
+  const lockKey = `stock:${validatedInput.productId}:${validatedInput.warehouseId}`
+  const lockToken = await CacheService.acquireLock(lockKey, 30)
+  if (!lockToken) {
+    return { error: 'Stock operation in progress, please retry' }
+  }
+
+  try {
+    const result = await withTransaction(async (tx) => {
+      let stockLevel = await tx.niveauStock.findUnique({
+        where: {
+          id_produit_id_entrepot: {
+            id_produit: validatedInput.productId,
+            id_entrepot: validatedInput.warehouseId,
+          },
+        },
+      })
+
+      if (!stockLevel) {
+        stockLevel = await tx.niveauStock.create({
+          data: {
+            id_produit: validatedInput.productId,
+            id_entrepot: validatedInput.warehouseId,
+            quantite_en_stock: 0,
+            quantite_reservee: 0,
+            quantite_commandee: 0,
+          },
+        })
+      }
+
+      const currentQty = Number(stockLevel.quantite_en_stock)
+      const newQty = validatedInput.newQuantity
+      const delta = newQty - currentQty
+
+      if (newQty < 0) {
+        throw new Error('Stock cannot be negative')
+      }
+
+      if (delta !== 0) {
+        const absDelta = Math.abs(delta)
+
+        await tx.mouvementStock.create({
+          data: {
+            id_produit: validatedInput.productId,
+            id_entrepot: validatedInput.warehouseId,
+            type_mouvement: 'INVENTAIRE',
+            quantite: absDelta,
+            motif: validatedInput.motif || 'Ajustement inventaire: sortie ancien stock',
+            cree_par: userId,
+          },
+        })
+
+        await tx.mouvementStock.create({
+          data: {
+            id_produit: validatedInput.productId,
+            id_entrepot: validatedInput.warehouseId,
+            type_mouvement: 'INVENTAIRE',
+            quantite: absDelta,
+            motif: validatedInput.motif || 'Ajustement inventaire: entrée nouveau stock',
+            cree_par: userId,
+          },
+        })
+
+        await tx.niveauStock.update({
+          where: { id_stock: stockLevel.id_stock },
+          data: {
+            quantite_en_stock: newQty,
+            date_dernier_mouvement: new Date(),
+            type_dernier_mouvement: 'INVENTAIRE',
+          },
+        })
+      }
+
+      return {
+        previousQuantity: currentQty,
+        newQuantity: newQty,
+        delta,
+      }
+    })
+
+    return { data: result }
+  } catch (error) {
+    log.error({ error, input: validatedInput }, 'adjustStockLevel failed')
+    return {
+      error: error instanceof Error ? error.message : 'Échec de l\'ajustement du niveau de stock',
+    }
+  } finally {
+    await CacheService.releaseLock(lockKey, lockToken)
+  }
+}
+
+export async function deleteStockLevel(
+  id: number,
+): Promise<{ data?: void; error?: string }> {
+  const validation = deleteStockLevelSchema.safeParse({ id })
+  if (!validation.success) {
+    return { error: validation.error.issues.map(e => e.message).join(', ') }
+  }
+
+  try {
+    const existing = await prisma.niveauStock.findUnique({
+      where: { id_stock: id },
+    })
+
+    if (!existing) {
+      return { error: 'Niveau de stock introuvable' }
+    }
+
+    if (Number(existing.quantite_en_stock) !== 0) {
+      return { error: 'Impossible de supprimer un niveau de stock dont la quantité n\'est pas à zéro' }
+    }
+
+    await prisma.niveauStock.delete({
+      where: { id_stock: id },
+    })
+
+    CacheInvalidationService.invalidateStock(existing.id_produit, existing.id_entrepot)
+
+    return {}
+  } catch (error) {
+    log.error({ error, id }, 'deleteStockLevel failed')
+    return { error: error instanceof Error ? error.message : 'Échec de la suppression du niveau de stock' }
   }
 }
 
