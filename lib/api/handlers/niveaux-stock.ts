@@ -12,6 +12,7 @@ import {
   adjustStockLevel,
   deleteStockLevel,
 } from '@/lib/stock/stock-service'
+import { executeWrite } from '@/lib/actions/execute-write'
 
 const ALLOWED_SORT_FIELDS = [
   'id_stock',
@@ -139,7 +140,11 @@ export async function createStockLevelHandler(request: NextRequest): Promise<Nex
     const apiUser = await requireApiKey(request)
 
     const body = await request.json()
-    const result = await createStockLevel(body, apiUser.userId)
+    const result = await executeWrite({
+      user: { id: apiUser.userId, email: '', name: '', role: apiUser.role },
+      writeFn: () => createStockLevel(body, apiUser.userId),
+      invalidations: [{ kind: 'stock' }],
+    })
 
     handleServiceError(result)
 
@@ -159,7 +164,11 @@ export async function adjustStockLevelHandler(request: NextRequest): Promise<Nex
 
     const body = await request.json()
 
-    const result = await adjustStockLevel(body, apiUser.userId)
+    const result = await executeWrite({
+      user: { id: apiUser.userId, email: '', name: '', role: apiUser.role },
+      writeFn: () => adjustStockLevel(body, apiUser.userId),
+      invalidations: [{ kind: 'stock' }],
+    })
 
     handleServiceError(result)
 
@@ -171,10 +180,14 @@ export async function adjustStockLevelHandler(request: NextRequest): Promise<Nex
 
 export async function deleteStockLevelHandler(request: NextRequest): Promise<NextResponse> {
   try {
-    await requireApiKey(request)
+    const apiUser = await requireApiKey(request)
 
     const id = extractIdFromUrl(request)
-    const result = await deleteStockLevel(id)
+    const result = await executeWrite({
+      user: { id: apiUser.userId, email: '', name: '', role: apiUser.role },
+      writeFn: () => deleteStockLevel(id),
+      invalidations: [{ kind: 'stock' }],
+    })
 
     handleServiceError(result)
 

@@ -21,7 +21,6 @@ import type { PaginatedResult } from '@/lib/pagination'
 import { mapDocumentToComputed, mapLineToDocumentLine } from '@/lib/documents/mapping'
 import { hasRole } from '@/lib/auth/authorization'
 import type { UserRole } from '@/lib/auth/authorization'
-import { CacheInvalidationService } from '@/lib/cache/invalidation'
 import { Prisma } from '@/lib/generated/prisma/client'
 
 const log = createLogger('document-service')
@@ -174,8 +173,6 @@ export async function createDocument(
       },
     })
 
-    CacheInvalidationService.invalidateDocument(document.id_document)
-
     return { data: mapDocumentToComputed(document as unknown as Parameters<typeof mapDocumentToComputed>[0]) }
   } catch (error) {
     log.error({ error, input: validatedInput }, 'Échec de la création du document')
@@ -220,8 +217,6 @@ export async function updateDocument(
       },
     })
 
-    CacheInvalidationService.invalidateDocument(document.id_document)
-
     return { data: mapDocumentToComputed(document as unknown as Parameters<typeof mapDocumentToComputed>[0]) }
   } catch (error) {
     log.error({ error, id_document, input: validatedInput }, 'Échec de la mise à jour du document')
@@ -250,8 +245,6 @@ export async function deleteDocument(
       where: { id_document },
       data: { statut_document: 'ANNULE', modifie_par: userId },
     })
-
-    CacheInvalidationService.invalidateDocument(id_document)
 
     return { data: { success: true } }
   } catch (error) {

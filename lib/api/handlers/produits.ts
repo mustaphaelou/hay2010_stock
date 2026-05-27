@@ -11,6 +11,7 @@ import {
   deleteArticle,
   getStockLevelsByArticle,
 } from '@/lib/stock/stock-service'
+import { executeWrite } from '@/lib/actions/execute-write'
 
 export async function listProductsHandler(request: NextRequest): Promise<NextResponse> {
   try {
@@ -66,7 +67,11 @@ export async function createProductHandler(request: NextRequest): Promise<NextRe
     const apiUser = await requireApiKey(request)
 
     const body = await request.json()
-    const result = await createArticle(body, apiUser.userId)
+    const result = await executeWrite({
+      user: { id: apiUser.userId, email: '', name: '', role: apiUser.role },
+      writeFn: () => createArticle(body, apiUser.userId),
+      invalidations: [{ kind: 'product' }],
+    })
 
     handleServiceError(result)
 
@@ -85,7 +90,11 @@ export async function updateProductHandler(request: NextRequest, id: number): Pr
     }
 
     const body = await request.json()
-    const result = await updateArticle(id, body, apiUser.userId)
+    const result = await executeWrite({
+      user: { id: apiUser.userId, email: '', name: '', role: apiUser.role },
+      writeFn: () => updateArticle(id, body, apiUser.userId),
+      invalidations: [{ kind: 'product', productId: id }],
+    })
 
     handleServiceError(result)
 
@@ -103,7 +112,11 @@ export async function deleteProductHandler(request: NextRequest, id: number): Pr
       throw new ValidationError('ID d\'article invalide')
     }
 
-    const result = await deleteArticle(id, apiUser.userId)
+    const result = await executeWrite({
+      user: { id: apiUser.userId, email: '', name: '', role: apiUser.role },
+      writeFn: () => deleteArticle(id, apiUser.userId),
+      invalidations: [{ kind: 'product', productId: id }],
+    })
 
     handleServiceError(result)
 

@@ -5,9 +5,9 @@ import { requireApiKey } from '@/lib/api/auth'
 import { apiSuccess, apiPaginated, apiCreated, apiNoContent, apiError } from '@/lib/api/response'
 import { ValidationError, NotFoundError, ConflictError } from '@/lib/errors'
 import { createValidationErrorFromZod } from '@/lib/errors'
-import { CacheInvalidationService } from '@/lib/cache/invalidation'
 import { paginationSchema } from '@/lib/pagination'
 import { Prisma } from '@/lib/generated/prisma/client'
+import { executeWrite } from '@/lib/actions/execute-write'
 
 const categoryCreateSchema = z.object({
   code_categorie: z.string().min(1).max(50),
@@ -127,7 +127,7 @@ export async function getCategoryByIdHandler(request: NextRequest): Promise<Next
 
 export async function createCategoryHandler(request: NextRequest): Promise<NextResponse> {
   try {
-    await requireApiKey(request)
+    const apiUser = await requireApiKey(request)
 
     const body = await request.json()
     const parsed = categoryCreateSchema.safeParse(body)
@@ -135,20 +135,29 @@ export async function createCategoryHandler(request: NextRequest): Promise<NextR
       throw createValidationErrorFromZod(parsed.error)
     }
 
-    const existing = await prisma.categorieProduit.findUnique({
-      where: { code_categorie: parsed.data.code_categorie },
+    const result = await executeWrite({
+      user: { id: apiUser.userId, email: '', name: '', role: apiUser.role },
+      writeFn: async () => {
+        const existing = await prisma.categorieProduit.findUnique({
+          where: { code_categorie: parsed.data.code_categorie },
+        })
+        if (existing) {
+          return { error: `Category with code ${parsed.data.code_categorie} already exists` }
+        }
+
+        const category = await prisma.categorieProduit.create({
+          data: parsed.data,
+        })
+        return { data: category }
+      },
+      invalidations: [{ kind: 'category' }],
     })
-    if (existing) {
-      throw new ConflictError(`Category with code ${parsed.data.code_categorie} already exists`)
+
+    if (result.error) {
+      throw new ConflictError(result.error)
     }
 
-    const category = await prisma.categorieProduit.create({
-      data: parsed.data,
-    })
-
-    CacheInvalidationService.invalidateCategory(category.id_categorie)
-
-    return apiCreated(category)
+    return apiCreated(result.data)
   } catch (error) {
     return apiError(error)
   }
@@ -156,7 +165,7 @@ export async function createCategoryHandler(request: NextRequest): Promise<NextR
 
 export async function updateCategoryHandler(request: NextRequest): Promise<NextResponse> {
   try {
-    await requireApiKey(request)
+    const apiUser = await requireApiKey(request)
 
     const id = extractIdFromUrl(request)
 
@@ -166,34 +175,46 @@ export async function updateCategoryHandler(request: NextRequest): Promise<NextR
       throw createValidationErrorFromZod(parsed.error)
     }
 
-    const existing = await prisma.categorieProduit.findUnique({
-      where: { id_categorie: id },
-    })
-    if (!existing) {
-      throw new NotFoundError('Category')
-    }
+    const result = await executeWrite({
+      user: { id: apiUser.userId, email: '', name: '', role: apiUser.role },
+      writeFn: async () => {
+        const existing = await prisma.categorieProduit.findUnique({
+          where: { id_categorie: id },
+        })
+        if (!existing) {
+          return { error: 'Category not found' }
+        }
 
-    if (parsed.data.code_categorie && parsed.data.code_categorie !== existing.code_categorie) {
-      const duplicate = await prisma.categorieProduit.findUnique({
-        where: { code_categorie: parsed.data.code_categorie },
-      })
-      if (duplicate) {
-        throw new ConflictError(`Category with code ${parsed.data.code_categorie} already exists`)
+        if (parsed.data.code_categorie && parsed.data.code_categorie !== existing.code_categorie) {
+          const duplicate = await prisma.categorieProduit.findUnique({
+            where: { code_categorie: parsed.data.code_categorie },
+          })
+          if (duplicate) {
+            return { error: `Category with code ${parsed.data.code_categorie} already exists` }
+          }
+        }
+
+        if (parsed.data.id_categorie_parent !== undefined && parsed.data.id_categorie_parent === id) {
+          return { error: 'A category cannot be its own parent' }
+        }
+
+        const category = await prisma.categorieProduit.update({
+          where: { id_categorie: id },
+          data: parsed.data,
+        })
+        return { data: category }
+      },
+      invalidations: [{ kind: 'category', categoryId: id }],
+    })
+
+    if (result.error) {
+      if (result.error.includes('not found')) {
+        throw new NotFoundError(result.error)
       }
+      throw new ConflictError(result.error)
     }
 
-    if (parsed.data.id_categorie_parent !== undefined && parsed.data.id_categorie_parent === id) {
-      throw new ValidationError('A category cannot be its own parent')
-    }
-
-    const category = await prisma.categorieProduit.update({
-      where: { id_categorie: id },
-      data: parsed.data,
-    })
-
-    CacheInvalidationService.invalidateCategory(category.id_categorie)
-
-    return apiSuccess(category)
+    return apiSuccess(result.data)
   } catch (error) {
     return apiError(error)
   }
@@ -201,29 +222,42 @@ export async function updateCategoryHandler(request: NextRequest): Promise<NextR
 
 export async function deleteCategoryHandler(request: NextRequest): Promise<NextResponse> {
   try {
-    await requireApiKey(request)
+    const apiUser = await requireApiKey(request)
 
     const id = extractIdFromUrl(request)
 
-    const existing = await prisma.categorieProduit.findUnique({
-      where: { id_categorie: id },
+    const result = await executeWrite({
+      user: { id: apiUser.userId, email: '', name: '', role: apiUser.role },
+      writeFn: async () => {
+        const existing = await prisma.categorieProduit.findUnique({
+          where: { id_categorie: id },
+        })
+        if (!existing) {
+          return { error: 'Category not found' }
+        }
+
+        const childCount = await prisma.categorieProduit.count({
+          where: { id_categorie_parent: id },
+        })
+        if (childCount > 0) {
+          return { error: 'Cannot delete a category that has child categories' }
+        }
+
+        await prisma.categorieProduit.delete({
+          where: { id_categorie: id },
+        })
+
+        return { data: { success: true } }
+      },
+      invalidations: [{ kind: 'category', categoryId: id }],
     })
-    if (!existing) {
-      throw new NotFoundError('Category')
+
+    if (result.error) {
+      if (result.error.includes('not found')) {
+        throw new NotFoundError(result.error)
+      }
+      throw new ConflictError(result.error)
     }
-
-    const childCount = await prisma.categorieProduit.count({
-      where: { id_categorie_parent: id },
-    })
-    if (childCount > 0) {
-      throw new ConflictError('Cannot delete a category that has child categories')
-    }
-
-    await prisma.categorieProduit.delete({
-      where: { id_categorie: id },
-    })
-
-    CacheInvalidationService.invalidateCategory(id)
 
     return apiNoContent()
   } catch (error) {

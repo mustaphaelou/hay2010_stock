@@ -87,7 +87,6 @@ describe('createStockLevel', () => {
       quantite_commandee: 0,
     })
     expect(prisma.niveauStock.create).toHaveBeenCalled()
-    expect(mockCacheInvalidateStock).toHaveBeenCalledWith(1, 2)
   })
 
   it('should reject duplicate composite key', async () => {
@@ -337,13 +336,12 @@ describe('deleteStockLevel', () => {
     })
     ;(prisma.niveauStock.delete as ReturnType<typeof vi.fn>).mockResolvedValue(undefined)
 
-    const result = await deleteStockLevel(10, 'user-1')
+    const result = await deleteStockLevel(10)
 
     expect(result.error).toBeUndefined()
     expect(prisma.niveauStock.delete).toHaveBeenCalledWith({
       where: { id_stock: 10 },
     })
-    expect(mockCacheInvalidateStock).toHaveBeenCalledWith(1, 2)
   })
 
   it('should reject deletion when quantity is not 0', async () => {
@@ -354,7 +352,7 @@ describe('deleteStockLevel', () => {
       quantite_en_stock: 50,
     })
 
-    const result = await deleteStockLevel(10, 'user-1')
+    const result = await deleteStockLevel(10)
 
     expect(result.error).toBeDefined()
     expect(prisma.niveauStock.delete).not.toHaveBeenCalled()
@@ -363,7 +361,7 @@ describe('deleteStockLevel', () => {
   it('should return error when stock level not found', async () => {
     ;(prisma.niveauStock.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(null)
 
-    const result = await deleteStockLevel(999, 'user-1')
+    const result = await deleteStockLevel(999)
 
     expect(result.error).toContain('introuvable')
     expect(prisma.niveauStock.delete).not.toHaveBeenCalled()

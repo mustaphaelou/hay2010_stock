@@ -2,7 +2,6 @@ import { prisma, withTransaction } from '@/lib/db/prisma'
 import { Prisma } from '@/lib/generated/prisma/client'
 import { CacheService } from '@/lib/db/redis'
 import { VersionedCacheService, CacheNamespaces, CacheTTLSeconds } from '@/lib/cache/versioned'
-import { CacheInvalidationService } from '@/lib/cache/invalidation'
 import { createLogger } from '@/lib/logger'
 import type { ArticleWithStock, StockLevelWithProduct, Depot } from '@/lib/types'
 import { getPaginationParams, buildPaginationMeta, createEmptyResult } from '@/lib/pagination'
@@ -147,8 +146,6 @@ export async function toggleArticleStatus(
         data: { en_sommeil: newStatus }
       })
     })
-
-    await CacheInvalidationService.invalidateProduct(id_produit)
 
     return { data: { success: true } }
   } catch (error) {
@@ -509,8 +506,6 @@ export async function createStockLevel(
         return stockLevel
       })
 
-      CacheInvalidationService.invalidateStock(validation.data.productId, validation.data.warehouseId)
-
       return {
         data: {
           id_stock: result.id_stock,
@@ -532,8 +527,6 @@ export async function createStockLevel(
         quantite_commandee: ordered,
       },
     })
-
-    CacheInvalidationService.invalidateStock(validation.data.productId, validation.data.warehouseId)
 
     return {
       data: {
@@ -682,8 +675,6 @@ export async function deleteStockLevel(
     await prisma.niveauStock.delete({
       where: { id_stock: id },
     })
-
-    CacheInvalidationService.invalidateStock(existing.id_produit, existing.id_entrepot)
 
     return {}
   } catch (error) {
@@ -850,8 +841,6 @@ export async function createArticle(
       },
     })
 
-    CacheInvalidationService.invalidateProduct(product.id_produit)
-
     const article = product as unknown as ArticleWithStock
     return { data: article }
   } catch (error) {
@@ -897,8 +886,6 @@ export async function updateArticle(
       },
     })
 
-    CacheInvalidationService.invalidateProduct(product.id_produit)
-
     const article = product as unknown as ArticleWithStock
     return { data: article }
   } catch (error) {
@@ -928,8 +915,6 @@ export async function deleteArticle(
       where: { id_produit },
       data: { est_actif: false, modifie_par: userId },
     })
-
-    CacheInvalidationService.invalidateProduct(id_produit)
 
     return { data: { success: true } }
   } catch (error) {

@@ -12,6 +12,7 @@ import {
   getAffaireDocumentsById,
 } from '@/lib/affaires/affaire-service'
 import type { GetAffairesInput } from '@/lib/affaires/validation'
+import { executeWrite } from '@/lib/actions/execute-write'
 
 export async function listAffairesHandler(request: NextRequest): Promise<NextResponse> {
   try {
@@ -68,7 +69,11 @@ export async function createAffaireHandler(request: NextRequest): Promise<NextRe
     const apiUser = await requireApiKey(request)
 
     const body = await request.json()
-    const result = await createAffaire(body, apiUser.userId)
+    const result = await executeWrite({
+      user: { id: apiUser.userId, email: '', name: '', role: apiUser.role },
+      writeFn: () => createAffaire(body, apiUser.userId),
+      invalidations: [{ kind: 'affaire' }],
+    })
 
     handleServiceError(result)
 
@@ -87,7 +92,11 @@ export async function updateAffaireHandler(request: NextRequest, id: number): Pr
     }
 
     const body = await request.json()
-    const result = await updateAffaire(id, body, apiUser.userId)
+    const result = await executeWrite({
+      user: { id: apiUser.userId, email: '', name: '', role: apiUser.role },
+      writeFn: () => updateAffaire(id, body, apiUser.userId),
+      invalidations: [{ kind: 'affaire', affaireId: id }],
+    })
 
     handleServiceError(result)
 
@@ -105,7 +114,11 @@ export async function deleteAffaireHandler(request: NextRequest, id: number): Pr
       throw new ValidationError('ID d\'affaire invalide')
     }
 
-    const result = await deleteAffaire(id, apiUser.userId)
+    const result = await executeWrite({
+      user: { id: apiUser.userId, email: '', name: '', role: apiUser.role },
+      writeFn: () => deleteAffaire(id, apiUser.userId),
+      invalidations: [{ kind: 'affaire', affaireId: id }],
+    })
 
     handleServiceError(result)
 

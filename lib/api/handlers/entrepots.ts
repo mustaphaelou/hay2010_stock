@@ -5,9 +5,9 @@ import { requireApiKey } from '@/lib/api/auth'
 import { apiSuccess, apiPaginated, apiCreated, apiNoContent, apiError } from '@/lib/api/response'
 import { ValidationError, NotFoundError, ConflictError } from '@/lib/errors'
 import { createValidationErrorFromZod } from '@/lib/errors'
-import { CacheInvalidationService } from '@/lib/cache/invalidation'
 import { paginationSchema } from '@/lib/pagination'
 import { Prisma } from '@/lib/generated/prisma/client'
+import { executeWrite } from '@/lib/actions/execute-write'
 
 const warehouseCreateSchema = z.object({
   code_entrepot: z.string().min(1).max(50),
@@ -135,7 +135,7 @@ export async function getWarehouseByIdHandler(request: NextRequest): Promise<Nex
 
 export async function createWarehouseHandler(request: NextRequest): Promise<NextResponse> {
   try {
-    await requireApiKey(request)
+    const apiUser = await requireApiKey(request)
 
     const body = await request.json()
     const parsed = warehouseCreateSchema.safeParse(body)
@@ -143,20 +143,29 @@ export async function createWarehouseHandler(request: NextRequest): Promise<Next
       throw createValidationErrorFromZod(parsed.error)
     }
 
-    const existing = await prisma.entrepot.findUnique({
-      where: { code_entrepot: parsed.data.code_entrepot },
+    const result = await executeWrite({
+      user: { id: apiUser.userId, email: '', name: '', role: apiUser.role },
+      writeFn: async () => {
+        const existing = await prisma.entrepot.findUnique({
+          where: { code_entrepot: parsed.data.code_entrepot },
+        })
+        if (existing) {
+          return { error: `Le code entrepôt ${parsed.data.code_entrepot} existe déjà` }
+        }
+
+        const warehouse = await prisma.entrepot.create({
+          data: parsed.data,
+        })
+        return { data: warehouse }
+      },
+      invalidations: [{ kind: 'warehouse' }],
     })
-    if (existing) {
-      throw new ConflictError(`Warehouse with code ${parsed.data.code_entrepot} already exists`)
+
+    if (result.error) {
+      throw new ConflictError(result.error)
     }
 
-    const warehouse = await prisma.entrepot.create({
-      data: parsed.data,
-    })
-
-    CacheInvalidationService.invalidateWarehouse(warehouse.id_entrepot)
-
-    return apiCreated(warehouse)
+    return apiCreated(result.data)
   } catch (error) {
     return apiError(error)
   }
@@ -164,7 +173,7 @@ export async function createWarehouseHandler(request: NextRequest): Promise<Next
 
 export async function updateWarehouseHandler(request: NextRequest): Promise<NextResponse> {
   try {
-    await requireApiKey(request)
+    const apiUser = await requireApiKey(request)
 
     const id = extractIdFromUrl(request)
 
@@ -174,30 +183,39 @@ export async function updateWarehouseHandler(request: NextRequest): Promise<Next
       throw createValidationErrorFromZod(parsed.error)
     }
 
-    const existing = await prisma.entrepot.findUnique({
-      where: { id_entrepot: id },
+    const result = await executeWrite({
+      user: { id: apiUser.userId, email: '', name: '', role: apiUser.role },
+      writeFn: async () => {
+        const existing = await prisma.entrepot.findUnique({
+          where: { id_entrepot: id },
+        })
+        if (!existing) {
+          return { error: 'Warehouse not found' }
+        }
+
+        if (parsed.data.code_entrepot && parsed.data.code_entrepot !== existing.code_entrepot) {
+          const duplicate = await prisma.entrepot.findUnique({
+            where: { code_entrepot: parsed.data.code_entrepot },
+          })
+          if (duplicate) {
+            return { error: `Warehouse with code ${parsed.data.code_entrepot} already exists` }
+          }
+        }
+
+        const warehouse = await prisma.entrepot.update({
+          where: { id_entrepot: id },
+          data: parsed.data,
+        })
+        return { data: warehouse }
+      },
+      invalidations: [{ kind: 'warehouse', warehouseId: id }],
     })
-    if (!existing) {
-      throw new NotFoundError('Warehouse')
+
+    if (result.error) {
+      throw new NotFoundError(result.error)
     }
 
-    if (parsed.data.code_entrepot && parsed.data.code_entrepot !== existing.code_entrepot) {
-      const duplicate = await prisma.entrepot.findUnique({
-        where: { code_entrepot: parsed.data.code_entrepot },
-      })
-      if (duplicate) {
-        throw new ConflictError(`Warehouse with code ${parsed.data.code_entrepot} already exists`)
-      }
-    }
-
-    const warehouse = await prisma.entrepot.update({
-      where: { id_entrepot: id },
-      data: parsed.data,
-    })
-
-    CacheInvalidationService.invalidateWarehouse(warehouse.id_entrepot)
-
-    return apiSuccess(warehouse)
+    return apiSuccess(result.data)
   } catch (error) {
     return apiError(error)
   }
@@ -205,23 +223,33 @@ export async function updateWarehouseHandler(request: NextRequest): Promise<Next
 
 export async function deleteWarehouseHandler(request: NextRequest): Promise<NextResponse> {
   try {
-    await requireApiKey(request)
+    const apiUser = await requireApiKey(request)
 
     const id = extractIdFromUrl(request)
 
-    const existing = await prisma.entrepot.findUnique({
-      where: { id_entrepot: id },
+    const result = await executeWrite({
+      user: { id: apiUser.userId, email: '', name: '', role: apiUser.role },
+      writeFn: async () => {
+        const existing = await prisma.entrepot.findUnique({
+          where: { id_entrepot: id },
+        })
+        if (!existing) {
+          return { error: 'Warehouse not found' }
+        }
+
+        await prisma.entrepot.update({
+          where: { id_entrepot: id },
+          data: { est_actif: false },
+        })
+
+        return { data: { success: true } }
+      },
+      invalidations: [{ kind: 'warehouse', warehouseId: id }],
     })
-    if (!existing) {
-      throw new NotFoundError('Warehouse')
+
+    if (result.error) {
+      throw new NotFoundError(result.error)
     }
-
-    await prisma.entrepot.update({
-      where: { id_entrepot: id },
-      data: { est_actif: false },
-    })
-
-    CacheInvalidationService.invalidateWarehouse(id)
 
     return apiNoContent()
   } catch (error) {

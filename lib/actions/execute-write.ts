@@ -12,14 +12,14 @@ import { createLogger } from '@/lib/logger'
 const log = createLogger('execute-write')
 
 export type CacheInvalidation =
-  | { kind: 'product'; productId: number }
-  | { kind: 'stock'; productId: number; warehouseId: number }
-  | { kind: 'partner'; partnerId: number }
-  | { kind: 'document'; documentId: number }
-  | { kind: 'user'; userId: string }
-  | { kind: 'affaire'; affaireId: number }
-  | { kind: 'warehouse'; warehouseId: number }
-  | { kind: 'category'; categoryId: number }
+  | { kind: 'product'; productId?: number }
+  | { kind: 'stock'; productId?: number; warehouseId?: number }
+  | { kind: 'partner'; partnerId?: number }
+  | { kind: 'document'; documentId?: number }
+  | { kind: 'user'; userId?: string }
+  | { kind: 'affaire'; affaireId?: number }
+  | { kind: 'warehouse'; warehouseId?: number }
+  | { kind: 'category'; categoryId?: number }
   | { kind: 'dashboard' }
   | { kind: 'all' }
 
@@ -32,6 +32,7 @@ export interface ExecuteWriteOptions<T> {
     message?: string
   }
   autoRotateCsrf?: boolean
+  user?: CurrentUser
   writeFn: (user: CurrentUser) => Promise<T>
   invalidations?: CacheInvalidation[]
   revalidatePaths?: string[]
@@ -46,28 +47,28 @@ async function runInvalidations(invalidations: CacheInvalidation[]): Promise<voi
   for (const inv of invalidations) {
     switch (inv.kind) {
       case 'product':
-        await CacheInvalidationService.invalidateProduct(inv.productId)
+        await CacheInvalidationService.invalidateProduct(inv.productId ?? 0)
         break
       case 'stock':
-        await CacheInvalidationService.invalidateStock(inv.productId, inv.warehouseId)
+        await CacheInvalidationService.invalidateStock(inv.productId ?? 0, inv.warehouseId ?? 0)
         break
       case 'partner':
-        await CacheInvalidationService.invalidatePartner(inv.partnerId)
+        await CacheInvalidationService.invalidatePartner(inv.partnerId ?? 0)
         break
       case 'document':
-        await CacheInvalidationService.invalidateDocument(inv.documentId)
+        await CacheInvalidationService.invalidateDocument(inv.documentId ?? 0)
         break
       case 'user':
-        await CacheInvalidationService.invalidateUser(inv.userId)
+        await CacheInvalidationService.invalidateUser(inv.userId ?? '')
         break
       case 'affaire':
-        await CacheInvalidationService.invalidateAffaire(inv.affaireId)
+        await CacheInvalidationService.invalidateAffaire(inv.affaireId ?? 0)
         break
       case 'warehouse':
-        await CacheInvalidationService.invalidateWarehouse(inv.warehouseId)
+        await CacheInvalidationService.invalidateWarehouse(inv.warehouseId ?? 0)
         break
       case 'category':
-        await CacheInvalidationService.invalidateCategory(inv.categoryId)
+        await CacheInvalidationService.invalidateCategory(inv.categoryId ?? 0)
         break
       case 'dashboard':
         await CacheInvalidationService.invalidateDashboard()
@@ -93,7 +94,7 @@ export async function executeRead<T>(options: ExecuteReadOptions<T>): Promise<T>
 
 export async function executeWrite<T extends { error?: string }>(
   options: ExecuteWriteOptions<T>
-): Promise<T | { error: string }> {
+): Promise<T | { data?: never; error: string }> {
   const {
     permission,
     csrfToken,
@@ -102,11 +103,14 @@ export async function executeWrite<T extends { error?: string }>(
     writeFn,
     invalidations = [],
     revalidatePaths = [],
+    user: preAuthUser,
   } = options
 
-  let user: CurrentUser | undefined
+  let user: CurrentUser | undefined = preAuthUser
 
-  if (permission === undefined) {
+  if (preAuthUser) {
+    // Pre-authenticated (e.g., API key) — skip auth
+  } else if (permission === undefined) {
     // No auth check — public flow (e.g., password reset)
   } else if (permission === 'authenticated') {
     user = await requireAuth()

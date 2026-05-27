@@ -6,7 +6,7 @@ import { TypePartenaire } from '@/lib/generated/prisma'
 import { createLogger } from '@/lib/logger'
 import { createEmptyResult, buildPaginationMeta, getPaginationParams } from '@/lib/pagination'
 import type { PaginatedResult } from '@/lib/pagination'
-import { CacheInvalidationService } from '@/lib/cache/invalidation'
+
 
 const log = createLogger('partner-service')
 
@@ -162,8 +162,6 @@ export async function createPartner(
       },
     })
 
-    CacheInvalidationService.invalidatePartner(partner.id_partenaire)
-
     return { data: mapPartnerToComputed(partner as unknown as Record<string, unknown>) }
   } catch (error) {
     log.error({ error, input: validatedInput }, 'Échec de la création du partenaire')
@@ -209,8 +207,6 @@ export async function updatePartner(
       },
     })
 
-    CacheInvalidationService.invalidatePartner(partner.id_partenaire)
-
     return { data: mapPartnerToComputed(partner as unknown as Record<string, unknown>) }
   } catch (error) {
     log.error({ error, id_partenaire, input: validatedInput }, 'Échec de la mise à jour du partenaire')
@@ -239,8 +235,6 @@ export async function deletePartner(
       where: { id_partenaire },
       data: { est_actif: false, modifie_par: userId ?? undefined },
     })
-
-    CacheInvalidationService.invalidatePartner(id_partenaire)
 
     return { data: { success: true } }
   } catch (error) {

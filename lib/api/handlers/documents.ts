@@ -11,6 +11,7 @@ import {
   deleteDocument,
   getDocumentLinesById,
 } from '@/lib/documents/document-service'
+import { executeWrite } from '@/lib/actions/execute-write'
 
 export async function listDocumentsHandler(request: NextRequest): Promise<NextResponse> {
   try {
@@ -49,7 +50,7 @@ export async function getDocumentByIdHandler(request: NextRequest, id: number): 
 
     handleServiceError(result)
 
-    return apiSuccess(result.data)
+    return apiSuccess(result.data!)
   } catch (error) {
     return apiError(error)
   }
@@ -60,7 +61,11 @@ export async function createDocumentHandler(request: NextRequest): Promise<NextR
     const apiUser = await requireApiKey(request)
 
     const body = await request.json()
-    const result = await createDocument(body, apiUser.userId)
+    const result = await executeWrite({
+      user: { id: apiUser.userId, email: '', name: '', role: apiUser.role },
+      writeFn: () => createDocument(body, apiUser.userId),
+      invalidations: [{ kind: 'document' }],
+    })
 
     handleServiceError(result)
 
@@ -75,11 +80,15 @@ export async function updateDocumentHandler(request: NextRequest, id: number): P
     const apiUser = await requireApiKey(request)
 
     const body = await request.json()
-    const result = await updateDocument(id, body, apiUser.userId)
+    const result = await executeWrite({
+      user: { id: apiUser.userId, email: '', name: '', role: apiUser.role },
+      writeFn: () => updateDocument(id, body, apiUser.userId),
+      invalidations: [{ kind: 'document', documentId: id }],
+    })
 
     handleServiceError(result)
 
-    return apiSuccess(result.data)
+    return apiSuccess(result.data!)
   } catch (error) {
     return apiError(error)
   }
@@ -89,7 +98,11 @@ export async function deleteDocumentHandler(request: NextRequest, id: number): P
   try {
     const apiUser = await requireApiKey(request)
 
-    const result = await deleteDocument(id, apiUser.userId)
+    const result = await executeWrite({
+      user: { id: apiUser.userId, email: '', name: '', role: apiUser.role },
+      writeFn: () => deleteDocument(id, apiUser.userId),
+      invalidations: [{ kind: 'document', documentId: id }],
+    })
 
     handleServiceError(result)
 

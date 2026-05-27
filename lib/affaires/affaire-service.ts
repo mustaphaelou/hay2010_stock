@@ -18,7 +18,7 @@ import type { AffaireWithComputed, DocumentBase } from '@/lib/types'
 import { createLogger } from '@/lib/logger'
 import { createEmptyResult, buildPaginationMeta, getPaginationParams } from '@/lib/pagination'
 import type { PaginatedResult } from '@/lib/pagination'
-import { CacheInvalidationService } from '@/lib/cache/invalidation'
+
 
 const log = createLogger('affaire-service')
 
@@ -159,8 +159,6 @@ export async function createAffaire(
       },
     })
 
-    CacheInvalidationService.invalidateAffaire(affaire.id_affaire)
-
     return { data: mapAffaireToComputed(affaire as unknown as Record<string, unknown>) }
   } catch (error) {
     log.error({ error, input: validatedInput }, 'Échec de la création de l\'affaire')
@@ -205,8 +203,6 @@ export async function updateAffaire(
       },
     })
 
-    CacheInvalidationService.invalidateAffaire(affaire.id_affaire)
-
     return { data: mapAffaireToComputed(affaire as unknown as Record<string, unknown>) }
   } catch (error) {
     log.error({ error, id_affaire, input: validatedInput }, 'Échec de la mise à jour de l\'affaire')
@@ -235,8 +231,6 @@ export async function deleteAffaire(
       where: { id_affaire },
       data: { est_actif: false, modifie_par: userId },
     })
-
-    CacheInvalidationService.invalidateAffaire(id_affaire)
 
     return { data: { success: true } }
   } catch (error) {
