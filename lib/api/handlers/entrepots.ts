@@ -1,133 +1,53 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { z } from 'zod'
-import { prisma } from '@/lib/db/prisma'
 import { requireApiKey } from '@/lib/api/auth'
 import { apiSuccess, apiPaginated, apiCreated, apiNoContent, apiError } from '@/lib/api/response'
-import { ValidationError, NotFoundError, ConflictError } from '@/lib/errors'
-import { createValidationErrorFromZod } from '@/lib/errors'
-import { paginationSchema } from '@/lib/pagination'
-import { Prisma } from '@/lib/generated/prisma/client'
+import { handleServiceError } from '@/lib/api/service-error'
+import { ValidationError } from '@/lib/errors'
+import {
+  listEntrepots,
+  getEntrepotById,
+  createEntrepot,
+  updateEntrepot,
+  deleteEntrepot,
+  getEntrepotStockLevels,
+} from '@/lib/entrepots/entrepot-service'
 import { executeWrite } from '@/lib/actions/execute-write'
-
-const warehouseCreateSchema = z.object({
-  code_entrepot: z.string().min(1).max(50),
-  nom_entrepot: z.string().min(1).max(255),
-  adresse_entrepot: z.string().nullable().optional(),
-  ville_entrepot: z.string().max(100).nullable().optional(),
-  code_postal_entrepot: z.string().max(20).nullable().optional(),
-  capacite_totale_unites: z.number().int().positive().nullable().optional(),
-  nom_responsable: z.string().max(255).nullable().optional(),
-  email_responsable: z.string().email().max(255).nullable().optional(),
-  telephone_responsable: z.string().max(50).nullable().optional(),
-  est_actif: z.boolean().default(true).optional(),
-  est_entrepot_principal: z.boolean().default(false).optional(),
-})
-
-const warehouseUpdateSchema = warehouseCreateSchema.partial()
-
-const ALLOWED_SORT_FIELDS = [
-  'id_entrepot',
-  'code_entrepot',
-  'nom_entrepot',
-  'ville_entrepot',
-  'capacite_totale_unites',
-  'date_creation',
-  'date_modification',
-] as const
-
-type AllowedSortField = (typeof ALLOWED_SORT_FIELDS)[number]
-
-function extractIdFromUrl(request: NextRequest): number {
-  const segments = request.nextUrl.pathname.split('/')
-  const lastSegment = segments[segments.length - 1]
-  const id = parseInt(lastSegment, 10)
-  if (isNaN(id)) {
-    throw new ValidationError('Invalid warehouse ID')
-  }
-  return id
-}
-
-function parsePagination(request: NextRequest) {
-  const url = request.nextUrl
-  const page = parseInt(url.searchParams.get('page') || '1', 10)
-  const limit = parseInt(url.searchParams.get('limit') || '50', 10)
-  const parsed = paginationSchema.safeParse({ page, limit })
-  if (!parsed.success) {
-    throw createValidationErrorFromZod(parsed.error)
-  }
-  return parsed.data
-}
 
 export async function listWarehousesHandler(request: NextRequest): Promise<NextResponse> {
   try {
     await requireApiKey(request)
 
-    const { page, limit } = parsePagination(request)
     const url = request.nextUrl
+    const page = parseInt(url.searchParams.get('page') || '1', 10)
+    const limit = parseInt(url.searchParams.get('limit') || '50', 10)
     const search = url.searchParams.get('search') || undefined
     const principal = url.searchParams.get('principal') || undefined
-    const sortParam = url.searchParams.get('sort') || 'nom_entrepot'
-    const orderParam = (url.searchParams.get('order') || 'asc').toLowerCase()
+    const sort = url.searchParams.get('sort') || undefined
+    const order = (url.searchParams.get('order') || 'asc').toLowerCase() === 'desc' ? 'desc' as const : 'asc' as const
 
-    const sort = ALLOWED_SORT_FIELDS.includes(sortParam as AllowedSortField)
-      ? (sortParam as AllowedSortField)
-      : 'nom_entrepot'
-    const order = orderParam === 'desc' ? ('desc' as const) : ('asc' as const)
+    const result = await listEntrepots(page, limit, search, principal, sort, order)
 
-    const skip = (page - 1) * limit
+    handleServiceError(result)
 
-    const where: Prisma.EntrepotWhereInput = {}
-    if (principal === 'true') {
-      where.est_entrepot_principal = true
-    } else if (principal === 'false') {
-      where.est_entrepot_principal = false
-    }
-    if (search) {
-      where.OR = [
-        { nom_entrepot: { contains: search, mode: 'insensitive' } },
-        { code_entrepot: { contains: search, mode: 'insensitive' } },
-      ]
-    }
-
-    const [warehouses, total] = await Promise.all([
-      prisma.entrepot.findMany({
-        skip,
-        take: limit,
-        where,
-        orderBy: { [sort]: order },
-      }),
-      prisma.entrepot.count({ where }),
-    ])
-
-    const totalPages = Math.ceil(total / limit)
-
-    return apiPaginated(warehouses, {
-      page,
-      limit,
-      total,
-      totalPages,
-      hasMore: page < totalPages,
-    })
+    return apiPaginated(result.data, result.meta)
   } catch (error) {
     return apiError(error)
   }
 }
 
-export async function getWarehouseByIdHandler(request: NextRequest): Promise<NextResponse> {
+export async function getWarehouseByIdHandler(request: NextRequest, id: number): Promise<NextResponse> {
   try {
     await requireApiKey(request)
 
-    const id = extractIdFromUrl(request)
-
-    const warehouse = await prisma.entrepot.findUnique({
-      where: { id_entrepot: id },
-    })
-
-    if (!warehouse) {
-      throw new NotFoundError('Warehouse')
+    if (isNaN(id)) {
+      throw new ValidationError('ID entrepôt invalide')
     }
 
-    return apiSuccess(warehouse)
+    const result = await getEntrepotById(id)
+
+    handleServiceError(result)
+
+    return apiSuccess(result.data!)
   } catch (error) {
     return apiError(error)
   }
@@ -138,121 +58,58 @@ export async function createWarehouseHandler(request: NextRequest): Promise<Next
     const apiUser = await requireApiKey(request)
 
     const body = await request.json()
-    const parsed = warehouseCreateSchema.safeParse(body)
-    if (!parsed.success) {
-      throw createValidationErrorFromZod(parsed.error)
-    }
-
     const result = await executeWrite({
       user: { id: apiUser.userId, email: '', name: '', role: apiUser.role },
-      writeFn: async () => {
-        const existing = await prisma.entrepot.findUnique({
-          where: { code_entrepot: parsed.data.code_entrepot },
-        })
-        if (existing) {
-          return { error: `Le code entrepôt ${parsed.data.code_entrepot} existe déjà` }
-        }
-
-        const warehouse = await prisma.entrepot.create({
-          data: parsed.data,
-        })
-        return { data: warehouse }
-      },
+      writeFn: () => createEntrepot(body),
       invalidations: [{ kind: 'warehouse' }],
     })
 
-    if (result.error) {
-      throw new ConflictError(result.error)
-    }
+    handleServiceError(result)
 
-    return apiCreated(result.data)
+    return apiCreated(result.data!)
   } catch (error) {
     return apiError(error)
   }
 }
 
-export async function updateWarehouseHandler(request: NextRequest): Promise<NextResponse> {
+export async function updateWarehouseHandler(request: NextRequest, id: number): Promise<NextResponse> {
   try {
     const apiUser = await requireApiKey(request)
 
-    const id = extractIdFromUrl(request)
+    if (isNaN(id)) {
+      throw new ValidationError('ID entrepôt invalide')
+    }
 
     const body = await request.json()
-    const parsed = warehouseUpdateSchema.safeParse(body)
-    if (!parsed.success) {
-      throw createValidationErrorFromZod(parsed.error)
-    }
-
     const result = await executeWrite({
       user: { id: apiUser.userId, email: '', name: '', role: apiUser.role },
-      writeFn: async () => {
-        const existing = await prisma.entrepot.findUnique({
-          where: { id_entrepot: id },
-        })
-        if (!existing) {
-          return { error: 'Warehouse not found' }
-        }
-
-        if (parsed.data.code_entrepot && parsed.data.code_entrepot !== existing.code_entrepot) {
-          const duplicate = await prisma.entrepot.findUnique({
-            where: { code_entrepot: parsed.data.code_entrepot },
-          })
-          if (duplicate) {
-            return { error: `Warehouse with code ${parsed.data.code_entrepot} already exists` }
-          }
-        }
-
-        const warehouse = await prisma.entrepot.update({
-          where: { id_entrepot: id },
-          data: parsed.data,
-        })
-        return { data: warehouse }
-      },
+      writeFn: () => updateEntrepot(id, body),
       invalidations: [{ kind: 'warehouse', warehouseId: id }],
     })
 
-    if (result.error) {
-      if (result.error.includes('already exists')) {
-        throw new ConflictError(result.error)
-      }
-      throw new NotFoundError(result.error)
-    }
+    handleServiceError(result)
 
-    return apiSuccess(result.data)
+    return apiSuccess(result.data!)
   } catch (error) {
     return apiError(error)
   }
 }
 
-export async function deleteWarehouseHandler(request: NextRequest): Promise<NextResponse> {
+export async function deleteWarehouseHandler(request: NextRequest, id: number): Promise<NextResponse> {
   try {
     const apiUser = await requireApiKey(request)
 
-    const id = extractIdFromUrl(request)
+    if (isNaN(id)) {
+      throw new ValidationError('ID entrepôt invalide')
+    }
 
     const result = await executeWrite({
       user: { id: apiUser.userId, email: '', name: '', role: apiUser.role },
-      writeFn: async () => {
-        const existing = await prisma.entrepot.findUnique({
-          where: { id_entrepot: id },
-        })
-        if (!existing) {
-          return { error: 'Warehouse not found' }
-        }
-
-        await prisma.entrepot.update({
-          where: { id_entrepot: id },
-          data: { est_actif: false },
-        })
-
-        return { data: { success: true } }
-      },
+      writeFn: () => deleteEntrepot(id),
       invalidations: [{ kind: 'warehouse', warehouseId: id }],
     })
 
-    if (result.error) {
-      throw new NotFoundError(result.error)
-    }
+    handleServiceError(result)
 
     return apiNoContent()
   } catch (error) {
@@ -260,51 +117,23 @@ export async function deleteWarehouseHandler(request: NextRequest): Promise<Next
   }
 }
 
-export async function getWarehouseStockLevelsHandler(request: NextRequest): Promise<NextResponse> {
+export async function getWarehouseStockLevelsHandler(request: NextRequest, id: number): Promise<NextResponse> {
   try {
     await requireApiKey(request)
 
-    const segments = request.nextUrl.pathname.split('/')
-    const idSegment = segments[segments.length - 2] ?? ''
-    const warehouseId = parseInt(idSegment, 10)
-    if (isNaN(warehouseId)) {
-      throw new ValidationError('Invalid warehouse ID')
+    if (isNaN(id)) {
+      throw new ValidationError('ID entrepôt invalide')
     }
 
-    const warehouse = await prisma.entrepot.findUnique({
-      where: { id_entrepot: warehouseId },
-    })
-    if (!warehouse) {
-      throw new NotFoundError('Warehouse')
-    }
+    const url = request.nextUrl
+    const page = parseInt(url.searchParams.get('page') || '1', 10)
+    const limit = parseInt(url.searchParams.get('limit') || '50', 10)
 
-    const { page, limit } = parsePagination(request)
-    const skip = (page - 1) * limit
+    const result = await getEntrepotStockLevels(id, page, limit)
 
-    const [stockLevels, total] = await Promise.all([
-      prisma.niveauStock.findMany({
-        where: { id_entrepot: warehouseId },
-        skip,
-        take: limit,
-        orderBy: { date_creation: 'desc' },
-        include: {
-          produit: {
-            select: { id_produit: true, code_produit: true, nom_produit: true },
-          },
-        },
-      }),
-      prisma.niveauStock.count({ where: { id_entrepot: warehouseId } }),
-    ])
+    handleServiceError(result)
 
-    const totalPages = Math.ceil(total / limit)
-
-    return apiPaginated(stockLevels, {
-      page,
-      limit,
-      total,
-      totalPages,
-      hasMore: page < totalPages,
-    })
+    return apiPaginated(result.data, result.meta)
   } catch (error) {
     return apiError(error)
   }

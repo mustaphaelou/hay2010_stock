@@ -7,16 +7,28 @@ import {
 } from '@/lib/api/handlers/categories-produits'
 
 export const GET = withRateLimit(
-  (request: NextRequest) => getCategoryByIdHandler(request),
+  (request: NextRequest) => {
+    const segments = request.nextUrl.pathname.split('/')
+    const id = parseInt(segments[segments.length - 1], 10)
+    return getCategoryByIdHandler(request, id)
+  },
   'read'
 )
 
 export const PUT = withRateLimit(
-  (request: NextRequest) => updateCategoryHandler(request),
+  (request: NextRequest) => {
+    const segments = request.nextUrl.pathname.split('/')
+    const id = parseInt(segments[segments.length - 1], 10)
+    return updateCategoryHandler(request, id)
+  },
   'write'
 )
 
 export const DELETE = withRateLimit(
-  (request: NextRequest) => deleteCategoryHandler(request),
+  (request: NextRequest) => {
+    const segments = request.nextUrl.pathname.split('/')
+    const id = parseInt(segments[segments.length - 1], 10)
+    return deleteCategoryHandler(request, id)
+  },
   'write'
 )

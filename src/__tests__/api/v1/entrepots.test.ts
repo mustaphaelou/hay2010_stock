@@ -207,7 +207,7 @@ describe('Entrepot API Handlers', () => {
       mockRequireApiKey.mockRejectedValue(new AuthenticationError('Invalid or missing API key'))
 
       const request = makeRequest('GET', '/api/v1/entrepots/1')
-      const response = await getWarehouseByIdHandler(request)
+      const response = await getWarehouseByIdHandler(request, 1)
 
       expect(response.status).toBe(401)
     })
@@ -217,7 +217,7 @@ describe('Entrepot API Handlers', () => {
       mockEntrepotFindUnique.mockResolvedValue(mockEntrepot)
 
       const request = makeRequest('GET', '/api/v1/entrepots/1')
-      const response = await getWarehouseByIdHandler(request)
+      const response = await getWarehouseByIdHandler(request, 1)
 
       expect(response.status).toBe(200)
       const data = await response.json()
@@ -230,7 +230,7 @@ describe('Entrepot API Handlers', () => {
       mockEntrepotFindUnique.mockResolvedValue(null)
 
       const request = makeRequest('GET', '/api/v1/entrepots/999')
-      const response = await getWarehouseByIdHandler(request)
+      const response = await getWarehouseByIdHandler(request, 999)
 
       expect(response.status).toBe(404)
     })
@@ -239,7 +239,7 @@ describe('Entrepot API Handlers', () => {
       mockRequireApiKey.mockResolvedValue(API_USER)
 
       const request = makeRequest('GET', '/api/v1/entrepots/abc')
-      const response = await getWarehouseByIdHandler(request)
+      const response = await getWarehouseByIdHandler(request, NaN)
 
       expect(response.status).toBe(400)
     })
@@ -322,7 +322,7 @@ describe('Entrepot API Handlers', () => {
       mockRequireApiKey.mockRejectedValue(new AuthenticationError('Invalid or missing API key'))
 
       const request = makeRequest('PUT', '/api/v1/entrepots/1', updateBody)
-      const response = await updateWarehouseHandler(request)
+      const response = await updateWarehouseHandler(request, 1)
 
       expect(response.status).toBe(401)
     })
@@ -333,7 +333,7 @@ describe('Entrepot API Handlers', () => {
       mockEntrepotUpdate.mockResolvedValue({ ...mockEntrepot, nom_entrepot: 'Updated Warehouse' })
 
       const request = makeRequest('PUT', '/api/v1/entrepots/1', updateBody)
-      const response = await updateWarehouseHandler(request)
+      const response = await updateWarehouseHandler(request, 1)
 
       expect(response.status).toBe(200)
       const data = await response.json()
@@ -353,7 +353,7 @@ describe('Entrepot API Handlers', () => {
       mockEntrepotFindUnique.mockResolvedValue(null)
 
       const request = makeRequest('PUT', '/api/v1/entrepots/999', updateBody)
-      const response = await updateWarehouseHandler(request)
+      const response = await updateWarehouseHandler(request, 999)
 
       expect(response.status).toBe(404)
     })
@@ -365,7 +365,7 @@ describe('Entrepot API Handlers', () => {
         .mockResolvedValueOnce({ ...mockEntrepot, id_entrepot: 2 })
 
       const request = makeRequest('PUT', '/api/v1/entrepots/1', { code_entrepot: 'WH-999' })
-      const response = await updateWarehouseHandler(request)
+      const response = await updateWarehouseHandler(request, 1)
 
       expect(response.status).toBe(409)
     })
@@ -376,7 +376,7 @@ describe('Entrepot API Handlers', () => {
       mockRequireApiKey.mockRejectedValue(new AuthenticationError('Invalid or missing API key'))
 
       const request = makeRequest('DELETE', '/api/v1/entrepots/1')
-      const response = await deleteWarehouseHandler(request)
+      const response = await deleteWarehouseHandler(request, 1)
 
       expect(response.status).toBe(401)
     })
@@ -388,7 +388,7 @@ describe('Entrepot API Handlers', () => {
       mockEntrepotUpdate.mockResolvedValue({ ...mockEntrepot, est_actif: false })
 
       const request = makeRequest('DELETE', '/api/v1/entrepots/1')
-      const response = await deleteWarehouseHandler(request)
+      const response = await deleteWarehouseHandler(request, 1)
 
       expect(response.status).toBe(204)
       expect(mockEntrepotUpdate).toHaveBeenCalledWith(
@@ -404,7 +404,7 @@ describe('Entrepot API Handlers', () => {
       mockEntrepotFindUnique.mockResolvedValue(null)
 
       const request = makeRequest('DELETE', '/api/v1/entrepots/999')
-      const response = await deleteWarehouseHandler(request)
+      const response = await deleteWarehouseHandler(request, 999)
 
       expect(response.status).toBe(404)
     })
@@ -418,7 +418,7 @@ describe('Entrepot API Handlers', () => {
       mockNiveauStockCount.mockResolvedValue(1)
 
       const request = makeRequest('GET', '/api/v1/entrepots/1/stock-levels')
-      const response = await getWarehouseStockLevelsHandler(request)
+      const response = await getWarehouseStockLevelsHandler(request, 1)
 
       expect(response.status).toBe(200)
       const data = await response.json()
@@ -431,7 +431,7 @@ describe('Entrepot API Handlers', () => {
       mockEntrepotFindUnique.mockResolvedValue(null)
 
       const request = makeRequest('GET', '/api/v1/entrepots/999/stock-levels')
-      const response = await getWarehouseStockLevelsHandler(request)
+      const response = await getWarehouseStockLevelsHandler(request, 999)
 
       expect(response.status).toBe(404)
     })

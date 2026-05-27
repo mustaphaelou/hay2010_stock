@@ -217,7 +217,7 @@ describe('CategorieProduit API Handlers', () => {
       mockRequireApiKey.mockRejectedValue(new AuthenticationError('Invalid or missing API key'))
 
       const request = makeRequest('GET', '/api/v1/categories-produits/1')
-      const response = await getCategoryByIdHandler(request)
+      const response = await getCategoryByIdHandler(request, 1)
 
       expect(response.status).toBe(401)
     })
@@ -227,7 +227,7 @@ describe('CategorieProduit API Handlers', () => {
       mockCategorieFindUnique.mockResolvedValue(mockCategory)
 
       const request = makeRequest('GET', '/api/v1/categories-produits/1')
-      const response = await getCategoryByIdHandler(request)
+      const response = await getCategoryByIdHandler(request, 1)
 
       expect(response.status).toBe(200)
       const data = await response.json()
@@ -240,7 +240,7 @@ describe('CategorieProduit API Handlers', () => {
       mockCategorieFindUnique.mockResolvedValue(null)
 
       const request = makeRequest('GET', '/api/v1/categories-produits/999')
-      const response = await getCategoryByIdHandler(request)
+      const response = await getCategoryByIdHandler(request, 999)
 
       expect(response.status).toBe(404)
     })
@@ -249,7 +249,7 @@ describe('CategorieProduit API Handlers', () => {
       mockRequireApiKey.mockResolvedValue(API_USER)
 
       const request = makeRequest('GET', '/api/v1/categories-produits/abc')
-      const response = await getCategoryByIdHandler(request)
+      const response = await getCategoryByIdHandler(request, NaN)
 
       expect(response.status).toBe(400)
     })
@@ -320,7 +320,7 @@ describe('CategorieProduit API Handlers', () => {
       mockRequireApiKey.mockRejectedValue(new AuthenticationError('Invalid or missing API key'))
 
       const request = makeRequest('PUT', '/api/v1/categories-produits/1', updateBody)
-      const response = await updateCategoryHandler(request)
+      const response = await updateCategoryHandler(request, 1)
 
       expect(response.status).toBe(401)
     })
@@ -331,7 +331,7 @@ describe('CategorieProduit API Handlers', () => {
       mockCategorieUpdate.mockResolvedValue({ ...mockCategory, nom_categorie: 'Updated Category' })
 
       const request = makeRequest('PUT', '/api/v1/categories-produits/1', updateBody)
-      const response = await updateCategoryHandler(request)
+      const response = await updateCategoryHandler(request, 1)
 
       expect(response.status).toBe(200)
       const data = await response.json()
@@ -351,7 +351,7 @@ describe('CategorieProduit API Handlers', () => {
       mockCategorieFindUnique.mockResolvedValue(null)
 
       const request = makeRequest('PUT', '/api/v1/categories-produits/999', updateBody)
-      const response = await updateCategoryHandler(request)
+      const response = await updateCategoryHandler(request, 999)
 
       expect(response.status).toBe(404)
     })
@@ -363,7 +363,7 @@ describe('CategorieProduit API Handlers', () => {
         .mockResolvedValueOnce({ ...mockCategory, id_categorie: 2 })
 
       const request = makeRequest('PUT', '/api/v1/categories-produits/1', { code_categorie: 'CAT-999' })
-      const response = await updateCategoryHandler(request)
+      const response = await updateCategoryHandler(request, 1)
 
       expect(response.status).toBe(409)
     })
@@ -373,7 +373,7 @@ describe('CategorieProduit API Handlers', () => {
       mockCategorieFindUnique.mockResolvedValue(mockCategory)
 
       const request = makeRequest('PUT', '/api/v1/categories-produits/1', { id_categorie_parent: 1 })
-      const response = await updateCategoryHandler(request)
+      const response = await updateCategoryHandler(request, 1)
 
       expect(response.status).toBe(400)
     })
@@ -384,7 +384,7 @@ describe('CategorieProduit API Handlers', () => {
       mockRequireApiKey.mockRejectedValue(new AuthenticationError('Invalid or missing API key'))
 
       const request = makeRequest('DELETE', '/api/v1/categories-produits/1')
-      const response = await deleteCategoryHandler(request)
+      const response = await deleteCategoryHandler(request, 1)
 
       expect(response.status).toBe(401)
     })
@@ -396,7 +396,7 @@ describe('CategorieProduit API Handlers', () => {
       mockCategorieDelete.mockResolvedValue(mockCategory)
 
       const request = makeRequest('DELETE', '/api/v1/categories-produits/1')
-      const response = await deleteCategoryHandler(request)
+      const response = await deleteCategoryHandler(request, 1)
 
       expect(response.status).toBe(204)
       expect(mockCategorieDelete).toHaveBeenCalledWith(
@@ -410,7 +410,7 @@ describe('CategorieProduit API Handlers', () => {
       mockCategorieCount.mockResolvedValue(3)
 
       const request = makeRequest('DELETE', '/api/v1/categories-produits/1')
-      const response = await deleteCategoryHandler(request)
+      const response = await deleteCategoryHandler(request, 1)
 
       expect(response.status).toBe(409)
     })
@@ -420,7 +420,7 @@ describe('CategorieProduit API Handlers', () => {
       mockCategorieFindUnique.mockResolvedValue(null)
 
       const request = makeRequest('DELETE', '/api/v1/categories-produits/999')
-      const response = await deleteCategoryHandler(request)
+      const response = await deleteCategoryHandler(request, 999)
 
       expect(response.status).toBe(404)
     })
@@ -434,7 +434,7 @@ describe('CategorieProduit API Handlers', () => {
       mockCategorieCount.mockResolvedValue(1)
 
       const request = makeRequest('GET', '/api/v1/categories-produits/1/enfants')
-      const response = await getCategoryChildrenHandler(request)
+      const response = await getCategoryChildrenHandler(request, 1)
 
       expect(response.status).toBe(200)
       const data = await response.json()
@@ -447,7 +447,7 @@ describe('CategorieProduit API Handlers', () => {
       mockCategorieFindUnique.mockResolvedValue(null)
 
       const request = makeRequest('GET', '/api/v1/categories-produits/999/enfants')
-      const response = await getCategoryChildrenHandler(request)
+      const response = await getCategoryChildrenHandler(request, 999)
 
       expect(response.status).toBe(404)
     })
@@ -456,7 +456,7 @@ describe('CategorieProduit API Handlers', () => {
       mockRequireApiKey.mockRejectedValue(new AuthenticationError('Invalid or missing API key'))
 
       const request = makeRequest('GET', '/api/v1/categories-produits/1/enfants')
-      const response = await getCategoryChildrenHandler(request)
+      const response = await getCategoryChildrenHandler(request, 1)
 
       expect(response.status).toBe(401)
     })
@@ -470,7 +470,7 @@ describe('CategorieProduit API Handlers', () => {
       mockProduitCount.mockResolvedValue(1)
 
       const request = makeRequest('GET', '/api/v1/categories-produits/1/produits')
-      const response = await getCategoryProductsHandler(request)
+      const response = await getCategoryProductsHandler(request, 1)
 
       expect(response.status).toBe(200)
       const data = await response.json()
@@ -483,7 +483,7 @@ describe('CategorieProduit API Handlers', () => {
       mockCategorieFindUnique.mockResolvedValue(null)
 
       const request = makeRequest('GET', '/api/v1/categories-produits/999/produits')
-      const response = await getCategoryProductsHandler(request)
+      const response = await getCategoryProductsHandler(request, 999)
 
       expect(response.status).toBe(404)
     })
@@ -492,7 +492,7 @@ describe('CategorieProduit API Handlers', () => {
       mockRequireApiKey.mockRejectedValue(new AuthenticationError('Invalid or missing API key'))
 
       const request = makeRequest('GET', '/api/v1/categories-produits/1/produits')
-      const response = await getCategoryProductsHandler(request)
+      const response = await getCategoryProductsHandler(request, 1)
 
       expect(response.status).toBe(401)
     })

@@ -7,9 +7,9 @@ export function handleServiceError(result: { error?: string }): void {
 
   if (msg.includes('introuvable') || msg.includes('est introuvable'))
     throw new NotFoundError(msg)
-  if (msg.includes('existe déjà'))
+  if (msg.includes('existe déjà') || msg.includes('catégories enfants'))
     throw new ConflictError(msg)
-  if (msg.includes('requis') || msg.includes('invalide'))
+  if (msg.includes('requis') || msg.includes('invalide') || msg.includes('Validation échouée'))
     throw new ValidationError(msg)
 
   throw new BusinessError(msg)

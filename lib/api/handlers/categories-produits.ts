@@ -1,125 +1,54 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { z } from 'zod'
-import { prisma } from '@/lib/db/prisma'
 import { requireApiKey } from '@/lib/api/auth'
 import { apiSuccess, apiPaginated, apiCreated, apiNoContent, apiError } from '@/lib/api/response'
-import { ValidationError, NotFoundError, ConflictError } from '@/lib/errors'
-import { createValidationErrorFromZod } from '@/lib/errors'
-import { paginationSchema } from '@/lib/pagination'
-import { Prisma } from '@/lib/generated/prisma/client'
+import { handleServiceError } from '@/lib/api/service-error'
+import { ValidationError } from '@/lib/errors'
+import {
+  listCategories,
+  getCategoryById,
+  createCategory,
+  updateCategory,
+  deleteCategory,
+  getCategoryChildren,
+  getCategoryProducts,
+} from '@/lib/categories/categorie-produit-service'
 import { executeWrite } from '@/lib/actions/execute-write'
-
-const categoryCreateSchema = z.object({
-  code_categorie: z.string().min(1).max(50),
-  nom_categorie: z.string().min(1).max(255),
-  id_categorie_parent: z.number().int().positive().nullable().optional(),
-  description_categorie: z.string().nullable().optional(),
-  est_actif: z.boolean().default(true).optional(),
-})
-
-const categoryUpdateSchema = categoryCreateSchema.partial()
-
-const ALLOWED_SORT_FIELDS = [
-  'id_categorie',
-  'code_categorie',
-  'nom_categorie',
-  'date_creation',
-  'date_modification',
-] as const
-
-type AllowedSortField = (typeof ALLOWED_SORT_FIELDS)[number]
-
-function extractIdFromUrl(request: NextRequest): number {
-  const segments = request.nextUrl.pathname.split('/')
-  const lastSegment = segments[segments.length - 1]
-  const id = parseInt(lastSegment, 10)
-  if (isNaN(id)) {
-    throw new ValidationError('Invalid category ID')
-  }
-  return id
-}
-
-function parsePagination(request: NextRequest) {
-  const url = request.nextUrl
-  const page = parseInt(url.searchParams.get('page') || '1', 10)
-  const limit = parseInt(url.searchParams.get('limit') || '50', 10)
-  const parsed = paginationSchema.safeParse({ page, limit })
-  if (!parsed.success) {
-    throw createValidationErrorFromZod(parsed.error)
-  }
-  return parsed.data
-}
 
 export async function listCategoriesHandler(request: NextRequest): Promise<NextResponse> {
   try {
     await requireApiKey(request)
 
-    const { page, limit } = parsePagination(request)
     const url = request.nextUrl
+    const page = parseInt(url.searchParams.get('page') || '1', 10)
+    const limit = parseInt(url.searchParams.get('limit') || '50', 10)
     const search = url.searchParams.get('search') || undefined
     const parent = url.searchParams.get('parent') || undefined
-    const sortParam = url.searchParams.get('sort') || 'nom_categorie'
-    const orderParam = (url.searchParams.get('order') || 'asc').toLowerCase()
+    const sort = url.searchParams.get('sort') || undefined
+    const order = (url.searchParams.get('order') || 'asc').toLowerCase() === 'desc' ? 'desc' as const : 'asc' as const
 
-    const sort = ALLOWED_SORT_FIELDS.includes(sortParam as AllowedSortField)
-      ? (sortParam as AllowedSortField)
-      : 'nom_categorie'
-    const order = orderParam === 'desc' ? ('desc' as const) : ('asc' as const)
+    const result = await listCategories(page, limit, search, parent, sort, order)
 
-    const skip = (page - 1) * limit
+    handleServiceError(result)
 
-    const where: Prisma.CategorieProduitWhereInput = {}
-    if (parent === 'null') {
-      where.id_categorie_parent = null
-    } else if (parent) {
-      where.id_categorie_parent = parseInt(parent, 10) || undefined
-    }
-    if (search) {
-      where.OR = [
-        { nom_categorie: { contains: search, mode: 'insensitive' } },
-        { code_categorie: { contains: search, mode: 'insensitive' } },
-      ]
-    }
-
-    const [categories, total] = await Promise.all([
-      prisma.categorieProduit.findMany({
-        skip,
-        take: limit,
-        where,
-        orderBy: { [sort]: order },
-      }),
-      prisma.categorieProduit.count({ where }),
-    ])
-
-    const totalPages = Math.ceil(total / limit)
-
-    return apiPaginated(categories, {
-      page,
-      limit,
-      total,
-      totalPages,
-      hasMore: page < totalPages,
-    })
+    return apiPaginated(result.data, result.meta)
   } catch (error) {
     return apiError(error)
   }
 }
 
-export async function getCategoryByIdHandler(request: NextRequest): Promise<NextResponse> {
+export async function getCategoryByIdHandler(request: NextRequest, id: number): Promise<NextResponse> {
   try {
     await requireApiKey(request)
 
-    const id = extractIdFromUrl(request)
-
-    const category = await prisma.categorieProduit.findUnique({
-      where: { id_categorie: id },
-    })
-
-    if (!category) {
-      throw new NotFoundError('Category')
+    if (isNaN(id)) {
+      throw new ValidationError('ID catégorie invalide')
     }
 
-    return apiSuccess(category)
+    const result = await getCategoryById(id)
+
+    handleServiceError(result)
+
+    return apiSuccess(result.data!)
   } catch (error) {
     return apiError(error)
   }
@@ -130,137 +59,58 @@ export async function createCategoryHandler(request: NextRequest): Promise<NextR
     const apiUser = await requireApiKey(request)
 
     const body = await request.json()
-    const parsed = categoryCreateSchema.safeParse(body)
-    if (!parsed.success) {
-      throw createValidationErrorFromZod(parsed.error)
-    }
-
     const result = await executeWrite({
       user: { id: apiUser.userId, email: '', name: '', role: apiUser.role },
-      writeFn: async () => {
-        const existing = await prisma.categorieProduit.findUnique({
-          where: { code_categorie: parsed.data.code_categorie },
-        })
-        if (existing) {
-          return { error: `Category with code ${parsed.data.code_categorie} already exists` }
-        }
-
-        const category = await prisma.categorieProduit.create({
-          data: parsed.data,
-        })
-        return { data: category }
-      },
+      writeFn: () => createCategory(body),
       invalidations: [{ kind: 'category' }],
     })
 
-    if (result.error) {
-      throw new ConflictError(result.error)
-    }
+    handleServiceError(result)
 
-    return apiCreated(result.data)
+    return apiCreated(result.data!)
   } catch (error) {
     return apiError(error)
   }
 }
 
-export async function updateCategoryHandler(request: NextRequest): Promise<NextResponse> {
+export async function updateCategoryHandler(request: NextRequest, id: number): Promise<NextResponse> {
   try {
     const apiUser = await requireApiKey(request)
 
-    const id = extractIdFromUrl(request)
+    if (isNaN(id)) {
+      throw new ValidationError('ID catégorie invalide')
+    }
 
     const body = await request.json()
-    const parsed = categoryUpdateSchema.safeParse(body)
-    if (!parsed.success) {
-      throw createValidationErrorFromZod(parsed.error)
-    }
-
     const result = await executeWrite({
       user: { id: apiUser.userId, email: '', name: '', role: apiUser.role },
-      writeFn: async () => {
-        const existing = await prisma.categorieProduit.findUnique({
-          where: { id_categorie: id },
-        })
-        if (!existing) {
-          return { error: 'Category not found' }
-        }
-
-        if (parsed.data.code_categorie && parsed.data.code_categorie !== existing.code_categorie) {
-          const duplicate = await prisma.categorieProduit.findUnique({
-            where: { code_categorie: parsed.data.code_categorie },
-          })
-          if (duplicate) {
-            return { error: `Category with code ${parsed.data.code_categorie} already exists` }
-          }
-        }
-
-        if (parsed.data.id_categorie_parent !== undefined && parsed.data.id_categorie_parent === id) {
-          return { error: 'A category cannot be its own parent' }
-        }
-
-        const category = await prisma.categorieProduit.update({
-          where: { id_categorie: id },
-          data: parsed.data,
-        })
-        return { data: category }
-      },
+      writeFn: () => updateCategory(id, body),
       invalidations: [{ kind: 'category', categoryId: id }],
     })
 
-    if (result.error) {
-      if (result.error.includes('not found')) {
-        throw new NotFoundError(result.error)
-      }
-      if (result.error.includes('cannot be its own parent')) {
-        throw new ValidationError(result.error)
-      }
-      throw new ConflictError(result.error)
-    }
+    handleServiceError(result)
 
-    return apiSuccess(result.data)
+    return apiSuccess(result.data!)
   } catch (error) {
     return apiError(error)
   }
 }
 
-export async function deleteCategoryHandler(request: NextRequest): Promise<NextResponse> {
+export async function deleteCategoryHandler(request: NextRequest, id: number): Promise<NextResponse> {
   try {
     const apiUser = await requireApiKey(request)
 
-    const id = extractIdFromUrl(request)
+    if (isNaN(id)) {
+      throw new ValidationError('ID catégorie invalide')
+    }
 
     const result = await executeWrite({
       user: { id: apiUser.userId, email: '', name: '', role: apiUser.role },
-      writeFn: async () => {
-        const existing = await prisma.categorieProduit.findUnique({
-          where: { id_categorie: id },
-        })
-        if (!existing) {
-          return { error: 'Category not found' }
-        }
-
-        const childCount = await prisma.categorieProduit.count({
-          where: { id_categorie_parent: id },
-        })
-        if (childCount > 0) {
-          return { error: 'Cannot delete a category that has child categories' }
-        }
-
-        await prisma.categorieProduit.delete({
-          where: { id_categorie: id },
-        })
-
-        return { data: { success: true } }
-      },
+      writeFn: () => deleteCategory(id),
       invalidations: [{ kind: 'category', categoryId: id }],
     })
 
-    if (result.error) {
-      if (result.error.includes('not found')) {
-        throw new NotFoundError(result.error)
-      }
-      throw new ConflictError(result.error)
-    }
+    handleServiceError(result)
 
     return apiNoContent()
   } catch (error) {
@@ -268,91 +118,45 @@ export async function deleteCategoryHandler(request: NextRequest): Promise<NextR
   }
 }
 
-export async function getCategoryChildrenHandler(request: NextRequest): Promise<NextResponse> {
+export async function getCategoryChildrenHandler(request: NextRequest, id: number): Promise<NextResponse> {
   try {
     await requireApiKey(request)
 
-    const segments = request.nextUrl.pathname.split('/')
-    const idSegment = segments[segments.length - 2] ?? ''
-    const categoryId = parseInt(idSegment, 10)
-    if (isNaN(categoryId)) {
-      throw new ValidationError('Invalid category ID')
+    if (isNaN(id)) {
+      throw new ValidationError('ID catégorie invalide')
     }
 
-    const category = await prisma.categorieProduit.findUnique({
-      where: { id_categorie: categoryId },
-    })
-    if (!category) {
-      throw new NotFoundError('Category')
-    }
+    const url = request.nextUrl
+    const page = parseInt(url.searchParams.get('page') || '1', 10)
+    const limit = parseInt(url.searchParams.get('limit') || '50', 10)
 
-    const { page, limit } = parsePagination(request)
-    const skip = (page - 1) * limit
+    const result = await getCategoryChildren(id, page, limit)
 
-    const [children, total] = await Promise.all([
-      prisma.categorieProduit.findMany({
-        where: { id_categorie_parent: categoryId },
-        skip,
-        take: limit,
-        orderBy: { nom_categorie: 'asc' },
-      }),
-      prisma.categorieProduit.count({ where: { id_categorie_parent: categoryId } }),
-    ])
+    handleServiceError(result)
 
-    const totalPages = Math.ceil(total / limit)
-
-    return apiPaginated(children, {
-      page,
-      limit,
-      total,
-      totalPages,
-      hasMore: page < totalPages,
-    })
+    return apiPaginated(result.data, result.meta)
   } catch (error) {
     return apiError(error)
   }
 }
 
-export async function getCategoryProductsHandler(request: NextRequest): Promise<NextResponse> {
+export async function getCategoryProductsHandler(request: NextRequest, id: number): Promise<NextResponse> {
   try {
     await requireApiKey(request)
 
-    const segments = request.nextUrl.pathname.split('/')
-    const idSegment = segments[segments.length - 2] ?? ''
-    const categoryId = parseInt(idSegment, 10)
-    if (isNaN(categoryId)) {
-      throw new ValidationError('Invalid category ID')
+    if (isNaN(id)) {
+      throw new ValidationError('ID catégorie invalide')
     }
 
-    const category = await prisma.categorieProduit.findUnique({
-      where: { id_categorie: categoryId },
-    })
-    if (!category) {
-      throw new NotFoundError('Category')
-    }
+    const url = request.nextUrl
+    const page = parseInt(url.searchParams.get('page') || '1', 10)
+    const limit = parseInt(url.searchParams.get('limit') || '50', 10)
 
-    const { page, limit } = parsePagination(request)
-    const skip = (page - 1) * limit
+    const result = await getCategoryProducts(id, page, limit)
 
-    const [products, total] = await Promise.all([
-      prisma.produit.findMany({
-        where: { id_categorie: categoryId },
-        skip,
-        take: limit,
-        orderBy: { nom_produit: 'asc' },
-      }),
-      prisma.produit.count({ where: { id_categorie: categoryId } }),
-    ])
+    handleServiceError(result)
 
-    const totalPages = Math.ceil(total / limit)
-
-    return apiPaginated(products, {
-      page,
-      limit,
-      total,
-      totalPages,
-      hasMore: page < totalPages,
-    })
+    return apiPaginated(result.data, result.meta)
   } catch (error) {
     return apiError(error)
   }
