@@ -212,6 +212,9 @@ export async function updateWarehouseHandler(request: NextRequest): Promise<Next
     })
 
     if (result.error) {
+      if (result.error.includes('already exists')) {
+        throw new ConflictError(result.error)
+      }
       throw new NotFoundError(result.error)
     }
 

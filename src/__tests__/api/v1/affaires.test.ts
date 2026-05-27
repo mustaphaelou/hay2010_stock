@@ -30,6 +30,11 @@ vi.mock('@/lib/affaires/affaire-service', () => ({
   getAffaireDocumentsById: mockGetAffaireDocumentsById,
 }))
 
+vi.mock('next/server', async (importOriginal) => {
+  const mod = await importOriginal<typeof import('next/server')>()
+  return { ...mod, after: vi.fn((fn: () => void | Promise<void>) => fn()) }
+})
+
 vi.mock('@/lib/api/service-error', async () => {
   const errors = await vi.importActual<typeof import('@/lib/errors')>('@/lib/errors')
   return {

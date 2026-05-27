@@ -31,6 +31,11 @@ const {
   mockDeleteStockLevel: vi.fn(),
 }))
 
+vi.mock('next/server', async (importOriginal) => {
+  const mod = await importOriginal<typeof import('next/server')>()
+  return { ...mod, after: vi.fn((fn: () => void | Promise<void>) => fn()) }
+})
+
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
     niveauStock: {

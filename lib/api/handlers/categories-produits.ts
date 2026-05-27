@@ -211,6 +211,9 @@ export async function updateCategoryHandler(request: NextRequest): Promise<NextR
       if (result.error.includes('not found')) {
         throw new NotFoundError(result.error)
       }
+      if (result.error.includes('cannot be its own parent')) {
+        throw new ValidationError(result.error)
+      }
       throw new ConflictError(result.error)
     }
 
