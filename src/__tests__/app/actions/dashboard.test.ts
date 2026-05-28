@@ -4,9 +4,9 @@ const { mockRequireAuth } = vi.hoisted(() => ({
   mockRequireAuth: vi.fn().mockResolvedValue({ id: 'user-1', email: 'admin@test.com', name: 'Admin', role: 'ADMIN' }),
 }))
 
-const { mockVersionedCacheGet, mockVersionedCacheSet } = vi.hoisted(() => ({
-  mockVersionedCacheGet: vi.fn().mockResolvedValue(null),
-  mockVersionedCacheSet: vi.fn().mockResolvedValue(true),
+const { mockCacheGet, mockCacheSet } = vi.hoisted(() => ({
+  mockCacheGet: vi.fn().mockResolvedValue(null),
+  mockCacheSet: vi.fn().mockResolvedValue(true),
 }))
 
 const { mockPrismaQueryRaw } = vi.hoisted(() => ({
@@ -23,13 +23,11 @@ vi.mock('@/lib/auth/user-utils', () => ({
   requireAuth: mockRequireAuth,
 }))
 
-vi.mock('@/lib/cache/versioned', () => ({
-  VersionedCacheService: {
-    get: mockVersionedCacheGet,
-    set: mockVersionedCacheSet,
-  },
-  CacheNamespaces: { PRODUCT: 'product', STOCK: 'stock', PARTNER: 'partner', DOCUMENT: 'document', USER: 'user', DASHBOARD: 'dashboard' },
-  CacheTTLSeconds: { PRODUCT: 900, STOCK: 60, PARTNER: 3600, DOCUMENT: 300, USER: 3600, DASHBOARD: 30 },
+vi.mock('@/lib/cache/adapter', () => ({
+  getAdapter: () => ({
+    get: mockCacheGet,
+    set: mockCacheSet,
+  }),
 }))
 
 vi.mock('@/lib/logger', () => ({
@@ -47,8 +45,8 @@ describe('Dashboard Actions', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockRequireAuth.mockResolvedValue({ id: 'user-1', email: 'admin@test.com', name: 'Admin', role: 'ADMIN' })
-    mockVersionedCacheGet.mockResolvedValue(null)
-    mockVersionedCacheSet.mockResolvedValue(true)
+    mockCacheGet.mockResolvedValue(null)
+    mockCacheSet.mockResolvedValue(true)
   })
 
   describe('getDashboardStats', () => {
@@ -67,7 +65,7 @@ describe('Dashboard Actions', () => {
           monthlyData: [],
         },
       }
-      mockVersionedCacheGet.mockResolvedValue(cached.data)
+      mockCacheGet.mockResolvedValue(cached.data)
 
       const result = await getDashboardStats()
 
@@ -110,7 +108,7 @@ describe('Dashboard Actions', () => {
       expect(result.data?.recentDocs).toEqual([])
       expect(result.data?.salesInvoices).toEqual([])
       expect(result.error).toBeUndefined()
-      expect(mockVersionedCacheSet).toHaveBeenCalled()
+      expect(mockCacheSet).toHaveBeenCalled()
     })
 
     it('should return { data, error } on DB error', async () => {

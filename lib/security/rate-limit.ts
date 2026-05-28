@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { redis, CacheKeys } from '@/lib/db/redis'
+import { redis } from '@/lib/db/redis'
 import { createLogger } from '@/lib/logger'
 
 const log = createLogger('rate-limit')
@@ -73,7 +73,7 @@ interface RateLimitResult {
 
 function buildKey(keyId: string, tier: RateLimitTier, window: number): string {
   const slot = Math.floor(Date.now() / (window * 1000))
-  return `${CacheKeys.RATE_LIMIT}api:${keyId}:${tier}:${slot}`
+  return `ratelimit:api:${keyId}:${tier}:${slot}`
 }
 
 function buildHeaders(limit: number, remaining: number, reset: number): Record<string, string> {

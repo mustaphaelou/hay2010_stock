@@ -1,0 +1,8 @@
+# 0002 — Unified cache interface
+
+Replace the two incompatible cache modules (`CacheService` in `lib/db/redis.ts` and `VersionedCacheService` in `lib/cache/versioned.ts`) with a single `CacheAdapter` interface at `lib/cache/cache.ts`. The interface has 7 methods covering both data caching (versioned, namespace-scoped, TTL-managed) and distributed locking (flat, unversioned, transient). Two adapters implement it: `RedisCacheAdapter` (production) and `MemoryCacheAdapter` (tests). Version management (`CacheVersionService`) is internal to the Redis adapter — callers don't know about version counters. `CacheService`'s unused methods (sorted sets, pub/sub, increment, write-through, deletePattern) are dropped. The `CacheNamespaces` and `CacheTTLSeconds` constants move from `versioned.ts` to `cache.ts`. The cache singleton is wired via a module-level adapter factory (`lib/cache/adapter.ts`), not DI — tests substitute it with `vi.mock`. Error handling degrades gracefully (same behaviour as today).
+
+## Considered Options
+
+- **Minimal interface (Design A):** 3 methods (`getOrSet`, `invalidate`, `withLock`). Rejected because `withLock` throws `LockError` on contention, leaking into business error handling — stock-service would need `try/catch LockError` on every lock call, worse than today's `if (!token) return`.
+- **Separated seams (Design C):** Two interfaces (`DataCache` + `Lock`). Rejected because the lock seam is too thin (3 call sites in one file) to earn its keep — the added complexity of 4 adapter files and two mock surfaces isn't offset by the benefit to the 2 callers that use only data caching.

@@ -20,11 +20,16 @@ vi.mock('@/lib/db/prisma', () => ({
   withTransaction: vi.fn(),
 }))
 
-vi.mock('@/lib/db/redis', () => ({
-  CacheService: {
-    acquireLock: vi.fn(),
-    releaseLock: vi.fn(),
-  },
+const { mockAdapterAcquireLock, mockAdapterReleaseLock } = vi.hoisted(() => ({
+  mockAdapterAcquireLock: vi.fn(),
+  mockAdapterReleaseLock: vi.fn(),
+}))
+
+vi.mock('@/lib/cache/adapter', () => ({
+  getAdapter: () => ({
+    acquireLock: mockAdapterAcquireLock,
+    releaseLock: mockAdapterReleaseLock,
+  }),
 }))
 
 vi.mock('@/lib/actions/server-action-write', () => ({

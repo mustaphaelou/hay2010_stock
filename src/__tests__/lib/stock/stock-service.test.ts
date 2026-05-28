@@ -1,7 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 
-const { mockCacheInvalidateStock } = vi.hoisted(() => ({
+const { mockCacheInvalidateStock, mockAdapterAcquireLock, mockAdapterReleaseLock } = vi.hoisted(() => ({
   mockCacheInvalidateStock: vi.fn(),
+  mockAdapterAcquireLock: vi.fn(),
+  mockAdapterReleaseLock: vi.fn(),
 }))
 
 vi.mock('@/lib/db/prisma', () => ({
@@ -22,11 +24,16 @@ vi.mock('@/lib/db/prisma', () => ({
   withTransaction: vi.fn(),
 }))
 
-vi.mock('@/lib/db/redis', () => ({
-  CacheService: {
-    acquireLock: vi.fn(),
-    releaseLock: vi.fn(),
-  },
+vi.mock('@/lib/cache/adapter', () => ({
+  getAdapter: () => ({
+    acquireLock: mockAdapterAcquireLock,
+    releaseLock: mockAdapterReleaseLock,
+    get: vi.fn().mockResolvedValue(null),
+    set: vi.fn(),
+    delete: vi.fn(),
+    invalidateNamespace: vi.fn(),
+    getOrSet: vi.fn(),
+  }),
 }))
 
 vi.mock('@/lib/cache/invalidation', () => ({
@@ -34,15 +41,6 @@ vi.mock('@/lib/cache/invalidation', () => ({
     invalidateStock: mockCacheInvalidateStock,
     invalidateProduct: vi.fn(),
   },
-}))
-
-vi.mock('@/lib/cache/versioned', () => ({
-  VersionedCacheService: {
-    get: vi.fn().mockResolvedValue(null),
-    set: vi.fn(),
-  },
-  CacheNamespaces: { PRODUCT: 'product', STOCK: 'stock' },
-  CacheTTLSeconds: { PRODUCT: 300, STOCK: 600 },
 }))
 
 vi.mock('@/lib/logger', () => ({
@@ -56,7 +54,6 @@ vi.mock('@/lib/logger', () => ({
 
 import { createStockLevel, adjustStockLevel, deleteStockLevel } from '@/lib/stock/stock-service'
 import { prisma, withTransaction } from '@/lib/db/prisma'
-import { CacheService } from '@/lib/db/redis'
 
 describe('createStockLevel', () => {
   beforeEach(() => {
@@ -156,7 +153,7 @@ describe('adjustStockLevel', () => {
   })
 
   it('should increase stock when delta > 0 and create two INVENTAIRE movements', async () => {
-    (CacheService.acquireLock as ReturnType<typeof vi.fn>).mockResolvedValue('lock-token')
+    mockAdapterAcquireLock.mockResolvedValue('lock-token')
     ;(prisma.niveauStock.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue({
       id_stock: 10,
       id_produit: 1,
@@ -197,11 +194,11 @@ describe('adjustStockLevel', () => {
         }),
       })
     )
-    expect(CacheService.releaseLock).toHaveBeenCalled()
+    expect(mockAdapterReleaseLock).toHaveBeenCalled()
   })
 
   it('should decrease stock when delta < 0 and create two INVENTAIRE movements', async () => {
-    (CacheService.acquireLock as ReturnType<typeof vi.fn>).mockResolvedValue('lock-token')
+    mockAdapterAcquireLock.mockResolvedValue('lock-token')
     ;(prisma.niveauStock.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue({
       id_stock: 10,
       id_produit: 1,
@@ -234,7 +231,7 @@ describe('adjustStockLevel', () => {
   })
 
   it('should be idempotent when delta is 0', async () => {
-    (CacheService.acquireLock as ReturnType<typeof vi.fn>).mockResolvedValue('lock-token')
+    mockAdapterAcquireLock.mockResolvedValue('lock-token')
     ;(prisma.niveauStock.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue({
       id_stock: 10,
       id_produit: 1,
@@ -261,7 +258,7 @@ describe('adjustStockLevel', () => {
   })
 
   it('should find-or-create NiveauStock when missing', async () => {
-    (CacheService.acquireLock as ReturnType<typeof vi.fn>).mockResolvedValue('lock-token')
+    mockAdapterAcquireLock.mockResolvedValue('lock-token')
     ;(prisma.niveauStock.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(null)
     ;(prisma.niveauStock.create as ReturnType<typeof vi.fn>).mockResolvedValue({
       id_stock: 20,
@@ -311,7 +308,7 @@ describe('adjustStockLevel', () => {
   })
 
   it('should return error on lock contention', async () => {
-    (CacheService.acquireLock as ReturnType<typeof vi.fn>).mockResolvedValue(null)
+    mockAdapterAcquireLock.mockResolvedValue(null)
 
     const result = await adjustStockLevel(
       { productId: 1, warehouseId: 2, newQuantity: 10 },

@@ -12,14 +12,11 @@ const { mockProduitFindMany, mockProduitCount, mockProduitUpdate, mockPrismaTran
   mockPrismaQueryRaw: vi.fn(),
 }))
 
-const { mockVersionedCacheGet, mockVersionedCacheSet } = vi.hoisted(() => ({
-  mockVersionedCacheGet: vi.fn().mockResolvedValue(null),
-  mockVersionedCacheSet: vi.fn().mockResolvedValue(true),
-}))
-
-const { mockCacheServiceAcquireLock, mockCacheServiceReleaseLock } = vi.hoisted(() => ({
-  mockCacheServiceAcquireLock: vi.fn().mockResolvedValue('lock-token'),
-  mockCacheServiceReleaseLock: vi.fn().mockResolvedValue(undefined),
+const { mockCacheGet, mockCacheSet, mockAdapterAcquireLock, mockAdapterReleaseLock } = vi.hoisted(() => ({
+  mockCacheGet: vi.fn().mockResolvedValue(null),
+  mockCacheSet: vi.fn().mockResolvedValue(true),
+  mockAdapterAcquireLock: vi.fn().mockResolvedValue('lock-token'),
+  mockAdapterReleaseLock: vi.fn().mockResolvedValue(true),
 }))
 
 const { mockServerActionWrite } = vi.hoisted(() => ({
@@ -42,20 +39,16 @@ vi.mock('@/lib/auth/authorization', () => ({
   requirePermission: mockRequirePermission,
 }))
 
-vi.mock('@/lib/cache/versioned', () => ({
-  VersionedCacheService: {
-    get: mockVersionedCacheGet,
-    set: mockVersionedCacheSet,
-  },
-  CacheNamespaces: { PRODUCT: 'product', STOCK: 'stock', PARTNER: 'partner', DOCUMENT: 'document', USER: 'user', DASHBOARD: 'dashboard' },
-  CacheTTLSeconds: { PRODUCT: 900, STOCK: 60, PARTNER: 3600, DOCUMENT: 300, USER: 3600, DASHBOARD: 30 },
+vi.mock('@/lib/cache/adapter', () => ({
+  getAdapter: () => ({
+    get: mockCacheGet,
+    set: mockCacheSet,
+    acquireLock: mockAdapterAcquireLock,
+    releaseLock: mockAdapterReleaseLock,
+  }),
 }))
 
 vi.mock('@/lib/db/redis', () => ({
-  CacheService: {
-    acquireLock: mockCacheServiceAcquireLock,
-    releaseLock: mockCacheServiceReleaseLock,
-  },
   redis: { get: vi.fn(), set: vi.fn(), setex: vi.fn(), del: vi.fn(), incr: vi.fn(), expire: vi.fn() },
   redisSession: { get: vi.fn(), set: vi.fn(), setex: vi.fn(), del: vi.fn() },
   isRedisReady: vi.fn().mockReturnValue(true),
@@ -89,10 +82,10 @@ describe('Articles Actions', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockRequirePermission.mockResolvedValue({ id: 'user-1', email: 'admin@test.com', name: 'Admin', role: 'ADMIN' })
-    mockVersionedCacheGet.mockResolvedValue(null)
-    mockVersionedCacheSet.mockResolvedValue(true)
-    mockCacheServiceAcquireLock.mockResolvedValue('lock-token')
-    mockCacheServiceReleaseLock.mockResolvedValue(undefined)
+    mockCacheGet.mockResolvedValue(null)
+    mockCacheSet.mockResolvedValue(true)
+    mockAdapterAcquireLock.mockResolvedValue('lock-token')
+    mockAdapterReleaseLock.mockResolvedValue(true)
   })
 
   describe('getArticlesWithStock', () => {
@@ -107,7 +100,7 @@ describe('Articles Actions', () => {
 
     it('should return cached data when available', async () => {
       const cached = { data: [{ id_produit: 1, nom_produit: 'Test' }], meta: { total: 1, page: 1, limit: 50, totalPages: 1 } }
-      mockVersionedCacheGet.mockResolvedValue(cached)
+      mockCacheGet.mockResolvedValue(cached)
 
       const result = await getArticlesWithStock()
 
@@ -165,7 +158,7 @@ describe('Articles Actions', () => {
       expect(result.data).toHaveLength(1)
       expect(result.data[0].stock_global).toBe(50)
       expect(result.meta.total).toBe(1)
-      expect(mockVersionedCacheSet).toHaveBeenCalled()
+      expect(mockCacheSet).toHaveBeenCalled()
     })
 
     it('should cap limit at 100', async () => {

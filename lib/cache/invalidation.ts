@@ -1,4 +1,5 @@
-import { CacheVersionService, VersionedCacheService, CacheNamespaces, CacheTTLSeconds } from './versioned'
+import { CacheNamespaces } from './cache'
+import { getAdapter } from './adapter'
 import { createLogger } from '@/lib/logger'
 
 const log = createLogger('cache-invalidation')
@@ -55,8 +56,8 @@ export async function runInvalidations(invalidations: CacheInvalidation[]): Prom
 export class CacheInvalidationService {
   static async invalidateProduct(productId: number): Promise<void> {
     try {
-      await CacheVersionService.invalidateNamespace(CacheNamespaces.PRODUCT)
-      await CacheVersionService.invalidateNamespace(CacheNamespaces.STOCK)
+      await getAdapter().invalidateNamespace(CacheNamespaces.PRODUCT)
+      await getAdapter().invalidateNamespace(CacheNamespaces.STOCK)
       log.info({ productId }, 'Product cache invalidated')
     } catch (error) {
       log.error({ productId, error }, 'Failed to invalidate product')
@@ -65,7 +66,7 @@ export class CacheInvalidationService {
 
   static async invalidatePartner(partnerId: number): Promise<void> {
     try {
-      await CacheVersionService.invalidateNamespace(CacheNamespaces.PARTNER)
+      await getAdapter().invalidateNamespace(CacheNamespaces.PARTNER)
       log.info({ partnerId }, 'Partner cache invalidated')
     } catch (error) {
       log.error({ partnerId, error }, 'Failed to invalidate partner')
@@ -74,7 +75,7 @@ export class CacheInvalidationService {
 
   static async invalidateDocument(documentId: number): Promise<void> {
     try {
-      await CacheVersionService.invalidateNamespace(CacheNamespaces.DOCUMENT)
+      await getAdapter().invalidateNamespace(CacheNamespaces.DOCUMENT)
       log.info({ documentId }, 'Document cache invalidated')
     } catch (error) {
       log.error({ documentId, error }, 'Failed to invalidate document')
@@ -83,7 +84,7 @@ export class CacheInvalidationService {
 
   static async invalidateUser(userId: string): Promise<void> {
     try {
-      await VersionedCacheService.delete(CacheNamespaces.USER, userId)
+      await getAdapter().delete(CacheNamespaces.USER, userId)
       log.info({ userId }, 'User cache invalidated')
     } catch (error) {
       log.error({ userId, error }, 'Failed to invalidate user')
@@ -92,7 +93,7 @@ export class CacheInvalidationService {
 
   static async invalidateStock(productId: number, warehouseId: number): Promise<void> {
     try {
-      await CacheVersionService.invalidateNamespace(CacheNamespaces.STOCK)
+      await getAdapter().invalidateNamespace(CacheNamespaces.STOCK)
       log.info({ productId, warehouseId }, 'Stock cache invalidated')
     } catch (error) {
       log.error({ productId, warehouseId, error }, 'Failed to invalidate stock')
@@ -101,7 +102,7 @@ export class CacheInvalidationService {
 
   static async invalidateDashboard(): Promise<void> {
     try {
-      await CacheVersionService.invalidateNamespace(CacheNamespaces.DASHBOARD)
+      await getAdapter().invalidateNamespace(CacheNamespaces.DASHBOARD)
       log.info('Dashboard cache invalidated')
     } catch (error) {
       log.error({ error }, 'Failed to invalidate dashboard')
@@ -111,15 +112,15 @@ export class CacheInvalidationService {
   static async invalidateAll(): Promise<void> {
     try {
       await Promise.all([
-        CacheVersionService.invalidateNamespace(CacheNamespaces.PRODUCT),
-        CacheVersionService.invalidateNamespace(CacheNamespaces.STOCK),
-        CacheVersionService.invalidateNamespace(CacheNamespaces.PARTNER),
-        CacheVersionService.invalidateNamespace(CacheNamespaces.DOCUMENT),
-        CacheVersionService.invalidateNamespace(CacheNamespaces.USER),
-        CacheVersionService.invalidateNamespace(CacheNamespaces.DASHBOARD),
-        CacheVersionService.invalidateNamespace(CacheNamespaces.AFFAIRE),
-        CacheVersionService.invalidateNamespace(CacheNamespaces.WAREHOUSE),
-        CacheVersionService.invalidateNamespace(CacheNamespaces.CATEGORY),
+        getAdapter().invalidateNamespace(CacheNamespaces.PRODUCT),
+        getAdapter().invalidateNamespace(CacheNamespaces.STOCK),
+        getAdapter().invalidateNamespace(CacheNamespaces.PARTNER),
+        getAdapter().invalidateNamespace(CacheNamespaces.DOCUMENT),
+        getAdapter().invalidateNamespace(CacheNamespaces.USER),
+        getAdapter().invalidateNamespace(CacheNamespaces.DASHBOARD),
+        getAdapter().invalidateNamespace(CacheNamespaces.AFFAIRE),
+        getAdapter().invalidateNamespace(CacheNamespaces.WAREHOUSE),
+        getAdapter().invalidateNamespace(CacheNamespaces.CATEGORY),
       ])
       log.info('All caches invalidated')
     } catch (error) {
@@ -129,7 +130,7 @@ export class CacheInvalidationService {
 
   static async invalidateAffaire(affaireId: number): Promise<void> {
     try {
-      await CacheVersionService.invalidateNamespace(CacheNamespaces.AFFAIRE)
+      await getAdapter().invalidateNamespace(CacheNamespaces.AFFAIRE)
       log.info({ affaireId }, 'Affaire cache invalidated')
     } catch (error) {
       log.error({ affaireId, error }, 'Failed to invalidate affaire')
@@ -138,8 +139,8 @@ export class CacheInvalidationService {
 
   static async invalidateWarehouse(warehouseId: number): Promise<void> {
     try {
-      await CacheVersionService.invalidateNamespace(CacheNamespaces.WAREHOUSE)
-      await CacheVersionService.invalidateNamespace(CacheNamespaces.STOCK)
+      await getAdapter().invalidateNamespace(CacheNamespaces.WAREHOUSE)
+      await getAdapter().invalidateNamespace(CacheNamespaces.STOCK)
       log.info({ warehouseId }, 'Warehouse cache invalidated')
     } catch (error) {
       log.error({ warehouseId, error }, 'Failed to invalidate warehouse')
@@ -148,8 +149,8 @@ export class CacheInvalidationService {
 
   static async invalidateCategory(categoryId: number): Promise<void> {
     try {
-      await CacheVersionService.invalidateNamespace(CacheNamespaces.CATEGORY)
-      await CacheVersionService.invalidateNamespace(CacheNamespaces.PRODUCT)
+      await getAdapter().invalidateNamespace(CacheNamespaces.CATEGORY)
+      await getAdapter().invalidateNamespace(CacheNamespaces.PRODUCT)
       log.info({ categoryId }, 'Category cache invalidated')
     } catch (error) {
       log.error({ categoryId, error }, 'Failed to invalidate category')
@@ -157,16 +158,3 @@ export class CacheInvalidationService {
   }
 
 }
-
-export async function withCacheInvalidation<T>(
-  operation: () => Promise<T>,
-  invalidations: Array<() => Promise<void>>
-): Promise<T> {
-  const result = await operation()
-
-  await Promise.all(invalidations.map(fn => fn()))
-
-  return result
-}
-
-export { CacheNamespaces, CacheTTLSeconds, VersionedCacheService }

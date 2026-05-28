@@ -1,7 +1,7 @@
 import { prisma, withTransaction } from '@/lib/db/prisma'
 import { Prisma } from '@/lib/generated/prisma/client'
-import { CacheService } from '@/lib/db/redis'
-import { VersionedCacheService, CacheNamespaces, CacheTTLSeconds } from '@/lib/cache/versioned'
+import { getAdapter } from '@/lib/cache/adapter'
+import { CacheNamespaces, CacheTTLSeconds } from '@/lib/cache/cache'
 import { createLogger } from '@/lib/logger'
 import type { ArticleWithStock, StockLevelWithProduct, Depot } from '@/lib/types'
 import { getPaginationParams, buildPaginationMeta, createEmptyResult } from '@/lib/pagination'
@@ -49,7 +49,7 @@ export async function getArticlesWithStock(page: number = 1, limit: number = 50)
   const cacheKey = `list:${page}:${limit}`
 
   try {
-    const cached = await VersionedCacheService.get<PaginatedResult<ArticleWithStock>>(CacheNamespaces.PRODUCT, cacheKey)
+    const cached = await getAdapter().get<PaginatedResult<ArticleWithStock>>(CacheNamespaces.PRODUCT, cacheKey)
     if (cached) return cached
 
     const { skip, take } = getPaginationParams({ page, limit })
@@ -117,7 +117,7 @@ export async function getArticlesWithStock(page: number = 1, limit: number = 50)
 
     const response = { data, meta: buildPaginationMeta(total, page, limit) }
 
-    await VersionedCacheService.set(CacheNamespaces.PRODUCT, cacheKey, response, CacheTTLSeconds.PRODUCT)
+    await getAdapter().set(CacheNamespaces.PRODUCT, cacheKey, response, CacheTTLSeconds.PRODUCT)
 
     return response
   } catch (error) {
@@ -135,7 +135,7 @@ export async function toggleArticleStatus(
     return serviceError('Invalid input: ' + validationResult.error.issues.map((e: { message: string }) => e.message).join(', '), 'VALIDATION')
   }
 
-  const lockToken = await CacheService.acquireLock(`article:${id_produit}`, 30)
+  const lockToken = await getAdapter().acquireLock(`article:${id_produit}`, 30)
   if (!lockToken) {
     return serviceError('Operation in progress, please retry', 'LOCK_CONTENTION')
   }
@@ -153,7 +153,7 @@ export async function toggleArticleStatus(
     log.error({ error, id_produit }, 'Failed to toggle article status')
     return serviceError('Failed to update status', 'INTERNAL')
   } finally {
-    await CacheService.releaseLock(`article:${id_produit}`, lockToken)
+    await getAdapter().releaseLock(`article:${id_produit}`, lockToken)
   }
 }
 
@@ -220,7 +220,7 @@ export async function getStockLevels(page: number = 1, limit: number = 50): Prom
 export async function getDepots(): Promise<{ data: Depot[]; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
   try {
     const cacheKey = 'depots:active'
-    const cached = await VersionedCacheService.get<Depot[]>(CacheNamespaces.STOCK, cacheKey)
+    const cached = await getAdapter().get<Depot[]>(CacheNamespaces.STOCK, cacheKey)
     if (cached) return { data: cached }
 
     const depots = await prisma.entrepot.findMany({
@@ -232,7 +232,7 @@ export async function getDepots(): Promise<{ data: Depot[]; error?: string; code
       id_depot: depot.id_entrepot,
       nom_depot: depot.nom_entrepot
     }))
-    await VersionedCacheService.set(CacheNamespaces.STOCK, cacheKey, result, CacheTTLSeconds.STOCK * 5)
+    await getAdapter().set(CacheNamespaces.STOCK, cacheKey, result, CacheTTLSeconds.STOCK * 5)
     return { data: result }
   } catch (error) {
     log.error({ error }, 'Failed to fetch depots')
@@ -266,7 +266,7 @@ export async function createStockMovement(input: CreateMovementInput, userId: st
   const validatedInput = validation.data
 
   const lockKey = `stock:${validatedInput.productId}:${validatedInput.warehouseId}`
-  const lockToken = await CacheService.acquireLock(lockKey, 30)
+  const lockToken = await getAdapter().acquireLock(lockKey, 30)
   if (!lockToken) {
     return serviceError('Stock operation in progress, please retry', 'LOCK_CONTENTION')
   }
@@ -384,7 +384,7 @@ export async function createStockMovement(input: CreateMovementInput, userId: st
     log.error({ error, input: validatedInput }, 'Stock movement failed')
     return serviceError(error instanceof Error ? error.message : 'Failed to create stock movement', 'INTERNAL')
   } finally {
-    await CacheService.releaseLock(lockKey, lockToken)
+    await getAdapter().releaseLock(lockKey, lockToken)
   }
 }
 
@@ -561,7 +561,7 @@ export async function adjustStockLevel(
   const validatedInput = validation.data
 
   const lockKey = `stock:${validatedInput.productId}:${validatedInput.warehouseId}`
-  const lockToken = await CacheService.acquireLock(lockKey, 30)
+  const lockToken = await getAdapter().acquireLock(lockKey, 30)
   if (!lockToken) {
     return serviceError('Stock operation in progress, please retry', 'LOCK_CONTENTION')
   }
@@ -644,7 +644,7 @@ export async function adjustStockLevel(
     log.error({ error, input: validatedInput }, 'adjustStockLevel failed')
     return serviceError(error instanceof Error ? error.message : 'Échec de l\'ajustement du niveau de stock', 'INTERNAL')
   } finally {
-    await CacheService.releaseLock(lockKey, lockToken)
+    await getAdapter().releaseLock(lockKey, lockToken)
   }
 }
 

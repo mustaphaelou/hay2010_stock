@@ -1,4 +1,5 @@
-import { VersionedCacheService, CacheNamespaces, CacheTTLSeconds } from '@/lib/cache/versioned'
+import { getAdapter } from '@/lib/cache/adapter'
+import { CacheNamespaces, CacheTTLSeconds } from '@/lib/cache/cache'
 import { prisma } from '@/lib/db/prisma'
 import { Prisma } from '@/lib/generated/prisma/client'
 import type { DashboardData, DashboardStats, SalesInvoice, DocumentWithComputed, MonthlyDataPoint } from '@/lib/types'
@@ -365,7 +366,7 @@ export async function getDashboardStats(): Promise<{ data: DashboardData; error?
   const cacheKey = 'stats'
 
   try {
-    const cached = await VersionedCacheService.get<DashboardData>(CacheNamespaces.DASHBOARD, cacheKey)
+    const cached = await getAdapter().get<DashboardData>(CacheNamespaces.DASHBOARD, cacheKey)
     if (cached) return { data: cached }
 
     const { countsResult, monthlyResult, recentDocsResult, salesInvoicesResult } = await runStatsQueries()
@@ -377,7 +378,7 @@ export async function getDashboardStats(): Promise<{ data: DashboardData; error?
 
     const result = { stats, recentDocs, salesInvoices, monthlyData }
 
-    await VersionedCacheService.set(CacheNamespaces.DASHBOARD, cacheKey, result, CacheTTLSeconds.DASHBOARD)
+    await getAdapter().set(CacheNamespaces.DASHBOARD, cacheKey, result, CacheTTLSeconds.DASHBOARD)
 
     return { data: result }
   } catch (error) {
@@ -402,12 +403,12 @@ export async function getDashboardData(): Promise<{ data: DashboardDataResult; e
   const cacheKey = 'data'
 
   try {
-    const cached = await VersionedCacheService.get<DashboardDataResult>(CacheNamespaces.DASHBOARD, cacheKey)
+    const cached = await getAdapter().get<DashboardDataResult>(CacheNamespaces.DASHBOARD, cacheKey)
     if (cached) return { data: cached }
 
     const result = await runDashboardDataQueries()
 
-    await VersionedCacheService.set(CacheNamespaces.DASHBOARD, cacheKey, result, CacheTTLSeconds.DASHBOARD)
+    await getAdapter().set(CacheNamespaces.DASHBOARD, cacheKey, result, CacheTTLSeconds.DASHBOARD)
 
     return { data: result }
   } catch (error) {

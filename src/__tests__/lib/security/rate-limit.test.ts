@@ -45,7 +45,6 @@ const { mockRedis } = vi.hoisted(() => ({
 
 vi.mock('@/lib/db/redis', () => ({
   redis: mockRedis,
-  CacheKeys: { RATE_LIMIT: 'ratelimit:' },
 }))
 
 vi.mock('next/server', () => ({
@@ -262,7 +261,6 @@ describe('circuit breaker', () => {
 
     vi.doMock('@/lib/db/redis', () => ({
       redis: redisMock,
-      CacheKeys: { RATE_LIMIT: 'ratelimit:' },
     }))
 
     vi.doMock('next/server', () => ({

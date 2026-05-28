@@ -10,9 +10,9 @@ const { mockNiveauStockFindMany, mockNiveauStockCount, mockEntrepotFindMany } = 
   mockEntrepotFindMany: vi.fn(),
 }))
 
-const { mockVersionedCacheGet, mockVersionedCacheSet } = vi.hoisted(() => ({
-  mockVersionedCacheGet: vi.fn().mockResolvedValue(null),
-  mockVersionedCacheSet: vi.fn().mockResolvedValue(true),
+const { mockCacheGet, mockCacheSet } = vi.hoisted(() => ({
+  mockCacheGet: vi.fn().mockResolvedValue(null),
+  mockCacheSet: vi.fn().mockResolvedValue(true),
 }))
 
 vi.mock('@/lib/db/prisma', () => ({
@@ -31,13 +31,11 @@ vi.mock('@/lib/auth/authorization', () => ({
   requirePermission: mockRequirePermission,
 }))
 
-vi.mock('@/lib/cache/versioned', () => ({
-  VersionedCacheService: {
-    get: mockVersionedCacheGet,
-    set: mockVersionedCacheSet,
-  },
-  CacheNamespaces: { PRODUCT: 'product', STOCK: 'stock', PARTNER: 'partner', DOCUMENT: 'document', USER: 'user', DASHBOARD: 'dashboard' },
-  CacheTTLSeconds: { PRODUCT: 900, STOCK: 60, PARTNER: 3600, DOCUMENT: 300, USER: 3600, DASHBOARD: 30 },
+vi.mock('@/lib/cache/adapter', () => ({
+  getAdapter: () => ({
+    get: mockCacheGet,
+    set: mockCacheSet,
+  }),
 }))
 
 vi.mock('@/lib/logger', () => ({
@@ -55,8 +53,8 @@ describe('Stock Actions', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockRequirePermission.mockResolvedValue({ id: 'user-1', email: 'admin@test.com', name: 'Admin', role: 'ADMIN' })
-    mockVersionedCacheGet.mockResolvedValue(null)
-    mockVersionedCacheSet.mockResolvedValue(true)
+    mockCacheGet.mockResolvedValue(null)
+    mockCacheSet.mockResolvedValue(true)
   })
 
   describe('getStockLevels', () => {
@@ -145,7 +143,7 @@ describe('Stock Actions', () => {
 
     it('should return { data, error?: undefined } when cached depots available', async () => {
       const cached = [{ id_depot: 1, nom_depot: 'Cached Depot', id_entrepot: 1, nom_entrepot: 'Cached Depot', est_actif: true }]
-      mockVersionedCacheGet.mockResolvedValue(cached)
+      mockCacheGet.mockResolvedValue(cached)
 
       const result = await getDepots()
 
@@ -166,7 +164,7 @@ describe('Stock Actions', () => {
       expect(result.data?.[0].id_depot).toBe(1)
       expect(result.data?.[0].nom_depot).toBe('Main Warehouse')
       expect(result.error).toBeUndefined()
-      expect(mockVersionedCacheSet).toHaveBeenCalled()
+      expect(mockCacheSet).toHaveBeenCalled()
     })
 
     it('should return { data: [], error } on DB error', async () => {
