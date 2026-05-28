@@ -1,18 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { requireApiKey } from '@/lib/api/auth'
-import { apiSuccess, apiPaginated, apiCreated, apiNoContent, apiError } from '@/lib/api/response'
-import { handleServiceError } from '@/lib/api/service-error'
-import { ValidationError, NotFoundError } from '@/lib/errors'
-import { createValidationErrorFromZod } from '@/lib/errors'
+import { apiHandler } from '@/lib/api/handler'
 import { prisma } from '@/lib/db/prisma'
-import { paginationSchema } from '@/lib/pagination'
-import { Prisma } from '@/lib/generated/prisma/client'
+import { ValidationError, NotFoundError } from '@/lib/errors'
 import {
   createStockLevel,
   adjustStockLevel,
   deleteStockLevel,
 } from '@/lib/stock/stock-service'
-import { apiWrite } from '@/lib/actions/api-write'
 
 const ALLOWED_SORT_FIELDS = [
   'id_stock',
@@ -28,37 +21,15 @@ const ALLOWED_SORT_FIELDS = [
 
 type AllowedSortField = (typeof ALLOWED_SORT_FIELDS)[number]
 
-function extractIdFromUrl(request: NextRequest): number {
-  const segments = request.nextUrl.pathname.split('/')
-  const lastSegment = segments[segments.length - 1]
-  const id = parseInt(lastSegment, 10)
-  if (isNaN(id)) {
-    throw new ValidationError('Invalid stock level ID')
-  }
-  return id
-}
-
-function parsePagination(request: NextRequest) {
-  const url = request.nextUrl
-  const page = parseInt(url.searchParams.get('page') || '1', 10)
-  const limit = parseInt(url.searchParams.get('limit') || '50', 10)
-  const parsed = paginationSchema.safeParse({ page, limit })
-  if (!parsed.success) {
-    throw createValidationErrorFromZod(parsed.error)
-  }
-  return parsed.data
-}
-
-export async function listStockLevelsHandler(request: NextRequest): Promise<NextResponse> {
-  try {
-    await requireApiKey(request)
-
-    const { page, limit } = parsePagination(request)
-    const url = request.nextUrl
-    const produit = url.searchParams.get('produit') || undefined
-    const entrepot = url.searchParams.get('entrepot') || undefined
-    const sortParam = url.searchParams.get('sort') || 'date_creation'
-    const orderParam = (url.searchParams.get('order') || 'desc').toLowerCase()
+export const listStockLevelsHandler = apiHandler({
+  rateLimit: 'read',
+  execute: async ({ query }) => {
+    const page = parseInt(query.page || '1', 10)
+    const limit = parseInt(query.limit || '50', 10)
+    const produit = query.produit || undefined
+    const entrepot = query.entrepot || undefined
+    const sortParam = query.sort || 'date_creation'
+    const orderParam = (query.order || 'desc').toLowerCase()
 
     const sort = ALLOWED_SORT_FIELDS.includes(sortParam as AllowedSortField)
       ? (sortParam as AllowedSortField)
@@ -67,7 +38,7 @@ export async function listStockLevelsHandler(request: NextRequest): Promise<Next
 
     const skip = (page - 1) * limit
 
-    const where: Prisma.NiveauStockWhereInput = {}
+    const where: any = {}
     if (produit) {
       where.id_produit = parseInt(produit, 10) || undefined
     }
@@ -95,24 +66,25 @@ export async function listStockLevelsHandler(request: NextRequest): Promise<Next
 
     const totalPages = Math.ceil(total / limit)
 
-    return apiPaginated(stockLevels, {
-      page,
-      limit,
-      total,
-      totalPages,
-      hasMore: page < totalPages,
-    })
-  } catch (error) {
-    return apiError(error)
-  }
-}
+    return {
+      data: stockLevels,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasMore: page < totalPages,
+      }
+    }
+  },
+  responseType: 'paginated'
+})
 
-export async function getStockLevelByIdHandler(request: NextRequest): Promise<NextResponse> {
-  try {
-    await requireApiKey(request)
-
-    const id = extractIdFromUrl(request)
-
+export const getStockLevelByIdHandler = apiHandler({
+  rateLimit: 'read',
+  idParam: true,
+  idErrorMessage: 'Invalid stock level ID',
+  execute: async ({ id }) => {
     const stockLevel = await prisma.niveauStock.findUnique({
       where: { id_stock: id },
       include: {
@@ -129,70 +101,31 @@ export async function getStockLevelByIdHandler(request: NextRequest): Promise<Ne
       throw new NotFoundError('Stock level')
     }
 
-    return apiSuccess(stockLevel)
-  } catch (error) {
-    return apiError(error)
+    return { data: stockLevel }
   }
-}
+})
 
-export async function createStockLevelHandler(request: NextRequest): Promise<NextResponse> {
-  try {
-    const apiUser = await requireApiKey(request)
+export const createStockLevelHandler = apiHandler({
+  rateLimit: 'write',
+  type: 'write',
+  invalidations: [{ kind: 'stock' }],
+  responseType: 'created',
+  execute: ({ body, user }) => createStockLevel(body, user!.userId)
+})
 
-    const body = await request.json()
-    const result = await apiWrite(
-      { id: apiUser.userId, email: '', name: '', role: apiUser.role },
-      () => createStockLevel(body, apiUser.userId),
-      [{ kind: 'stock' }],
-    )
+export const adjustStockLevelHandler = apiHandler({
+  rateLimit: 'write',
+  type: 'write',
+  invalidations: [{ kind: 'stock' }],
+  execute: ({ body, user }) => adjustStockLevel(body, user!.userId)
+})
 
-    handleServiceError(result)
-
-    if (!result.data) {
-      return apiCreated({})
-    }
-
-    return apiCreated(result.data)
-  } catch (error) {
-    return apiError(error)
-  }
-}
-
-export async function adjustStockLevelHandler(request: NextRequest): Promise<NextResponse> {
-  try {
-    const apiUser = await requireApiKey(request)
-
-    const body = await request.json()
-
-    const result = await apiWrite(
-      { id: apiUser.userId, email: '', name: '', role: apiUser.role },
-      () => adjustStockLevel(body, apiUser.userId),
-      [{ kind: 'stock' }],
-    )
-
-    handleServiceError(result)
-
-    return apiSuccess(result.data)
-  } catch (error) {
-    return apiError(error)
-  }
-}
-
-export async function deleteStockLevelHandler(request: NextRequest): Promise<NextResponse> {
-  try {
-    const apiUser = await requireApiKey(request)
-
-    const id = extractIdFromUrl(request)
-    const result = await apiWrite(
-      { id: apiUser.userId, email: '', name: '', role: apiUser.role },
-      () => deleteStockLevel(id),
-      [{ kind: 'stock' }],
-    )
-
-    handleServiceError(result)
-
-    return apiNoContent()
-  } catch (error) {
-    return apiError(error)
-  }
-}
+export const deleteStockLevelHandler = apiHandler({
+  rateLimit: 'write',
+  idParam: true,
+  idErrorMessage: 'Invalid stock level ID',
+  type: 'write',
+  invalidations: [{ kind: 'stock' }],
+  responseType: 'noContent',
+  execute: ({ id }) => deleteStockLevel(id!)
+})

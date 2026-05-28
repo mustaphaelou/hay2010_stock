@@ -1,8 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { requireApiKey } from '@/lib/api/auth'
-import { apiSuccess, apiPaginated, apiCreated, apiNoContent, apiError } from '@/lib/api/response'
-import { handleServiceError } from '@/lib/api/service-error'
-import { ValidationError } from '@/lib/errors'
+import { apiHandler } from '@/lib/api/handler'
 import {
   listCategories,
   getCategoryById,
@@ -12,152 +8,75 @@ import {
   getCategoryChildren,
   getCategoryProducts,
 } from '@/lib/categories/categorie-produit-service'
-import { apiWrite } from '@/lib/actions/api-write'
 
-export async function listCategoriesHandler(request: NextRequest): Promise<NextResponse> {
-  try {
-    await requireApiKey(request)
+export const listCategoriesHandler = apiHandler({
+  rateLimit: 'read',
+  execute: ({ query }) => {
+    const page = parseInt(query.page || '1', 10)
+    const limit = parseInt(query.limit || '50', 10)
+    const search = query.search || undefined
+    const parent = query.parent || undefined
+    const sort = query.sort || undefined
+    const order = (query.order || 'asc').toLowerCase() === 'desc' ? 'desc' as const : 'asc' as const
+    return listCategories(page, limit, search, parent, sort, order)
+  },
+  responseType: 'paginated'
+})
 
-    const url = request.nextUrl
-    const page = parseInt(url.searchParams.get('page') || '1', 10)
-    const limit = parseInt(url.searchParams.get('limit') || '50', 10)
-    const search = url.searchParams.get('search') || undefined
-    const parent = url.searchParams.get('parent') || undefined
-    const sort = url.searchParams.get('sort') || undefined
-    const order = (url.searchParams.get('order') || 'asc').toLowerCase() === 'desc' ? 'desc' as const : 'asc' as const
+export const getCategoryByIdHandler = apiHandler({
+  rateLimit: 'read',
+  idParam: true,
+  idErrorMessage: 'ID catégorie invalide',
+  execute: ({ id }) => getCategoryById(id!)
+})
 
-    const result = await listCategories(page, limit, search, parent, sort, order)
+export const createCategoryHandler = apiHandler({
+  rateLimit: 'write',
+  type: 'write',
+  invalidations: [{ kind: 'category' }],
+  responseType: 'created',
+  execute: ({ body }) => createCategory(body)
+})
 
-    handleServiceError(result)
+export const updateCategoryHandler = apiHandler({
+  rateLimit: 'write',
+  idParam: true,
+  idErrorMessage: 'ID catégorie invalide',
+  type: 'write',
+  invalidations: (id) => [{ kind: 'category', categoryId: id }],
+  execute: ({ id, body }) => updateCategory(id!, body)
+})
 
-    return apiPaginated(result.data, result.meta)
-  } catch (error) {
-    return apiError(error)
-  }
-}
+export const deleteCategoryHandler = apiHandler({
+  rateLimit: 'write',
+  idParam: true,
+  idErrorMessage: 'ID catégorie invalide',
+  type: 'write',
+  invalidations: (id) => [{ kind: 'category', categoryId: id }],
+  responseType: 'noContent',
+  execute: ({ id }) => deleteCategory(id!)
+})
 
-export async function getCategoryByIdHandler(request: NextRequest, id: number): Promise<NextResponse> {
-  try {
-    await requireApiKey(request)
+export const getCategoryChildrenHandler = apiHandler({
+  rateLimit: 'read',
+  idParam: true,
+  idErrorMessage: 'ID catégorie invalide',
+  execute: ({ id, query }) => {
+    const page = parseInt(query.page || '1', 10)
+    const limit = parseInt(query.limit || '50', 10)
+    return getCategoryChildren(id!, page, limit)
+  },
+  responseType: 'paginated'
+})
 
-    if (isNaN(id)) {
-      throw new ValidationError('ID catégorie invalide')
-    }
-
-    const result = await getCategoryById(id)
-
-    handleServiceError(result)
-
-    return apiSuccess(result.data!)
-  } catch (error) {
-    return apiError(error)
-  }
-}
-
-export async function createCategoryHandler(request: NextRequest): Promise<NextResponse> {
-  try {
-    const apiUser = await requireApiKey(request)
-
-    const body = await request.json()
-    const result = await apiWrite(
-      { id: apiUser.userId, email: '', name: '', role: apiUser.role },
-      () => createCategory(body),
-      [{ kind: 'category' }],
-    )
-
-    handleServiceError(result)
-
-    return apiCreated(result.data!)
-  } catch (error) {
-    return apiError(error)
-  }
-}
-
-export async function updateCategoryHandler(request: NextRequest, id: number): Promise<NextResponse> {
-  try {
-    const apiUser = await requireApiKey(request)
-
-    if (isNaN(id)) {
-      throw new ValidationError('ID catégorie invalide')
-    }
-
-    const body = await request.json()
-    const result = await apiWrite(
-      { id: apiUser.userId, email: '', name: '', role: apiUser.role },
-      () => updateCategory(id, body),
-      [{ kind: 'category', categoryId: id }],
-    )
-
-    handleServiceError(result)
-
-    return apiSuccess(result.data!)
-  } catch (error) {
-    return apiError(error)
-  }
-}
-
-export async function deleteCategoryHandler(request: NextRequest, id: number): Promise<NextResponse> {
-  try {
-    const apiUser = await requireApiKey(request)
-
-    if (isNaN(id)) {
-      throw new ValidationError('ID catégorie invalide')
-    }
-
-    const result = await apiWrite(
-      { id: apiUser.userId, email: '', name: '', role: apiUser.role },
-      () => deleteCategory(id),
-      [{ kind: 'category', categoryId: id }],
-    )
-
-    handleServiceError(result)
-
-    return apiNoContent()
-  } catch (error) {
-    return apiError(error)
-  }
-}
-
-export async function getCategoryChildrenHandler(request: NextRequest, id: number): Promise<NextResponse> {
-  try {
-    await requireApiKey(request)
-
-    if (isNaN(id)) {
-      throw new ValidationError('ID catégorie invalide')
-    }
-
-    const url = request.nextUrl
-    const page = parseInt(url.searchParams.get('page') || '1', 10)
-    const limit = parseInt(url.searchParams.get('limit') || '50', 10)
-
-    const result = await getCategoryChildren(id, page, limit)
-
-    handleServiceError(result)
-
-    return apiPaginated(result.data, result.meta)
-  } catch (error) {
-    return apiError(error)
-  }
-}
-
-export async function getCategoryProductsHandler(request: NextRequest, id: number): Promise<NextResponse> {
-  try {
-    await requireApiKey(request)
-
-    if (isNaN(id)) {
-      throw new ValidationError('ID catégorie invalide')
-    }
-
-    const url = request.nextUrl
-    const page = parseInt(url.searchParams.get('page') || '1', 10)
-    const limit = parseInt(url.searchParams.get('limit') || '50', 10)
-
-    const result = await getCategoryProducts(id, page, limit)
-
-    handleServiceError(result)
-
-    return apiPaginated(result.data, result.meta)
-  } catch (error) {
-    return apiError(error)
-  }
-}
+export const getCategoryProductsHandler = apiHandler({
+  rateLimit: 'read',
+  idParam: true,
+  idErrorMessage: 'ID catégorie invalide',
+  execute: ({ id, query }) => {
+    const page = parseInt(query.page || '1', 10)
+    const limit = parseInt(query.limit || '50', 10)
+    return getCategoryProducts(id!, page, limit)
+  },
+  responseType: 'paginated'
+})
