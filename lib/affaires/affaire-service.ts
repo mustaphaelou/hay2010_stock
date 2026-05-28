@@ -18,6 +18,7 @@ import type { AffaireWithComputed, DocumentBase } from '@/lib/types'
 import { createLogger } from '@/lib/logger'
 import { createEmptyResult, buildPaginationMeta, getPaginationParams } from '@/lib/pagination'
 import type { PaginatedResult } from '@/lib/pagination'
+import { serviceError } from '@/lib/service-result'
 
 
 const log = createLogger('affaire-service')
@@ -58,10 +59,10 @@ export async function getAffaires(
   filters?: Partial<GetAffairesInput>,
   sort: string = 'date_creation',
   order: 'asc' | 'desc' = 'desc',
-): Promise<PaginatedResult<AffaireWithComputed> & { error?: string }> {
+): Promise<PaginatedResult<AffaireWithComputed> & { error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
   const validationResult = getAffairesSchema.safeParse({ page, limit, ...filters })
   if (!validationResult.success) {
-    return createEmptyResult<AffaireWithComputed>(page, limit, 'Paramètres de filtre invalides')
+    return { ...createEmptyResult<AffaireWithComputed>(page, limit, 'Paramètres de filtre invalides'), ...serviceError('Paramètres de filtre invalides', 'VALIDATION') }
   }
 
   const validated = validationResult.data
@@ -102,16 +103,16 @@ export async function getAffaires(
     }
   } catch (error) {
     log.error({ error }, 'Échec de la récupération des affaires')
-    return createEmptyResult<AffaireWithComputed>(page, limit, 'Échec de la récupération des affaires')
+    return { ...createEmptyResult<AffaireWithComputed>(page, limit, 'Échec de la récupération des affaires'), ...serviceError('Échec de la récupération des affaires', 'INTERNAL') }
   }
 }
 
 export async function getAffaireById(
   id_affaire: number,
-): Promise<{ data?: AffaireWithComputed | null; error?: string }> {
+): Promise<{ data?: AffaireWithComputed | null; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
   const validationResult = getAffaireByIdSchema.safeParse({ id_affaire })
   if (!validationResult.success) {
-    return { error: 'ID d\'affaire invalide' }
+    return serviceError('ID d\'affaire invalide', 'VALIDATION')
   }
 
   try {
@@ -123,23 +124,23 @@ export async function getAffaireById(
     })
 
     if (!affaire) {
-      return { data: null, error: 'Affaire introuvable' }
+      return { data: null, ...serviceError('Affaire introuvable', 'NOT_FOUND') }
     }
 
     return { data: mapAffaireToComputed(affaire as unknown as Record<string, unknown>) }
   } catch (error) {
     log.error({ error, id_affaire }, 'Échec de la récupération de l\'affaire')
-    return { error: 'Échec de la récupération de l\'affaire' }
+    return serviceError('Échec de la récupération de l\'affaire', 'INTERNAL')
   }
 }
 
 export async function createAffaire(
   input: AffaireCreateInput,
   userId: string,
-): Promise<{ data?: AffaireWithComputed; error?: string }> {
+): Promise<{ data?: AffaireWithComputed; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
   const validationResult = affaireCreateSchema.safeParse(input)
   if (!validationResult.success) {
-    return { error: 'Validation échouée: ' + validationResult.error.issues.map((e) => e.message).join(', ') }
+    return serviceError('Validation échouée: ' + validationResult.error.issues.map((e) => e.message).join(', '), 'VALIDATION')
   }
 
   const validatedInput = validationResult.data
@@ -149,7 +150,7 @@ export async function createAffaire(
       where: { code_affaire: validatedInput.code_affaire },
     })
     if (existing) {
-      return { error: `L'affaire ${validatedInput.code_affaire} existe déjà` }
+      return serviceError(`L'affaire ${validatedInput.code_affaire} existe déjà`, 'CONFLICT')
     }
 
     const affaire = await prisma.affaire.create({
@@ -162,7 +163,7 @@ export async function createAffaire(
     return { data: mapAffaireToComputed(affaire as unknown as Record<string, unknown>) }
   } catch (error) {
     log.error({ error, input: validatedInput }, 'Échec de la création de l\'affaire')
-    return { error: 'Échec de la création de l\'affaire' }
+    return serviceError('Échec de la création de l\'affaire', 'INTERNAL')
   }
 }
 
@@ -170,10 +171,10 @@ export async function updateAffaire(
   id_affaire: number,
   input: AffaireUpdateInput,
   userId: string,
-): Promise<{ data?: AffaireWithComputed; error?: string }> {
+): Promise<{ data?: AffaireWithComputed; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
   const validationResult = affaireUpdateSchema.safeParse(input)
   if (!validationResult.success) {
-    return { error: 'Validation échouée: ' + validationResult.error.issues.map((e) => e.message).join(', ') }
+    return serviceError('Validation échouée: ' + validationResult.error.issues.map((e) => e.message).join(', '), 'VALIDATION')
   }
 
   const validatedInput = validationResult.data
@@ -183,7 +184,7 @@ export async function updateAffaire(
       where: { id_affaire },
     })
     if (!existing) {
-      return { error: 'Affaire introuvable' }
+      return serviceError('Affaire introuvable', 'NOT_FOUND')
     }
 
     if (validatedInput.code_affaire && validatedInput.code_affaire !== existing.code_affaire) {
@@ -191,7 +192,7 @@ export async function updateAffaire(
         where: { code_affaire: validatedInput.code_affaire },
       })
       if (duplicate) {
-        return { error: `L'affaire ${validatedInput.code_affaire} existe déjà` }
+        return serviceError(`L'affaire ${validatedInput.code_affaire} existe déjà`, 'CONFLICT')
       }
     }
 
@@ -206,17 +207,17 @@ export async function updateAffaire(
     return { data: mapAffaireToComputed(affaire as unknown as Record<string, unknown>) }
   } catch (error) {
     log.error({ error, id_affaire, input: validatedInput }, 'Échec de la mise à jour de l\'affaire')
-    return { error: 'Échec de la mise à jour de l\'affaire' }
+    return serviceError('Échec de la mise à jour de l\'affaire', 'INTERNAL')
   }
 }
 
 export async function deleteAffaire(
   id_affaire: number,
   userId: string,
-): Promise<{ data?: { success: boolean }; error?: string }> {
+): Promise<{ data?: { success: boolean }; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
   const validationResult = deleteAffaireSchema.safeParse({ id_affaire })
   if (!validationResult.success) {
-    return { error: 'ID d\'affaire invalide' }
+    return serviceError('ID d\'affaire invalide', 'VALIDATION')
   }
 
   try {
@@ -224,7 +225,7 @@ export async function deleteAffaire(
       where: { id_affaire },
     })
     if (!existing) {
-      return { error: 'Affaire introuvable' }
+      return serviceError('Affaire introuvable', 'NOT_FOUND')
     }
 
     await prisma.affaire.update({
@@ -235,7 +236,7 @@ export async function deleteAffaire(
     return { data: { success: true } }
   } catch (error) {
     log.error({ error, id_affaire }, 'Échec de la suppression de l\'affaire')
-    return { error: 'Échec de la suppression de l\'affaire' }
+    return serviceError('Échec de la suppression de l\'affaire', 'INTERNAL')
   }
 }
 
@@ -243,13 +244,13 @@ export async function getAffaireDocumentsById(
   id_affaire: number,
   page: number = 1,
   limit: number = 50,
-): Promise<PaginatedResult<Record<string, unknown>> & { error?: string }> {
+): Promise<PaginatedResult<Record<string, unknown>> & { error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
   try {
     const affaire = await prisma.affaire.findUnique({
       where: { id_affaire },
     })
     if (!affaire) {
-      return { ...createEmptyResult(page, limit, 'Affaire introuvable'), data: [] as Record<string, unknown>[] }
+      return { ...createEmptyResult(page, limit, 'Affaire introuvable'), data: [] as Record<string, unknown>[], ...serviceError('Affaire introuvable', 'NOT_FOUND') }
     }
 
     const { skip } = getPaginationParams({ page, limit })
@@ -273,14 +274,14 @@ export async function getAffaireDocumentsById(
     }
   } catch (error) {
     log.error({ error, id_affaire }, 'Échec de la récupération des documents de l\'affaire')
-    return { ...createEmptyResult(page, limit, 'Échec de la récupération des documents'), data: [] as Record<string, unknown>[] }
+    return { ...createEmptyResult(page, limit, 'Échec de la récupération des documents'), data: [] as Record<string, unknown>[], ...serviceError('Échec de la récupération des documents', 'INTERNAL') }
   }
 }
 
-export async function getAffaireByCode(code_affaire: string): Promise<{ data?: AffaireWithComputed | null; error?: string }> {
+export async function getAffaireByCode(code_affaire: string): Promise<{ data?: AffaireWithComputed | null; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
   const validationResult = getAffaireByCodeSchema.safeParse({ code_affaire })
   if (!validationResult.success) {
-    return { error: 'Entrée invalide: ' + validationResult.error.issues.map((e) => e.message).join(', ') }
+    return serviceError('Entrée invalide: ' + validationResult.error.issues.map((e) => e.message).join(', '), 'VALIDATION')
   }
 
   try {
@@ -292,21 +293,21 @@ export async function getAffaireByCode(code_affaire: string): Promise<{ data?: A
     })
 
     if (!affaire) {
-      return { data: null, error: 'Affaire introuvable' }
+      return { data: null, ...serviceError('Affaire introuvable', 'NOT_FOUND') }
     }
 
     return { data: mapAffaireToComputed(affaire as unknown as Record<string, unknown>) }
   } catch (error) {
     log.error({ error, code_affaire }, 'Échec de la récupération de l\'affaire')
-    return { error: 'Échec de la récupération de l\'affaire' }
+    return serviceError('Échec de la récupération de l\'affaire', 'INTERNAL')
   }
 }
 
-export async function getDocumentsByAffaire(code_affaire: string): Promise<{ data: DocumentBase[]; error?: string }> {
+export async function getDocumentsByAffaire(code_affaire: string): Promise<{ data: DocumentBase[]; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
   const validationResult = getAffaireByCodeSchema.safeParse({ code_affaire })
   if (!validationResult.success) {
     log.error({ error: validationResult.error, code_affaire }, 'Code affaire invalide')
-    return { data: [], error: 'Code affaire invalide' }
+    return { data: [], ...serviceError('Code affaire invalide', 'VALIDATION') }
   }
 
   try {
@@ -329,6 +330,6 @@ export async function getDocumentsByAffaire(code_affaire: string): Promise<{ dat
     }
   } catch (error) {
     log.error({ error, code_affaire }, 'Échec de la récupération des documents de l\'affaire')
-    return { data: [], error: 'Échec de la récupération des documents de l\'affaire' }
+    return { data: [], ...serviceError('Échec de la récupération des documents de l\'affaire', 'INTERNAL') }
   }
 }

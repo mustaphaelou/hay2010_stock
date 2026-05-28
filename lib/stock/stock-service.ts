@@ -25,6 +25,7 @@ import type {
   ArticleUpdateInput,
   AllowedArticleSortField,
 } from '@/lib/stock/validation'
+import { serviceError } from '@/lib/service-result'
 
 const log = createLogger('stock-service')
 
@@ -42,7 +43,7 @@ async function getStockAggregates(productIds: number[]): Promise<Map<number, num
   return new Map(results.map(r => [r.id_produit, r.stock_global]))
 }
 
-export async function getArticlesWithStock(page: number = 1, limit: number = 50): Promise<PaginatedResult<ArticleWithStock> & { error?: string }> {
+export async function getArticlesWithStock(page: number = 1, limit: number = 50): Promise<PaginatedResult<ArticleWithStock> & { error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
   if (limit > 100) limit = 100
 
   const cacheKey = `list:${page}:${limit}`
@@ -121,22 +122,22 @@ export async function getArticlesWithStock(page: number = 1, limit: number = 50)
     return response
   } catch (error) {
     log.error({ error }, 'Failed to fetch articles')
-    return createEmptyResult<ArticleWithStock>(page, limit, 'Failed to fetch articles')
+    return { ...createEmptyResult<ArticleWithStock>(page, limit, 'Failed to fetch articles'), ...serviceError('Failed to fetch articles', 'INTERNAL') }
   }
 }
 
 export async function toggleArticleStatus(
   id_produit: number,
   newStatus: boolean,
-): Promise<{ data?: { success: boolean }; error?: string }> {
+): Promise<{ data?: { success: boolean }; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
   const validationResult = toggleArticleStatusSchema.safeParse({ id_produit, newStatus })
   if (!validationResult.success) {
-    return { error: 'Invalid input: ' + validationResult.error.issues.map((e: { message: string }) => e.message).join(', ') }
+    return serviceError('Invalid input: ' + validationResult.error.issues.map((e: { message: string }) => e.message).join(', '), 'VALIDATION')
   }
 
   const lockToken = await CacheService.acquireLock(`article:${id_produit}`, 30)
   if (!lockToken) {
-    return { error: 'Operation in progress, please retry' }
+    return serviceError('Operation in progress, please retry', 'LOCK_CONTENTION')
   }
 
   try {
@@ -150,16 +151,16 @@ export async function toggleArticleStatus(
     return { data: { success: true } }
   } catch (error) {
     log.error({ error, id_produit }, 'Failed to toggle article status')
-    return { error: 'Failed to update status' }
+    return serviceError('Failed to update status', 'INTERNAL')
   } finally {
     await CacheService.releaseLock(`article:${id_produit}`, lockToken)
   }
 }
 
-export async function getStockLevels(page: number = 1, limit: number = 50): Promise<PaginatedResult<StockLevelWithProduct> & { error?: string }> {
+export async function getStockLevels(page: number = 1, limit: number = 50): Promise<PaginatedResult<StockLevelWithProduct> & { error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
   const parsed = paginationSchema.safeParse({ page, limit })
   if (!parsed.success) {
-    return createEmptyResult<StockLevelWithProduct>(page, limit, 'Invalid pagination parameters')
+    return { ...createEmptyResult<StockLevelWithProduct>(page, limit, 'Invalid pagination parameters'), ...serviceError('Invalid pagination parameters', 'VALIDATION') }
   }
   const safePage = parsed.data?.page ?? page
   const safeLimit = parsed.data?.limit ?? limit
@@ -212,11 +213,11 @@ export async function getStockLevels(page: number = 1, limit: number = 50): Prom
     return { data, meta: buildPaginationMeta(total, safePage, safeLimit) }
   } catch (error) {
     log.error({ error }, 'Failed to fetch stock levels')
-    return createEmptyResult<StockLevelWithProduct>(safePage, safeLimit, 'Failed to fetch stock levels')
+    return { ...createEmptyResult<StockLevelWithProduct>(safePage, safeLimit, 'Failed to fetch stock levels'), ...serviceError('Failed to fetch stock levels', 'INTERNAL') }
   }
 }
 
-export async function getDepots(): Promise<{ data: Depot[]; error?: string }> {
+export async function getDepots(): Promise<{ data: Depot[]; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
   try {
     const cacheKey = 'depots:active'
     const cached = await VersionedCacheService.get<Depot[]>(CacheNamespaces.STOCK, cacheKey)
@@ -235,7 +236,7 @@ export async function getDepots(): Promise<{ data: Depot[]; error?: string }> {
     return { data: result }
   } catch (error) {
     log.error({ error }, 'Failed to fetch depots')
-    return { data: [], error: 'Failed to fetch depots' }
+    return { data: [], ...serviceError('Failed to fetch depots', 'INTERNAL') }
   }
 }
 
@@ -256,10 +257,10 @@ export type MovementResult = {
   newQuantity: number
 }
 
-export async function createStockMovement(input: CreateMovementInput, userId: string): Promise<{ data?: MovementResult; error?: string }> {
+export async function createStockMovement(input: CreateMovementInput, userId: string): Promise<{ data?: MovementResult; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
   const validation = createMovementSchema.safeParse(input)
   if (!validation.success) {
-    return { error: validation.error.issues.map(e => e.message).join(', ') }
+    return serviceError(validation.error.issues.map(e => e.message).join(', '), 'VALIDATION')
   }
 
   const validatedInput = validation.data
@@ -267,7 +268,7 @@ export async function createStockMovement(input: CreateMovementInput, userId: st
   const lockKey = `stock:${validatedInput.productId}:${validatedInput.warehouseId}`
   const lockToken = await CacheService.acquireLock(lockKey, 30)
   if (!lockToken) {
-    return { error: 'Stock operation in progress, please retry' }
+    return serviceError('Stock operation in progress, please retry', 'LOCK_CONTENTION')
   }
 
   try {
@@ -381,9 +382,7 @@ export async function createStockMovement(input: CreateMovementInput, userId: st
     return { data: result }
   } catch (error) {
     log.error({ error, input: validatedInput }, 'Stock movement failed')
-    return {
-      error: error instanceof Error ? error.message : 'Failed to create stock movement',
-    }
+    return serviceError(error instanceof Error ? error.message : 'Failed to create stock movement', 'INTERNAL')
   } finally {
     await CacheService.releaseLock(lockKey, lockToken)
   }
@@ -393,7 +392,7 @@ export async function getStockMovements(
   productId?: number,
   warehouseId?: number,
   limit: number = 100
-): Promise<{ data: Array<Record<string, unknown>>; error?: string }> {
+): Promise<{ data: Array<Record<string, unknown>>; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
   if (limit > 500) limit = 500
 
   try {
@@ -427,7 +426,7 @@ export async function getStockMovements(
     }
   } catch (error) {
     log.error({ error, productId, warehouseId }, 'Failed to fetch stock movements')
-    return { data: [], error: 'Échec de la récupération des mouvements de stock' }
+    return { data: [], ...serviceError('Échec de la récupération des mouvements de stock', 'INTERNAL') }
   }
 }
 
@@ -443,10 +442,10 @@ export type StockLevelResult = {
 export async function createStockLevel(
   input: { productId: number; warehouseId: number; quantite_en_stock?: number; quantite_reservee?: number; quantite_commandee?: number },
   userId: string,
-): Promise<{ data?: StockLevelResult; error?: string }> {
+): Promise<{ data?: StockLevelResult; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
   const validation = createStockLevelSchema.safeParse(input)
   if (!validation.success) {
-    return { error: validation.error.issues.map(e => e.message).join(', ') }
+    return serviceError(validation.error.issues.map(e => e.message).join(', '), 'VALIDATION')
   }
 
   try {
@@ -454,14 +453,14 @@ export async function createStockLevel(
       where: { id_produit: validation.data.productId },
     })
     if (!product) {
-      return { error: 'Produit introuvable' }
+      return serviceError('Produit introuvable', 'NOT_FOUND')
     }
 
     const warehouse = await prisma.entrepot.findUnique({
       where: { id_entrepot: validation.data.warehouseId },
     })
     if (!warehouse) {
-      return { error: 'Entrepôt introuvable' }
+      return serviceError('Entrepôt introuvable', 'NOT_FOUND')
     }
 
     const existing = await prisma.niveauStock.findUnique({
@@ -473,7 +472,7 @@ export async function createStockLevel(
       },
     })
     if (existing) {
-      return { error: 'Un niveau de stock existe déjà pour ce couple produit-entrepôt' }
+      return serviceError('Un niveau de stock existe déjà pour ce couple produit-entrepôt', 'CONFLICT')
     }
 
     const qty = validation.data.quantite_en_stock ?? 0
@@ -540,7 +539,7 @@ export async function createStockLevel(
     }
   } catch (error) {
     log.error({ error, input: validation.data }, 'createStockLevel failed')
-    return { error: error instanceof Error ? error.message : 'Échec de la création du niveau de stock' }
+    return serviceError(error instanceof Error ? error.message : 'Échec de la création du niveau de stock', 'INTERNAL')
   }
 }
 
@@ -553,10 +552,10 @@ export type AdjustmentResult = {
 export async function adjustStockLevel(
   input: { productId: number; warehouseId: number; newQuantity: number; motif?: string },
   userId: string,
-): Promise<{ data?: AdjustmentResult; error?: string }> {
+): Promise<{ data?: AdjustmentResult; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
   const validation = adjustStockLevelSchema.safeParse(input)
   if (!validation.success) {
-    return { error: validation.error.issues.map(e => e.message).join(', ') }
+    return serviceError(validation.error.issues.map(e => e.message).join(', '), 'VALIDATION')
   }
 
   const validatedInput = validation.data
@@ -564,7 +563,7 @@ export async function adjustStockLevel(
   const lockKey = `stock:${validatedInput.productId}:${validatedInput.warehouseId}`
   const lockToken = await CacheService.acquireLock(lockKey, 30)
   if (!lockToken) {
-    return { error: 'Stock operation in progress, please retry' }
+    return serviceError('Stock operation in progress, please retry', 'LOCK_CONTENTION')
   }
 
   try {
@@ -643,9 +642,7 @@ export async function adjustStockLevel(
     return { data: result }
   } catch (error) {
     log.error({ error, input: validatedInput }, 'adjustStockLevel failed')
-    return {
-      error: error instanceof Error ? error.message : 'Échec de l\'ajustement du niveau de stock',
-    }
+    return serviceError(error instanceof Error ? error.message : 'Échec de l\'ajustement du niveau de stock', 'INTERNAL')
   } finally {
     await CacheService.releaseLock(lockKey, lockToken)
   }
@@ -653,10 +650,10 @@ export async function adjustStockLevel(
 
 export async function deleteStockLevel(
   id: number,
-): Promise<{ data?: void; error?: string }> {
+): Promise<{ data?: void; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
   const validation = deleteStockLevelSchema.safeParse({ id })
   if (!validation.success) {
-    return { error: validation.error.issues.map(e => e.message).join(', ') }
+    return serviceError(validation.error.issues.map(e => e.message).join(', '), 'VALIDATION')
   }
 
   try {
@@ -665,21 +662,21 @@ export async function deleteStockLevel(
     })
 
     if (!existing) {
-      return { error: 'Niveau de stock introuvable' }
+      return serviceError('Niveau de stock introuvable', 'NOT_FOUND')
     }
 
     if (Number(existing.quantite_en_stock) !== 0) {
-      return { error: 'Impossible de supprimer un niveau de stock dont la quantité n\'est pas à zéro' }
+      return serviceError('Impossible de supprimer un niveau de stock dont la quantité n\'est pas à zéro', 'CONFLICT')
     }
 
     await prisma.niveauStock.delete({
       where: { id_stock: id },
     })
 
-    return {}
+    return { data: undefined }
   } catch (error) {
     log.error({ error, id }, 'deleteStockLevel failed')
-    return { error: error instanceof Error ? error.message : 'Échec de la suppression du niveau de stock' }
+    return serviceError(error instanceof Error ? error.message : 'Échec de la suppression du niveau de stock', 'INTERNAL')
   }
 }
 
@@ -694,10 +691,10 @@ export async function listArticles(
   },
   sort: string = 'nom_produit',
   order: 'asc' | 'desc' = 'asc',
-): Promise<PaginatedResult<ArticleWithStock> & { error?: string }> {
+): Promise<PaginatedResult<ArticleWithStock> & { error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
   const parsed = paginationSchema.safeParse({ page, limit })
   if (!parsed.success) {
-    return createEmptyResult<ArticleWithStock>(page, limit, 'Paramètres de pagination invalides')
+    return { ...createEmptyResult<ArticleWithStock>(page, limit, 'Paramètres de pagination invalides'), ...serviceError('Paramètres de pagination invalides', 'VALIDATION') }
   }
   const safePage = parsed.data?.page ?? page
   const safeLimit = parsed.data?.limit ?? limit
@@ -742,16 +739,16 @@ export async function listArticles(
     }
   } catch (error) {
     log.error({ error }, 'Échec de la récupération des articles')
-    return createEmptyResult<ArticleWithStock>(safePage, safeLimit, 'Échec de la récupération des articles')
+    return { ...createEmptyResult<ArticleWithStock>(safePage, safeLimit, 'Échec de la récupération des articles'), ...serviceError('Échec de la récupération des articles', 'INTERNAL') }
   }
 }
 
 export async function getArticleById(
   id_produit: number,
-): Promise<{ data?: ArticleWithStock | null; error?: string }> {
+): Promise<{ data?: ArticleWithStock | null; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
   const validationResult = getArticleByIdSchema.safeParse({ id_produit })
   if (!validationResult.success) {
-    return { error: 'ID d\'article invalide' }
+    return serviceError('ID d\'article invalide', 'VALIDATION')
   }
 
   try {
@@ -760,7 +757,7 @@ export async function getArticleById(
     })
 
     if (!product) {
-      return { data: null, error: 'Article introuvable' }
+      return { data: null, ...serviceError('Article introuvable', 'NOT_FOUND') }
     }
 
     const productIds = [product.id_produit]
@@ -811,17 +808,17 @@ export async function getArticleById(
     return { data: article }
   } catch (error) {
     log.error({ error, id_produit }, 'Échec de la récupération de l\'article')
-    return { error: 'Échec de la récupération de l\'article' }
+    return serviceError('Échec de la récupération de l\'article', 'INTERNAL')
   }
 }
 
 export async function createArticle(
   input: ArticleCreateInput,
   userId: string,
-): Promise<{ data?: ArticleWithStock; error?: string }> {
+): Promise<{ data?: ArticleWithStock; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
   const validationResult = articleCreateSchema.safeParse(input)
   if (!validationResult.success) {
-    return { error: 'Validation échouée: ' + validationResult.error.issues.map((e) => e.message).join(', ') }
+    return serviceError('Validation échouée: ' + validationResult.error.issues.map((e) => e.message).join(', '), 'VALIDATION')
   }
 
   const validatedInput = validationResult.data
@@ -831,7 +828,7 @@ export async function createArticle(
       where: { code_produit: validatedInput.code_produit },
     })
     if (existing) {
-      return { error: `L'article ${validatedInput.code_produit} existe déjà` }
+      return serviceError(`L'article ${validatedInput.code_produit} existe déjà`, 'CONFLICT')
     }
 
     const product = await prisma.produit.create({
@@ -845,7 +842,7 @@ export async function createArticle(
     return { data: article }
   } catch (error) {
     log.error({ error, input: validatedInput }, 'Échec de la création de l\'article')
-    return { error: 'Échec de la création de l\'article' }
+    return serviceError('Échec de la création de l\'article', 'INTERNAL')
   }
 }
 
@@ -853,10 +850,10 @@ export async function updateArticle(
   id_produit: number,
   input: ArticleUpdateInput,
   userId: string,
-): Promise<{ data?: ArticleWithStock; error?: string }> {
+): Promise<{ data?: ArticleWithStock; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
   const validationResult = articleUpdateSchema.safeParse(input)
   if (!validationResult.success) {
-    return { error: 'Validation échouée: ' + validationResult.error.issues.map((e) => e.message).join(', ') }
+    return serviceError('Validation échouée: ' + validationResult.error.issues.map((e) => e.message).join(', '), 'VALIDATION')
   }
 
   const validatedInput = validationResult.data
@@ -866,7 +863,7 @@ export async function updateArticle(
       where: { id_produit },
     })
     if (!existing) {
-      return { error: 'Article introuvable' }
+      return serviceError('Article introuvable', 'NOT_FOUND')
     }
 
     if (validatedInput.code_produit && validatedInput.code_produit !== existing.code_produit) {
@@ -874,7 +871,7 @@ export async function updateArticle(
         where: { code_produit: validatedInput.code_produit },
       })
       if (duplicate) {
-        return { error: `L'article ${validatedInput.code_produit} existe déjà` }
+        return serviceError(`L'article ${validatedInput.code_produit} existe déjà`, 'CONFLICT')
       }
     }
 
@@ -890,17 +887,17 @@ export async function updateArticle(
     return { data: article }
   } catch (error) {
     log.error({ error, id_produit, input: validatedInput }, 'Échec de la mise à jour de l\'article')
-    return { error: 'Échec de la mise à jour de l\'article' }
+    return serviceError('Échec de la mise à jour de l\'article', 'INTERNAL')
   }
 }
 
 export async function deleteArticle(
   id_produit: number,
   userId: string,
-): Promise<{ data?: { success: boolean }; error?: string }> {
+): Promise<{ data?: { success: boolean }; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
   const validationResult = deleteArticleSchema.safeParse({ id_produit })
   if (!validationResult.success) {
-    return { error: 'ID d\'article invalide' }
+    return serviceError('ID d\'article invalide', 'VALIDATION')
   }
 
   try {
@@ -908,7 +905,7 @@ export async function deleteArticle(
       where: { id_produit },
     })
     if (!existing) {
-      return { error: 'Article introuvable' }
+      return serviceError('Article introuvable', 'NOT_FOUND')
     }
 
     await prisma.produit.update({
@@ -919,7 +916,7 @@ export async function deleteArticle(
     return { data: { success: true } }
   } catch (error) {
     log.error({ error, id_produit }, 'Échec de la suppression de l\'article')
-    return { error: 'Échec de la suppression de l\'article' }
+    return serviceError('Échec de la suppression de l\'article', 'INTERNAL')
   }
 }
 
@@ -927,10 +924,10 @@ export async function getStockLevelsByArticle(
   id_produit: number,
   page: number = 1,
   limit: number = 50,
-): Promise<PaginatedResult<Record<string, unknown>> & { error?: string }> {
+): Promise<PaginatedResult<Record<string, unknown>> & { error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
   const validationResult = getStockLevelsByArticleSchema.safeParse({ id_produit })
   if (!validationResult.success) {
-    return { ...createEmptyResult(page, limit, 'ID d\'article invalide'), data: [] as Record<string, unknown>[] }
+    return { ...createEmptyResult(page, limit, 'ID d\'article invalide'), data: [] as Record<string, unknown>[], ...serviceError('ID d\'article invalide', 'VALIDATION') }
   }
 
   try {
@@ -938,7 +935,7 @@ export async function getStockLevelsByArticle(
       where: { id_produit },
     })
     if (!product) {
-      return { ...createEmptyResult(page, limit, 'Article introuvable'), data: [] as Record<string, unknown>[] }
+      return { ...createEmptyResult(page, limit, 'Article introuvable'), data: [] as Record<string, unknown>[], ...serviceError('Article introuvable', 'NOT_FOUND') }
     }
 
     const { skip } = getPaginationParams({ page, limit })
@@ -964,6 +961,6 @@ export async function getStockLevelsByArticle(
     }
   } catch (error) {
     log.error({ error, id_produit }, 'Échec de la récupération des niveaux de stock')
-    return { ...createEmptyResult(page, limit, 'Échec de la récupération des niveaux de stock'), data: [] as Record<string, unknown>[] }
+    return { ...createEmptyResult(page, limit, 'Échec de la récupération des niveaux de stock'), data: [] as Record<string, unknown>[], ...serviceError('Échec de la récupération des niveaux de stock', 'INTERNAL') }
   }
 }

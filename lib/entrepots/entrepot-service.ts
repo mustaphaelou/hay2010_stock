@@ -4,6 +4,7 @@ import { Prisma } from '@/lib/generated/prisma/client'
 import { createLogger } from '@/lib/logger'
 import { createEmptyResult, buildPaginationMeta, getPaginationParams } from '@/lib/pagination'
 import type { PaginatedResult } from '@/lib/pagination'
+import { serviceError } from '@/lib/service-result'
 
 const log = createLogger('entrepot-service')
 
@@ -45,7 +46,7 @@ export async function listEntrepots(
   principal?: string,
   sort: string = 'nom_entrepot',
   order: 'asc' | 'desc' = 'asc',
-): Promise<PaginatedResult<unknown> & { error?: string }> {
+): Promise<PaginatedResult<unknown> & { error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
   try {
     const effectiveSort = ALLOWED_SORT_FIELDS.includes(sort as AllowedSortField)
       ? (sort as AllowedSortField)
@@ -81,15 +82,15 @@ export async function listEntrepots(
     }
   } catch (error) {
     log.error({ error, page, limit, search, principal }, 'Échec de la récupération des entrepôts')
-    return createEmptyResult(page, limit, 'Échec de la récupération des entrepôts')
+    return { ...createEmptyResult(page, limit, 'Échec de la récupération des entrepôts'), ...serviceError('Échec de la récupération des entrepôts', 'INTERNAL') }
   }
 }
 
 export async function getEntrepotById(
   id: number,
-): Promise<{ data?: unknown; error?: string }> {
+): Promise<{ data?: unknown; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
   if (!Number.isFinite(id) || id <= 0) {
-    return { error: 'ID entrepôt invalide' }
+    return serviceError('ID entrepôt invalide', 'VALIDATION')
   }
 
   try {
@@ -98,22 +99,22 @@ export async function getEntrepotById(
     })
 
     if (!warehouse) {
-      return { error: 'Entrepôt introuvable' }
+      return serviceError('Entrepôt introuvable', 'NOT_FOUND')
     }
 
     return { data: warehouse }
   } catch (error) {
     log.error({ error, id }, 'Échec de la récupération de l\'entrepôt')
-    return { error: 'Échec de la récupération de l\'entrepôt' }
+    return serviceError('Échec de la récupération de l\'entrepôt', 'INTERNAL')
   }
 }
 
 export async function createEntrepot(
   input: CreateInput,
-): Promise<{ data?: unknown; error?: string }> {
+): Promise<{ data?: unknown; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
   const validationResult = warehouseCreateSchema.safeParse(input)
   if (!validationResult.success) {
-    return { error: 'Validation échouée: ' + validationResult.error.issues.map((e) => e.message).join(', ') }
+    return serviceError('Validation échouée: ' + validationResult.error.issues.map((e) => e.message).join(', '), 'VALIDATION')
   }
 
   try {
@@ -121,7 +122,7 @@ export async function createEntrepot(
       where: { code_entrepot: validationResult.data.code_entrepot },
     })
     if (existing) {
-      return { error: `Le code entrepôt ${validationResult.data.code_entrepot} existe déjà` }
+      return serviceError(`Le code entrepôt ${validationResult.data.code_entrepot} existe déjà`, 'CONFLICT')
     }
 
     const warehouse = await prisma.entrepot.create({
@@ -130,17 +131,17 @@ export async function createEntrepot(
     return { data: warehouse }
   } catch (error) {
     log.error({ error, input: validationResult.data }, 'Échec de la création de l\'entrepôt')
-    return { error: 'Échec de la création de l\'entrepôt' }
+    return serviceError('Échec de la création de l\'entrepôt', 'INTERNAL')
   }
 }
 
 export async function updateEntrepot(
   id: number,
   input: UpdateInput,
-): Promise<{ data?: unknown; error?: string }> {
+): Promise<{ data?: unknown; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
   const validationResult = warehouseUpdateSchema.safeParse(input)
   if (!validationResult.success) {
-    return { error: 'Validation échouée: ' + validationResult.error.issues.map((e) => e.message).join(', ') }
+    return serviceError('Validation échouée: ' + validationResult.error.issues.map((e) => e.message).join(', '), 'VALIDATION')
   }
 
   try {
@@ -148,7 +149,7 @@ export async function updateEntrepot(
       where: { id_entrepot: id },
     })
     if (!existing) {
-      return { error: 'Entrepôt introuvable' }
+      return serviceError('Entrepôt introuvable', 'NOT_FOUND')
     }
 
     if (validationResult.data.code_entrepot && validationResult.data.code_entrepot !== existing.code_entrepot) {
@@ -156,7 +157,7 @@ export async function updateEntrepot(
         where: { code_entrepot: validationResult.data.code_entrepot },
       })
       if (duplicate) {
-        return { error: `Le code entrepôt ${validationResult.data.code_entrepot} existe déjà` }
+        return serviceError(`Le code entrepôt ${validationResult.data.code_entrepot} existe déjà`, 'CONFLICT')
       }
     }
 
@@ -167,19 +168,19 @@ export async function updateEntrepot(
     return { data: warehouse }
   } catch (error) {
     log.error({ error, id, input: validationResult.data }, 'Échec de la mise à jour de l\'entrepôt')
-    return { error: 'Échec de la mise à jour de l\'entrepôt' }
+    return serviceError('Échec de la mise à jour de l\'entrepôt', 'INTERNAL')
   }
 }
 
 export async function deleteEntrepot(
   id: number,
-): Promise<{ data?: { success: boolean }; error?: string }> {
+): Promise<{ data?: { success: boolean }; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
   try {
     const existing = await prisma.entrepot.findUnique({
       where: { id_entrepot: id },
     })
     if (!existing) {
-      return { error: 'Entrepôt introuvable' }
+      return serviceError('Entrepôt introuvable', 'NOT_FOUND')
     }
 
     await prisma.entrepot.update({
@@ -190,7 +191,7 @@ export async function deleteEntrepot(
     return { data: { success: true } }
   } catch (error) {
     log.error({ error, id }, 'Échec de la suppression de l\'entrepôt')
-    return { error: 'Échec de la suppression de l\'entrepôt' }
+    return serviceError('Échec de la suppression de l\'entrepôt', 'INTERNAL')
   }
 }
 
@@ -198,13 +199,13 @@ export async function getEntrepotStockLevels(
   id: number,
   page: number = 1,
   limit: number = 50,
-): Promise<PaginatedResult<unknown> & { error?: string }> {
+): Promise<PaginatedResult<unknown> & { error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
   try {
     const warehouse = await prisma.entrepot.findUnique({
       where: { id_entrepot: id },
     })
     if (!warehouse) {
-      return { ...createEmptyResult(page, limit, 'Entrepôt introuvable'), data: [] as unknown[] }
+      return { ...createEmptyResult(page, limit, 'Entrepôt introuvable'), data: [] as unknown[], ...serviceError('Entrepôt introuvable', 'NOT_FOUND') }
     }
 
     const { skip } = getPaginationParams({ page, limit })
@@ -230,6 +231,6 @@ export async function getEntrepotStockLevels(
     }
   } catch (error) {
     log.error({ error, id, page, limit }, 'Échec de la récupération des niveaux de stock')
-    return { ...createEmptyResult(page, limit, 'Échec de la récupération des niveaux de stock'), data: [] as unknown[] }
+    return { ...createEmptyResult(page, limit, 'Échec de la récupération des niveaux de stock'), data: [] as unknown[], ...serviceError('Échec de la récupération des niveaux de stock', 'INTERNAL') }
   }
 }

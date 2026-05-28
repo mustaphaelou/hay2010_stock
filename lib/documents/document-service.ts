@@ -22,6 +22,7 @@ import { mapDocumentToComputed, mapLineToDocumentLine } from '@/lib/documents/ma
 import { hasRole } from '@/lib/auth/authorization'
 import type { UserRole } from '@/lib/auth/authorization'
 import { Prisma } from '@/lib/generated/prisma/client'
+import { serviceError } from '@/lib/service-result'
 
 const log = createLogger('document-service')
 
@@ -33,10 +34,10 @@ function applyRowLevelSecurity(user: { id: string; role: string }, whereClause: 
 export async function listDocuments(
   params: DocumentListParams,
   user: { id: string; role: string }
-): Promise<PaginatedResult<DocumentWithComputed> & { error?: string }> {
+): Promise<PaginatedResult<DocumentWithComputed> & { error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
   const parsed = paginationSchema.safeParse({ page: params.page, limit: params.limit })
   if (!parsed.success) {
-    return createEmptyResult<DocumentWithComputed>(params.page, params.limit, 'Paramètres de pagination invalides')
+    return { ...createEmptyResult<DocumentWithComputed>(params.page, params.limit, 'Paramètres de pagination invalides'), ...serviceError('Paramètres de pagination invalides', 'VALIDATION') }
   }
   const safePage = parsed.data?.page ?? params.page
   const safeLimit = parsed.data?.limit ?? params.limit
@@ -101,16 +102,16 @@ export async function listDocuments(
     }
   } catch (error) {
     log.error({ error }, 'Échec de la récupération des documents')
-    return createEmptyResult<DocumentWithComputed>(safePage, safeLimit, 'Échec de la récupération des documents')
+    return { ...createEmptyResult<DocumentWithComputed>(safePage, safeLimit, 'Échec de la récupération des documents'), ...serviceError('Échec de la récupération des documents', 'INTERNAL') }
   }
 }
 
 export async function getDocumentById(
   id_document: number,
-): Promise<{ data?: Record<string, unknown> | null; error?: string }> {
+): Promise<{ data?: Record<string, unknown> | null; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
   const validationResult = getDocumentByIdSchema.safeParse({ id_document })
   if (!validationResult.success) {
-    return { error: 'ID de document invalide' }
+    return serviceError('ID de document invalide', 'VALIDATION')
   }
 
   try {
@@ -125,23 +126,23 @@ export async function getDocumentById(
     })
 
     if (!document) {
-      return { data: null, error: 'Document introuvable' }
+      return { data: null, ...serviceError('Document introuvable', 'NOT_FOUND') }
     }
 
     return { data: document as unknown as Record<string, unknown> }
   } catch (error) {
     log.error({ error, id_document }, 'Échec de la récupération du document')
-    return { error: 'Échec de la récupération du document' }
+    return serviceError('Échec de la récupération du document', 'INTERNAL')
   }
 }
 
 export async function createDocument(
   input: DocumentCreateInput,
   userId: string,
-): Promise<{ data?: DocumentWithComputed; error?: string }> {
+): Promise<{ data?: DocumentWithComputed; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
   const validationResult = documentCreateSchema.safeParse(input)
   if (!validationResult.success) {
-    return { error: 'Validation échouée: ' + validationResult.error.issues.map((e) => e.message).join(', ') }
+    return serviceError('Validation échouée: ' + validationResult.error.issues.map((e) => e.message).join(', '), 'VALIDATION')
   }
 
   const validatedInput = validationResult.data
@@ -151,14 +152,14 @@ export async function createDocument(
       where: { numero_document: validatedInput.numero_document },
     })
     if (existing) {
-      return { error: `Le document ${validatedInput.numero_document} existe déjà` }
+      return serviceError(`Le document ${validatedInput.numero_document} existe déjà`, 'CONFLICT')
     }
 
     const partner = await prisma.partenaire.findUnique({
       where: { id_partenaire: validatedInput.id_partenaire },
     })
     if (!partner) {
-      return { error: 'Partenaire introuvable' }
+      return serviceError('Partenaire introuvable', 'NOT_FOUND')
     }
 
     const { id_partenaire, id_affaire, id_entrepot, ...rest } = validatedInput
@@ -176,7 +177,7 @@ export async function createDocument(
     return { data: mapDocumentToComputed(document as unknown as Parameters<typeof mapDocumentToComputed>[0]) }
   } catch (error) {
     log.error({ error, input: validatedInput }, 'Échec de la création du document')
-    return { error: 'Échec de la création du document' }
+    return serviceError('Échec de la création du document', 'INTERNAL')
   }
 }
 
@@ -184,10 +185,10 @@ export async function updateDocument(
   id_document: number,
   input: DocumentUpdateInput,
   userId: string,
-): Promise<{ data?: DocumentWithComputed; error?: string }> {
+): Promise<{ data?: DocumentWithComputed; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
   const validationResult = documentUpdateSchema.safeParse(input)
   if (!validationResult.success) {
-    return { error: 'Validation échouée: ' + validationResult.error.issues.map((e) => e.message).join(', ') }
+    return serviceError('Validation échouée: ' + validationResult.error.issues.map((e) => e.message).join(', '), 'VALIDATION')
   }
 
   const validatedInput = validationResult.data
@@ -197,7 +198,7 @@ export async function updateDocument(
       where: { id_document },
     })
     if (!existing) {
-      return { error: 'Document introuvable' }
+      return serviceError('Document introuvable', 'NOT_FOUND')
     }
 
     if (validatedInput.numero_document && validatedInput.numero_document !== existing.numero_document) {
@@ -205,7 +206,7 @@ export async function updateDocument(
         where: { numero_document: validatedInput.numero_document },
       })
       if (duplicate) {
-        return { error: `Le document ${validatedInput.numero_document} existe déjà` }
+        return serviceError(`Le document ${validatedInput.numero_document} existe déjà`, 'CONFLICT')
       }
     }
 
@@ -220,17 +221,17 @@ export async function updateDocument(
     return { data: mapDocumentToComputed(document as unknown as Parameters<typeof mapDocumentToComputed>[0]) }
   } catch (error) {
     log.error({ error, id_document, input: validatedInput }, 'Échec de la mise à jour du document')
-    return { error: 'Échec de la mise à jour du document' }
+    return serviceError('Échec de la mise à jour du document', 'INTERNAL')
   }
 }
 
 export async function deleteDocument(
   id_document: number,
   userId: string,
-): Promise<{ data?: { success: boolean }; error?: string }> {
+): Promise<{ data?: { success: boolean }; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
   const validationResult = deleteDocumentSchema.safeParse({ id_document })
   if (!validationResult.success) {
-    return { error: 'ID de document invalide' }
+    return serviceError('ID de document invalide', 'VALIDATION')
   }
 
   try {
@@ -238,7 +239,7 @@ export async function deleteDocument(
       where: { id_document },
     })
     if (!existing) {
-      return { error: 'Document introuvable' }
+      return serviceError('Document introuvable', 'NOT_FOUND')
     }
 
     await prisma.docVente.update({
@@ -249,7 +250,7 @@ export async function deleteDocument(
     return { data: { success: true } }
   } catch (error) {
     log.error({ error, id_document }, 'Échec de la suppression du document')
-    return { error: 'Échec de la suppression du document' }
+    return serviceError('Échec de la suppression du document', 'INTERNAL')
   }
 }
 
@@ -257,13 +258,13 @@ export async function getDocumentLinesById(
   id_document: number,
   page: number = 1,
   limit: number = 50,
-): Promise<PaginatedResult<Record<string, unknown>> & { error?: string }> {
+): Promise<PaginatedResult<Record<string, unknown>> & { error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
   try {
     const document = await prisma.docVente.findUnique({
       where: { id_document },
     })
     if (!document) {
-      return { ...createEmptyResult(page, limit, 'Document introuvable'), data: [] }
+      return { ...createEmptyResult(page, limit, 'Document introuvable'), data: [], ...serviceError('Document introuvable', 'NOT_FOUND') }
     }
 
     const { skip } = getPaginationParams({ page, limit })
@@ -284,15 +285,15 @@ export async function getDocumentLinesById(
     }
   } catch (error) {
     log.error({ error, id_document }, 'Échec de la récupération des lignes')
-    return { ...createEmptyResult(page, limit, 'Échec de la récupération des lignes'), data: [] as Record<string, unknown>[] }
+    return { ...createEmptyResult(page, limit, 'Échec de la récupération des lignes'), data: [] as Record<string, unknown>[], ...serviceError('Échec de la récupération des lignes', 'INTERNAL') }
   }
 }
 
-export async function getDocLines(docId: number): Promise<{ data: DocumentLine[]; error?: string }> {
+export async function getDocLines(docId: number): Promise<{ data: DocumentLine[]; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
   const validationResult = getDocLinesSchema.safeParse({ docId })
   if (!validationResult.success) {
     log.error({ error: validationResult.error, docId }, 'docId invalide')
-    return { data: [], error: 'ID de document invalide' }
+    return { data: [], ...serviceError('ID de document invalide', 'VALIDATION') }
   }
 
   try {
@@ -309,6 +310,6 @@ export async function getDocLines(docId: number): Promise<{ data: DocumentLine[]
     }
   } catch (error) {
     log.error({ error, docId }, 'Échec de la récupération des lignes')
-    return { data: [], error: 'Échec de la récupération des lignes' }
+    return { data: [], ...serviceError('Échec de la récupération des lignes', 'INTERNAL') }
   }
 }

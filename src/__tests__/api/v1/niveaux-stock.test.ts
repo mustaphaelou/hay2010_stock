@@ -293,7 +293,7 @@ describe('NiveauStock API Handlers', () => {
 
     it('should return 409 on duplicate produit-entrepot', async () => {
       mockRequireApiKey.mockResolvedValue(API_USER)
-      mockCreateStockLevel.mockResolvedValue({ error: 'Un niveau de stock existe déjà pour ce couple produit-entrepôt' })
+      mockCreateStockLevel.mockResolvedValue({ error: 'Un niveau de stock existe déjà pour ce couple produit-entrepôt', code: 'CONFLICT' })
 
       const request = makeRequest('POST', '/api/v1/niveaux-stock', createBody)
       const response = await createStockLevelHandler(request)
@@ -303,7 +303,7 @@ describe('NiveauStock API Handlers', () => {
 
     it('should return 404 when produit not found', async () => {
       mockRequireApiKey.mockResolvedValue(API_USER)
-      mockCreateStockLevel.mockResolvedValue({ error: 'Produit introuvable' })
+      mockCreateStockLevel.mockResolvedValue({ error: 'Produit introuvable', code: 'NOT_FOUND' })
 
       const request = makeRequest('POST', '/api/v1/niveaux-stock', createBody)
       const response = await createStockLevelHandler(request)
@@ -313,7 +313,7 @@ describe('NiveauStock API Handlers', () => {
 
     it('should return 404 when entrepot not found', async () => {
       mockRequireApiKey.mockResolvedValue(API_USER)
-      mockCreateStockLevel.mockResolvedValue({ error: 'Entrepôt introuvable' })
+      mockCreateStockLevel.mockResolvedValue({ error: 'Entrepôt introuvable', code: 'NOT_FOUND' })
 
       const request = makeRequest('POST', '/api/v1/niveaux-stock', createBody)
       const response = await createStockLevelHandler(request)
@@ -384,7 +384,7 @@ describe('NiveauStock API Handlers', () => {
 
     it('should return 404 for non-existent stock level', async () => {
       mockRequireApiKey.mockResolvedValue(API_USER)
-      mockDeleteStockLevel.mockResolvedValue({ error: 'Niveau de stock introuvable' })
+      mockDeleteStockLevel.mockResolvedValue({ error: 'Niveau de stock introuvable', code: 'NOT_FOUND' })
 
       const request = makeRequest('DELETE', '/api/v1/niveaux-stock/999')
       const response = await deleteStockLevelHandler(request)

@@ -6,6 +6,7 @@ import { TypePartenaire } from '@/lib/generated/prisma'
 import { createLogger } from '@/lib/logger'
 import { createEmptyResult, buildPaginationMeta, getPaginationParams } from '@/lib/pagination'
 import type { PaginatedResult } from '@/lib/pagination'
+import { serviceError } from '@/lib/service-result'
 
 
 const log = createLogger('partner-service')
@@ -67,11 +68,11 @@ export async function getPartners(
   search?: string,
   sort: string = 'nom_partenaire',
   order: 'asc' | 'desc' = 'asc',
-): Promise<PaginatedResult<PartnerWithComputed> & { error?: string }> {
+): Promise<PaginatedResult<PartnerWithComputed> & { error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
   const validationResult = getPartnersSchema.safeParse({ type })
   if (!validationResult.success) {
     log.error({ error: validationResult.error }, 'Filtres partenaires invalides')
-    return createEmptyResult<PartnerWithComputed>(page, limit, 'Paramètres de filtre invalides')
+    return { ...createEmptyResult<PartnerWithComputed>(page, limit, 'Paramètres de filtre invalides'), ...serviceError('Paramètres de filtre invalides', 'VALIDATION') }
   }
 
   const { skip } = getPaginationParams({ page, limit })
@@ -108,15 +109,15 @@ export async function getPartners(
     }
   } catch (error) {
     log.error({ error, type }, 'Échec de la récupération des partenaires')
-    return createEmptyResult<PartnerWithComputed>(page, limit, 'Échec de la récupération des partenaires')
+    return { ...createEmptyResult<PartnerWithComputed>(page, limit, 'Échec de la récupération des partenaires'), ...serviceError('Échec de la récupération des partenaires', 'INTERNAL') }
   }
 }
 
 export async function getPartnerById(
   id_partenaire: number,
-): Promise<{ data?: PartnerWithComputed; error?: string }> {
+): Promise<{ data?: PartnerWithComputed; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
   if (!Number.isFinite(id_partenaire) || id_partenaire <= 0) {
-    return { error: 'ID partenaire invalide' }
+    return serviceError('ID partenaire invalide', 'VALIDATION')
   }
 
   try {
@@ -125,23 +126,23 @@ export async function getPartnerById(
     })
 
     if (!partner) {
-      return { error: 'Partenaire introuvable' }
+      return serviceError('Partenaire introuvable', 'NOT_FOUND')
     }
 
     return { data: mapPartnerToComputed(partner as unknown as Record<string, unknown>) }
   } catch (error) {
     log.error({ error, id_partenaire }, 'Échec de la récupération du partenaire')
-    return { error: 'Échec de la récupération du partenaire' }
+    return serviceError('Échec de la récupération du partenaire', 'INTERNAL')
   }
 }
 
 export async function createPartner(
   input: CreatePartnerInput,
   userId: string,
-): Promise<{ data?: PartnerWithComputed; error?: string }> {
+): Promise<{ data?: PartnerWithComputed; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
   const validationResult = createPartnerSchema.safeParse(input)
   if (!validationResult.success) {
-    return { error: 'Validation échouée: ' + validationResult.error.issues.map((e) => e.message).join(', ') }
+    return serviceError('Validation échouée: ' + validationResult.error.issues.map((e) => e.message).join(', '), 'VALIDATION')
   }
 
   const validatedInput = validationResult.data
@@ -151,7 +152,7 @@ export async function createPartner(
       where: { code_partenaire: validatedInput.code_partenaire },
     })
     if (existing) {
-      return { error: `Le partenaire ${validatedInput.code_partenaire} existe déjà` }
+      return serviceError(`Le partenaire ${validatedInput.code_partenaire} existe déjà`, 'CONFLICT')
     }
 
     const partner = await prisma.partenaire.create({
@@ -165,7 +166,7 @@ export async function createPartner(
     return { data: mapPartnerToComputed(partner as unknown as Record<string, unknown>) }
   } catch (error) {
     log.error({ error, input: validatedInput }, 'Échec de la création du partenaire')
-    return { error: 'Échec de la création du partenaire' }
+    return serviceError('Échec de la création du partenaire', 'INTERNAL')
   }
 }
 
@@ -173,10 +174,10 @@ export async function updatePartner(
   id_partenaire: number,
   input: UpdatePartnerInput,
   userId: string,
-): Promise<{ data?: PartnerWithComputed; error?: string }> {
+): Promise<{ data?: PartnerWithComputed; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
   const validationResult = updatePartnerSchema.safeParse(input)
   if (!validationResult.success) {
-    return { error: 'Validation échouée: ' + validationResult.error.issues.map((e) => e.message).join(', ') }
+    return serviceError('Validation échouée: ' + validationResult.error.issues.map((e) => e.message).join(', '), 'VALIDATION')
   }
 
   const validatedInput = validationResult.data
@@ -186,7 +187,7 @@ export async function updatePartner(
       where: { id_partenaire },
     })
     if (!existing) {
-      return { error: 'Partenaire introuvable' }
+      return serviceError('Partenaire introuvable', 'NOT_FOUND')
     }
 
     if (validatedInput.code_partenaire && validatedInput.code_partenaire !== existing.code_partenaire) {
@@ -194,7 +195,7 @@ export async function updatePartner(
         where: { code_partenaire: validatedInput.code_partenaire },
       })
       if (duplicate) {
-        return { error: `Le partenaire ${validatedInput.code_partenaire} existe déjà` }
+        return serviceError(`Le partenaire ${validatedInput.code_partenaire} existe déjà`, 'CONFLICT')
       }
     }
 
@@ -210,17 +211,17 @@ export async function updatePartner(
     return { data: mapPartnerToComputed(partner as unknown as Record<string, unknown>) }
   } catch (error) {
     log.error({ error, id_partenaire, input: validatedInput }, 'Échec de la mise à jour du partenaire')
-    return { error: 'Échec de la mise à jour du partenaire' }
+    return serviceError('Échec de la mise à jour du partenaire', 'INTERNAL')
   }
 }
 
 export async function deletePartner(
   id_partenaire: number,
   userId?: string,
-): Promise<{ data?: { success: boolean }; error?: string }> {
+): Promise<{ data?: { success: boolean }; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
   const validationResult = deletePartnerSchema.safeParse({ id_partenaire })
   if (!validationResult.success) {
-    return { error: 'Validation échouée: ' + validationResult.error.issues.map((e) => e.message).join(', ') }
+    return serviceError('Validation échouée: ' + validationResult.error.issues.map((e) => e.message).join(', '), 'VALIDATION')
   }
 
   try {
@@ -228,7 +229,7 @@ export async function deletePartner(
       where: { id_partenaire },
     })
     if (!existing) {
-      return { error: 'Partenaire introuvable' }
+      return serviceError('Partenaire introuvable', 'NOT_FOUND')
     }
 
     await prisma.partenaire.update({
@@ -239,7 +240,7 @@ export async function deletePartner(
     return { data: { success: true } }
   } catch (error) {
     log.error({ error, id_partenaire }, 'Échec de la suppression du partenaire')
-    return { error: 'Échec de la suppression du partenaire' }
+    return serviceError('Échec de la suppression du partenaire', 'INTERNAL')
   }
 }
 
@@ -247,13 +248,13 @@ export async function getPartnerDocuments(
   partnerId: number,
   page: number = 1,
   limit: number = 50,
-): Promise<PaginatedResult<Record<string, unknown>> & { error?: string }> {
+): Promise<PaginatedResult<Record<string, unknown>> & { error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
   try {
     const partner = await prisma.partenaire.findUnique({
       where: { id_partenaire: partnerId },
     })
     if (!partner) {
-      return { ...createEmptyResult(page, limit, 'Partenaire introuvable'), data: [] as Record<string, unknown>[] }
+      return { ...createEmptyResult(page, limit, 'Partenaire introuvable'), data: [] as Record<string, unknown>[], ...serviceError('Partenaire introuvable', 'NOT_FOUND') }
     }
 
     const { skip } = getPaginationParams({ page, limit })
@@ -277,6 +278,6 @@ export async function getPartnerDocuments(
     }
   } catch (error) {
     log.error({ error, partnerId }, 'Échec de la récupération des documents du partenaire')
-    return { ...createEmptyResult(page, limit, 'Échec de la récupération des documents'), data: [] as Record<string, unknown>[] }
+    return { ...createEmptyResult(page, limit, 'Échec de la récupération des documents'), data: [] as Record<string, unknown>[], ...serviceError('Échec de la récupération des documents', 'INTERNAL') }
   }
 }
