@@ -69,15 +69,7 @@ const nextConfig: NextConfig = {
         "tailwind-merge",
         "@radix-ui/react-dialog",
         "@radix-ui/react-popover",
-        "@radix-ui/react-dropdown-menu",
-        "@radix-ui/react-select",
-        "@radix-ui/react-tabs",
-        "@radix-ui/react-tooltip",
-        "@radix-ui/react-avatar",
-        "@radix-ui/react-separator",
-        "@radix-ui/react-toggle",
-        "@radix-ui/react-toggle-group",
-          "zod",
+        "zod",
       ],
 
     // Server actions configuration
