@@ -46,7 +46,7 @@ describe('Session Management', () => {
             await createSession('user-123', 'test@example.com', 'Test User', 'USER')
 
             const call = vi.mocked(redis.setex).mock.calls[0]
-            expect(call[1]).toBe(60 * 60 * 24 * 7)
+            expect(call[1]).toBe(900)
         })
 
         it('should store complete session data', async () => {
@@ -127,7 +127,7 @@ describe('Session Management', () => {
 
             await refreshSession('test-session-id')
 
-            expect(redis.expire).toHaveBeenCalledWith('session:test-session-id', 60 * 60 * 24 * 7)
+            expect(redis.expire).toHaveBeenCalledWith('session:test-session-id', 900)
         })
     })
 })

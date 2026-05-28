@@ -156,7 +156,7 @@ describe('Auth Flow Integration', () => {
 
       const setexCall = mockRedisSetex.mock.calls[0]
       expect(setexCall[0]).toMatch(/^session:/)
-      expect(setexCall[1]).toBe(604800)
+      expect(setexCall[1]).toBe(900)
     })
 
     it('should return error for invalid credentials', async () => {

@@ -1,6 +1,5 @@
 import bcrypt from 'bcryptjs'
-
-const SALT_ROUNDS = 12
+import { getAuthConfig } from '@/lib/config/auth-config'
 
 /**
  * Hashes a plain text password using bcrypt.
@@ -13,7 +12,7 @@ const SALT_ROUNDS = 12
  * // Store hashedPassword in database
  */
 export async function hashPassword(password: string): Promise<string> {
-  return bcrypt.hash(password, SALT_ROUNDS)
+  return bcrypt.hash(password, getAuthConfig().password.saltRounds)
 }
 
 /**

@@ -1,6 +1,6 @@
 import { SignJWT, jwtVerify } from 'jose'
 import { createLogger } from '@/lib/logger'
-import { getRequiredSecret } from '@/lib/config/env-validation'
+import { getAuthConfig } from '@/lib/config/auth-config'
 import { redis, isRedisReady } from '@/lib/db/redis'
 import { randomBytesHex } from '@/lib/utils/crypto'
 
@@ -8,27 +8,9 @@ const log = createLogger('jwt')
 
 const JWT_BLOCKLIST_PREFIX = 'jwt:blocklist:'
 
-let _jwtSecret: Uint8Array | null = null
-
-function getJwtSecret(): Uint8Array {
-  if (_jwtSecret) return _jwtSecret
-  const secret = getRequiredSecret('JWT_SECRET', 'JWT_SECRET_FILE')
-
-  if (secret.length < 32) {
-    log.warn('JWT_SECRET should be at least 32 characters for security')
-  }
-
-  _jwtSecret = new TextEncoder().encode(secret)
-  return _jwtSecret
-}
-
-function getJwtExpiration(): string {
-  return process.env.JWT_EXPIRES_IN || '24h'
-}
-
 function getJwtExpirationSeconds(): number {
-  const exp = getJwtExpiration()
-  const match = exp.match(/^(\d+)(h|m|s)?$/)
+  const { expiresIn } = getAuthConfig().jwt
+  const match = expiresIn.match(/^(\d+)(h|m|s)?$/)
   if (!match) return 86400
   const value = parseInt(match[1], 10)
   const unit = match[2] || 's'
@@ -50,21 +32,20 @@ export interface JWTPayload {
 }
 
 export async function generateToken(payload: JWTPayload): Promise<string> {
-  const secret = getJwtSecret()
-  const expiration = getJwtExpiration()
+  const { secret, expiresIn } = getAuthConfig().jwt
   const jti = randomBytesHex(16)
   log.debug({ userId: payload.userId, email: payload.email }, 'Generating JWT token')
 
   return new SignJWT({ ...payload, jti })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
-    .setExpirationTime(expiration)
+    .setExpirationTime(expiresIn)
     .sign(secret)
 }
 
 export async function verifyToken(token: string): Promise<JWTPayload | null> {
   try {
-    const secret = getJwtSecret()
+    const { secret } = getAuthConfig().jwt
     const { payload } = await jwtVerify(token, secret)
 
     if (payload.jti && isRedisReady()) {

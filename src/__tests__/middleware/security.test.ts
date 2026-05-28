@@ -327,6 +327,8 @@ describe('Security Middleware', () => {
 
 describe('Error Handling', () => {
   it('should handle missing JWT_SECRET environment variable', async () => {
+    const { resetAuthConfig } = await import('@/lib/config/auth-config')
+    resetAuthConfig()
     delete process.env.JWT_SECRET
 
     const request = createMockRequest({

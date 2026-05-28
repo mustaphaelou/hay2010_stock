@@ -5,6 +5,7 @@ import { serverActionWrite } from '@/lib/actions/server-action-write'
 import { loginUser, logoutUser } from '@/lib/auth/auth-service'
 import { loginSchema } from '@/lib/auth/validation'
 import { AUTH_COOKIE_NAME } from '@/lib/constants/auth'
+import { getAuthConfig } from '@/lib/config/auth-config'
 import { getCurrentUser } from '@/lib/auth/user-utils'
 
 export async function login(e: string, p: string, r = false, t?: string): Promise<{ error?: string; success?: boolean }> {
@@ -14,9 +15,10 @@ export async function login(e: string, p: string, r = false, t?: string): Promis
     const d = await loginUser(e, p, r, ip)
     if (d.error) return { error: d.error }
     const c = await cookies()
+    const { ttl } = getAuthConfig().session
     c.set(AUTH_COOKIE_NAME, d.data!.token, {
-      httpOnly: true, secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict', maxAge: r ? 2592000 : 604800, path: '/',
+      httpOnly: true, secure: getAuthConfig().cookies.secure,
+      sameSite: 'strict', maxAge: ttl, path: '/',
     })
     return { success: true }
   }, { validation: { schema: loginSchema, input: { email: e, password: p } } })

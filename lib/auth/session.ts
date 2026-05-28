@@ -1,8 +1,8 @@
 import { createLogger } from '@/lib/logger'
+import { getAuthConfig } from '@/lib/config/auth-config'
 import { randomBytesHex } from '@/lib/utils/crypto'
 
 const SESSION_PREFIX = 'session:'
-const SESSION_TTL = 60 * 60 * 24 * 7 // 7 days in seconds
 
 const log = createLogger('session')
 
@@ -48,7 +48,7 @@ export async function createSession(userId: string, email: string, name: string,
 
   await redisClient.setex(
     `${SESSION_PREFIX}${sessionId}`,
-    SESSION_TTL,
+    getAuthConfig().session.ttl,
     JSON.stringify(sessionData)
   )
 
@@ -83,5 +83,5 @@ export async function refreshSession(sessionId: string): Promise<void> {
 
   const redisClient = await getRedis()
 
-  await redisClient.expire(key, SESSION_TTL)
+  await redisClient.expire(key, getAuthConfig().session.ttl)
 }

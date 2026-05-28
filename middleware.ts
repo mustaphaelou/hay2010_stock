@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { jwtVerify } from 'jose'
+import { getAuthConfig } from '@/lib/config/auth-config'
 
 function generateNonce(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(16))
@@ -14,17 +15,9 @@ function generateNonce(): string {
 const PUBLIC_PATHS = ['/login', '/register', '/forgot-password', '/reset-password', '/api/auth', '/api/csrf-token', '/api/health/public', '/api/v1', '/favicon.ico', '/_next']
 const AUTH_COOKIE = 'auth_token'
 
-function getJwtSecret(): Uint8Array {
-  const secret = process.env.JWT_SECRET
-  if (!secret) {
-    throw new Error('JWT_SECRET environment variable is required')
-  }
-  return new TextEncoder().encode(secret)
-}
-
 async function verifyTokenEdge(token: string) {
   try {
-    const secret = getJwtSecret()
+    const secret = getAuthConfig().jwt.secret
     const { payload } = await jwtVerify(token, secret)
     return payload as { userId: string; email: string; role: string; sessionId: string; iat?: number }
   } catch {

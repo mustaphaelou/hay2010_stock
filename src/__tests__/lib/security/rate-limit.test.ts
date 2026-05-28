@@ -229,8 +229,10 @@ describe('withRateLimit', () => {
     })
 
     it('rejects when RATE_LIMIT_FAIL_CLOSED is enabled and Redis fails', async () => {
+      const { resetAuthConfig } = await import('@/lib/config/auth-config')
       const original = process.env.RATE_LIMIT_FAIL_CLOSED
       try {
+        resetAuthConfig()
         process.env.RATE_LIMIT_FAIL_CLOSED = 'true'
         mockRedis.incr.mockRejectedValue(new Error('Redis down'))
 

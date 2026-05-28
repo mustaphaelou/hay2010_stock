@@ -2,10 +2,10 @@ import { randomBytes } from 'crypto'
 import { cookies } from 'next/headers'
 import { redis, isRedisReady } from '@/lib/db/redis'
 import { createLogger } from '@/lib/logger'
+import { getAuthConfig } from '@/lib/config/auth-config'
 
 const log = createLogger('csrf-server')
 
-const CSRF_TOKEN_EXPIRY = 3600
 const CSRF_PREFIX = 'csrf:'
 const CSRF_COOKIE_NAME = 'csrf_token'
 
@@ -73,7 +73,7 @@ export async function generateCsrfToken(userId?: string): Promise<CsrfTokens> {
   const cookieValue = randomBytes(32).toString('hex')
   const key = `${CSRF_PREFIX}${uid}:${token}`
 
-  await redis.setex(key, CSRF_TOKEN_EXPIRY, cookieValue)
+  await redis.setex(key, getAuthConfig().csrf.tokenExpiry, cookieValue)
 
   log.debug({ uid, keyPrefix: `${CSRF_PREFIX}${uid}:` }, 'CSRF token generated')
 
@@ -177,11 +177,12 @@ export async function validateCsrfTokenFromAction(userId: string, token?: string
  */
 export async function setCsrfCookie(cookieValue: string): Promise<void> {
   const cookieStore = await cookies()
+  const { tokenExpiry } = getAuthConfig().csrf
   cookieStore.set(CSRF_COOKIE_NAME, cookieValue, {
     httpOnly: false,
-    secure: process.env.NODE_ENV === 'production',
+    secure: getAuthConfig().cookies.secure,
     sameSite: 'strict',
-    maxAge: CSRF_TOKEN_EXPIRY,
+    maxAge: tokenExpiry,
     path: '/',
   })
 }
@@ -210,16 +211,7 @@ export async function getCsrfTokenFromHeader(): Promise<string | null> {
 import { createHmac, timingSafeEqual } from 'crypto'
 
 function getHmacSecret(): string {
-  const csrfSecret = process.env.CSRF_SECRET
-  if (csrfSecret) return csrfSecret
-
-  const jwtSecret = process.env.JWT_SECRET
-  if (jwtSecret) {
-    log.warn('CSRF_SECRET not set — falling back to JWT_SECRET. Set CSRF_SECRET for proper key separation.')
-    return jwtSecret
-  }
-
-  throw new Error('CSRF_SECRET or JWT_SECRET is required for CSRF protection')
+  return getAuthConfig().csrf.secret
 }
 
 function generateStatelessCsrfToken(userId: string): CsrfTokens {
@@ -247,7 +239,7 @@ function validateStatelessCsrfToken(userId: string, token: string, cookieValue: 
     // Check token expiry (1 hour)
     const tokenTime = parseInt(timestamp, 36)
     const now = Math.floor(Date.now() / 1000)
-    if (now - tokenTime > CSRF_TOKEN_EXPIRY) {
+    if (now - tokenTime > getAuthConfig().csrf.tokenExpiry) {
       log.warn({ userId }, 'Stateless CSRF token expired')
       return false
     }
@@ -268,4 +260,4 @@ function validateStatelessCsrfToken(userId: string, token: string, cookieValue: 
   }
 }
 
-export { CSRF_COOKIE_NAME, CSRF_TOKEN_EXPIRY, ANONYMOUS_USER_ID }
+export { CSRF_COOKIE_NAME, ANONYMOUS_USER_ID }

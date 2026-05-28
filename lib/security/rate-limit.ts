@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { redis } from '@/lib/db/redis'
 import { createLogger } from '@/lib/logger'
+import { getAuthConfig } from '@/lib/config/auth-config'
 
 const log = createLogger('rate-limit')
 
-const TIER_LIMITS = {
-  read: { requests: 120, window: 60 },
-  write: { requests: 30, window: 60 },
-} as const
+const { read, write, circuitBreaker: cb } = getAuthConfig().rateLimit
+export const TIER_LIMITS = { read, write } as const
 
 export type RateLimitTier = keyof typeof TIER_LIMITS
 
@@ -25,13 +24,10 @@ const circuitBreaker: CircuitBreakerState = {
   halfOpen: false,
 }
 
-const CIRCUIT_BREAKER_THRESHOLD = 5
-const CIRCUIT_BREAKER_RESET_TIME = 60_000
-
 function isCircuitOpen(): boolean {
   if (!circuitBreaker.isOpen) return false
 
-  if (Date.now() - circuitBreaker.lastFailureTime > CIRCUIT_BREAKER_RESET_TIME) {
+  if (Date.now() - circuitBreaker.lastFailureTime > cb.resetTime) {
     log.info('Circuit breaker entering half-open state')
     circuitBreaker.halfOpen = true
     return false
@@ -45,7 +41,7 @@ function recordFailure(): void {
   circuitBreaker.lastFailureTime = Date.now()
   circuitBreaker.halfOpen = false
 
-  if (circuitBreaker.failures >= CIRCUIT_BREAKER_THRESHOLD) {
+  if (circuitBreaker.failures >= cb.threshold) {
     circuitBreaker.isOpen = true
     log.warn({ failures: circuitBreaker.failures }, 'Circuit breaker opened')
   }
@@ -136,7 +132,7 @@ async function checkRateLimit(
       return { allowed: false, remaining: 0, reset: Math.floor(Date.now() / 1000) + config.window }
     }
 
-    if (process.env.RATE_LIMIT_FAIL_CLOSED === 'true') {
+    if (getAuthConfig().rateLimit.failClosed) {
       log.warn('Fail-closed: rejecting request due to Redis error')
       return { allowed: false, remaining: 0, reset: Math.floor(Date.now() / 1000) + config.window }
     }
@@ -169,4 +165,3 @@ export function withRateLimit(
   }
 }
 
-export { TIER_LIMITS }

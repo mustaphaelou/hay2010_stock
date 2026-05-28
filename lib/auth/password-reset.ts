@@ -1,11 +1,11 @@
 import { createHash } from 'node:crypto'
 import { redisSession } from '@/lib/db/redis'
 import { createLogger } from '@/lib/logger'
+import { getAuthConfig } from '@/lib/config/auth-config'
 
 const log = createLogger('password-reset')
 
 const TOKEN_PREFIX = 'pwdreset:'
-const TOKEN_TTL = 60 * 60 // 1 hour in seconds
 
 export interface PasswordResetTokenData {
     email: string
@@ -25,7 +25,7 @@ export async function storeResetToken(token: string, email: string): Promise<voi
     }
 
     try {
-        await redisSession.setex(key, TOKEN_TTL, JSON.stringify(data))
+        await redisSession.setex(key, getAuthConfig().passwordReset.tokenTtl, JSON.stringify(data))
         log.info({ email }, 'Password reset token stored in Redis')
     } catch (error) {
         log.error({ error, email }, 'Failed to store password reset token')
@@ -103,5 +103,3 @@ export async function consumeResetToken(token: string): Promise<{ valid: boolean
     return { valid: false, error: 'Token validation failed' }
   }
 }
-
-export { TOKEN_TTL }
