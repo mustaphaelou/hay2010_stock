@@ -6,7 +6,7 @@ import { passwordSchema } from '@/lib/auth/validation'
 import crypto from 'crypto'
 import { createLogger } from '@/lib/logger'
 import { storeResetToken, consumeResetToken, validateResetToken } from '@/lib/auth/password-reset'
-import { executeWrite } from '@/lib/actions/execute-write'
+import { serverActionWrite } from '@/lib/actions/server-action-write'
 
 const log = createLogger('password-reset-actions')
 
@@ -46,27 +46,24 @@ export async function validateResetTokenAction(token: string): Promise<{ valid: 
 }
 
 export async function resetPassword(token: string, newPassword: string): Promise<{ error?: string; success?: boolean; message?: string }> {
-  return executeWrite({
-    validation: { schema: passwordSchema, input: newPassword },
-    writeFn: async () => {
-      try {
-        const tokenValidation = await consumeResetToken(token)
-        if (!tokenValidation.valid || !tokenValidation.email) {
-          return { error: tokenValidation.error || 'Jeton de réinitialisation invalide' }
-        }
-
-        const hashedPassword = await hashPassword(newPassword)
-
-        await prisma.user.update({
-          where: { email: tokenValidation.email },
-          data: { password: hashedPassword, passwordChangedAt: new Date() } as import('@/lib/generated/prisma/client').Prisma.UserUpdateInput
-        })
-
-        return { success: true, message: 'Your password has been reset successfully. You can now log in with your new password.' }
-      } catch (error) {
-        log.error({ error }, 'Password reset error')
-        return { error: 'Une erreur inattendue est survenue' }
+  return serverActionWrite('public', undefined, async () => {
+    try {
+      const tokenValidation = await consumeResetToken(token)
+      if (!tokenValidation.valid || !tokenValidation.email) {
+        return { error: tokenValidation.error || 'Jeton de réinitialisation invalide' }
       }
+
+      const hashedPassword = await hashPassword(newPassword)
+
+      await prisma.user.update({
+        where: { email: tokenValidation.email },
+        data: { password: hashedPassword, passwordChangedAt: new Date() } as import('@/lib/generated/prisma/client').Prisma.UserUpdateInput
+      })
+
+      return { success: true, message: 'Your password has been reset successfully. You can now log in with your new password.' }
+    } catch (error) {
+      log.error({ error }, 'Password reset error')
+      return { error: 'Une erreur inattendue est survenue' }
     }
-  })
+  }, { validation: { schema: passwordSchema, input: newPassword } })
 }

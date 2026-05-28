@@ -6,7 +6,7 @@ import { registerSchema } from '@/lib/auth/validation'
 import { createLogger } from '@/lib/logger'
 import { redis, isRedisReady } from '@/lib/db/redis'
 import { headers } from 'next/headers'
-import { executeWrite } from '@/lib/actions/execute-write'
+import { serverActionWrite } from '@/lib/actions/server-action-write'
 
 const log = createLogger('registration-actions')
 
@@ -53,44 +53,40 @@ export async function publicRegister(
   name: string,
   csrfToken?: string
 ): Promise<{ error?: string; success?: boolean; message?: string }> {
-  return executeWrite({
-    csrfToken,
-    validation: { schema: registerSchema, input: { email, password, name } },
-    writeFn: async () => {
-      try {
-        const clientIdentifier = await getClientIdentifier()
-        const rateCheck = await checkRegistrationRateLimit(clientIdentifier)
+  return serverActionWrite('public', csrfToken, async () => {
+    try {
+      const clientIdentifier = await getClientIdentifier()
+      const rateCheck = await checkRegistrationRateLimit(clientIdentifier)
 
-        if (!rateCheck.allowed) {
-          return { error: 'Too many registration attempts. Please try again later.' }
-        }
-
-        const normalizedEmail = email.toLowerCase().trim()
-
-        const existingUser = await prisma.user.findUnique({
-          where: { email: normalizedEmail }
-        })
-
-        if (existingUser) {
-          return { error: 'An account with this email already exists. Please try logging in instead.' }
-        }
-
-        const hashedPassword = await hashPassword(password)
-
-        await prisma.user.create({
-          data: {
-            email: normalizedEmail,
-            password: hashedPassword,
-            name: name.trim(),
-            role: 'USER'
-          }
-        })
-
-        return { success: true, message: 'Account created successfully! You can now log in.' }
-      } catch (error) {
-        log.error({ error, email }, 'Registration error')
-        return { error: 'An unexpected error occurred during registration' }
+      if (!rateCheck.allowed) {
+        return { error: 'Too many registration attempts. Please try again later.' }
       }
+
+      const normalizedEmail = email.toLowerCase().trim()
+
+      const existingUser = await prisma.user.findUnique({
+        where: { email: normalizedEmail }
+      })
+
+      if (existingUser) {
+        return { error: 'An account with this email already exists. Please try logging in instead.' }
+      }
+
+      const hashedPassword = await hashPassword(password)
+
+      await prisma.user.create({
+        data: {
+          email: normalizedEmail,
+          password: hashedPassword,
+          name: name.trim(),
+          role: 'USER'
+        }
+      })
+
+      return { success: true, message: 'Account created successfully! You can now log in.' }
+    } catch (error) {
+      log.error({ error, email }, 'Registration error')
+      return { error: 'An unexpected error occurred during registration' }
     }
-  })
+  }, { validation: { schema: registerSchema, input: { email, password, name } } })
 }

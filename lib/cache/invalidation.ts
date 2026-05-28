@@ -3,6 +3,55 @@ import { createLogger } from '@/lib/logger'
 
 const log = createLogger('cache-invalidation')
 
+export type CacheInvalidation =
+  | { kind: 'product'; productId?: number }
+  | { kind: 'stock'; productId?: number; warehouseId?: number }
+  | { kind: 'partner'; partnerId?: number }
+  | { kind: 'document'; documentId?: number }
+  | { kind: 'user'; userId?: string }
+  | { kind: 'affaire'; affaireId?: number }
+  | { kind: 'warehouse'; warehouseId?: number }
+  | { kind: 'category'; categoryId?: number }
+  | { kind: 'dashboard' }
+  | { kind: 'all' }
+
+export async function runInvalidations(invalidations: CacheInvalidation[]): Promise<void> {
+  for (const inv of invalidations) {
+    switch (inv.kind) {
+      case 'product':
+        await CacheInvalidationService.invalidateProduct(inv.productId ?? 0)
+        break
+      case 'stock':
+        await CacheInvalidationService.invalidateStock(inv.productId ?? 0, inv.warehouseId ?? 0)
+        break
+      case 'partner':
+        await CacheInvalidationService.invalidatePartner(inv.partnerId ?? 0)
+        break
+      case 'document':
+        await CacheInvalidationService.invalidateDocument(inv.documentId ?? 0)
+        break
+      case 'user':
+        await CacheInvalidationService.invalidateUser(inv.userId ?? '')
+        break
+      case 'affaire':
+        await CacheInvalidationService.invalidateAffaire(inv.affaireId ?? 0)
+        break
+      case 'warehouse':
+        await CacheInvalidationService.invalidateWarehouse(inv.warehouseId ?? 0)
+        break
+      case 'category':
+        await CacheInvalidationService.invalidateCategory(inv.categoryId ?? 0)
+        break
+      case 'dashboard':
+        await CacheInvalidationService.invalidateDashboard()
+        break
+      case 'all':
+        await CacheInvalidationService.invalidateAll()
+        break
+    }
+  }
+}
+
 export class CacheInvalidationService {
   static async invalidateProduct(productId: number): Promise<void> {
     try {

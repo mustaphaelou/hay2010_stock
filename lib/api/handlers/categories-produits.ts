@@ -12,7 +12,7 @@ import {
   getCategoryChildren,
   getCategoryProducts,
 } from '@/lib/categories/categorie-produit-service'
-import { executeWrite } from '@/lib/actions/execute-write'
+import { apiWrite } from '@/lib/actions/api-write'
 
 export async function listCategoriesHandler(request: NextRequest): Promise<NextResponse> {
   try {
@@ -59,11 +59,11 @@ export async function createCategoryHandler(request: NextRequest): Promise<NextR
     const apiUser = await requireApiKey(request)
 
     const body = await request.json()
-    const result = await executeWrite({
-      user: { id: apiUser.userId, email: '', name: '', role: apiUser.role },
-      writeFn: () => createCategory(body),
-      invalidations: [{ kind: 'category' }],
-    })
+    const result = await apiWrite(
+      { id: apiUser.userId, email: '', name: '', role: apiUser.role },
+      () => createCategory(body),
+      [{ kind: 'category' }],
+    )
 
     handleServiceError(result)
 
@@ -82,11 +82,11 @@ export async function updateCategoryHandler(request: NextRequest, id: number): P
     }
 
     const body = await request.json()
-    const result = await executeWrite({
-      user: { id: apiUser.userId, email: '', name: '', role: apiUser.role },
-      writeFn: () => updateCategory(id, body),
-      invalidations: [{ kind: 'category', categoryId: id }],
-    })
+    const result = await apiWrite(
+      { id: apiUser.userId, email: '', name: '', role: apiUser.role },
+      () => updateCategory(id, body),
+      [{ kind: 'category', categoryId: id }],
+    )
 
     handleServiceError(result)
 
@@ -104,11 +104,11 @@ export async function deleteCategoryHandler(request: NextRequest, id: number): P
       throw new ValidationError('ID catégorie invalide')
     }
 
-    const result = await executeWrite({
-      user: { id: apiUser.userId, email: '', name: '', role: apiUser.role },
-      writeFn: () => deleteCategory(id),
-      invalidations: [{ kind: 'category', categoryId: id }],
-    })
+    const result = await apiWrite(
+      { id: apiUser.userId, email: '', name: '', role: apiUser.role },
+      () => deleteCategory(id),
+      [{ kind: 'category', categoryId: id }],
+    )
 
     handleServiceError(result)
 

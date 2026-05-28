@@ -24,8 +24,8 @@ const { mockRecordFailedAttempt, mockClearFailedAttempts, mockIsAccountLocked, m
   mockClearFailedAttemptsByIp: vi.fn(),
 }))
 
-const { mockExecuteWrite } = vi.hoisted(() => ({
-  mockExecuteWrite: vi.fn(),
+const { mockServerActionWrite } = vi.hoisted(() => ({
+  mockServerActionWrite: vi.fn(),
 }))
 
 const { mockPrismaFindUnique, mockPrismaUpdate } = vi.hoisted(() => ({
@@ -67,8 +67,8 @@ vi.mock('@/lib/auth/lockout', () => ({
   clearFailedAttemptsByIp: mockClearFailedAttemptsByIp,
 }))
 
-vi.mock('@/lib/actions/execute-write', () => ({
-  executeWrite: mockExecuteWrite,
+vi.mock('@/lib/actions/server-action-write', () => ({
+  serverActionWrite: mockServerActionWrite,
 }))
 
 vi.mock('@/lib/logger', () => ({
@@ -110,27 +110,22 @@ describe('Auth Actions', () => {
   })
 
   describe('login', () => {
-    it('should call executeWrite with csrfToken and loginSchema validation', async () => {
-      mockExecuteWrite.mockImplementation(async (options: { writeFn: () => Promise<unknown> }) => {
-        return options.writeFn()
+    it('should call serverActionWrite with public permission, csrf token, and loginSchema validation', async () => {
+      mockServerActionWrite.mockImplementation(async (_permission: string, _csrfToken: string, writeFn: () => Promise<unknown>) => {
+        return writeFn()
       })
 
       await authModule.login('test@test.com', 'password', false, 'valid-token')
 
-      expect(mockExecuteWrite).toHaveBeenCalledWith(
-        expect.objectContaining({
-          csrfToken: 'valid-token',
-          validation: expect.objectContaining({
-            schema: expect.anything(),
-            input: { email: 'test@test.com', password: 'password' },
-          }),
-        })
+      expect(mockServerActionWrite).toHaveBeenCalledWith(
+        'public', 'valid-token', expect.any(Function),
+        { validation: expect.objectContaining({ schema: expect.anything(), input: { email: 'test@test.com', password: 'password' } }) },
       )
     })
 
     it('should reject locked IP inside writeFn', async () => {
-      mockExecuteWrite.mockImplementation(async (options: { writeFn: () => Promise<unknown> }) => {
-        return options.writeFn()
+      mockServerActionWrite.mockImplementation(async (_permission: string, _csrfToken: string, writeFn: () => Promise<unknown>) => {
+        return writeFn()
       })
       mockIsLockedByIp.mockResolvedValue(true)
 
@@ -140,8 +135,8 @@ describe('Auth Actions', () => {
     })
 
     it('should reject locked account inside writeFn', async () => {
-      mockExecuteWrite.mockImplementation(async (options: { writeFn: () => Promise<unknown> }) => {
-        return options.writeFn()
+      mockServerActionWrite.mockImplementation(async (_permission: string, _csrfToken: string, writeFn: () => Promise<unknown>) => {
+        return writeFn()
       })
       mockIsAccountLocked.mockResolvedValue(true)
 
@@ -151,8 +146,8 @@ describe('Auth Actions', () => {
     })
 
     it('should reject non-existent user inside writeFn', async () => {
-      mockExecuteWrite.mockImplementation(async (options: { writeFn: () => Promise<unknown> }) => {
-        return options.writeFn()
+      mockServerActionWrite.mockImplementation(async (_permission: string, _csrfToken: string, writeFn: () => Promise<unknown>) => {
+        return writeFn()
       })
       mockPrismaFindUnique.mockResolvedValue(null)
 
@@ -164,8 +159,8 @@ describe('Auth Actions', () => {
     })
 
     it('should reject wrong password inside writeFn', async () => {
-      mockExecuteWrite.mockImplementation(async (options: { writeFn: () => Promise<unknown> }) => {
-        return options.writeFn()
+      mockServerActionWrite.mockImplementation(async (_permission: string, _csrfToken: string, writeFn: () => Promise<unknown>) => {
+        return writeFn()
       })
       mockPrismaFindUnique.mockResolvedValue({
         id: 'user-1',
@@ -180,8 +175,8 @@ describe('Auth Actions', () => {
     })
 
     it('should login successfully with valid credentials inside writeFn', async () => {
-      mockExecuteWrite.mockImplementation(async (options: { writeFn: () => Promise<unknown> }) => {
-        return options.writeFn()
+      mockServerActionWrite.mockImplementation(async (_permission: string, _csrfToken: string, writeFn: () => Promise<unknown>) => {
+        return writeFn()
       })
       mockPrismaFindUnique.mockResolvedValue({
         id: 'user-1',
@@ -202,8 +197,8 @@ describe('Auth Actions', () => {
     })
 
     it('should clear lockout on successful login inside writeFn', async () => {
-      mockExecuteWrite.mockImplementation(async (options: { writeFn: () => Promise<unknown> }) => {
-        return options.writeFn()
+      mockServerActionWrite.mockImplementation(async (_permission: string, _csrfToken: string, writeFn: () => Promise<unknown>) => {
+        return writeFn()
       })
       mockPrismaFindUnique.mockResolvedValue({
         id: 'user-1',
@@ -220,16 +215,16 @@ describe('Auth Actions', () => {
       expect(mockClearFailedAttemptsByIp).toHaveBeenCalled()
     })
 
-    it('should return CSRF error when executeWrite returns CSRF error', async () => {
-      mockExecuteWrite.mockResolvedValue({ error: 'Jeton de sécurité invalide. Veuillez rafraîchir la page et réessayer.' })
+    it('should return CSRF error when serverActionWrite returns CSRF error', async () => {
+      mockServerActionWrite.mockResolvedValue({ error: 'Jeton de sécurité invalide. Veuillez rafraîchir la page et réessayer.' })
 
       const result = await authModule.login('test@test.com', 'password', false, 'bad-token')
 
       expect(result.error).toContain('Jeton de sécurité invalide')
     })
 
-    it('should return validation error when executeWrite returns validation error', async () => {
-      mockExecuteWrite.mockResolvedValue({ error: 'Entrée invalide : Adresse email invalide' })
+    it('should return validation error when serverActionWrite returns validation error', async () => {
+      mockServerActionWrite.mockResolvedValue({ error: 'Entrée invalide : Adresse email invalide' })
 
       const result = await authModule.login('', '', false, 'valid-token')
 
@@ -238,26 +233,23 @@ describe('Auth Actions', () => {
   })
 
   describe('logout', () => {
-    it('should call executeWrite with permission authenticated', async () => {
-      mockExecuteWrite.mockImplementation(async (options: { writeFn: () => Promise<unknown> }) => {
-        return options.writeFn()
+    it('should call serverActionWrite with authenticated permission', async () => {
+      mockServerActionWrite.mockImplementation(async (_permission: string, _csrfToken: string, writeFn: () => Promise<unknown>) => {
+        return writeFn()
       })
 
       const result = await authModule.logout('valid-csrf-token')
 
-      expect(mockExecuteWrite).toHaveBeenCalledWith(
-        expect.objectContaining({
-          permission: 'authenticated',
-          csrfToken: 'valid-csrf-token',
-        })
+      expect(mockServerActionWrite).toHaveBeenCalledWith(
+        'authenticated', 'valid-csrf-token', expect.any(Function),
       )
       expect(result.success).toBe(true)
       expect(mockDeleteSession).toHaveBeenCalled()
       expect(mockRevokeToken).toHaveBeenCalled()
     })
 
-    it('should return CSRF error when executeWrite returns CSRF error', async () => {
-      mockExecuteWrite.mockResolvedValue({ error: 'Jeton de sécurité invalide. Veuillez rafraîchir la page et réessayer.' })
+    it('should return CSRF error when serverActionWrite returns CSRF error', async () => {
+      mockServerActionWrite.mockResolvedValue({ error: 'Jeton de sécurité invalide. Veuillez rafraîchir la page et réessayer.' })
 
       const result = await authModule.logout('bad-token')
 

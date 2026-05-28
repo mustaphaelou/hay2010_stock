@@ -11,7 +11,7 @@ import {
   deleteEntrepot,
   getEntrepotStockLevels,
 } from '@/lib/entrepots/entrepot-service'
-import { executeWrite } from '@/lib/actions/execute-write'
+import { apiWrite } from '@/lib/actions/api-write'
 
 export async function listWarehousesHandler(request: NextRequest): Promise<NextResponse> {
   try {
@@ -58,11 +58,11 @@ export async function createWarehouseHandler(request: NextRequest): Promise<Next
     const apiUser = await requireApiKey(request)
 
     const body = await request.json()
-    const result = await executeWrite({
-      user: { id: apiUser.userId, email: '', name: '', role: apiUser.role },
-      writeFn: () => createEntrepot(body),
-      invalidations: [{ kind: 'warehouse' }],
-    })
+    const result = await apiWrite(
+      { id: apiUser.userId, email: '', name: '', role: apiUser.role },
+      () => createEntrepot(body),
+      [{ kind: 'warehouse' }],
+    )
 
     handleServiceError(result)
 
@@ -81,11 +81,11 @@ export async function updateWarehouseHandler(request: NextRequest, id: number): 
     }
 
     const body = await request.json()
-    const result = await executeWrite({
-      user: { id: apiUser.userId, email: '', name: '', role: apiUser.role },
-      writeFn: () => updateEntrepot(id, body),
-      invalidations: [{ kind: 'warehouse', warehouseId: id }],
-    })
+    const result = await apiWrite(
+      { id: apiUser.userId, email: '', name: '', role: apiUser.role },
+      () => updateEntrepot(id, body),
+      [{ kind: 'warehouse', warehouseId: id }],
+    )
 
     handleServiceError(result)
 
@@ -103,11 +103,11 @@ export async function deleteWarehouseHandler(request: NextRequest, id: number): 
       throw new ValidationError('ID entrepôt invalide')
     }
 
-    const result = await executeWrite({
-      user: { id: apiUser.userId, email: '', name: '', role: apiUser.role },
-      writeFn: () => deleteEntrepot(id),
-      invalidations: [{ kind: 'warehouse', warehouseId: id }],
-    })
+    const result = await apiWrite(
+      { id: apiUser.userId, email: '', name: '', role: apiUser.role },
+      () => deleteEntrepot(id),
+      [{ kind: 'warehouse', warehouseId: id }],
+    )
 
     handleServiceError(result)
 

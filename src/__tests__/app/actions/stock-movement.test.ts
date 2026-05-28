@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { prisma } from '@/lib/db/prisma'
 
-const { mockExecuteWrite } = vi.hoisted(() => ({
-  mockExecuteWrite: vi.fn(),
+const { mockServerActionWrite } = vi.hoisted(() => ({
+  mockServerActionWrite: vi.fn(),
 }))
 
 vi.mock('@/lib/db/prisma', () => ({
@@ -27,8 +27,8 @@ vi.mock('@/lib/db/redis', () => ({
   },
 }))
 
-vi.mock('@/lib/actions/execute-write', () => ({
-  executeWrite: mockExecuteWrite,
+vi.mock('@/lib/actions/server-action-write', () => ({
+  serverActionWrite: mockServerActionWrite,
 }))
 
 vi.mock('next/server', () => ({
@@ -75,27 +75,27 @@ describe('Stock Movement Actions', () => {
   })
 
   describe('createStockMovement', () => {
-    it('should delegate to executeWrite with correct params', async () => {
-      mockExecuteWrite.mockResolvedValue({ data: { movementId: 1, newQuantity: 10 } })
+    it('should delegate to serverActionWrite with correct params', async () => {
+      mockServerActionWrite.mockResolvedValue({ data: { movementId: 1, newQuantity: 10 } })
 
       const { createStockMovement } = await import('@/app/actions/stock-movement')
       const result = await createStockMovement(validInput, 'valid-csrf-token')
 
-      expect(mockExecuteWrite).toHaveBeenCalledWith({
-        permission: 'stock:write',
-        csrfToken: 'valid-csrf-token',
-        writeFn: expect.any(Function),
-        invalidations: [
-          { kind: 'product', productId: 1 },
-          { kind: 'stock', productId: 1, warehouseId: 1 },
-        ],
-        revalidatePaths: ['/stock'],
-      })
+      expect(mockServerActionWrite).toHaveBeenCalledWith(
+        'stock:write', 'valid-csrf-token', expect.any(Function),
+        {
+          invalidations: [
+            { kind: 'product', productId: 1 },
+            { kind: 'stock', productId: 1, warehouseId: 1 },
+          ],
+          revalidatePaths: ['/stock'],
+        },
+      )
       expect(result.error).toBeUndefined()
     })
 
-    it('should propagate error from executeWrite', async () => {
-      mockExecuteWrite.mockResolvedValue({ error: 'Stock operation in progress, please retry' })
+    it('should propagate error from serverActionWrite', async () => {
+      mockServerActionWrite.mockResolvedValue({ error: 'Stock operation in progress, please retry' })
 
       const { createStockMovement } = await import('@/app/actions/stock-movement')
       const result = await createStockMovement(validInput, 'valid-csrf-token')

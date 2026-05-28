@@ -11,7 +11,7 @@ import {
   deleteDocument,
   getDocumentLinesById,
 } from '@/lib/documents/document-service'
-import { executeWrite } from '@/lib/actions/execute-write'
+import { apiWrite } from '@/lib/actions/api-write'
 
 export async function listDocumentsHandler(request: NextRequest): Promise<NextResponse> {
   try {
@@ -61,11 +61,11 @@ export async function createDocumentHandler(request: NextRequest): Promise<NextR
     const apiUser = await requireApiKey(request)
 
     const body = await request.json()
-    const result = await executeWrite({
-      user: { id: apiUser.userId, email: '', name: '', role: apiUser.role },
-      writeFn: () => createDocument(body, apiUser.userId),
-      invalidations: [{ kind: 'document' }],
-    })
+    const result = await apiWrite(
+      { id: apiUser.userId, email: '', name: '', role: apiUser.role },
+      () => createDocument(body, apiUser.userId),
+      [{ kind: 'document' }],
+    )
 
     handleServiceError(result)
 
@@ -80,11 +80,11 @@ export async function updateDocumentHandler(request: NextRequest, id: number): P
     const apiUser = await requireApiKey(request)
 
     const body = await request.json()
-    const result = await executeWrite({
-      user: { id: apiUser.userId, email: '', name: '', role: apiUser.role },
-      writeFn: () => updateDocument(id, body, apiUser.userId),
-      invalidations: [{ kind: 'document', documentId: id }],
-    })
+    const result = await apiWrite(
+      { id: apiUser.userId, email: '', name: '', role: apiUser.role },
+      () => updateDocument(id, body, apiUser.userId),
+      [{ kind: 'document', documentId: id }],
+    )
 
     handleServiceError(result)
 
@@ -98,11 +98,11 @@ export async function deleteDocumentHandler(request: NextRequest, id: number): P
   try {
     const apiUser = await requireApiKey(request)
 
-    const result = await executeWrite({
-      user: { id: apiUser.userId, email: '', name: '', role: apiUser.role },
-      writeFn: () => deleteDocument(id, apiUser.userId),
-      invalidations: [{ kind: 'document', documentId: id }],
-    })
+    const result = await apiWrite(
+      { id: apiUser.userId, email: '', name: '', role: apiUser.role },
+      () => deleteDocument(id, apiUser.userId),
+      [{ kind: 'document', documentId: id }],
+    )
 
     handleServiceError(result)
 

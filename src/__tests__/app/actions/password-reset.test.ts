@@ -15,8 +15,8 @@ const { mockUserFindUnique, mockUserUpdate } = vi.hoisted(() => ({
   mockUserUpdate: vi.fn().mockResolvedValue({ id: 'user-1' }),
 }))
 
-const { mockExecuteWrite } = vi.hoisted(() => ({
-  mockExecuteWrite: vi.fn(),
+const { mockServerActionWrite } = vi.hoisted(() => ({
+  mockServerActionWrite: vi.fn(),
 }))
 
 vi.mock('@/lib/db/prisma', () => ({
@@ -39,8 +39,8 @@ vi.mock('@/lib/auth/password', () => ({
   verifyPassword: vi.fn(),
 }))
 
-vi.mock('@/lib/actions/execute-write', () => ({
-  executeWrite: mockExecuteWrite,
+vi.mock('@/lib/actions/server-action-write', () => ({
+  serverActionWrite: mockServerActionWrite,
 }))
 
 vi.mock('@/lib/logger', () => ({
@@ -129,8 +129,8 @@ describe('Password Reset Actions', () => {
 
   describe('resetPassword', () => {
     it('should reject invalid/expired token inside writeFn', async () => {
-      mockExecuteWrite.mockImplementation(async (options: { writeFn: () => Promise<unknown> }) => {
-        return options.writeFn()
+      mockServerActionWrite.mockImplementation(async (_permission: string, _csrfToken: string, writeFn: () => Promise<unknown>) => {
+        return writeFn()
       })
       mockConsumeResetToken.mockResolvedValue({ valid: false, error: 'Invalid or expired reset token' })
 
@@ -139,8 +139,8 @@ describe('Password Reset Actions', () => {
       expect(result.error).toContain('Invalid or expired reset token')
     })
 
-    it('should return validation error for weak password via executeWrite', async () => {
-      mockExecuteWrite.mockResolvedValue({ error: 'Le mot de passe doit contenir au moins 8 caractères' })
+    it('should return validation error for weak password via serverActionWrite', async () => {
+      mockServerActionWrite.mockResolvedValue({ error: 'Le mot de passe doit contenir au moins 8 caractères' })
 
       const result = await resetPassword('valid-token', 'weak')
 
@@ -148,8 +148,8 @@ describe('Password Reset Actions', () => {
     })
 
     it('should reset password with valid token and strong password inside writeFn', async () => {
-      mockExecuteWrite.mockImplementation(async (options: { writeFn: () => Promise<unknown> }) => {
-        return options.writeFn()
+      mockServerActionWrite.mockImplementation(async (_permission: string, _csrfToken: string, writeFn: () => Promise<unknown>) => {
+        return writeFn()
       })
       mockConsumeResetToken.mockResolvedValue({ valid: true, email: 'user@test.com' })
 
@@ -165,8 +165,8 @@ describe('Password Reset Actions', () => {
     })
 
     it('should return error on unexpected failure inside writeFn', async () => {
-      mockExecuteWrite.mockImplementation(async (options: { writeFn: () => Promise<unknown> }) => {
-        return options.writeFn()
+      mockServerActionWrite.mockImplementation(async (_permission: string, _csrfToken: string, writeFn: () => Promise<unknown>) => {
+        return writeFn()
       })
       mockConsumeResetToken.mockRejectedValue(new Error('Redis error'))
 

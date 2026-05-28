@@ -4,7 +4,7 @@ export const maxDuration = 60
 
 import { requirePermission } from '@/lib/auth/authorization'
 import { createStockMovement as createMovement, getStockMovements as getMovements } from '@/lib/stock/stock-service'
-import { executeWrite } from '@/lib/actions/execute-write'
+import { serverActionWrite } from '@/lib/actions/server-action-write'
 
 export type MovementType = 'ENTREE' | 'SORTIE' | 'TRANSFERT' | 'INVENTAIRE'
 
@@ -19,10 +19,7 @@ export interface CreateMovementInput {
 }
 
 export async function createStockMovement(input: CreateMovementInput, csrfToken: string) {
-  return executeWrite({
-    permission: 'stock:write',
-    csrfToken,
-    writeFn: (user) => createMovement(input, user.id),
+  return serverActionWrite('stock:write', csrfToken, (user) => createMovement(input, user.id), {
     invalidations: [
       { kind: 'product', productId: input.productId },
       { kind: 'stock', productId: input.productId, warehouseId: input.warehouseId },

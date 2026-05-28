@@ -28,7 +28,7 @@ They catch infrastructure exceptions internally and return `{ error: message }`.
 Error strings are in French (e.g., `"Partenaire introuvable"`, `"Validation échouée"`).
 
 Consumers (server actions, page loaders) check `result.error` before using `result.data`.
-This contract is expected by `executeWrite` (`lib/actions/execute-write.ts`) and `loadPageData` (`lib/page-data-loader.ts`).
+This contract is expected by `serverActionWrite` (`lib/actions/server-action-write.ts`), `apiWrite` (`lib/actions/api-write.ts`), and `loadPageData` (`lib/page-data-loader.ts`).
 
 ### 2. API Route Handlers: `throw AppError subclass`
 

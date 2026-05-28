@@ -11,7 +11,7 @@ import {
   getPartners,
   getPartnerDocuments,
 } from '@/lib/partners/partner-service'
-import { executeWrite } from '@/lib/actions/execute-write'
+import { apiWrite } from '@/lib/actions/api-write'
 
 export async function listPartnersHandler(request: NextRequest): Promise<NextResponse> {
   try {
@@ -58,11 +58,11 @@ export async function createPartnerHandler(request: NextRequest): Promise<NextRe
     const apiUser = await requireApiKey(request)
 
     const body = await request.json()
-    const result = await executeWrite({
-      user: { id: apiUser.userId, email: '', name: '', role: apiUser.role },
-      writeFn: () => createPartner(body, apiUser.userId),
-      invalidations: [{ kind: 'partner' }],
-    })
+    const result = await apiWrite(
+      { id: apiUser.userId, email: '', name: '', role: apiUser.role },
+      () => createPartner(body, apiUser.userId),
+      [{ kind: 'partner' }],
+    )
 
     handleServiceError(result)
 
@@ -81,11 +81,11 @@ export async function updatePartnerHandler(request: NextRequest, id: number): Pr
     }
 
     const body = await request.json()
-    const result = await executeWrite({
-      user: { id: apiUser.userId, email: '', name: '', role: apiUser.role },
-      writeFn: () => updatePartner(id, body, apiUser.userId),
-      invalidations: [{ kind: 'partner', partnerId: id }],
-    })
+    const result = await apiWrite(
+      { id: apiUser.userId, email: '', name: '', role: apiUser.role },
+      () => updatePartner(id, body, apiUser.userId),
+      [{ kind: 'partner', partnerId: id }],
+    )
 
     handleServiceError(result)
 
@@ -103,11 +103,11 @@ export async function deletePartnerHandler(request: NextRequest, id: number): Pr
       throw new ValidationError('ID partenaire invalide')
     }
 
-    const result = await executeWrite({
-      user: { id: apiUser.userId, email: '', name: '', role: apiUser.role },
-      writeFn: () => deletePartner(id, apiUser.userId),
-      invalidations: [{ kind: 'partner', partnerId: id }],
-    })
+    const result = await apiWrite(
+      { id: apiUser.userId, email: '', name: '', role: apiUser.role },
+      () => deletePartner(id, apiUser.userId),
+      [{ kind: 'partner', partnerId: id }],
+    )
 
     handleServiceError(result)
 

@@ -2,7 +2,7 @@
 
 import { requirePermission } from '@/lib/auth/authorization'
 import { getArticlesWithStock as getArticles, toggleArticleStatus as toggleStatus } from '@/lib/stock/stock-service'
-import { executeWrite } from '@/lib/actions/execute-write'
+import { serverActionWrite } from '@/lib/actions/server-action-write'
 
 export async function getArticlesWithStock(page: number = 1, limit: number = 50) {
   await requirePermission('stock:read')
@@ -14,10 +14,7 @@ export async function toggleArticleStatus(
   newStatus: boolean,
   csrfToken: string
 ) {
-  return executeWrite({
-    permission: 'stock:write',
-    csrfToken,
-    writeFn: () => toggleStatus(id_produit, newStatus),
+  return serverActionWrite('stock:write', csrfToken, () => toggleStatus(id_produit, newStatus), {
     invalidations: [{ kind: 'product', productId: id_produit }],
     revalidatePaths: ['/articles'],
   })

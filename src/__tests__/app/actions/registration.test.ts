@@ -4,8 +4,8 @@ const { mockHashPassword } = vi.hoisted(() => ({
   mockHashPassword: vi.fn().mockResolvedValue('hashed-password'),
 }))
 
-const { mockExecuteWrite } = vi.hoisted(() => ({
-  mockExecuteWrite: vi.fn(),
+const { mockServerActionWrite } = vi.hoisted(() => ({
+  mockServerActionWrite: vi.fn(),
 }))
 
 const { mockRedisIncrFn, mockRedisExpireFn } = vi.hoisted(() => ({
@@ -32,8 +32,8 @@ vi.mock('@/lib/auth/password', () => ({
   verifyPassword: vi.fn(),
 }))
 
-vi.mock('@/lib/actions/execute-write', () => ({
-  executeWrite: mockExecuteWrite,
+vi.mock('@/lib/actions/server-action-write', () => ({
+  serverActionWrite: mockServerActionWrite,
 }))
 
 vi.mock('@/lib/db/redis', () => ({
@@ -71,8 +71,8 @@ describe('Registration Actions', () => {
   })
 
   describe('publicRegister', () => {
-    it('should return CSRF error when executeWrite returns CSRF error', async () => {
-      mockExecuteWrite.mockResolvedValue({ error: 'Jeton de sécurité invalide. Veuillez actualiser la page et réessayer.' })
+    it('should return CSRF error when serverActionWrite returns CSRF error', async () => {
+      mockServerActionWrite.mockResolvedValue({ error: 'Jeton de sécurité invalide. Veuillez actualiser la page et réessayer.' })
 
       const result = await registrationModule.publicRegister('test@test.com', 'password123', 'Test User', 'bad-token')
 
@@ -80,8 +80,8 @@ describe('Registration Actions', () => {
       expect(result.error).toContain('Jeton')
     })
 
-    it('should return validation error when executeWrite returns validation error', async () => {
-      mockExecuteWrite.mockResolvedValue({ error: 'Invalid input: Adresse email invalide' })
+    it('should return validation error when serverActionWrite returns validation error', async () => {
+      mockServerActionWrite.mockResolvedValue({ error: 'Invalid input: Adresse email invalide' })
 
       const result = await registrationModule.publicRegister('not-an-email', 'password123', 'Test User', 'valid-token')
 
@@ -89,8 +89,8 @@ describe('Registration Actions', () => {
     })
 
     it('should reject when rate limited inside writeFn', async () => {
-      mockExecuteWrite.mockImplementation(async (options: { writeFn: () => Promise<unknown> }) => {
-        return options.writeFn()
+      mockServerActionWrite.mockImplementation(async (_permission: string, _csrfToken: string, writeFn: () => Promise<unknown>) => {
+        return writeFn()
       })
       mockRedisIncrFn.mockResolvedValue(100)
 
@@ -100,8 +100,8 @@ describe('Registration Actions', () => {
     })
 
     it('should reject existing user inside writeFn', async () => {
-      mockExecuteWrite.mockImplementation(async (options: { writeFn: () => Promise<unknown> }) => {
-        return options.writeFn()
+      mockServerActionWrite.mockImplementation(async (_permission: string, _csrfToken: string, writeFn: () => Promise<unknown>) => {
+        return writeFn()
       })
       mockPrismaFindUnique.mockResolvedValue({
         id: 'existing-user',
@@ -114,8 +114,8 @@ describe('Registration Actions', () => {
     })
 
     it('should register successfully with valid data inside writeFn', async () => {
-      mockExecuteWrite.mockImplementation(async (options: { writeFn: () => Promise<unknown> }) => {
-        return options.writeFn()
+      mockServerActionWrite.mockImplementation(async (_permission: string, _csrfToken: string, writeFn: () => Promise<unknown>) => {
+        return writeFn()
       })
       mockPrismaFindUnique.mockResolvedValue(null)
       mockPrismaCreate.mockResolvedValue({
@@ -139,8 +139,8 @@ describe('Registration Actions', () => {
     })
 
     it('should normalize email to lowercase inside writeFn', async () => {
-      mockExecuteWrite.mockImplementation(async (options: { writeFn: () => Promise<unknown> }) => {
-        return options.writeFn()
+      mockServerActionWrite.mockImplementation(async (_permission: string, _csrfToken: string, writeFn: () => Promise<unknown>) => {
+        return writeFn()
       })
       mockPrismaFindUnique.mockResolvedValue(null)
       mockPrismaCreate.mockResolvedValue({ id: 'new-user' })

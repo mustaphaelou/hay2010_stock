@@ -5,7 +5,7 @@ import { prisma } from '@/lib/db/prisma'
 import { randomBytes, createHash } from 'crypto'
 import { Role } from '@/lib/generated/prisma/client'
 import { after } from 'next/server'
-import { executeWrite } from '@/lib/actions/execute-write'
+import { serverActionWrite } from '@/lib/actions/server-action-write'
 import { createLogger } from '@/lib/logger'
 import * as Sentry from '@sentry/nextjs'
 
@@ -19,31 +19,27 @@ function generateKey() {
 }
 
 export async function createApiKey(name: string, csrfToken: string) {
-  return executeWrite({
-    permission: 'users:write',
-    csrfToken,
-    writeFn: async (user) => {
-      try {
-        const { rawKey, prefix, hash } = generateKey()
+  return serverActionWrite('users:write', csrfToken, async (user) => {
+    try {
+      const { rawKey, prefix, hash } = generateKey()
 
-        const apiKey = await prisma.apiKey.create({
-          data: {
-            userId: user.id,
-            name,
-            keyPrefix: prefix,
-            keyHash: hash,
-            role: user.role as Role,
-          }
-        })
+      const apiKey = await prisma.apiKey.create({
+        data: {
+          userId: user.id,
+          name,
+          keyPrefix: prefix,
+          keyHash: hash,
+          role: user.role as Role,
+        }
+      })
 
-        return { id: apiKey.id, name: apiKey.name, keyPrefix: apiKey.keyPrefix, rawKey }
-      } catch (error) {
-        log.error({ error }, 'API key creation error')
-        after(() => {
-          Sentry.captureException(error, { tags: { action: 'createApiKey' } })
-        })
-        return { error: 'Une erreur inattendue est survenue lors de la création de la clé API.' }
-      }
+      return { id: apiKey.id, name: apiKey.name, keyPrefix: apiKey.keyPrefix, rawKey }
+    } catch (error) {
+      log.error({ error }, 'API key creation error')
+      after(() => {
+        Sentry.captureException(error, { tags: { action: 'createApiKey' } })
+      })
+      return { error: 'Une erreur inattendue est survenue lors de la création de la clé API.' }
     }
   })
 }
@@ -67,25 +63,21 @@ export async function listApiKeys() {
 }
 
 export async function revokeApiKey(id: string, csrfToken: string) {
-  return executeWrite({
-    permission: 'users:write',
-    csrfToken,
-    writeFn: async (user) => {
-      try {
-        await prisma.apiKey.update({
-          where: { id },
-          data: { isActive: false }
-        })
+  return serverActionWrite('users:write', csrfToken, async (user) => {
+    try {
+      await prisma.apiKey.update({
+        where: { id },
+        data: { isActive: false }
+      })
 
-        log.info({ userId: user.id }, 'API key revoked')
-        return { success: true }
-      } catch (error) {
-        log.error({ error }, 'API key revocation error')
-        after(() => {
-          Sentry.captureException(error, { tags: { action: 'revokeApiKey' } })
-        })
-        return { error: 'Une erreur inattendue est survenue lors de la révocation de la clé API.' }
-      }
+      log.info({ userId: user.id }, 'API key revoked')
+      return { success: true }
+    } catch (error) {
+      log.error({ error }, 'API key revocation error')
+      after(() => {
+        Sentry.captureException(error, { tags: { action: 'revokeApiKey' } })
+      })
+      return { error: 'Une erreur inattendue est survenue lors de la révocation de la clé API.' }
     }
   })
 }

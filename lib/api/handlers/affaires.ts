@@ -12,7 +12,7 @@ import {
   getAffaireDocumentsById,
 } from '@/lib/affaires/affaire-service'
 import type { GetAffairesInput } from '@/lib/affaires/validation'
-import { executeWrite } from '@/lib/actions/execute-write'
+import { apiWrite } from '@/lib/actions/api-write'
 
 export async function listAffairesHandler(request: NextRequest): Promise<NextResponse> {
   try {
@@ -69,11 +69,11 @@ export async function createAffaireHandler(request: NextRequest): Promise<NextRe
     const apiUser = await requireApiKey(request)
 
     const body = await request.json()
-    const result = await executeWrite({
-      user: { id: apiUser.userId, email: '', name: '', role: apiUser.role },
-      writeFn: () => createAffaire(body, apiUser.userId),
-      invalidations: [{ kind: 'affaire' }],
-    })
+    const result = await apiWrite(
+      { id: apiUser.userId, email: '', name: '', role: apiUser.role },
+      () => createAffaire(body, apiUser.userId),
+      [{ kind: 'affaire' }],
+    )
 
     handleServiceError(result)
 
@@ -92,11 +92,11 @@ export async function updateAffaireHandler(request: NextRequest, id: number): Pr
     }
 
     const body = await request.json()
-    const result = await executeWrite({
-      user: { id: apiUser.userId, email: '', name: '', role: apiUser.role },
-      writeFn: () => updateAffaire(id, body, apiUser.userId),
-      invalidations: [{ kind: 'affaire', affaireId: id }],
-    })
+    const result = await apiWrite(
+      { id: apiUser.userId, email: '', name: '', role: apiUser.role },
+      () => updateAffaire(id, body, apiUser.userId),
+      [{ kind: 'affaire', affaireId: id }],
+    )
 
     handleServiceError(result)
 
@@ -114,11 +114,11 @@ export async function deleteAffaireHandler(request: NextRequest, id: number): Pr
       throw new ValidationError('ID d\'affaire invalide')
     }
 
-    const result = await executeWrite({
-      user: { id: apiUser.userId, email: '', name: '', role: apiUser.role },
-      writeFn: () => deleteAffaire(id, apiUser.userId),
-      invalidations: [{ kind: 'affaire', affaireId: id }],
-    })
+    const result = await apiWrite(
+      { id: apiUser.userId, email: '', name: '', role: apiUser.role },
+      () => deleteAffaire(id, apiUser.userId),
+      [{ kind: 'affaire', affaireId: id }],
+    )
 
     handleServiceError(result)
 

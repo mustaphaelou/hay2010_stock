@@ -12,7 +12,7 @@ import {
   adjustStockLevel,
   deleteStockLevel,
 } from '@/lib/stock/stock-service'
-import { executeWrite } from '@/lib/actions/execute-write'
+import { apiWrite } from '@/lib/actions/api-write'
 
 const ALLOWED_SORT_FIELDS = [
   'id_stock',
@@ -140,11 +140,11 @@ export async function createStockLevelHandler(request: NextRequest): Promise<Nex
     const apiUser = await requireApiKey(request)
 
     const body = await request.json()
-    const result = await executeWrite({
-      user: { id: apiUser.userId, email: '', name: '', role: apiUser.role },
-      writeFn: () => createStockLevel(body, apiUser.userId),
-      invalidations: [{ kind: 'stock' }],
-    })
+    const result = await apiWrite(
+      { id: apiUser.userId, email: '', name: '', role: apiUser.role },
+      () => createStockLevel(body, apiUser.userId),
+      [{ kind: 'stock' }],
+    )
 
     handleServiceError(result)
 
@@ -164,11 +164,11 @@ export async function adjustStockLevelHandler(request: NextRequest): Promise<Nex
 
     const body = await request.json()
 
-    const result = await executeWrite({
-      user: { id: apiUser.userId, email: '', name: '', role: apiUser.role },
-      writeFn: () => adjustStockLevel(body, apiUser.userId),
-      invalidations: [{ kind: 'stock' }],
-    })
+    const result = await apiWrite(
+      { id: apiUser.userId, email: '', name: '', role: apiUser.role },
+      () => adjustStockLevel(body, apiUser.userId),
+      [{ kind: 'stock' }],
+    )
 
     handleServiceError(result)
 
@@ -183,11 +183,11 @@ export async function deleteStockLevelHandler(request: NextRequest): Promise<Nex
     const apiUser = await requireApiKey(request)
 
     const id = extractIdFromUrl(request)
-    const result = await executeWrite({
-      user: { id: apiUser.userId, email: '', name: '', role: apiUser.role },
-      writeFn: () => deleteStockLevel(id),
-      invalidations: [{ kind: 'stock' }],
-    })
+    const result = await apiWrite(
+      { id: apiUser.userId, email: '', name: '', role: apiUser.role },
+      () => deleteStockLevel(id),
+      [{ kind: 'stock' }],
+    )
 
     handleServiceError(result)
 

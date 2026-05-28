@@ -4,8 +4,8 @@ const { mockRequireAuth } = vi.hoisted(() => ({
   mockRequireAuth: vi.fn().mockResolvedValue({ id: 'user-1', email: 'user@test.com', name: 'Test User', role: 'USER' }),
 }))
 
-const { mockExecuteWrite } = vi.hoisted(() => ({
-  mockExecuteWrite: vi.fn(),
+const { mockServerActionWrite } = vi.hoisted(() => ({
+  mockServerActionWrite: vi.fn(),
 }))
 
 const { mockUpdateUserProfile, mockGetUserProfile } = vi.hoisted(() => ({
@@ -18,8 +18,8 @@ vi.mock('@/lib/auth/user-utils', () => ({
   getCurrentUser: vi.fn().mockResolvedValue({ id: 'user-1', email: 'user@test.com', name: 'Test User', role: 'USER' }),
 }))
 
-vi.mock('@/lib/actions/execute-write', () => ({
-  executeWrite: mockExecuteWrite,
+vi.mock('@/lib/actions/server-action-write', () => ({
+  serverActionWrite: mockServerActionWrite,
 }))
 
 vi.mock('@/lib/auth/profile-service', () => ({
@@ -53,27 +53,24 @@ describe('Profile Actions', () => {
   })
 
   describe('updateProfile', () => {
-    it('should call executeWrite with authenticated permission and csrfToken', async () => {
-      mockExecuteWrite.mockImplementation(async (options: { writeFn: (_user: unknown) => Promise<unknown> }) => {
-        return options.writeFn({ id: 'user-1', email: 'user@test.com', name: 'Test User', role: 'USER' })
+    it('should call serverActionWrite with authenticated permission and csrfToken', async () => {
+      mockServerActionWrite.mockImplementation(async (_permission: string, _csrfToken: string, writeFn: (_user: unknown) => Promise<unknown>) => {
+        return writeFn({ id: 'user-1', email: 'user@test.com', name: 'Test User', role: 'USER' })
       })
       mockUpdateUserProfile.mockResolvedValue({ data: { id: 'user-1', name: 'New Name', email: 'user@test.com', role: 'USER', createdAt: null, lastLoginAt: null } })
 
       const fd = createFormData({ name: 'New Name', email: 'user@test.com', csrfToken: 'valid-token' })
       const result = await updateProfile(fd) as any
 
-      expect(mockExecuteWrite).toHaveBeenCalledWith(
-        expect.objectContaining({
-          permission: 'authenticated',
-          csrfToken: 'valid-token',
-        })
+      expect(mockServerActionWrite).toHaveBeenCalledWith(
+        'authenticated', 'valid-token', expect.any(Function), expect.any(Object),
       )
       expect(result.error).toBeUndefined()
       expect(result.data?.name).toBe('New Name')
     })
 
-    it('should return CSRF error when executeWrite returns CSRF error', async () => {
-      mockExecuteWrite.mockResolvedValue({ error: 'Jeton de sécurité invalide. Veuillez actualiser la page et réessayer.' })
+    it('should return CSRF error when serverActionWrite returns CSRF error', async () => {
+      mockServerActionWrite.mockResolvedValue({ error: 'Jeton de sécurité invalide. Veuillez actualiser la page et réessayer.' })
 
       const fd = createFormData({ name: 'Test User', email: 'user@test.com', csrfToken: 'bad-token' })
       const result = await updateProfile(fd)
@@ -81,8 +78,8 @@ describe('Profile Actions', () => {
       expect(result.error).toContain('Jeton de sécurité invalide')
     })
 
-    it('should return validation error when executeWrite returns validation error', async () => {
-      mockExecuteWrite.mockResolvedValue({ error: 'Le nom doit contenir au moins 2 caractères' })
+    it('should return validation error when serverActionWrite returns validation error', async () => {
+      mockServerActionWrite.mockResolvedValue({ error: 'Le nom doit contenir au moins 2 caractères' })
 
       const fd = createFormData({ name: 'A', email: 'user@test.com', csrfToken: 'valid-token' })
       const result = await updateProfile(fd)
@@ -91,8 +88,8 @@ describe('Profile Actions', () => {
     })
 
     it('should require current password when changing email inside writeFn', async () => {
-      mockExecuteWrite.mockImplementation(async (options: { writeFn: (_user: unknown) => Promise<unknown> }) => {
-        return options.writeFn({ id: 'user-1', email: 'user@test.com', name: 'Test User', role: 'USER' })
+      mockServerActionWrite.mockImplementation(async (_permission: string, _csrfToken: string, writeFn: (_user: unknown) => Promise<unknown>) => {
+        return writeFn({ id: 'user-1', email: 'user@test.com', name: 'Test User', role: 'USER' })
       })
       mockUpdateUserProfile.mockResolvedValue({ error: "Votre mot de passe actuel est requis pour changer l'adresse email." })
 
@@ -107,8 +104,8 @@ describe('Profile Actions', () => {
     })
 
     it('should reject wrong current password when changing email inside writeFn', async () => {
-      mockExecuteWrite.mockImplementation(async (options: { writeFn: (_user: unknown) => Promise<unknown> }) => {
-        return options.writeFn({ id: 'user-1', email: 'user@test.com', name: 'Test User', role: 'USER' })
+      mockServerActionWrite.mockImplementation(async (_permission: string, _csrfToken: string, writeFn: (_user: unknown) => Promise<unknown>) => {
+        return writeFn({ id: 'user-1', email: 'user@test.com', name: 'Test User', role: 'USER' })
       })
       mockUpdateUserProfile.mockResolvedValue({ error: 'Mot de passe actuel incorrect.' })
 
@@ -124,8 +121,8 @@ describe('Profile Actions', () => {
     })
 
     it('should reject email already in use by another account inside writeFn', async () => {
-      mockExecuteWrite.mockImplementation(async (options: { writeFn: (_user: unknown) => Promise<unknown> }) => {
-        return options.writeFn({ id: 'user-1', email: 'user@test.com', name: 'Test User', role: 'USER' })
+      mockServerActionWrite.mockImplementation(async (_permission: string, _csrfToken: string, writeFn: (_user: unknown) => Promise<unknown>) => {
+        return writeFn({ id: 'user-1', email: 'user@test.com', name: 'Test User', role: 'USER' })
       })
       mockUpdateUserProfile.mockResolvedValue({ error: 'Cette adresse email est déjà utilisée par un autre compte.' })
 
@@ -141,8 +138,8 @@ describe('Profile Actions', () => {
     })
 
     it('should update profile successfully', async () => {
-      mockExecuteWrite.mockImplementation(async (options: { writeFn: (_user: unknown) => Promise<unknown> }) => {
-        return options.writeFn({ id: 'user-1', email: 'user@test.com', name: 'Test User', role: 'USER' })
+      mockServerActionWrite.mockImplementation(async (_permission: string, _csrfToken: string, writeFn: (_user: unknown) => Promise<unknown>) => {
+        return writeFn({ id: 'user-1', email: 'user@test.com', name: 'Test User', role: 'USER' })
       })
       mockUpdateUserProfile.mockResolvedValue({ data: { id: 'user-1', name: 'New Name', email: 'user@test.com', role: 'USER', createdAt: null, lastLoginAt: null } })
 
