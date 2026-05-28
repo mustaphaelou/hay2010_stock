@@ -24,32 +24,11 @@ export interface PDFGenerationJob {
     email?: string
 }
 
-export interface ReportGenerationJob {
-    reportType: 'sales' | 'stock' | 'financial'
-    userId: string
-    filters: Record<string, unknown>
-    format: 'pdf' | 'excel' | 'csv'
-}
-
-export interface StockImportJob {
-    fileUrl: string
-    userId: string
-    options: {
-        updateExisting: boolean
-        skipErrors: boolean
-    }
-}
-
 export interface EmailJob {
     to: string
     subject: string
     template: string
     data: Record<string, unknown>
-}
-
-export interface CacheWarmupJob {
-    type: 'products' | 'partners' | 'stock' | 'all'
-    userId?: string
 }
 
 // =====================================================
@@ -75,10 +54,7 @@ const defaultQueueOptions = {
 }
 
 export const documentQueue = new Queue<PDFGenerationJob>('documents', defaultQueueOptions)
-export const reportQueue = new Queue<ReportGenerationJob>('reports', defaultQueueOptions)
-export const stockImportQueue = new Queue<StockImportJob>('stock-imports', defaultQueueOptions)
 export const emailQueue = new Queue<EmailJob>('emails', defaultQueueOptions)
-export const cacheQueue = new Queue<CacheWarmupJob>('cache-warmup', defaultQueueOptions)
 
 // =====================================================
 // WORKER LIFECYCLE
@@ -167,120 +143,9 @@ export function startWorkers(): void {
     }
   )
 
-  const reportWorker = new Worker<ReportGenerationJob>(
-    'reports',
-    async (job: Job<ReportGenerationJob>) => {
-      const { reportType, format } = job.data
 
-      await job.updateProgress(10)
-      await job.log(`Starting ${reportType} report generation`)
 
-      try {
-        await job.updateProgress(30)
-        await job.updateProgress(60)
-        await job.updateProgress(90)
-        await job.updateProgress(100)
-        await job.log(`${reportType} report generation completed`)
-
-        return {
-          success: true,
-          reportType,
-          format,
-          generatedAt: new Date().toISOString(),
-        }
-      } catch (error) {
-        await job.log(`Report generation failed: ${error}`)
-        throw error
-      }
-    },
-    {
-      connection: redis,
-      concurrency: parseInt(process.env.REPORT_WORKER_CONCURRENCY || '3', 10),
-    }
-  )
-
-  const stockImportWorker = new Worker<StockImportJob>(
-    'stock-imports',
-    async (job: Job<StockImportJob>) => {
-      const { fileUrl } = job.data
-
-      await job.updateProgress(5)
-      await job.log(`Starting stock import from ${fileUrl}`)
-
-      try {
-        await job.updateProgress(100)
-        await job.log(`Stock import completed`)
-
-        return {
-          success: true,
-          processed: 0,
-          errors: 0,
-          importedAt: new Date().toISOString(),
-        }
-      } catch (error) {
-        await job.log(`Stock import failed: ${error}`)
-        throw error
-      }
-    },
-    {
-      connection: redis,
-      concurrency: parseInt(process.env.STOCK_IMPORT_WORKER_CONCURRENCY || '2', 10),
-    }
-  )
-
-  const emailWorker = new Worker<EmailJob>(
-    'emails',
-    async (job: Job<EmailJob>) => {
-      const { to } = job.data
-
-      await job.log(`Sending email to ${to}`)
-
-      try {
-        await job.log(`Email sent successfully to ${to}`)
-
-        return {
-          success: true,
-          to,
-          sentAt: new Date().toISOString(),
-        }
-      } catch (error) {
-        await job.log(`Email sending failed: ${error}`)
-        throw error
-      }
-    },
-    {
-      connection: redis,
-      concurrency: parseInt(process.env.EMAIL_WORKER_CONCURRENCY || '10', 10),
-    }
-  )
-
-  const cacheWarmupWorker = new Worker<CacheWarmupJob>(
-    'cache-warmup',
-    async (job: Job<CacheWarmupJob>) => {
-      const { type } = job.data
-
-      await job.log(`Starting cache warmup for ${type}`)
-
-      try {
-        await job.log(`Cache warmup completed for ${type}`)
-
-        return {
-          success: true,
-          type,
-          completedAt: new Date().toISOString(),
-        }
-      } catch (error) {
-        await job.log(`Cache warmup failed: ${error}`)
-        throw error
-      }
-    },
-    {
-      connection: redis,
-      concurrency: 1,
-    }
-  )
-
-  workers = [pdfWorker, reportWorker, stockImportWorker, emailWorker, cacheWarmupWorker]
+  workers = [pdfWorker]
 
   workers.forEach((worker) => {
     worker.on('completed', (job) => {
@@ -329,87 +194,7 @@ export async function queuePDFGeneration(
     })
 }
 
-export async function queueReportGeneration(
-    reportType: ReportGenerationJob['reportType'],
-    userId: string,
-    filters: Record<string, unknown>,
-    format: ReportGenerationJob['format'] = 'pdf'
-): Promise<Job<ReportGenerationJob>> {
-    return reportQueue.add('generate-report', {
-        reportType,
-        userId,
-        filters,
-        format,
-    })
-}
 
-export async function queueStockImport(
-    fileUrl: string,
-    userId: string,
-    options?: StockImportJob['options']
-): Promise<Job<StockImportJob>> {
-    return stockImportQueue.add('import-stock', {
-        fileUrl,
-        userId,
-        options: options || {
-            updateExisting: false,
-            skipErrors: false,
-        },
-    })
-}
-
-export async function queueEmail(
-    to: string,
-    subject: string,
-    template: string,
-    data: Record<string, unknown>
-): Promise<Job<EmailJob>> {
-    return emailQueue.add('send-email', {
-        to,
-        subject,
-        template,
-        data,
-    })
-}
-
-export async function scheduleCacheWarmup(
-    type: CacheWarmupJob['type']
-): Promise<Job<CacheWarmupJob>> {
-    return cacheQueue.add('warmup-cache', { type })
-}
-
-export async function getQueueStats(): Promise<{
-    documents: { waiting: number; active: number; completed: number; failed: number }
-    reports: { waiting: number; active: number; completed: number; failed: number }
-    emails: { waiting: number; active: number; completed: number; failed: number }
-}> {
-    const [documentStats, reportStats, emailStats] = await Promise.all([
-        documentQueue.getJobCounts('waiting', 'active', 'completed', 'failed'),
-        reportQueue.getJobCounts('waiting', 'active', 'completed', 'failed'),
-        emailQueue.getJobCounts('waiting', 'active', 'completed', 'failed'),
-    ])
-
-    return {
-        documents: {
-            waiting: documentStats.waiting || 0,
-            active: documentStats.active || 0,
-            completed: documentStats.completed || 0,
-            failed: documentStats.failed || 0,
-        },
-        reports: {
-            waiting: reportStats.waiting || 0,
-            active: reportStats.active || 0,
-            completed: reportStats.completed || 0,
-            failed: reportStats.failed || 0,
-        },
-        emails: {
-            waiting: emailStats.waiting || 0,
-            active: emailStats.active || 0,
-            completed: emailStats.completed || 0,
-            failed: emailStats.failed || 0,
-        },
-    }
-}
 
 export async function shutdownQueues(): Promise<void> {
   log.info('Shutting down queues...')
@@ -418,10 +203,7 @@ export async function shutdownQueues(): Promise<void> {
 
   await Promise.all([
     documentQueue.close(),
-    reportQueue.close(),
-    stockImportQueue.close(),
     emailQueue.close(),
-    cacheQueue.close(),
   ])
 
   log.info('All queues shut down')

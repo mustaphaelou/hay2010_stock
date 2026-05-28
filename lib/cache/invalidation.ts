@@ -107,17 +107,6 @@ export class CacheInvalidationService {
     }
   }
 
-  static async warmupProductList(): Promise<void> {
-    log.info('Product list cache warmup started')
-  }
-
-  static async warmupPartnerList(): Promise<void> {
-    log.info('Partner list cache warmup started')
-  }
-
-  static async warmupStockLevels(): Promise<void> {
-    log.info('Stock levels cache warmup started')
-  }
 }
 
 export async function withCacheInvalidation<T>(
