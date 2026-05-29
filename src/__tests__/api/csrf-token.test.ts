@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { fromAny } from '@total-typescript/shoehorn'
 
 const { mockVerifyToken } = vi.hoisted(() => ({
   mockVerifyToken: vi.fn(),
@@ -50,11 +51,11 @@ describe('CSRF Token API Route', () => {
 
   it('should use anonymous user ID when no auth token', async () => {
     const { cookies } = await import('next/headers')
-    vi.mocked(cookies).mockResolvedValueOnce({
+    vi.mocked(cookies).mockResolvedValueOnce(fromAny({
       get: vi.fn().mockReturnValue(undefined),
       set: vi.fn(),
       delete: vi.fn(),
-    } as unknown as Awaited<ReturnType<typeof cookies>>)
+    }))
 
     const response = await GET()
     const data = await response.json()

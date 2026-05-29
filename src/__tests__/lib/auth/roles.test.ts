@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { ROLE_HIERARCHY } from '@/lib/auth/roles'
 import type { UserRole } from '@/lib/auth/roles'
 
+
 describe('Auth Roles', () => {
   describe('ROLE_HIERARCHY', () => {
     it('should define all four roles', () => {

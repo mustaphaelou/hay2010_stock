@@ -2,6 +2,7 @@
  * @vitest-environment node
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { fromAny } from '@total-typescript/shoehorn'
 
 const mockRedisSetex = vi.fn().mockResolvedValue('OK')
 const mockRedisGet = vi.fn()
@@ -62,10 +63,10 @@ describe('CSRF Server', () => {
 
     it('should use "anonymous" as userId when no auth token is present', async () => {
       const { cookies } = await import('next/headers')
-      vi.mocked(cookies).mockResolvedValueOnce({
+      vi.mocked(cookies).mockResolvedValueOnce(fromAny({
         get: vi.fn(() => undefined),
         set: vi.fn(),
-      } as unknown as Awaited<ReturnType<typeof cookies>>)
+      }))
 
       const { generateCsrfToken } = await import('@/lib/security/csrf-server')
 

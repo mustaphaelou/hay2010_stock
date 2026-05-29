@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ArticlesView } from '@/components/erp/articles-view'
 import type { ArticleWithStock } from '@/lib/types'
+import { fromPartial } from '@total-typescript/shoehorn'
 
 vi.mock('@/components/erp/article-details-sheet', () => ({
   ArticleDetailsSheet: () => null,
@@ -13,7 +14,7 @@ vi.mock('@/lib/hooks/use-breakpoint', () => ({
 }))
 
 function createMockArticle(overrides: Partial<ArticleWithStock> = {}): ArticleWithStock {
-  return {
+  return fromPartial<ArticleWithStock>({
     id_produit: 1,
     code_produit: 'ART001',
     nom_produit: 'Test Article',
@@ -54,7 +55,7 @@ function createMockArticle(overrides: Partial<ArticleWithStock> = {}): ArticleWi
     niveaux_stock: [],
     stock_global: 10,
     ...overrides,
-  } as ArticleWithStock
+  })
 }
 
 describe('ArticlesView', () => {

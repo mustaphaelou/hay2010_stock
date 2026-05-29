@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { fromAny } from '@total-typescript/shoehorn'
 
 const { mockPrismaFindUnique, mockPrismaUpdate } = vi.hoisted(() => ({
   mockPrismaFindUnique: vi.fn(),
@@ -180,7 +181,7 @@ describe('Auth Service', () => {
     })
 
     it('should handle token without sessionId', async () => {
-      mockVerifyToken.mockResolvedValue({ jti: 'jti-1' } as never)
+      mockVerifyToken.mockResolvedValue(fromAny({ jti: 'jti-1' }))
 
       const result = await logoutUser('token-without-session')
 

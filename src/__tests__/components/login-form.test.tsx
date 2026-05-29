@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { LoginForm } from '@/components/login-form'
+import { fromPartial } from '@total-typescript/shoehorn'
 
 vi.mock('@/app/actions/auth', () => ({
   login: vi.fn(),
@@ -46,7 +47,7 @@ describe('LoginForm', () => {
     const user = userEvent.setup()
     render(<LoginForm />)
 
-    const passwordInput = document.getElementById('password') as HTMLInputElement
+    const passwordInput = fromPartial<HTMLInputElement>(document.getElementById('password')!)
     await user.type(passwordInput, 'password123')
 
     const submitButton = screen.getByRole('button', { name: /se connecter/i })
@@ -61,7 +62,7 @@ describe('LoginForm', () => {
     const user = userEvent.setup()
     render(<LoginForm />)
 
-    const emailInput = document.getElementById('email') as HTMLInputElement
+    const emailInput = fromPartial<HTMLInputElement>(document.getElementById('email')!)
     await user.type(emailInput, 'test@example.com')
 
     const submitButton = screen.getByRole('button', { name: /se connecter/i })
@@ -78,8 +79,8 @@ describe('LoginForm', () => {
 
     render(<LoginForm />)
 
-    const emailInput = document.getElementById('email') as HTMLInputElement
-    const passwordInput = document.getElementById('password') as HTMLInputElement
+    const emailInput = fromPartial<HTMLInputElement>(document.getElementById('email')!)
+    const passwordInput = fromPartial<HTMLInputElement>(document.getElementById('password')!)
     await user.type(emailInput, 'test@example.com')
     await user.type(passwordInput, 'password123')
 
@@ -103,8 +104,8 @@ describe('LoginForm', () => {
 
     render(<LoginForm />)
 
-    const emailInput = document.getElementById('email') as HTMLInputElement
-    const passwordInput = document.getElementById('password') as HTMLInputElement
+    const emailInput = fromPartial<HTMLInputElement>(document.getElementById('email')!)
+    const passwordInput = fromPartial<HTMLInputElement>(document.getElementById('password')!)
     await user.type(emailInput, 'test@example.com')
     await user.type(passwordInput, 'wrongpassword')
 
@@ -122,8 +123,8 @@ describe('LoginForm', () => {
 
     render(<LoginForm />)
 
-    const emailInput = document.getElementById('email') as HTMLInputElement
-    const passwordInput = document.getElementById('password') as HTMLInputElement
+    const emailInput = fromPartial<HTMLInputElement>(document.getElementById('email')!)
+    const passwordInput = fromPartial<HTMLInputElement>(document.getElementById('password')!)
     await user.type(emailInput, 'user@example.com')
     await user.type(passwordInput, 'mypassword')
 
@@ -155,8 +156,8 @@ describe('LoginForm', () => {
 
     render(<LoginForm />)
 
-    const emailInput = document.getElementById('email') as HTMLInputElement
-    const passwordInput = document.getElementById('password') as HTMLInputElement
+    const emailInput = fromPartial<HTMLInputElement>(document.getElementById('email')!)
+    const passwordInput = fromPartial<HTMLInputElement>(document.getElementById('password')!)
     await user.type(emailInput, 'test@example.com')
     await user.type(passwordInput, 'password123')
 
@@ -198,8 +199,8 @@ describe('LoginForm', () => {
 
     render(<LoginForm />)
 
-    const emailInput = document.getElementById('email') as HTMLInputElement
-    const passwordInput = document.getElementById('password') as HTMLInputElement
+    const emailInput = fromPartial<HTMLInputElement>(document.getElementById('email')!)
+    const passwordInput = fromPartial<HTMLInputElement>(document.getElementById('password')!)
     await user.type(emailInput, 'test@example.com')
     await user.type(passwordInput, 'password123')
 
@@ -226,8 +227,8 @@ describe('LoginForm', () => {
 
     render(<LoginForm />)
 
-    const emailInput = document.getElementById('email') as HTMLInputElement
-    const passwordInput = document.getElementById('password') as HTMLInputElement
+    const emailInput = fromPartial<HTMLInputElement>(document.getElementById('email')!)
+    const passwordInput = fromPartial<HTMLInputElement>(document.getElementById('password')!)
     await user.type(emailInput, 'test@example.com')
     await user.type(passwordInput, 'wrong')
 

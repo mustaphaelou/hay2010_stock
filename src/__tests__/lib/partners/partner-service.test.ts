@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { fromAny } from '@total-typescript/shoehorn'
 
 const { mockPartenaireFindMany, mockPartenaireCount, mockPartenaireCreate, mockPartenaireUpdate, mockPartenaireDelete, mockPartenaireFindUnique, mockDocVenteFindMany, mockDocVenteCount } = vi.hoisted(() => ({
   mockPartenaireFindMany: vi.fn(),
@@ -213,7 +214,7 @@ describe('Partner Service', () => {
     })
 
     it('should return { error } for invalid input', async () => {
-      const result = await createPartner({ code_partenaire: '', nom_partenaire: 'Test' } as never, 'user-1')
+      const result = await createPartner(fromAny({ code_partenaire: '', nom_partenaire: 'Test' }), 'user-1')
 
       expect(result.error).toBeDefined()
       expect(result.data).toBeUndefined()
@@ -263,7 +264,7 @@ describe('Partner Service', () => {
     })
 
     it('should return { error } for invalid input', async () => {
-      const result = await updatePartner(1, { type_partenaire: 'INVALID' as never }, 'user-1')
+      const result = await updatePartner(1, { type_partenaire: fromAny('INVALID') }, 'user-1')
 
       expect(result.error).toBeDefined()
       expect(result.data).toBeUndefined()

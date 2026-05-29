@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { fromAny } from '@total-typescript/shoehorn'
 import { loadPageData } from '@/lib/page-data-loader'
 
 describe('loadPageData', () => {
@@ -88,7 +89,7 @@ describe('loadPageData', () => {
 
   it('handles null data gracefully', async () => {
     const result = await loadPageData(() =>
-      Promise.resolve({ data: null as unknown as undefined })
+      Promise.resolve({ data: fromAny(null) })
     )
 
     expect(result).toEqual({

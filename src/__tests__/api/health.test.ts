@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+
 import { GET as getPublicHealth } from '@/app/api/health/public/route'
 import { GET as getAdminHealth } from '@/app/api/health/route'
 import { prisma } from '@/lib/db/prisma'

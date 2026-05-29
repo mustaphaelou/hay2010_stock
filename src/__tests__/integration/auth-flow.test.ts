@@ -2,6 +2,7 @@
  * @vitest-environment node
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { fromAny } from '@total-typescript/shoehorn'
 
 const mockRedisSetex = vi.fn().mockResolvedValue('OK')
 const mockRedisGet = vi.fn()
@@ -127,23 +128,23 @@ describe('Auth Flow Integration', () => {
       const { login } = await import('@/app/actions/auth')
       const { validateCsrfToken } = await import('@/lib/security/csrf-server')
 
-      vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      vi.mocked(prisma.user.findUnique).mockResolvedValue(fromAny({
         id: 'user-1',
         email: 'user@example.com',
         name: 'Test User',
         password: 'hashed-password',
         role: 'USER',
         lastLoginAt: null,
-      } as unknown as Awaited<ReturnType<typeof prisma.user.findUnique>>)
+      }))
 
-      vi.mocked(prisma.user.update).mockResolvedValue({
+      vi.mocked(prisma.user.update).mockResolvedValue(fromAny({
         id: 'user-1',
         email: 'user@example.com',
         name: 'Test User',
         password: 'hashed-password',
         role: 'USER',
         lastLoginAt: new Date(),
-      } as unknown as Awaited<ReturnType<typeof prisma.user.update>>)
+      }))
 
       const result = await login('user@example.com', 'password123', false, 'csrf-token')
 
@@ -164,14 +165,14 @@ describe('Auth Flow Integration', () => {
       const { verifyPassword } = await import('@/lib/auth/password')
       const { login } = await import('@/app/actions/auth')
 
-      vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      vi.mocked(prisma.user.findUnique).mockResolvedValue(fromAny({
         id: 'user-1',
         email: 'user@example.com',
         name: 'Test User',
         password: 'hashed-password',
         role: 'USER',
         lastLoginAt: null,
-      } as unknown as Awaited<ReturnType<typeof prisma.user.findUnique>>)
+      }))
 
       vi.mocked(verifyPassword).mockResolvedValueOnce(false)
 
@@ -247,7 +248,7 @@ describe('Auth Flow Integration', () => {
         set: vi.fn(),
         delete: vi.fn(),
       }
-      vi.mocked(cookies).mockResolvedValue(mockCookieStore as unknown as Awaited<ReturnType<typeof cookies>>)
+      vi.mocked(cookies).mockResolvedValue(fromAny(mockCookieStore))
 
       const result = await logout('csrf-token')
 
@@ -268,7 +269,7 @@ describe('Auth Flow Integration', () => {
         set: vi.fn(),
         delete: vi.fn(),
       }
-      vi.mocked(cookies).mockResolvedValue(mockCookieStore as unknown as Awaited<ReturnType<typeof cookies>>)
+      vi.mocked(cookies).mockResolvedValue(fromAny(mockCookieStore))
 
       const result = await logout('csrf-token')
 
@@ -290,7 +291,7 @@ describe('Auth Flow Integration', () => {
         set: vi.fn(),
         delete: vi.fn(),
       }
-      vi.mocked(cookies).mockResolvedValue(mockCookieStore as unknown as Awaited<ReturnType<typeof cookies>>)
+      vi.mocked(cookies).mockResolvedValue(fromAny(mockCookieStore))
 
       await logout('csrf-token')
 

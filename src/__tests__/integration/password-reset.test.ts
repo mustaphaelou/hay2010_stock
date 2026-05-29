@@ -3,6 +3,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import crypto from 'crypto'
+import { fromAny } from '@total-typescript/shoehorn'
 
 const mockRedisEval = vi.fn()
 const mockRedisGet = vi.fn()
@@ -151,14 +152,14 @@ describe('Password Reset Integration', () => {
       const { prisma } = await import('@/lib/db/prisma')
       const { hashPassword } = await import('@/lib/auth/password')
 
-      vi.mocked(prisma.user.update).mockResolvedValue({
+      vi.mocked(prisma.user.update).mockResolvedValue(fromAny({
         id: 'user-1',
         email: 'user@example.com',
         name: 'User',
         password: 'hashed-new-password',
         role: 'USER',
         lastLoginAt: null,
-      } as unknown as Awaited<ReturnType<typeof prisma.user.update>>)
+      }))
 
       await hashPassword('NewPassword123')
       await prisma.user.update({

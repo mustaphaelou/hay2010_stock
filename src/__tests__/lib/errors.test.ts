@@ -22,6 +22,7 @@ import {
 } from '@/lib/errors'
 import { ZodError, z } from 'zod'
 
+
 describe('Error Handling System', () => {
   describe('AppError', () => {
     it('should create AppError with default values', () => {

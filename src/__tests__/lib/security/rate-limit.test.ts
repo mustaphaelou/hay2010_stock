@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { fromAny } from '@total-typescript/shoehorn'
 import { NextRequest } from 'next/server'
 
 // ============ HELPERS ============
@@ -52,11 +53,19 @@ vi.mock('next/server', () => ({
     json: vi.fn((body: object, init?: ResponseInit) => ({
       status: init?.status || 200,
       json: async () => body,
-      headers: makeHeaders(init?.headers as Record<string, string> | undefined),
-    })),
-  },
-  NextRequest: vi.fn(),
-}))
+          headers: makeHeaders(init?.headers as Record<string, string> | undefined),
+        })),
+      },
+      NextRequest: vi.fn(),
+    }))
+
+    vi.doMock('@/lib/logger', () => ({
+      createLogger: () => ({
+        info: vi.fn(),
+        warn: vi.fn(),
+        error: vi.fn(),
+      }),
+    }))
 
 vi.mock('@/lib/logger', () => ({
   createLogger: () => ({
@@ -208,7 +217,7 @@ describe('withRateLimit', () => {
 
     it('defaults to read tier for unknown tier', async () => {
       const handler = createMockHandler()
-      const limited = withRateLimit(handler, 'unknown' as unknown as RateLimitTier)
+      const limited = withRateLimit(handler, fromAny('unknown'))
 
       const result = await limited(createMockRequest())
 
@@ -270,7 +279,7 @@ describe('circuit breaker', () => {
         json: vi.fn((body: object, init?: ResponseInit) => ({
           status: init?.status || 200,
           json: async () => body,
-          headers: makeHeaders(init?.headers as Record<string, string> | undefined),
+      headers: makeHeaders(init?.headers as Record<string, string> | undefined),
         })),
       },
       NextRequest: vi.fn(),

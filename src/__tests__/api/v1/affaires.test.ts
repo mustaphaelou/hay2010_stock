@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 
+
 const {
   mockGetAffaires,
   mockGetAffaireById,
