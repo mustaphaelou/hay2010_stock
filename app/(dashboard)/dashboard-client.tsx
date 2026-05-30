@@ -126,7 +126,7 @@ function DashboardClientInner(props: DashboardClientProps) {
 
   const tableRows = monthlyData.map((d) => {
     const margin = Math.max(0, d.ventes - d.achats)
-    const marginPct = d.ventes > 0 ? Math.round((margin / d.ventes) * 100) : 0
+    const margePct = d.ventes > 0 ? Math.round((margin / d.ventes) * 100) : 0
     return { month: d.month, ventes: d.ventes, achats: d.achats, marge: margin, margePct }
   })
 
