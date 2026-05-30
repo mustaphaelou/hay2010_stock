@@ -230,7 +230,7 @@ async function runStatsQueries() {
         p.id_produit,
         p.nom_produit,
         cp.nom_categorie,
-        COALESCE(SUM(ld.quantite), 0)::float AS total_quantity,
+        COALESCE(SUM(ld.quantite_facturee), 0)::float AS total_quantity,
         COALESCE(SUM(ld.montant_ttc), 0)::float AS total_revenue,
         COALESCE(SUM(ns.quantite_en_stock), 0)::float AS stock_level
       FROM lignes_documents ld
@@ -240,7 +240,7 @@ async function runStatsQueries() {
       LEFT JOIN niveaux_stock ns ON ns.id_produit = p.id_produit
       WHERE d.domaine_document = 'VENTE'
       GROUP BY p.id_produit, p.nom_produit, cp.nom_categorie
-      ORDER BY SUM(ld.quantite) DESC
+      ORDER BY SUM(ld.quantite_facturee) DESC
       LIMIT 10
     `,
   ])
