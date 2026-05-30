@@ -1,0 +1,117 @@
+name: hay2010
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: hay2010_postgres
+    restart: always
+    expose:
+      - "5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: hay2010_db
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets:
+      - postgres_password
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 1G
+
+  redis:
+    image: redis:7-alpine
+    container_name: hay2010_redis
+    restart: always
+    expose:
+      - "6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+
+  migrate:
+    image: ghcr.io/hay2010_stock/hay2010_stock:latest
+    container_name: hay2010_migrate
+    environment:
+      DATABASE_URL_FILE: /run/secrets/database_url
+    secrets:
+      - database_url
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles: ["setup"]
+    command: npx prisma migrate deploy
+
+  seed:
+    image: ghcr.io/hay2010_stock/hay2010_stock:latest
+    container_name: hay2010_seed
+    environment:
+      DATABASE_URL_FILE: /run/secrets/database_url
+    secrets:
+      - database_url
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles: ["setup"]
+    command: npx tsx prisma/seed.ts
+
+  app:
+    image: ghcr.io/hay2010_stock/hay2010_stock:latest
+    container_name: hay2010_app
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL_FILE: /run/secrets/database_url
+      REDIS_URL_FILE: /run/secrets/redis_url
+      JWT_SECRET_FILE: /run/secrets/jwt_secret
+    secrets:
+      - database_url
+      - redis_url
+      - jwt_secret
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health/public"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 2G
+
+secrets:
+  postgres_password:
+    file: ./secrets/postgres_password
+  database_url:
+    file: ./secrets/database_url
+  redis_url:
+    file: ./secrets/redis_url
+  jwt_secret:
+    file: ./secrets/jwt_secret
+
+volumes:
+  postgres_data:
+  redis_data:

@@ -26,62 +26,73 @@ export async function loginUser(
   rememberMe: boolean,
   clientIp: string
 ): Promise<{ data?: LoginResult; error?: string }> {
-  const [ipLocked, locked] = await Promise.all([
-    isLockedByIp(clientIp),
-    isAccountLocked(email),
-  ])
+  try {
+    const [ipLocked, locked] = await Promise.all([
+      isLockedByIp(clientIp),
+      isAccountLocked(email),
+    ])
 
-  if (ipLocked) {
-    return { error: 'Trop de tentatives depuis cet emplacement. Veuillez réessayer dans 15 minutes.' }
-  }
-
-  if (locked) {
-    return { error: 'Compte temporairement verrouillé suite à trop de tentatives. Veuillez réessayer dans 15 minutes.' }
-  }
-
-  const user = await prisma.user.findUnique({ where: { email } })
-
-  if (!user) {
-    await Promise.all([recordFailedAttempt(email), recordFailedAttemptByIp(clientIp)])
-    return { error: 'Email ou mot de passe invalide' }
-  }
-
-  const isValid = await verifyPassword(password, user.password)
-
-  if (!isValid) {
-    const result = await recordFailedAttempt(email)
-    await recordFailedAttemptByIp(clientIp)
-    if (result.locked) {
-      return { error: 'Compte verrouillé suite à trop de tentatives. Veuillez réessayer dans 15 minutes.' }
+    if (ipLocked) {
+      return { error: 'Trop de tentatives depuis cet emplacement. Veuillez réessayer dans 15 minutes.' }
     }
-    return { error: `Email ou mot de passe invalide. ${result.remaining} tentative${result.remaining !== 1 ? 's' : ''} restante${result.remaining !== 1 ? 's' : ''}.` }
-  }
 
-  await Promise.all([clearFailedAttempts(email), clearFailedAttemptsByIp(clientIp)])
+    if (locked) {
+      return { error: 'Compte temporairement verrouillé suite à trop de tentatives. Veuillez réessayer dans 15 minutes.' }
+    }
 
-  const [sessionId] = await Promise.all([
-    createSession(user.id, user.email, user.name, user.role),
-    prisma.user.update({
-      where: { id: user.id },
-      data: { lastLoginAt: new Date() },
-    }),
-  ])
+    const user = await prisma.user.findUnique({ where: { email } })
 
-  const token = await generateToken({
-    userId: user.id,
-    email: user.email,
-    role: user.role,
-    sessionId,
-  })
+    if (!user) {
+      await Promise.all([recordFailedAttempt(email), recordFailedAttemptByIp(clientIp)])
+      return { error: 'Email ou mot de passe invalide' }
+    }
 
-  log.debug({ email }, 'User logged in successfully')
+    const isValid = await verifyPassword(password, user.password)
 
-  return {
-    data: {
-      user: { id: user.id, email: user.email, name: user.name, role: user.role },
+    if (!isValid) {
+      const result = await recordFailedAttempt(email)
+      await recordFailedAttemptByIp(clientIp)
+      if (result.locked) {
+        return { error: 'Compte verrouillé suite à trop de tentatives. Veuillez réessayer dans 15 minutes.' }
+      }
+      return { error: `Email ou mot de passe invalide. ${result.remaining} tentative${result.remaining !== 1 ? 's' : ''} restante${result.remaining !== 1 ? 's' : ''}.` }
+    }
+
+    await Promise.all([clearFailedAttempts(email), clearFailedAttemptsByIp(clientIp)])
+
+    const [sessionId] = await Promise.all([
+      createSession(user.id, user.email, user.name, user.role),
+      prisma.user.update({
+        where: { id: user.id },
+        data: { lastLoginAt: new Date() },
+      }),
+    ])
+
+    const token = await generateToken({
+      userId: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
       sessionId,
-      token,
-    },
+    })
+
+    log.debug({ email }, 'User logged in successfully')
+
+    return {
+      data: {
+        user: { id: user.id, email: user.email, name: user.name, role: user.role },
+        sessionId,
+        token,
+      },
+    }
+  } catch (error) {
+    log.error({ error, email }, 'Login failed')
+    const msg = error instanceof Error ? error.message : ''
+
+    if (/connect|econnrefused|enotfound|timeout/i.test(msg) && !/redis|session/i.test(msg)) {
+      return { error: 'Service de base de données temporairement indisponible. Veuillez réessayer.' }
+    }
+    return { error: 'Une erreur inattendue est survenue lors de la connexion.' }
   }
 }
 

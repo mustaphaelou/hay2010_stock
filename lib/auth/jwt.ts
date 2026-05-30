@@ -24,6 +24,7 @@ function getJwtExpirationSeconds(): number {
 export interface JWTPayload {
   userId: string
   email: string
+  name: string
   role: string
   sessionId: string
   jti?: string

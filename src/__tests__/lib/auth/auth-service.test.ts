@@ -80,7 +80,7 @@ import { loginUser, logoutUser } from '@/lib/auth/auth-service'
 
 describe('Auth Service', () => {
   beforeEach(() => {
-    vi.clearAllMocks()
+    vi.resetAllMocks()
     mockIsLockedByIp.mockResolvedValue(false)
     mockIsAccountLocked.mockResolvedValue(false)
     mockRecordFailedAttempt.mockResolvedValue({ remaining: 4, locked: false })
@@ -93,6 +93,8 @@ describe('Auth Service', () => {
       role: 'USER',
       password: 'hashed-password',
     })
+    mockCreateSession.mockResolvedValue('session-1')
+    mockVerifyToken.mockResolvedValue({ userId: 'user-1', sessionId: 'session-1', jti: 'jti-1' })
   })
 
   describe('loginUser', () => {
@@ -109,6 +111,7 @@ describe('Auth Service', () => {
       expect(mockGenerateToken).toHaveBeenCalledWith({
         userId: 'user-1',
         email: 'test@test.com',
+        name: 'Test User',
         role: 'USER',
         sessionId: 'session-1',
       })
@@ -157,6 +160,36 @@ describe('Auth Service', () => {
       const result = await loginUser('test@test.com', 'wrong-password', false, '192.168.1.1')
 
       expect(result.error).toContain('Compte verrouillé')
+    })
+
+    it('should return error instead of throwing when createSession fails', async () => {
+      mockCreateSession.mockRejectedValue(new Error('Redis connection failed'))
+
+      const result = await loginUser('test@test.com', 'correct-password', false, '192.168.1.1')
+
+      expect(result.error).toBeDefined()
+      expect(result.error).toContain('Une erreur inattendue')
+      expect(result.data).toBeUndefined()
+    })
+
+    it('should return error instead of throwing when generateToken fails', async () => {
+      mockGenerateToken.mockRejectedValue(new Error('JWT signing failed'))
+
+      const result = await loginUser('test@test.com', 'correct-password', false, '192.168.1.1')
+
+      expect(result.error).toBeDefined()
+      expect(result.error).toContain('Une erreur inattendue')
+      expect(result.data).toBeUndefined()
+    })
+
+    it('should return error instead of throwing when prisma.update fails', async () => {
+      mockPrismaUpdate.mockRejectedValue(new Error('Database connection lost'))
+
+      const result = await loginUser('test@test.com', 'correct-password', false, '192.168.1.1')
+
+      expect(result.error).toBeDefined()
+      expect(result.error).toContain('Service de base de données')
+      expect(result.data).toBeUndefined()
     })
   })
 

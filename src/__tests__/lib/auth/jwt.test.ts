@@ -30,6 +30,7 @@ describe('JWT Token', () => {
   const validPayload = {
     userId: 'test-user-id',
     email: 'test@example.com',
+    name: 'Test User',
     role: 'USER',
     sessionId: 'test-session-id',
   }
@@ -50,6 +51,7 @@ describe('JWT Token', () => {
       expect(decoded).not.toBeNull()
       expect(decoded?.userId).toBe(validPayload.userId)
       expect(decoded?.email).toBe(validPayload.email)
+      expect(decoded?.name).toBe(validPayload.name)
       expect(decoded?.role).toBe(validPayload.role)
     })
   })
@@ -62,6 +64,7 @@ describe('JWT Token', () => {
       expect(result).not.toBeNull()
       expect(result?.userId).toBe(validPayload.userId)
       expect(result?.email).toBe(validPayload.email)
+      expect(result?.name).toBe(validPayload.name)
       expect(result?.role).toBe(validPayload.role)
       expect(result?.sessionId).toBe(validPayload.sessionId)
     })

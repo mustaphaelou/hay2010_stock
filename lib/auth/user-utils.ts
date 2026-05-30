@@ -40,6 +40,16 @@ async function resolveAuthUser(options: ResolveAuthOptions = { errorMode: 'silen
 
   const session = await getSession(payload.sessionId)
   if (!session) {
+    const { isRedisReady } = await import('@/lib/db/redis')
+    const redisAvailable = isRedisReady()
+    if (!redisAvailable) {
+      return {
+        id: payload.userId,
+        email: payload.email ?? '',
+        name: payload.name ?? '',
+        role: payload.role ?? 'USER',
+      }
+    }
     if (options.errorMode === 'detailed') throw new AuthError('Unauthorized: Session expired or revoked')
     if (options.errorMode === 'generic') throw new AuthError('Unauthorized')
     return null as unknown as CurrentUser

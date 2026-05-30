@@ -9,6 +9,7 @@ import { getAuthConfig } from '@/lib/config/auth-config'
 import { getCurrentUser } from '@/lib/auth/user-utils'
 
 export async function login(e: string, p: string, r = false, t?: string): Promise<{ error?: string; success?: boolean }> {
+  if (!t) return { error: 'Jeton de sécurité requis' }
   return serverActionWrite('public', t, async () => {
     const h = await headers()
     const ip = h.get('x-forwarded-for')?.split(',')[0]?.trim() || h.get('x-real-ip') || 'unknown'
@@ -20,17 +21,18 @@ export async function login(e: string, p: string, r = false, t?: string): Promis
       httpOnly: true, secure: getAuthConfig().cookies.secure,
       sameSite: 'strict', maxAge: ttl, path: '/',
     })
-    return { success: true }
+    return { success: true, error: undefined }
   }, { validation: { schema: loginSchema, input: { email: e, password: p } } })
 }
 
 export async function logout(t?: string): Promise<{ error?: string; success?: boolean }> {
+  if (!t) return { error: 'Jeton de sécurité requis' }
   return serverActionWrite('authenticated', t, async () => {
     const c = await cookies()
     const v = c.get(AUTH_COOKIE_NAME)?.value
     if (v) await logoutUser(v)
     c.delete(AUTH_COOKIE_NAME)
-    return { success: true }
+    return { success: true, error: undefined }
   })
 }
 
