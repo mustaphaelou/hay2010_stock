@@ -4,7 +4,6 @@ import * as React from "react"
 import { useRouter } from "next/navigation"
 import type { DocumentWithComputed, DashboardStats, SalesInvoice, MonthlyDataPoint } from "@/lib/types"
 import { DashboardProvider, useDashboardRefresh } from "@/components/dashboard/enhanced/dashboard-context"
-import { ThemeCustomizer } from "@/components/dashboard/enhanced"
 import { CommandCenter } from "@/components/dashboard/command-center"
 import { toast } from "sonner"
 
@@ -62,7 +61,6 @@ function DashboardClientInner(props: DashboardClientProps) {
       }
       if (cmdKey && event.key.toLowerCase() === "e") {
         event.preventDefault()
-        handleExport()
       }
     }
     window.addEventListener("keydown", handleKeyDown)
