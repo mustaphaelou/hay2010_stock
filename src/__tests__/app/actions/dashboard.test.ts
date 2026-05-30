@@ -59,10 +59,12 @@ describe('Dashboard Actions', () => {
     it('should return { data, error?: undefined } when cached data available', async () => {
       const cached = {
         data: {
-          stats: { clients: 10, suppliers: 5, products: 100, families: 10, salesCount: 50, purchasesCount: 30, lowStockCount: 2, totalStockProducts: 80, totalSalesAmount: 50000, totalPurchasesAmount: 20000 },
+          stats: { clients: 10, suppliers: 5, products: 100, families: 10, salesCount: 50, purchasesCount: 30, lowStockCount: 2, totalStockProducts: 80, totalSalesAmount: 50000, totalPurchasesAmount: 20000, paymentRate: 50, stockAvailability: 98, unpaidCount: 5, unpaidTotal: 1000 },
           recentDocs: [],
           salesInvoices: [],
           monthlyData: [],
+          activities: [],
+          topProducts: [],
         },
       }
       mockCacheGet.mockResolvedValue(cached.data)
@@ -70,6 +72,9 @@ describe('Dashboard Actions', () => {
       const result = await getDashboardStats()
 
       expect(result.data?.stats.clients).toBe(10)
+      expect(result.data?.stats.paymentRate).toBe(50)
+      expect(result.data?.activities).toEqual([])
+      expect(result.data?.topProducts).toEqual([])
       expect(result.error).toBeUndefined()
       expect(mockPrismaQueryRaw).not.toHaveBeenCalled()
     })
@@ -92,21 +97,29 @@ describe('Dashboard Actions', () => {
       ]
       const mockRecentDocs: Record<string, unknown>[] = []
       const mockSalesInvoices: Record<string, unknown>[] = []
+      const mockActivityFeed: Record<string, unknown>[] = []
+      const mockTopProducts: Record<string, unknown>[] = []
 
       mockPrismaQueryRaw
         .mockResolvedValueOnce(mockCounts)
         .mockResolvedValueOnce(mockMonthly)
         .mockResolvedValueOnce(mockRecentDocs)
         .mockResolvedValueOnce(mockSalesInvoices)
+        .mockResolvedValueOnce(mockActivityFeed)
+        .mockResolvedValueOnce(mockTopProducts)
 
       const result = await getDashboardStats()
 
       expect(result.data?.stats.clients).toBe(10)
       expect(result.data?.stats.products).toBe(100)
       expect(result.data?.stats.totalSalesAmount).toBe(50000)
+      expect(result.data?.stats.paymentRate).toBe(0)
+      expect(result.data?.stats.stockAvailability).toBe(98)
       expect(result.data?.monthlyData).toBeDefined()
       expect(result.data?.recentDocs).toEqual([])
       expect(result.data?.salesInvoices).toEqual([])
+      expect(result.data?.activities).toEqual([])
+      expect(result.data?.topProducts).toEqual([])
       expect(result.error).toBeUndefined()
       expect(mockCacheSet).toHaveBeenCalled()
     })
@@ -118,9 +131,13 @@ describe('Dashboard Actions', () => {
 
       expect(result.data?.stats.clients).toBe(0)
       expect(result.data?.stats.products).toBe(0)
+      expect(result.data?.stats.paymentRate).toBe(0)
+      expect(result.data?.stats.stockAvailability).toBe(100)
       expect(result.data?.recentDocs).toEqual([])
       expect(result.data?.salesInvoices).toEqual([])
       expect(result.data?.monthlyData).toEqual([])
+      expect(result.data?.activities).toEqual([])
+      expect(result.data?.topProducts).toEqual([])
       expect(result.error).toBe('Failed to fetch dashboard stats')
     })
   })

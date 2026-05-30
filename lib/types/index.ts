@@ -325,6 +325,30 @@ export type DashboardStats = {
   totalPurchasesAmount: number
   monthlyRevenue?: number
   pendingOrders?: number
+  paymentRate: number
+  stockAvailability: number
+  unpaidCount: number
+  unpaidTotal: number
+}
+
+export type DashboardActivityItem = {
+  id: string
+  type: 'document' | 'stock_movement' | 'partner'
+  title: string
+  description?: string
+  timestamp: Date
+  status?: 'success' | 'warning' | 'error' | 'info' | 'default'
+}
+
+export type DashboardTopProduct = {
+  id: string
+  name: string
+  category: string
+  salesCount: number
+  revenue: number
+  trend: number
+  trendDirection: 'up' | 'down' | 'neutral'
+  stockLevel: number
 }
 
 export type DashboardData = {
@@ -332,6 +356,8 @@ export type DashboardData = {
   recentDocs: DocumentWithComputed[]
   salesInvoices: SalesInvoice[]
   monthlyData: MonthlyDataPoint[]
+  activities: DashboardActivityItem[]
+  topProducts: DashboardTopProduct[]
 }
 
 export type DashboardDataWithComputed = DashboardData

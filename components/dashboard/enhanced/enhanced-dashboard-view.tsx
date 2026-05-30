@@ -3,6 +3,8 @@
 import * as React from "react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { ChartLoadingFallback, GaugeLoadingFallback, LazyLoad, ErrorBoundary } from "./lazy-components"
 import { InteractiveChartCard, type ChartType, type TimeRange, type DataPoint } from "./interactive-chart-card"
 import type { StatsOverviewCardProps } from "./stats-overview-card"
@@ -10,6 +12,9 @@ import { RealtimeMetricsGrid } from "./realtime-metrics-grid"
 import { DashboardHeader, type BreadcrumbItemType } from "./dashboard-header"
 import { RecentActivityFeed, type ActivityItem } from "./recent-activity-feed"
 import { PerformanceGauge, type Threshold } from "./performance-gauge"
+import { AlertsWidget, type AlertItem } from "@/components/dashboard/widgets/alerts-widget"
+import { TopProductsWidget, type TopProduct } from "@/components/dashboard/widgets/top-products-widget"
+import { ThemeCustomizer } from "./theme-customizer"
 import { useReducedMotion } from "@/lib/hooks/use-reduced-motion"
 import { useIsMobile } from "@/lib/hooks/use-breakpoint"
 import { SafeIcon as HugeiconsIcon } from "@/components/ui/safe-icon"
@@ -46,6 +51,13 @@ interface GaugeData {
   thresholds?: Threshold[]
 }
 
+interface TableColumn {
+  key: string
+  label: string
+  align?: 'left' | 'right'
+  format?: 'currency' | 'percentage' | 'number'
+}
+
 interface EnhancedDashboardViewProps {
   title?: string
   description?: string
@@ -54,6 +66,12 @@ interface EnhancedDashboardViewProps {
   charts?: ChartData[]
   activities?: ActivityData[]
   gauges?: GaugeData[]
+  table?: {
+    columns: TableColumn[]
+    rows: Record<string, unknown>[]
+  }
+  alerts?: AlertItem[]
+  topProducts?: TopProduct[]
   loading?: boolean
   className?: string
   onRefresh?: () => void
@@ -86,6 +104,9 @@ export const EnhancedDashboardView = React.memo(function EnhancedDashboardView({
   charts = [],
   activities = [],
   gauges = [],
+  table,
+  alerts,
+  topProducts,
   loading = false,
   className,
   onRefresh,
@@ -95,6 +116,7 @@ export const EnhancedDashboardView = React.memo(function EnhancedDashboardView({
 }: EnhancedDashboardViewProps) {
   const [viewMode, setViewMode] = React.useState<"grid" | "compact">("grid")
   const [isRefreshing, setIsRefreshing] = React.useState(false)
+  const [showThemeCustomizer, setShowThemeCustomizer] = React.useState(false)
   const prefersReducedMotion = useReducedMotion()
   const isMobile = useIsMobile()
 
@@ -108,6 +130,25 @@ export const EnhancedDashboardView = React.memo(function EnhancedDashboardView({
       }
     }
   }, [onRefresh])
+
+  const handleSettings = React.useCallback(() => {
+    setShowThemeCustomizer((prev) => !prev)
+    onSettings?.()
+  }, [onSettings])
+
+  const formatValue = React.useCallback((value: unknown, col?: TableColumn): string => {
+    if (col?.format === 'currency') {
+      const num = Number(value)
+      return num.toLocaleString('fr-MA', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' MAD'
+    }
+    if (col?.format === 'percentage') {
+      return `${Number(value)}%`
+    }
+    if (col?.format === 'number') {
+      return Number(value).toLocaleString('fr-MA')
+    }
+    return String(value ?? '')
+  }, [])
 
   const metricsData = React.useMemo(() => kpiCards, [kpiCards])
 
@@ -141,7 +182,7 @@ export const EnhancedDashboardView = React.memo(function EnhancedDashboardView({
         breadcrumbs={defaultBreadcrumbs}
         onRefresh={handleRefresh}
         onExport={onExport}
-        onSettings={onSettings}
+        onSettings={handleSettings}
         isLoading={isRefreshing}
       >
         {showViewToggle && (
@@ -169,6 +210,11 @@ export const EnhancedDashboardView = React.memo(function EnhancedDashboardView({
           </div>
         )}
       </DashboardHeader>
+
+      <ThemeCustomizer
+        onThemeChange={() => setShowThemeCustomizer(false)}
+        trigger={showThemeCustomizer ? <div /> : undefined}
+      />
 
       {kpiCards.length > 0 && (
         <section aria-label="Indicateurs clés de performance" aria-live="polite">
@@ -240,8 +286,77 @@ export const EnhancedDashboardView = React.memo(function EnhancedDashboardView({
           </div>
         )}
       </div>
+
+      {table && table.columns.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base font-bold">Tableau de Performance Mensuelle</CardTitle>
+            <CardDescription>Rapprochement chiffré des ventes, dépenses et taux de rentabilité.</CardDescription>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left border-collapse">
+                <thead>
+                  <tr className="border-b bg-muted/40 text-xs font-semibold text-muted-foreground uppercase">
+                    {table.columns.map((col) => (
+                      <th
+                        key={col.key}
+                        className={cn(
+                          "px-4 py-3",
+                          col.align === "right" ? "text-right" : "text-left"
+                        )}
+                      >
+                        {col.label}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {table.rows.map((row, idx) => (
+                    <tr key={idx} className="hover:bg-muted/30 transition-colors">
+                      {table.columns.map((col) => (
+                        <td
+                          key={col.key}
+                          className={cn(
+                            "px-4 py-3",
+                            col.align === "right" ? "text-right font-medium" : "font-medium"
+                          )}
+                        >
+                          {formatValue(row[col.key], col)}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {(alerts || topProducts) && (
+        <div className="grid gap-6 lg:grid-cols-2">
+          {alerts && (
+            <AlertsWidget
+              alerts={alerts}
+              title="Alertes & Notifications"
+              description="Informations importantes"
+              maxItems={5}
+              showViewAll
+            />
+          )}
+          {topProducts && (
+            <TopProductsWidget
+              products={topProducts}
+              title="Top Produits"
+              description="Produits les plus vendus"
+              maxItems={5}
+            />
+          )}
+        </div>
+      )}
     </div>
   )
 })
 
-export type { EnhancedDashboardViewProps, ChartData, ActivityData, GaugeData }
+export type { EnhancedDashboardViewProps, ChartData, ActivityData, GaugeData, TableColumn }

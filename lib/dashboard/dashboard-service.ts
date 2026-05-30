@@ -2,7 +2,7 @@ import { getAdapter } from '@/lib/cache/adapter'
 import { CacheNamespaces, CacheTTLSeconds } from '@/lib/cache/cache'
 import { prisma } from '@/lib/db/prisma'
 import { Prisma } from '@/lib/generated/prisma/client'
-import type { DashboardData, DashboardStats, SalesInvoice, DocumentWithComputed, MonthlyDataPoint } from '@/lib/types'
+import type { DashboardData, DashboardStats, SalesInvoice, DocumentWithComputed, MonthlyDataPoint, DashboardActivityItem, DashboardTopProduct } from '@/lib/types'
 import { mapDocumentToComputed } from '@/lib/documents/mapping'
 import { createLogger } from '@/lib/logger'
 
@@ -79,6 +79,23 @@ interface SalesInvoiceRow {
   montant_tva_total: Prisma.Decimal
 }
 
+interface ActivityFeedRow {
+  id: string
+  type: string
+  title: string
+  description: string | null
+  timestamp: Date
+}
+
+interface TopProductRow {
+  id_produit: number
+  nom_produit: string
+  nom_categorie: string | null
+  total_quantity: number
+  total_revenue: number
+  stock_level: number
+}
+
 export type DashboardProductData = {
   id_produit: number
   code_produit: string
@@ -130,7 +147,7 @@ export type DashboardDataResult = {
 }
 
 async function runStatsQueries() {
-  const [countsResult, monthlyResult, recentDocsResult, salesInvoicesResult] = await Promise.all([
+  const [countsResult, monthlyResult, recentDocsResult, salesInvoicesResult, activityFeedResult, topProductsResult] = await Promise.all([
     prisma.$queryRaw<Array<CountsRow>>`
       SELECT
         (SELECT COUNT(*) FROM partenaires WHERE type_partenaire IN ('CLIENT', 'LES_DEUX')) AS clients,
@@ -181,9 +198,54 @@ async function runStatsQueries() {
       ORDER BY date_document DESC
       LIMIT 100
     `,
+    prisma.$queryRaw<Array<ActivityFeedRow>>`
+      SELECT id::text AS id, 'document' AS type, titre AS title, description, date_creation AS timestamp
+      FROM (
+        SELECT d.id_document AS id, d.numero_document AS titre, NULL::text AS description, d.date_creation
+        FROM documents d
+        ORDER BY d.date_creation DESC
+        LIMIT 10
+      ) doc_union
+      UNION ALL
+      SELECT id::text, 'stock_movement' AS type, designation AS title, NULL::text AS description, date_mouvement
+      FROM (
+        SELECT ms.id_mouvement AS id, ms.reference_document AS designation, ms.motif, ms.date_mouvement
+        FROM mouvements_stock ms
+        ORDER BY ms.date_mouvement DESC
+        LIMIT 10
+      ) mov_union
+      UNION ALL
+      SELECT id::text, 'partner' AS type, nom AS title, NULL::text AS description, date_creation
+      FROM (
+        SELECT p.id_partenaire AS id, p.nom_partenaire AS nom, NULL::text AS description, p.date_creation
+        FROM partenaires p
+        ORDER BY p.date_creation DESC
+        LIMIT 10
+      ) part_union
+      ORDER BY timestamp DESC
+      LIMIT 10
+    `,
+    prisma.$queryRaw<Array<TopProductRow>>`
+      SELECT
+        p.id_produit,
+        p.nom_produit,
+        cp.nom_categorie,
+        COALESCE(SUM(ld.quantite), 0)::float AS total_quantity,
+        COALESCE(SUM(ld.montant_ttc), 0)::float AS total_revenue,
+        COALESCE(SUM(ns.quantite_en_stock), 0)::float AS stock_level
+      FROM lignes_documents ld
+      JOIN documents d ON d.id_document = ld.id_document
+      JOIN produits p ON p.id_produit = ld.id_produit
+      LEFT JOIN categories_produits cp ON cp.id_categorie = p.id_categorie
+      LEFT JOIN niveaux_stock ns ON ns.id_produit = p.id_produit
+      WHERE d.domaine_document = 'VENTE'
+      GROUP BY p.id_produit, p.nom_produit, cp.nom_categorie
+      ORDER BY SUM(ld.quantite) DESC
+      LIMIT 10
+    `,
   ])
 
-  return { countsResult, monthlyResult, recentDocsResult, salesInvoicesResult }
+  return { countsResult, monthlyResult, recentDocsResult, salesInvoicesResult, activityFeedResult, topProductsResult }
 }
 
 function buildStats(countsResult: Array<CountsRow>): DashboardStats {
@@ -250,6 +312,29 @@ function buildSalesInvoices(salesInvoicesResult: Array<SalesInvoiceRow>): SalesI
     solde_du: s.solde_du,
     date_document: s.date_document,
     montant_regle: Number(s.montant_ttc) - Number(s.solde_du),
+  }))
+}
+
+function buildActivityFeed(activityFeedResult: Array<ActivityFeedRow>): DashboardActivityItem[] {
+  return activityFeedResult.map((row): DashboardActivityItem => ({
+    id: row.id,
+    type: row.type as DashboardActivityItem['type'],
+    title: row.title,
+    description: row.description ?? undefined,
+    timestamp: row.timestamp,
+  }))
+}
+
+function buildTopProducts(topProductsResult: Array<TopProductRow>): DashboardTopProduct[] {
+  return topProductsResult.map((row): DashboardTopProduct => ({
+    id: String(row.id_produit),
+    name: row.nom_produit,
+    category: row.nom_categorie ?? 'Général',
+    salesCount: row.total_quantity,
+    revenue: row.total_revenue,
+    trend: 0,
+    trendDirection: 'neutral',
+    stockLevel: row.stock_level,
   }))
 }
 
@@ -362,25 +447,52 @@ async function runDashboardDataQueries(): Promise<DashboardDataResult> {
   return { products, partners, documents, movements }
 }
 
+function computePaymentMetrics(salesInvoices: SalesInvoice[], salesCount: number) {
+  let regle = 0
+  let unpaidTotal = 0
+  for (const inv of salesInvoices) {
+    const ttc = Number(inv.montant_ttc)
+    const reg = inv.montant_regle
+    if (reg > 0 && reg >= ttc) regle++
+    else unpaidTotal += ttc - reg
+  }
+  const unpaidCount = salesInvoices.length - regle
+  const paymentRate = salesCount > 0 ? Math.round((regle / salesCount) * 100) : 0
+  return { paymentRate, unpaidCount, unpaidTotal }
+}
+
+function computeStockAvailability(totalStockProducts: number, lowStockCount: number): number {
+  return totalStockProducts > 0
+    ? Math.round(((totalStockProducts - lowStockCount) / totalStockProducts) * 100)
+    : 100
+}
+
 export async function getDashboardStats(): Promise<{ data: DashboardData; error?: string }> {
   const cacheKey = 'stats'
 
   try {
     const cached = await getAdapter().get<DashboardData>(CacheNamespaces.DASHBOARD, cacheKey)
-    if (cached) return { data: cached }
+    if (cached) return { data: cached, error: undefined }
 
-    const { countsResult, monthlyResult, recentDocsResult, salesInvoicesResult } = await runStatsQueries()
+    const { countsResult, monthlyResult, recentDocsResult, salesInvoicesResult, activityFeedResult, topProductsResult } = await runStatsQueries()
 
-    const stats = buildStats(countsResult)
+    const baseStats = buildStats(countsResult)
     const recentDocs = buildRecentDocs(recentDocsResult)
     const salesInvoices = buildSalesInvoices(salesInvoicesResult)
     const monthlyData = fillMonthlyData(monthlyResult)
+    const activities = buildActivityFeed(activityFeedResult)
+    const topProducts = buildTopProducts(topProductsResult)
 
-    const result = { stats, recentDocs, salesInvoices, monthlyData }
+    const { paymentRate, unpaidCount, unpaidTotal } = computePaymentMetrics(salesInvoices, baseStats.salesCount)
+    const stockAvailability = computeStockAvailability(baseStats.totalStockProducts, baseStats.lowStockCount)
+
+    const stats: DashboardStats = { ...baseStats, paymentRate, stockAvailability, unpaidCount, unpaidTotal }
+
+    const result: DashboardData = { stats, recentDocs, salesInvoices, monthlyData, activities, topProducts }
 
     await getAdapter().set(CacheNamespaces.DASHBOARD, cacheKey, result, CacheTTLSeconds.DASHBOARD)
 
-    return { data: result }
+    return { data: result, error: undefined }
   } catch (error) {
     log.error({ error }, 'Failed to fetch dashboard stats')
     return {
@@ -389,10 +501,13 @@ export async function getDashboardStats(): Promise<{ data: DashboardData; error?
           clients: 0, suppliers: 0, products: 0, families: 0,
           salesCount: 0, purchasesCount: 0, lowStockCount: 0,
           totalStockProducts: 0, totalSalesAmount: 0, totalPurchasesAmount: 0,
+          paymentRate: 0, stockAvailability: 100, unpaidCount: 0, unpaidTotal: 0,
         },
         recentDocs: [],
         salesInvoices: [],
         monthlyData: [],
+        activities: [],
+        topProducts: [],
       },
       error: 'Failed to fetch dashboard stats',
     }

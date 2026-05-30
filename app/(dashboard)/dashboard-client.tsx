@@ -2,9 +2,9 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
-import type { DocumentWithComputed, DashboardStats, SalesInvoice, MonthlyDataPoint } from "@/lib/types"
+import type { DocumentWithComputed, DashboardStats, SalesInvoice, MonthlyDataPoint, DashboardActivityItem, DashboardTopProduct } from "@/lib/types"
 import { DashboardProvider, useDashboardRefresh } from "@/components/dashboard/enhanced/dashboard-context"
-import { CommandCenter } from "@/components/dashboard/command-center"
+import { EnhancedDashboardView } from "@/components/dashboard/enhanced/enhanced-dashboard-view"
 import { toast } from "sonner"
 
 interface DashboardClientProps {
@@ -12,30 +12,24 @@ interface DashboardClientProps {
   recentDocs: DocumentWithComputed[]
   salesInvoices: SalesInvoice[]
   monthlyData: MonthlyDataPoint[]
+  activities: DashboardActivityItem[]
+  topProducts: DashboardTopProduct[]
 }
 
 function DashboardClientInner(props: DashboardClientProps) {
-  const { stats, recentDocs, salesInvoices, monthlyData } = props
+  const { stats, recentDocs, salesInvoices, monthlyData, activities, topProducts } = props
   const router = useRouter()
-  const [lastUpdated, setLastUpdated] = React.useState<string>(
-    new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })
-  )
   const { refresh: contextRefresh } = useDashboardRefresh()
-
-  const updateTimestamp = React.useCallback(() => {
-    setLastUpdated(new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }))
-  }, [])
 
   const handleRefresh = React.useCallback(async () => {
     try {
       router.refresh()
       await contextRefresh()
-      updateTimestamp()
       toast.success("Données mises à jour")
     } catch {
       toast.error("Erreur lors de l'actualisation")
     }
-  }, [router, contextRefresh, updateTimestamp])
+  }, [router, contextRefresh])
 
   const handleExport = React.useCallback(() => {
     const headers = ["Mois", "Ventes (MAD)", "Achats (MAD)"]
@@ -67,16 +61,113 @@ function DashboardClientInner(props: DashboardClientProps) {
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [handleRefresh, handleExport])
 
+  const kpiCards = [
+    {
+      id: "revenue",
+      title: "Chiffre d'Affaires",
+      value: stats.totalSalesAmount,
+      suffix: " MAD",
+      description: "Ventes cumulées sur la période",
+      variant: "success" as const,
+    },
+    {
+      id: "purchases",
+      title: "Total Achats",
+      value: stats.totalPurchasesAmount,
+      suffix: " MAD",
+      description: "Investissement approvisionnement",
+      variant: "info" as const,
+    },
+    {
+      id: "margin",
+      title: "Marge Commerciale",
+      value: Math.max(0, stats.totalSalesAmount - stats.totalPurchasesAmount),
+      suffix: " MAD",
+      description: "Marge brute estimée",
+      variant: "default" as const,
+    },
+    {
+      id: "payment",
+      title: "Taux de Règlement",
+      value: `${stats.paymentRate}%`,
+      description: `${stats.unpaidCount} factures en attente`,
+      variant: "warning" as const,
+    },
+  ]
+
+  const chartData = monthlyData.map((m) => ({
+    month: m.month,
+    Ventes: m.ventes,
+    Achats: m.achats,
+    Marge: Math.max(0, m.ventes - m.achats),
+  }))
+
+  const charts = [
+    {
+      id: "sales-purchases",
+      title: "Évolution de la Rentabilité",
+      description: "Comparaison des ventes, achats et marge commerciale nette.",
+      data: chartData,
+      series: [
+        { key: "Ventes", label: "Ventes", color: "hsl(142, 76%, 36%)" },
+        { key: "Achats", label: "Achats", color: "hsl(262, 83%, 58%)" },
+        { key: "Marge", label: "Marge Brute", color: "hsl(199, 89%, 48%)" },
+      ],
+    },
+  ]
+
+  const tableColumns = [
+    { key: "month", label: "Mois" },
+    { key: "ventes", label: "Ventes (MAD)", align: "right" as const, format: "currency" as const },
+    { key: "achats", label: "Achats (MAD)", align: "right" as const, format: "currency" as const },
+    { key: "marge", label: "Marge Brute (MAD)", align: "right" as const, format: "currency" as const },
+    { key: "margePct", label: "Taux de Marge (%)", align: "right" as const, format: "percentage" as const },
+  ]
+
+  const tableRows = monthlyData.map((d) => {
+    const margin = Math.max(0, d.ventes - d.achats)
+    const marginPct = d.ventes > 0 ? Math.round((margin / d.ventes) * 100) : 0
+    return { month: d.month, ventes: d.ventes, achats: d.achats, marge: margin, margePct }
+  })
+
+  const gauges = [
+    {
+      id: "stock",
+      title: "Logistique",
+      description: "Disponibilité du stock",
+      value: stats.stockAvailability,
+      max: 100,
+      thresholds: [
+        { value: 50, label: "Alerte", color: "#ef4444" },
+        { value: 80, label: "Moyen", color: "#f97316" },
+        { value: 100, label: "Optimal", color: "#22c55e" },
+      ],
+    },
+    {
+      id: "payment",
+      title: "Recouvrement",
+      description: "Factures réglées",
+      value: stats.paymentRate,
+      max: 100,
+      thresholds: [
+        { value: 40, label: "Critique", color: "#ef4444" },
+        { value: 75, label: "Standard", color: "#f97316" },
+        { value: 100, label: "Excellent", color: "#22c55e" },
+      ],
+    },
+  ]
+
   return (
     <div id="main-content" className="flex flex-1 flex-col gap-4 p-4 pt-0 pb-20 md:gap-8 md:p-8 md:pb-8">
-      <div className="flex items-center justify-between">
-        <p className="text-xs text-muted-foreground">Dernière mise à jour : {lastUpdated}</p>
-      </div>
-      <CommandCenter
-        stats={stats}
-        recentDocs={recentDocs}
-        salesInvoices={salesInvoices}
-        monthlyData={monthlyData}
+      <EnhancedDashboardView
+        title="Analyse Commerciale & Financière"
+        description="Perspectives stratégiques, rentabilité et performance des flux de trésorerie."
+        kpiCards={kpiCards}
+        charts={charts}
+        gauges={gauges}
+        table={{ columns: tableColumns, rows: tableRows }}
+        activities={activities}
+        topProducts={topProducts}
         onRefresh={handleRefresh}
         onExport={handleExport}
       />
