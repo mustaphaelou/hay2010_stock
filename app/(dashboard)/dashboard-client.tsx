@@ -96,7 +96,7 @@ function DashboardClientInner(props: DashboardClientProps) {
   ]
 
   const chartData = monthlyData.map((m) => ({
-    month: m.month,
+    date: m.month,
     Ventes: m.ventes,
     Achats: m.achats,
     Marge: Math.max(0, m.ventes - m.achats),
@@ -126,8 +126,8 @@ function DashboardClientInner(props: DashboardClientProps) {
 
   const tableRows = monthlyData.map((d) => {
     const margin = Math.max(0, d.ventes - d.achats)
-    const margePct = d.ventes > 0 ? Math.round((margin / d.ventes) * 100) : 0
-    return { month: d.month, ventes: d.ventes, achats: d.achats, marge: margin, margePct }
+    const marginPctVal = d.ventes > 0 ? Math.round((margin / d.ventes) * 100) : 0
+    return { month: d.month, ventes: d.ventes, achats: d.achats, marge: margin, margePct: marginPctVal }
   })
 
   const gauges = [
@@ -182,6 +182,8 @@ export function DashboardClient(props: DashboardClientProps) {
       recentDocs: [],
       salesInvoices: props.salesInvoices,
       monthlyData: props.monthlyData,
+      activities: props.activities,
+      topProducts: props.topProducts,
     }}>
       <DashboardClientInner {...props} />
     </DashboardProvider>

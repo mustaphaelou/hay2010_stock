@@ -267,8 +267,8 @@ export type MovementResult = {
 
 export async function createStockMovement(input: CreateMovementInput, userId: string): Promise<{ data?: MovementResult; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
   const result = validatedOrError(createMovementSchema, input, { joinIssues: true })
-  if (result.error) {
-    return { error: result.error, code: result.code }
+  if (result.error || !result.data) {
+    return { error: result.error || 'Données invalides', code: result.code || 'VALIDATION' }
   }
 
   const validatedInput = result.data
@@ -452,8 +452,8 @@ export async function createStockLevel(
   userId: string,
 ): Promise<{ data?: StockLevelResult; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
   const parsed = validatedOrError(createStockLevelSchema, input, { joinIssues: true })
-  if (parsed.error) {
-    return { error: parsed.error, code: parsed.code }
+  if (parsed.error || !parsed.data) {
+    return { error: parsed.error || 'Données invalides', code: parsed.code || 'VALIDATION' }
   }
 
   const d = parsed.data
@@ -564,8 +564,8 @@ export async function adjustStockLevel(
   userId: string,
 ): Promise<{ data?: AdjustmentResult; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
   const result = validatedOrError(adjustStockLevelSchema, input, { joinIssues: true })
-  if (result.error) {
-    return { error: result.error, code: result.code }
+  if (result.error || !result.data) {
+    return { error: result.error || 'Données invalides', code: result.code || 'VALIDATION' }
   }
 
   const validatedInput = result.data
@@ -810,6 +810,7 @@ export async function getArticleById(
   try {
     const product = await prisma.produit.findUnique({
       where: { id_produit },
+      include: { categorie: true },
     })
 
     if (!product) {
@@ -856,6 +857,13 @@ export async function getArticleById(
       compte_general_achat: product.compte_general_achat,
       code_taxe_vente: product.code_taxe_vente,
       code_taxe_achat: product.code_taxe_achat,
+      categorie: product.categorie ? {
+        id_categorie: product.categorie.id_categorie,
+        code_categorie: product.categorie.code_categorie,
+        nom_categorie: product.categorie.nom_categorie,
+        description_categorie: product.categorie.description_categorie,
+        est_actif: product.categorie.est_actif,
+      } : null,
       niveaux_stock: [],
       stock_global: stockMap.get(product.id_produit) || 0,
       stock_status_variant: computeStockStatusVariant(stockMap.get(product.id_produit) || 0, product.stock_minimum ?? 0),
@@ -873,8 +881,8 @@ export async function createArticle(
   userId: string,
 ): Promise<{ data?: ArticleWithStock; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
   const result = validatedOrError(articleCreateSchema, input)
-  if (result.error) {
-    return { error: result.error, code: result.code }
+  if (result.error || !result.data) {
+    return { error: result.error || 'Données invalides', code: result.code || 'VALIDATION' }
   }
 
   const validatedInput = result.data
@@ -914,8 +922,8 @@ export async function updateArticle(
   userId: string,
 ): Promise<{ data?: ArticleWithStock; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
   const result = validatedOrError(articleUpdateSchema, input)
-  if (result.error) {
-    return { error: result.error, code: result.code }
+  if (result.error || !result.data) {
+    return { error: result.error || 'Données invalides', code: result.code || 'VALIDATION' }
   }
 
   const validatedInput = result.data

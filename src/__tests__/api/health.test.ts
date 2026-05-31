@@ -80,6 +80,7 @@ describe('Health Check Endpoints', () => {
     mockVerifyToken.mockResolvedValue({
       userId: 'user-123',
       email: 'admin@example.com',
+      name: 'Admin User',
       role: 'ADMIN',
       sessionId: 'session-123'
     })
@@ -139,6 +140,7 @@ describe('Health Check Endpoints', () => {
     const mockTokenPayload = {
       userId: 'user-123',
       email: 'admin@example.com',
+      name: 'Admin User',
       role: 'ADMIN' as const,
       sessionId: 'session-123'
     }

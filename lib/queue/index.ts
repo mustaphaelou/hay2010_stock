@@ -102,10 +102,10 @@ export function startWorkers(): void {
         if (email) {
           await emailQueue.add('send-pdf', {
             to: email,
-            subject: `Document ${document.numero_document} - PDF Ready`,
+            subject: `Document ${documentWithComputed.numero_document} - PDF Ready`,
             template: 'document-ready',
             data: {
-              documentNumber: document.numero_document,
+              documentNumber: documentWithComputed.numero_document,
               downloadUrl: '#',
             },
           })

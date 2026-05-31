@@ -233,7 +233,7 @@ async function runStatsQueries() {
   }
 }
 
-function buildStats(countsResult: Array<CountsRow>): DashboardStats {
+function buildStats(countsResult: Array<CountsRow>) {
   const c = countsResult[0]
   return {
     clients: Number(c?.clients ?? 0),

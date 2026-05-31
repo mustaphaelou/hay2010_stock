@@ -61,8 +61,9 @@ export async function getAffaires(
   order: 'asc' | 'desc' = 'desc',
 ): Promise<PaginatedResult<AffaireWithComputed> & { error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
   const result = validatedOrError(getAffairesSchema, { page, limit, ...filters }, { message: 'Paramètres de filtre invalides' })
-  if (result.error) {
-    return { ...createEmptyResult<AffaireWithComputed>(page, limit, result.error), error: result.error, code: result.code }
+  if (result.error || !result.data) {
+    const errorMsg = result.error || 'Paramètres de filtre invalides'
+    return { ...createEmptyResult<AffaireWithComputed>(page, limit, errorMsg), error: errorMsg, code: result.code || 'VALIDATION' }
   }
 
   const validated = result.data
@@ -139,8 +140,8 @@ export async function createAffaire(
   userId: string,
 ): Promise<{ data?: AffaireWithComputed; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
   const result = validatedOrError(affaireCreateSchema, input)
-  if (result.error) {
-    return { error: result.error, code: result.code }
+  if (result.error || !result.data) {
+    return { error: result.error || 'Données invalides', code: result.code || 'VALIDATION' }
   }
 
   const validatedInput = result.data
@@ -173,8 +174,8 @@ export async function updateAffaire(
   userId: string,
 ): Promise<{ data?: AffaireWithComputed; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
   const result = validatedOrError(affaireUpdateSchema, input)
-  if (result.error) {
-    return { error: result.error, code: result.code }
+  if (result.error || !result.data) {
+    return { error: result.error || 'Données invalides', code: result.code || 'VALIDATION' }
   }
 
   const validatedInput = result.data

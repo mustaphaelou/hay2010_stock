@@ -113,8 +113,8 @@ export async function createEntrepot(
   input: CreateInput,
 ): Promise<{ data?: unknown; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
   const result = validatedOrError(warehouseCreateSchema, input)
-  if (result.error) {
-    return { error: result.error, code: result.code }
+  if (result.error || !result.data) {
+    return { error: result.error || 'Données invalides', code: result.code || 'VALIDATION' }
   }
 
   const d = result.data
@@ -142,8 +142,8 @@ export async function updateEntrepot(
   input: UpdateInput,
 ): Promise<{ data?: unknown; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
   const result = validatedOrError(warehouseUpdateSchema, input)
-  if (result.error) {
-    return { error: result.error, code: result.code }
+  if (result.error || !result.data) {
+    return { error: result.error || 'Données invalides', code: result.code || 'VALIDATION' }
   }
 
   const d = result.data

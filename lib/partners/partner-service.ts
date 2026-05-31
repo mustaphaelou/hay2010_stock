@@ -141,8 +141,8 @@ export async function createPartner(
   userId: string,
 ): Promise<{ data?: PartnerWithComputed; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
   const result = validatedOrError(createPartnerSchema, input)
-  if (result.error) {
-    return { error: result.error, code: result.code }
+  if (result.error || !result.data) {
+    return { error: result.error || 'Données invalides', code: result.code || 'VALIDATION' }
   }
 
   const validatedInput = result.data
@@ -176,8 +176,8 @@ export async function updatePartner(
   userId: string,
 ): Promise<{ data?: PartnerWithComputed; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
   const result = validatedOrError(updatePartnerSchema, input)
-  if (result.error) {
-    return { error: result.error, code: result.code }
+  if (result.error || !result.data) {
+    return { error: result.error || 'Données invalides', code: result.code || 'VALIDATION' }
   }
 
   const validatedInput = result.data

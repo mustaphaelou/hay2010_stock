@@ -181,8 +181,8 @@ export async function createDocument(
   userId: string,
 ): Promise<{ data?: DocumentWithComputed; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
   const result = validatedOrError(documentCreateSchema, input)
-  if (result.error) {
-    return { error: result.error, code: result.code }
+  if (result.error || !result.data) {
+    return { error: result.error || 'Données invalides', code: result.code || 'VALIDATION' }
   }
 
   const validatedInput = result.data
@@ -227,8 +227,8 @@ export async function updateDocument(
   userId: string,
 ): Promise<{ data?: DocumentWithComputed; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
   const result = validatedOrError(documentUpdateSchema, input)
-  if (result.error) {
-    return { error: result.error, code: result.code }
+  if (result.error || !result.data) {
+    return { error: result.error || 'Données invalides', code: result.code || 'VALIDATION' }
   }
 
   const validatedInput = result.data
@@ -474,7 +474,7 @@ export async function getDashboardDocuments(limit: number = 100): Promise<{ data
   try {
     const documents = await prisma.docVente.findMany({
       include: {
-        partenaire: { select: { nom_partenaire: true } }
+        partenaire: { select: { nom_partenaire: true, type_partenaire: true } }
       },
       orderBy: { date_document: 'desc' },
       take: limit

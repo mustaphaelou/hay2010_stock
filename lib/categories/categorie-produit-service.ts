@@ -105,8 +105,8 @@ export async function createCategory(
   input: CreateInput,
 ): Promise<{ data?: unknown; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
   const result = validatedOrError(categoryCreateSchema, input)
-  if (result.error) {
-    return { error: result.error, code: result.code }
+  if (result.error || !result.data) {
+    return { error: result.error || 'Données invalides', code: result.code || 'VALIDATION' }
   }
 
   const d = result.data
@@ -134,8 +134,8 @@ export async function updateCategory(
   input: UpdateInput,
 ): Promise<{ data?: unknown; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
   const result = validatedOrError(categoryUpdateSchema, input)
-  if (result.error) {
-    return { error: result.error, code: result.code }
+  if (result.error || !result.data) {
+    return { error: result.error || 'Données invalides', code: result.code || 'VALIDATION' }
   }
 
   const d = result.data
