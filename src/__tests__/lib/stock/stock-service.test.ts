@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 
-const { mockCacheInvalidateStock, mockAdapterAcquireLock, mockAdapterReleaseLock } = vi.hoisted(() => ({
-  mockCacheInvalidateStock: vi.fn(),
+const { mockAdapterAcquireLock, mockAdapterReleaseLock } = vi.hoisted(() => ({
   mockAdapterAcquireLock: vi.fn(),
   mockAdapterReleaseLock: vi.fn(),
 }))
@@ -36,12 +35,7 @@ vi.mock('@/lib/cache/adapter', () => ({
   }),
 }))
 
-vi.mock('@/lib/cache/invalidation', () => ({
-  CacheInvalidationService: {
-    invalidateStock: mockCacheInvalidateStock,
-    invalidateProduct: vi.fn(),
-  },
-}))
+vi.mock('@/lib/cache/invalidation', () => ({}))
 
 vi.mock('@/lib/logger', () => ({
   createLogger: () => ({
