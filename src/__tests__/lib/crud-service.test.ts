@@ -1,0 +1,357 @@
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { z } from 'zod'
+import { createCrudService } from '@/lib/crud-service'
+import type { CrudDelegate, CrudService } from '@/lib/crud-service'
+
+interface TestRecord {
+  id: number
+  name: string
+  email: string
+}
+
+interface TestCreate {
+  name: string
+  email: string
+}
+
+interface TestUpdate {
+  name?: string
+  email?: string
+}
+
+const createSchema = z.object({
+  name: z.string().min(1, 'Le nom est requis'),
+  email: z.string().email('Email invalide'),
+})
+
+const updateSchema = z.object({
+  name: z.string().min(1, 'Le nom est requis').optional(),
+  email: z.string().email('Email invalide').optional(),
+})
+
+function createMockDelegate(): CrudDelegate<TestRecord, TestCreate, TestUpdate> {
+  return {
+    findUnique: vi.fn(),
+    findMany: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+    count: vi.fn(),
+  }
+}
+
+function createService(
+  delegate?: CrudDelegate<TestRecord, TestCreate, TestUpdate>,
+  overrides?: Partial<{
+    entityName: string
+    uniqueFields: string[]
+    idField: string
+  }>,
+): {
+  service: CrudService<TestRecord, TestCreate, TestUpdate>
+  delegate: CrudDelegate<TestRecord, TestCreate, TestUpdate>
+} {
+  const mockDelegate = delegate ?? createMockDelegate()
+  const service = createCrudService<TestRecord, TestCreate, TestUpdate>({
+    delegate: mockDelegate,
+    entityName: overrides?.entityName ?? 'Test',
+    createSchema,
+    updateSchema,
+    uniqueFields: overrides?.uniqueFields,
+    idField: overrides?.idField,
+  })
+  return { service, delegate: mockDelegate }
+}
+
+const sampleRecord: TestRecord = { id: 1, name: 'Test', email: 'test@example.com' }
+
+vi.mock('@/lib/logger', () => ({
+  createLogger: () => ({
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+  }),
+}))
+
+describe('createCrudService', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  describe('create', () => {
+    it('creates a record with valid data', async () => {
+      const { service, delegate } = createService()
+      vi.mocked(delegate.create).mockResolvedValue(sampleRecord)
+
+      const result = await service.create({ name: 'Test', email: 'test@example.com' })
+
+      expect(result.error).toBeUndefined()
+      expect(result.data).toEqual(sampleRecord)
+      expect(delegate.create).toHaveBeenCalledWith({ data: { name: 'Test', email: 'test@example.com' } })
+    })
+
+    it('returns VALIDATION error when create data is invalid', async () => {
+      const { service } = createService()
+
+      const result = await service.create({ name: '', email: 'not-an-email' })
+
+      expect(result.error).toBeDefined()
+      expect(result.code).toBe('VALIDATION')
+      expect(result.data).toBeUndefined()
+    })
+
+    it('returns CONFLICT when unique field already exists', async () => {
+      const { service, delegate } = createService(undefined, { uniqueFields: ['email'] })
+      vi.mocked(delegate.findUnique).mockResolvedValue(sampleRecord)
+
+      const result = await service.create({ name: 'Test', email: 'test@example.com' })
+
+      expect(result.error).toContain('existe déjà')
+      expect(result.code).toBe('CONFLICT')
+      expect(result.data).toBeUndefined()
+      expect(delegate.create).not.toHaveBeenCalled()
+    })
+
+    it('does not check uniqueness when unique field value is null', async () => {
+      const { service, delegate } = createService(undefined, { uniqueFields: ['email'] })
+      vi.mocked(delegate.findUnique).mockResolvedValue(null)
+      vi.mocked(delegate.create).mockResolvedValue(sampleRecord)
+
+      const result = await service.create({ name: 'Test', email: 'test@example.com' })
+
+      expect(result.error).toBeUndefined()
+      expect(delegate.findUnique).toHaveBeenCalledWith({ where: { email: 'test@example.com' } })
+      expect(delegate.create).toHaveBeenCalled()
+    })
+
+    it('returns INTERNAL error when delegate.create throws', async () => {
+      const { service, delegate } = createService()
+      vi.mocked(delegate.create).mockRejectedValue(new Error('DB error'))
+
+      const result = await service.create({ name: 'Test', email: 'test@example.com' })
+
+      expect(result.error).toBeDefined()
+      expect(result.code).toBe('INTERNAL')
+      expect(result.data).toBeUndefined()
+    })
+  })
+
+  describe('update', () => {
+    it('updates a record with valid data', async () => {
+      const { service, delegate } = createService()
+      const updatedRecord: TestRecord = { id: 1, name: 'Updated', email: 'updated@example.com' }
+      vi.mocked(delegate.findUnique).mockResolvedValue(sampleRecord)
+      vi.mocked(delegate.update).mockResolvedValue(updatedRecord)
+
+      const result = await service.update(1, { name: 'Updated', email: 'updated@example.com' })
+
+      expect(result.error).toBeUndefined()
+      expect(result.data).toEqual(updatedRecord)
+      expect(delegate.update).toHaveBeenCalledWith({ where: { id: 1 }, data: { name: 'Updated', email: 'updated@example.com' } })
+    })
+
+    it('returns NOT_FOUND when record does not exist', async () => {
+      const { service, delegate } = createService()
+      vi.mocked(delegate.findUnique).mockResolvedValue(null)
+
+      const result = await service.update(999, { name: 'Updated' })
+
+      expect(result.error).toContain('introuvable')
+      expect(result.code).toBe('NOT_FOUND')
+      expect(result.data).toBeUndefined()
+      expect(delegate.update).not.toHaveBeenCalled()
+    })
+
+    it('returns VALIDATION error when update data is invalid', async () => {
+      const { service } = createService()
+
+      const result = await service.update(1, { email: 'not-an-email' })
+
+      expect(result.error).toBeDefined()
+      expect(result.code).toBe('VALIDATION')
+      expect(result.data).toBeUndefined()
+    })
+
+    it('returns INTERNAL error when delegate.update throws', async () => {
+      const { service, delegate } = createService()
+      vi.mocked(delegate.findUnique).mockResolvedValue(sampleRecord)
+      vi.mocked(delegate.update).mockRejectedValue(new Error('DB error'))
+
+      const result = await service.update(1, { name: 'Updated' })
+
+      expect(result.error).toBeDefined()
+      expect(result.code).toBe('INTERNAL')
+    })
+  })
+
+  describe('delete', () => {
+    it('deletes a record that exists', async () => {
+      const { service, delegate } = createService()
+      vi.mocked(delegate.findUnique).mockResolvedValue(sampleRecord)
+      vi.mocked(delegate.delete).mockResolvedValue()
+
+      const result = await service.delete(1)
+
+      expect(result.error).toBeUndefined()
+      expect(result.data).toBeUndefined()
+      expect(delegate.delete).toHaveBeenCalledWith({ where: { id: 1 } })
+    })
+
+    it('returns NOT_FOUND when record does not exist', async () => {
+      const { service, delegate } = createService()
+      vi.mocked(delegate.findUnique).mockResolvedValue(null)
+
+      const result = await service.delete(999)
+
+      expect(result.error).toContain('introuvable')
+      expect(result.code).toBe('NOT_FOUND')
+      expect(delegate.delete).not.toHaveBeenCalled()
+    })
+
+    it('returns INTERNAL error when delegate.delete throws', async () => {
+      const { service, delegate } = createService()
+      vi.mocked(delegate.findUnique).mockResolvedValue(sampleRecord)
+      vi.mocked(delegate.delete).mockRejectedValue(new Error('DB error'))
+
+      const result = await service.delete(1)
+
+      expect(result.error).toBeDefined()
+      expect(result.code).toBe('INTERNAL')
+    })
+  })
+
+  describe('getById', () => {
+    it('returns a record when found', async () => {
+      const { service, delegate } = createService()
+      vi.mocked(delegate.findUnique).mockResolvedValue(sampleRecord)
+
+      const result = await service.getById(1)
+
+      expect(result.error).toBeUndefined()
+      expect(result.data).toEqual(sampleRecord)
+    })
+
+    it('returns null when record is not found', async () => {
+      const { service, delegate } = createService()
+      vi.mocked(delegate.findUnique).mockResolvedValue(null)
+
+      const result = await service.getById(999)
+
+      expect(result.error).toBeUndefined()
+      expect(result.data).toBeNull()
+    })
+
+    it('returns INTERNAL error when delegate.findUnique throws', async () => {
+      const { service, delegate } = createService()
+      vi.mocked(delegate.findUnique).mockRejectedValue(new Error('DB error'))
+
+      const result = await service.getById(1)
+
+      expect(result.error).toBeDefined()
+      expect(result.code).toBe('INTERNAL')
+    })
+  })
+
+  describe('list', () => {
+    it('returns all records when no params given', async () => {
+      const { service, delegate } = createService()
+      const records: TestRecord[] = [sampleRecord, { id: 2, name: 'Test 2', email: 'test2@example.com' }]
+      vi.mocked(delegate.findMany).mockResolvedValue(records)
+
+      const result = await service.list()
+
+      expect(result.error).toBeUndefined()
+      expect(result.data).toEqual(records)
+      expect(delegate.findMany).toHaveBeenCalledWith({ where: undefined, orderBy: undefined, skip: 0, take: 50 })
+    })
+
+    it('passes pagination params correctly', async () => {
+      const { service, delegate } = createService()
+      vi.mocked(delegate.findMany).mockResolvedValue([])
+
+      await service.list({ page: 3, limit: 20 })
+
+      expect(delegate.findMany).toHaveBeenCalledWith({ where: undefined, orderBy: undefined, skip: 40, take: 20 })
+    })
+
+    it('passes where and orderBy filters', async () => {
+      const { service, delegate } = createService()
+      vi.mocked(delegate.findMany).mockResolvedValue([])
+
+      await service.list({ where: { name: 'Test' }, orderBy: { name: 'asc' } })
+
+      expect(delegate.findMany).toHaveBeenCalledWith({
+        where: { name: 'Test' },
+        orderBy: { name: 'asc' },
+        skip: 0,
+        take: 50,
+      })
+    })
+
+    it('returns INTERNAL error when delegate.findMany throws', async () => {
+      const { service, delegate } = createService()
+      vi.mocked(delegate.findMany).mockRejectedValue(new Error('DB error'))
+
+      const result = await service.list()
+
+      expect(result.error).toBeDefined()
+      expect(result.code).toBe('INTERNAL')
+    })
+  })
+
+  describe('ensureExists', () => {
+    it('returns the record when it exists', async () => {
+      const { service, delegate } = createService()
+      vi.mocked(delegate.findUnique).mockResolvedValue(sampleRecord)
+
+      const result = await service.ensureExists(1)
+
+      expect(result.error).toBeUndefined()
+      expect(result.data).toEqual(sampleRecord)
+    })
+
+    it('returns NOT_FOUND when record does not exist', async () => {
+      const { service, delegate } = createService()
+      vi.mocked(delegate.findUnique).mockResolvedValue(null)
+
+      const result = await service.ensureExists(999)
+
+      expect(result.error).toContain('introuvable')
+      expect(result.code).toBe('NOT_FOUND')
+      expect(result.data).toBeUndefined()
+    })
+
+    it('returns INTERNAL error when delegate.findUnique throws', async () => {
+      const { service, delegate } = createService()
+      vi.mocked(delegate.findUnique).mockRejectedValue(new Error('DB error'))
+
+      const result = await service.ensureExists(1)
+
+      expect(result.error).toBeDefined()
+      expect(result.code).toBe('INTERNAL')
+    })
+  })
+
+  describe('custom idField', () => {
+    it('uses custom idField in where clauses', async () => {
+      const { service, delegate } = createService(undefined, { idField: 'code' })
+      vi.mocked(delegate.findUnique).mockResolvedValue(null)
+
+      await service.getById('ABC-123')
+
+      expect(delegate.findUnique).toHaveBeenCalledWith({ where: { code: 'ABC-123' } })
+    })
+  })
+
+  describe('custom entityName', () => {
+    it('uses custom entityName in error messages', async () => {
+      const { service, delegate } = createService(undefined, { entityName: 'Partenaire' })
+      vi.mocked(delegate.findUnique).mockResolvedValue(null)
+
+      const result = await service.ensureExists(999)
+
+      expect(result.error).toContain('Partenaire introuvable')
+    })
+  })
+})
