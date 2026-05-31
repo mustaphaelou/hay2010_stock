@@ -81,29 +81,20 @@ export function startWorkers(): void {
       try {
         const { transformToInvoiceData } = await import('@/lib/pdf/generate-invoice')
         const { generateInvoicePdfBuffer } = await import('@/lib/pdf/generate-invoice')
-        const { prisma } = await import('@/lib/db/prisma')
-        const { mapDocumentToComputed, mapLineToDocumentLine } = await import('@/lib/documents/mapping')
+        const { getDocumentWithLinesAndPartner } = await import('@/lib/documents/document-service')
 
         await job.updateProgress(20)
 
-        const document = await prisma.docVente.findUnique({
-          where: { id_document: documentId },
-          include: {
-            partenaire: true,
-            lignes: { include: { produit: true } }
-          }
-        })
-
-        if (!document) {
-          throw new Error(`Document ${documentId} not found`)
+        const result = await getDocumentWithLinesAndPartner(documentId)
+        if (result.error) {
+          throw new Error(result.error)
         }
+
+        const { document: documentWithComputed, lignes: linesWithComputed, partenaire } = result.data!
 
         await job.updateProgress(40)
 
-        const documentWithComputed = mapDocumentToComputed(document)
-        const linesWithComputed = document.lignes.map(mapLineToDocumentLine)
-
-        const invoiceData = transformToInvoiceData(documentWithComputed, linesWithComputed, document.partenaire)
+        const invoiceData = transformToInvoiceData(documentWithComputed, linesWithComputed, partenaire)
         await generateInvoicePdfBuffer(invoiceData)
 
         await job.updateProgress(80)

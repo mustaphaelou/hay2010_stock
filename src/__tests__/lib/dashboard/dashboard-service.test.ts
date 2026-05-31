@@ -5,13 +5,17 @@ const { mockCacheGet, mockCacheSet } = vi.hoisted(() => ({
   mockCacheSet: vi.fn().mockResolvedValue(true),
 }))
 
-const { mockPrismaQueryRaw } = vi.hoisted(() => ({
+const { mockPrismaQueryRaw, mockDocVenteFindMany } = vi.hoisted(() => ({
   mockPrismaQueryRaw: vi.fn(),
+  mockDocVenteFindMany: vi.fn(),
 }))
 
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
     $queryRaw: mockPrismaQueryRaw,
+    docVente: {
+      findMany: mockDocVenteFindMany,
+    },
   },
 }))
 
@@ -46,6 +50,12 @@ describe('Dashboard Service', () => {
 
   describe('getDashboardStats', () => {
     it('should include paymentRate, stockAvailability, unpaidCount, unpaidTotal in stats', async () => {
+      mockDocVenteFindMany
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([
+          { montant_ttc: 1000, solde_du: 0, date_document: new Date(), montant_ht: 800, montant_remise_total: 0, montant_tva_total: 200 },
+        ])
+
       mockPrismaQueryRaw
         .mockResolvedValueOnce([{
           clients: BigInt(10), suppliers: BigInt(5), products: BigInt(100),
@@ -54,10 +64,6 @@ describe('Dashboard Service', () => {
           total_sales_amount: 50000, total_purchases_amount: 20000,
         }])
         .mockResolvedValueOnce([{ month: 'Jan 26', ventes: 1000, achats: 500 }])
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([
-          { montant_ttc: 1000, solde_du: 0, date_document: new Date(), montant_ht: 800, montant_remise_total: 0, montant_tva_total: 200 },
-        ])
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([])
 
@@ -70,6 +76,10 @@ describe('Dashboard Service', () => {
     })
 
     it('should include activities and topProducts arrays in data', async () => {
+      mockDocVenteFindMany
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([])
+
       mockPrismaQueryRaw
         .mockResolvedValueOnce([{
           clients: BigInt(1), suppliers: BigInt(1), products: BigInt(1),
@@ -77,8 +87,6 @@ describe('Dashboard Service', () => {
           low_stock: BigInt(0), total_stock_products: BigInt(1),
           total_sales_amount: 1000, total_purchases_amount: 500,
         }])
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([])
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([
           { id: '1', type: 'document', title: 'FACT-001', description: null, timestamp: new Date() },
@@ -101,6 +109,14 @@ describe('Dashboard Service', () => {
     })
 
     it('should compute payment rate from sales invoices', async () => {
+      mockDocVenteFindMany
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([
+          { montant_ttc: 1000, solde_du: 0, date_document: new Date(), montant_ht: 800, montant_remise_total: 0, montant_tva_total: 200 },
+          { montant_ttc: 2000, solde_du: 2000, date_document: new Date(), montant_ht: 1600, montant_remise_total: 0, montant_tva_total: 400 },
+          { montant_ttc: 1500, solde_du: 500, date_document: new Date(), montant_ht: 1200, montant_remise_total: 0, montant_tva_total: 300 },
+        ])
+
       mockPrismaQueryRaw
         .mockResolvedValueOnce([{
           clients: BigInt(1), suppliers: BigInt(1), products: BigInt(1),
@@ -109,12 +125,6 @@ describe('Dashboard Service', () => {
           total_sales_amount: 10000, total_purchases_amount: 0,
         }])
         .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([
-          { montant_ttc: 1000, solde_du: 0, date_document: new Date(), montant_ht: 800, montant_remise_total: 0, montant_tva_total: 200 },
-          { montant_ttc: 2000, solde_du: 2000, date_document: new Date(), montant_ht: 1600, montant_remise_total: 0, montant_tva_total: 400 },
-          { montant_ttc: 1500, solde_du: 500, date_document: new Date(), montant_ht: 1200, montant_remise_total: 0, montant_tva_total: 300 },
-        ])
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([])
 

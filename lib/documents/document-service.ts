@@ -14,15 +14,55 @@ import type {
   DocumentListParams,
   AllowedDocumentSortField,
 } from '@/lib/documents/validation'
-import type { DocumentWithComputed, DocumentLine } from '@/lib/types'
+import type { DocumentWithComputed, DocumentLine, DocumentBase, SalesInvoice } from '@/lib/types'
 import { createLogger } from '@/lib/logger'
 import { createEmptyResult, buildPaginationMeta, getPaginationParams } from '@/lib/pagination'
 import type { PaginatedResult } from '@/lib/pagination'
-import { mapDocumentToComputed, mapLineToDocumentLine } from '@/lib/documents/mapping'
 import { hasRole } from '@/lib/auth/authorization'
 import type { UserRole } from '@/lib/auth/authorization'
 import { Prisma } from '@/lib/generated/prisma/client'
 import { serviceError, validatedOrError } from '@/lib/service-result'
+
+function mapDocumentToComputed(doc: DocumentBase): DocumentWithComputed {
+  return {
+    ...doc,
+    montant_ht_num: Number(doc.montant_ht || 0),
+    montant_ttc_num: Number(doc.montant_ttc || 0),
+    solde_du_num: Number(doc.solde_du || 0),
+    montant_regle: Number(doc.montant_ttc || 0) - Number(doc.solde_du || 0),
+    numero_piece: doc.numero_document,
+    nom_tiers: doc.nom_partenaire_snapshot || doc.partenaire?.nom_partenaire || null,
+    reference: doc.reference_externe || null,
+    montant_tva_num: Number(doc.montant_tva_total || 0),
+    montant_remise_num: Number(doc.montant_remise_total || 0),
+    domaine: doc.domaine_document
+  }
+}
+
+function mapLineToDocumentLine(
+  line: Record<string, unknown> & {
+    numero_ligne: number
+    quantite_commandee: Prisma.Decimal
+    prix_unitaire_ht: Prisma.Decimal
+    montant_ht: Prisma.Decimal
+    montant_ttc: Prisma.Decimal
+    nom_produit_snapshot: string | null
+    code_produit_snapshot: string | null
+    produit: { nom_produit: string } | null
+  }
+): DocumentLine {
+  return {
+    ...line,
+    quantite: Number(line.quantite_commandee || 0),
+    prix_unitaire: Number(line.prix_unitaire_ht || 0),
+    montant_ht_num: Number(line.montant_ht || 0),
+    montant_ttc_num: Number(line.montant_ttc || 0),
+    designation: line.nom_produit_snapshot || line.produit?.nom_produit || null,
+    reference_article: line.code_produit_snapshot || null,
+    ordre: line.numero_ligne,
+    code_taxe: null
+  } as DocumentLine
+}
 
 const log = createLogger('document-service')
 
@@ -311,5 +351,137 @@ export async function getDocLines(docId: number): Promise<{ data: DocumentLine[]
   } catch (error) {
     log.error({ error, docId }, 'Échec de la récupération des lignes')
     return { data: [], ...serviceError('Échec de la récupération des lignes', 'INTERNAL') }
+  }
+}
+
+export async function getDocumentWithLinesAndPartner(
+  id_document: number,
+): Promise<{ data?: { document: DocumentWithComputed; lignes: DocumentLine[]; partenaire: any }; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
+  const result = validatedOrError(getDocumentByIdSchema, { id_document }, { message: 'ID de document invalide' })
+  if (result.error) {
+    return { error: result.error, code: result.code }
+  }
+
+  try {
+    const document = await prisma.docVente.findUnique({
+      where: { id_document },
+      include: {
+        partenaire: true,
+        lignes: {
+          include: {
+            produit: { select: { nom_produit: true } }
+          },
+          orderBy: { numero_ligne: 'asc' }
+        }
+      }
+    })
+
+    if (!document) {
+      return serviceError('Document introuvable', 'NOT_FOUND')
+    }
+
+    const documentWithComputed = mapDocumentToComputed(document as unknown as DocumentBase)
+    const linesWithComputed = (document.lignes || []).map(mapLineToDocumentLine)
+
+    return {
+      data: {
+        document: documentWithComputed,
+        lignes: linesWithComputed,
+        partenaire: document.partenaire
+      }
+    }
+  } catch (error) {
+    log.error({ error, id_document }, 'Échec de la récupération des détails du document')
+    return serviceError('Échec de la récupération des détails du document', 'INTERNAL')
+  }
+}
+
+export async function getRecentDocuments(limit: number = 5): Promise<{ data: DocumentWithComputed[] }> {
+  try {
+    const documents = await prisma.docVente.findMany({
+      take: limit,
+      include: {
+        partenaire: {
+          select: {
+            nom_partenaire: true,
+            type_partenaire: true,
+          },
+        },
+      },
+      orderBy: { date_creation: 'desc' },
+    })
+    return { data: documents.map(mapDocumentToComputed) }
+  } catch (error) {
+    log.error({ error }, 'Échec de la récupération des documents récents')
+    return { data: [] }
+  }
+}
+
+export async function getRecentDocumentLines(limit: number = 20): Promise<{ data: any[] }> {
+  try {
+    const lines = await prisma.ligneDocument.findMany({
+      include: {
+        produit: { select: { nom_produit: true, code_produit: true } },
+        document: { select: { numero_document: true, date_document: true, type_document: true } }
+      },
+      orderBy: { id_ligne: 'desc' },
+      take: limit
+    })
+    return { data: lines }
+  } catch (error) {
+    log.error({ error }, 'Échec de la récupération des lignes de document récentes')
+    return { data: [] }
+  }
+}
+
+export async function getSalesInvoices(limit: number = 100): Promise<{ data: SalesInvoice[] }> {
+  try {
+    const documents = await prisma.docVente.findMany({
+      where: {
+        domaine_document: 'VENTE',
+        type_document: { in: ['Facture', 'Avoir'] },
+      },
+      select: {
+        id_document: true,
+        numero_document: true,
+        type_document: true,
+        domaine_document: true,
+        montant_ttc: true,
+        solde_du: true,
+        date_document: true,
+        montant_ht: true,
+        montant_remise_total: true,
+        montant_tva_total: true,
+      },
+      orderBy: { date_document: 'desc' },
+      take: limit,
+    })
+    return {
+      data: documents.map((d) => ({
+        montant_ttc: d.montant_ttc,
+        solde_du: d.solde_du,
+        date_document: d.date_document,
+        montant_regle: Number(d.montant_ttc) - Number(d.solde_du),
+      })),
+    }
+  } catch (error) {
+    log.error({ error }, 'Échec de la récupération des factures de vente')
+    return { data: [] }
+  }
+}
+
+export async function getDashboardDocuments(limit: number = 100): Promise<{ data: DocumentWithComputed[] }> {
+  try {
+    const documents = await prisma.docVente.findMany({
+      include: {
+        partenaire: { select: { nom_partenaire: true } }
+      },
+      orderBy: { date_document: 'desc' },
+      take: limit
+    })
+    return { data: documents.map(mapDocumentToComputed) }
+  } catch (error) {
+    log.error({ error }, 'Échec de la récupération des documents du tableau de bord')
+    return { data: [] }
   }
 }

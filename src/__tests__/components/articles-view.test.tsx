@@ -54,6 +54,7 @@ function createMockArticle(overrides: Partial<ArticleWithStock> = {}): ArticleWi
     categorie: null,
     niveaux_stock: [],
     stock_global: 10,
+    stock_status_variant: 'success',
     ...overrides,
   })
 }

@@ -16,6 +16,8 @@ export type AuthUser = {
 
 export type { PaginatedResult, PaginationMeta, PaginationParams } from '@/lib/pagination'
 
+export type StockStatusVariant = "success" | "warning" | "destructive"
+
 // =====================================================
 // PRODUCT TYPES
 // =====================================================
@@ -75,6 +77,7 @@ export type ArticleWithStock = {
     type_dernier_mouvement: string | null
   }[]
   stock_global: number
+  stock_status_variant: StockStatusVariant
 }
 
 // =====================================================

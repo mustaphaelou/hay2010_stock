@@ -3,7 +3,7 @@ import { Prisma } from '@/lib/generated/prisma/client'
 import { getAdapter } from '@/lib/cache/adapter'
 import { CacheNamespaces, CacheTTLSeconds } from '@/lib/cache/cache'
 import { createLogger } from '@/lib/logger'
-import type { ArticleWithStock, StockLevelWithProduct, Depot } from '@/lib/types'
+import type { ArticleWithStock, StockLevelWithProduct, Depot, StockStatusVariant } from '@/lib/types'
 import { getPaginationParams, buildPaginationMeta, createEmptyResult } from '@/lib/pagination'
 import type { PaginatedResult } from '@/lib/pagination'
 import { paginationSchema } from '@/lib/validation'
@@ -42,6 +42,13 @@ async function getStockAggregates(productIds: number[]): Promise<Map<number, num
 
   return new Map(results.map(r => [r.id_produit, r.stock_global]))
 }
+
+export function computeStockStatusVariant(stock: number, stockMinimum: number): StockStatusVariant {
+  if (stock <= 0) return "destructive"
+  if (stock <= stockMinimum) return "warning"
+  return "success"
+}
+
 
 export async function getArticlesWithStock(page: number = 1, limit: number = 50): Promise<PaginatedResult<ArticleWithStock> & { error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
   if (limit > 100) limit = 100
@@ -113,6 +120,7 @@ export async function getArticlesWithStock(page: number = 1, limit: number = 50)
       } : null,
       niveaux_stock: [],
       stock_global: stockMap.get(article.id_produit) || 0,
+      stock_status_variant: computeStockStatusVariant(stockMap.get(article.id_produit) || 0, article.stock_minimum ?? 0),
     }))
 
     const response = { data, meta: buildPaginationMeta(total, page, limit) }
@@ -735,8 +743,54 @@ export async function listArticles(
       prisma.produit.count({ where }),
     ])
 
+    const productIds = products.map(a => a.id_produit)
+    const stockMap = await getStockAggregates(productIds)
+
+    const data: ArticleWithStock[] = products.map((article) => ({
+      id_produit: article.id_produit,
+      code_produit: article.code_produit,
+      nom_produit: article.nom_produit,
+      famille: article.famille || null,
+      id_categorie: article.id_categorie,
+      description_produit: article.description_produit,
+      code_barre_ean: article.code_barre_ean,
+      unite_mesure: article.unite_mesure,
+      poids_kg: article.poids_kg,
+      volume_m3: article.volume_m3,
+      prix_achat: article.prix_achat,
+      prix_dernier_achat: article.prix_dernier_achat,
+      coefficient: article.coefficient,
+      prix_vente: article.prix_vente,
+      prix_gros: article.prix_gros,
+      taux_tva: article.taux_tva,
+      type_suivi_stock: article.type_suivi_stock,
+      quantite_min_commande: article.quantite_min_commande,
+      niveau_reappro_quantite: article.niveau_reappro_quantite,
+      stock_minimum: article.stock_minimum,
+      stock_maximum: article.stock_maximum,
+      activer_suivi_stock: article.activer_suivi_stock,
+      id_fournisseur_principal: article.id_fournisseur_principal,
+      reference_fournisseur: article.reference_fournisseur,
+      delai_livraison_fournisseur_jours: article.delai_livraison_fournisseur_jours,
+      est_actif: article.est_actif,
+      en_sommeil: article.en_sommeil,
+      est_abandonne: article.est_abandonne,
+      date_creation: article.date_creation,
+      date_modification: article.date_modification,
+      cree_par: article.cree_par,
+      modifie_par: article.modifie_par,
+      compte_general_vente: article.compte_general_vente,
+      compte_general_achat: article.compte_general_achat,
+      code_taxe_vente: article.code_taxe_vente,
+      code_taxe_achat: article.code_taxe_achat,
+      categorie: null,
+      niveaux_stock: [],
+      stock_global: stockMap.get(article.id_produit) || 0,
+      stock_status_variant: computeStockStatusVariant(stockMap.get(article.id_produit) || 0, article.stock_minimum ?? 0),
+    }))
+
     return {
-      data: products as unknown as ArticleWithStock[],
+      data,
       meta: buildPaginationMeta(total, safePage, safeLimit),
     }
   } catch (error) {
@@ -802,9 +856,9 @@ export async function getArticleById(
       compte_general_achat: product.compte_general_achat,
       code_taxe_vente: product.code_taxe_vente,
       code_taxe_achat: product.code_taxe_achat,
-      categorie: null,
       niveaux_stock: [],
       stock_global: stockMap.get(product.id_produit) || 0,
+      stock_status_variant: computeStockStatusVariant(stockMap.get(product.id_produit) || 0, product.stock_minimum ?? 0),
     }
 
     return { data: article }
@@ -840,7 +894,13 @@ export async function createArticle(
       },
     })
 
-    const article = product as unknown as ArticleWithStock
+    const article: ArticleWithStock = {
+      ...(product as any),
+      categorie: null,
+      niveaux_stock: [],
+      stock_global: 0,
+      stock_status_variant: "destructive",
+    }
     return { data: article }
   } catch (error) {
     log.error({ error, input: validatedInput }, 'Échec de la création de l\'article')
@@ -885,7 +945,17 @@ export async function updateArticle(
       },
     })
 
-    const article = product as unknown as ArticleWithStock
+    const productIds = [product.id_produit]
+    const stockMap = await getStockAggregates(productIds)
+    const stock_global = stockMap.get(product.id_produit) || 0
+
+    const article: ArticleWithStock = {
+      ...(product as any),
+      categorie: null,
+      niveaux_stock: [],
+      stock_global,
+      stock_status_variant: computeStockStatusVariant(stock_global, product.stock_minimum ?? 0),
+    }
     return { data: article }
   } catch (error) {
     log.error({ error, id_produit, input: validatedInput }, 'Échec de la mise à jour de l\'article')

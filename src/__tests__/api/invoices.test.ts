@@ -100,6 +100,7 @@ describe('Invoice API Route', () => {
     mockDocVenteFindUnique.mockResolvedValue({
       id_document: 1,
       cree_par: 'user-1',
+      lignes: [],
     })
 
     const req = createRequest()

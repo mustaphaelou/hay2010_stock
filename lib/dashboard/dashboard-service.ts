@@ -3,7 +3,7 @@ import { CacheNamespaces, CacheTTLSeconds } from '@/lib/cache/cache'
 import { prisma } from '@/lib/db/prisma'
 import { Prisma } from '@/lib/generated/prisma/client'
 import type { DashboardData, DashboardStats, SalesInvoice, DocumentWithComputed, MonthlyDataPoint, DashboardActivityItem, DashboardTopProduct } from '@/lib/types'
-import { mapDocumentToComputed } from '@/lib/documents/mapping'
+import { getRecentDocuments, getRecentDocumentLines, getSalesInvoices, getDashboardDocuments } from '@/lib/documents/document-service'
 import { createLogger } from '@/lib/logger'
 
 const log = createLogger('dashboard-service')
@@ -147,7 +147,7 @@ export type DashboardDataResult = {
 }
 
 async function runStatsQueries() {
-  const [countsResult, monthlyResult, recentDocsResult, salesInvoicesResult, activityFeedResult, topProductsResult] = await Promise.all([
+  const [countsResult, monthlyResult, recentDocsRes, salesInvoicesRes, activityFeedResult, topProductsResult] = await Promise.all([
     prisma.$queryRaw<Array<CountsRow>>`
       SELECT
         (SELECT COUNT(*) FROM partenaires WHERE type_partenaire IN ('CLIENT', 'LES_DEUX')) AS clients,
@@ -174,30 +174,8 @@ async function runStatsQueries() {
       ORDER BY date_trunc('month', date_document) ASC
       LIMIT 6
     `,
-    prisma.$queryRaw<Array<RecentDocRow>>`
-      SELECT
-        d.id_document, d.numero_document, d.type_document, d.domaine_document, d.etat_document,
-        d.id_partenaire, d.nom_partenaire_snapshot, d.id_affaire, d.numero_affaire,
-        d.date_document, d.date_echeance, d.date_livraison, d.date_livraison_prevue,
-        d.montant_ht, d.montant_remise_total, d.montant_tva_total, d.montant_ttc, d.solde_du,
-        d.code_devise, d.taux_change, d.statut_document, d.est_entierement_paye,
-        d.id_entrepot, d.notes_internes, d.notes_client, d.reference_externe,
-        d.date_creation, d.date_modification, d.cree_par, d.modifie_par,
-        d.mode_expedition, d.poids_total_brut, d.nombre_colis,
-        p.nom_partenaire, p.type_partenaire
-      FROM documents d
-      LEFT JOIN partenaires p ON d.id_partenaire = p.id_partenaire
-      ORDER BY d.date_creation DESC
-      LIMIT 5
-    `,
-    prisma.$queryRaw<Array<SalesInvoiceRow>>`
-      SELECT id_document, numero_document, type_document, domaine_document,
-        montant_ttc, solde_du, date_document, montant_ht, montant_remise_total, montant_tva_total
-      FROM documents
-      WHERE domaine_document = 'VENTE' AND type_document IN ('Facture', 'Avoir')
-      ORDER BY date_document DESC
-      LIMIT 100
-    `,
+    getRecentDocuments(5),
+    getSalesInvoices(100),
     prisma.$queryRaw<Array<ActivityFeedRow>>`
       SELECT id::text AS id, 'document' AS type, titre AS title, description, date_creation AS timestamp
       FROM (
@@ -245,7 +223,14 @@ async function runStatsQueries() {
     `,
   ])
 
-  return { countsResult, monthlyResult, recentDocsResult, salesInvoicesResult, activityFeedResult, topProductsResult }
+  return {
+    countsResult,
+    monthlyResult,
+    recentDocs: recentDocsRes.data,
+    salesInvoices: salesInvoicesRes.data,
+    activityFeedResult,
+    topProductsResult
+  }
 }
 
 function buildStats(countsResult: Array<CountsRow>): DashboardStats {
@@ -264,56 +249,7 @@ function buildStats(countsResult: Array<CountsRow>): DashboardStats {
   }
 }
 
-function buildRecentDocs(recentDocsResult: Array<RecentDocRow>): DocumentWithComputed[] {
-  return recentDocsResult.map((doc) => mapDocumentToComputed({
-    id_document: doc.id_document,
-    numero_document: doc.numero_document,
-    type_document: doc.type_document,
-    domaine_document: doc.domaine_document,
-    etat_document: doc.etat_document,
-    id_partenaire: doc.id_partenaire,
-    nom_partenaire_snapshot: doc.nom_partenaire_snapshot,
-    id_affaire: doc.id_affaire,
-    numero_affaire: doc.numero_affaire,
-    date_document: doc.date_document,
-    date_echeance: doc.date_echeance,
-    date_livraison: doc.date_livraison,
-    date_livraison_prevue: doc.date_livraison_prevue,
-    montant_ht: doc.montant_ht,
-    montant_remise_total: doc.montant_remise_total,
-    montant_tva_total: doc.montant_tva_total,
-    montant_ttc: doc.montant_ttc,
-    solde_du: doc.solde_du,
-    code_devise: doc.code_devise,
-    taux_change: doc.taux_change,
-    statut_document: doc.statut_document,
-    est_entierement_paye: doc.est_entierement_paye,
-    id_entrepot: doc.id_entrepot,
-    notes_internes: doc.notes_internes,
-    notes_client: doc.notes_client,
-    reference_externe: doc.reference_externe,
-    date_creation: doc.date_creation,
-    date_modification: doc.date_modification,
-    cree_par: doc.cree_par,
-    modifie_par: doc.modifie_par,
-    mode_expedition: doc.mode_expedition,
-    poids_total_brut: doc.poids_total_brut,
-    nombre_colis: doc.nombre_colis,
-    partenaire: doc.nom_partenaire ? {
-      nom_partenaire: doc.nom_partenaire,
-      type_partenaire: doc.type_partenaire || '',
-    } : null,
-  }))
-}
-
-function buildSalesInvoices(salesInvoicesResult: Array<SalesInvoiceRow>): SalesInvoice[] {
-  return salesInvoicesResult.map((s): SalesInvoice => ({
-    montant_ttc: s.montant_ttc,
-    solde_du: s.solde_du,
-    date_document: s.date_document,
-    montant_regle: Number(s.montant_ttc) - Number(s.solde_du),
-  }))
-}
+// Removed buildRecentDocs and buildSalesInvoices as we are now using document service APIs
 
 function buildActivityFeed(activityFeedResult: Array<ActivityFeedRow>): DashboardActivityItem[] {
   return activityFeedResult.map((row): DashboardActivityItem => ({
@@ -361,7 +297,7 @@ function fillMonthlyData(monthlyResult: Array<MonthlyRow>): MonthlyDataPoint[] {
 }
 
 async function runDashboardDataQueries(): Promise<DashboardDataResult> {
-  const [productsRaw, partnersRaw, documentsRaw, lignesRaw] = await Promise.all([
+  const [productsRaw, partnersRaw, documentsResult, linesResult] = await Promise.all([
     prisma.produit.findMany({
       where: { est_actif: true },
       include: { categorie: { select: { nom_categorie: true } } },
@@ -372,20 +308,12 @@ async function runDashboardDataQueries(): Promise<DashboardDataResult> {
       orderBy: { nom_partenaire: 'asc' },
       take: 100
     }),
-    prisma.docVente.findMany({
-      include: { partenaire: { select: { nom_partenaire: true } } },
-      orderBy: { date_document: 'desc' },
-      take: 100
-    }),
-    prisma.ligneDocument.findMany({
-      include: {
-        produit: { select: { nom_produit: true, code_produit: true } },
-        document: { select: { numero_document: true, date_document: true, type_document: true } }
-      },
-      orderBy: { id_ligne: 'desc' },
-      take: 20
-    })
+    getDashboardDocuments(100),
+    getRecentDocumentLines(20)
   ])
+
+  const documentsRaw = documentsResult.data || []
+  const lignesRaw = linesResult.data || []
 
   const products: DashboardProductData[] = productsRaw.map(p => ({
     id_produit: p.id_produit,
@@ -474,11 +402,9 @@ export async function getDashboardStats(): Promise<{ data: DashboardData; error?
     const cached = await getAdapter().get<DashboardData>(CacheNamespaces.DASHBOARD, cacheKey)
     if (cached) return { data: cached, error: undefined }
 
-    const { countsResult, monthlyResult, recentDocsResult, salesInvoicesResult, activityFeedResult, topProductsResult } = await runStatsQueries()
+    const { countsResult, monthlyResult, recentDocs, salesInvoices, activityFeedResult, topProductsResult } = await runStatsQueries()
 
     const baseStats = buildStats(countsResult)
-    const recentDocs = buildRecentDocs(recentDocsResult)
-    const salesInvoices = buildSalesInvoices(salesInvoicesResult)
     const monthlyData = fillMonthlyData(monthlyResult)
     const activities = buildActivityFeed(activityFeedResult)
     const topProducts = buildTopProducts(topProductsResult)

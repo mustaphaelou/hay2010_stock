@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db/prisma'
 import { requireAuth } from '@/lib/auth/user-utils'
 import { generateInvoicePdfBuffer, transformToInvoiceData } from '@/lib/pdf/generate-invoice'
 import { createLogger } from '@/lib/logger'
-import { mapDocumentToComputed, mapLineToDocumentLine } from '@/lib/documents/mapping'
+import { getDocumentWithLinesAndPartner } from '@/lib/documents/document-service'
 
 const log = createLogger('invoice-api')
 
@@ -20,26 +19,21 @@ export async function GET(
       return NextResponse.json({ error: 'Invalid document ID' }, { status: 400 })
     }
 
-    const document = await prisma.docVente.findUnique({
-      where: { id_document: documentId },
-      include: {
-        partenaire: true,
-        lignes: { include: { produit: true } },
-      },
-    })
-
-    if (!document) {
-      return NextResponse.json({ error: 'Document not found' }, { status: 404 })
+    const result = await getDocumentWithLinesAndPartner(documentId)
+    if (result.error) {
+      if (result.code === 'NOT_FOUND') {
+        return NextResponse.json({ error: 'Document not found' }, { status: 404 })
+      }
+      return NextResponse.json({ error: result.error }, { status: 500 })
     }
 
-    if (user.role !== 'ADMIN' && user.role !== 'MANAGER' && document.cree_par !== user.id) {
+    const { document: documentWithComputed, lignes: linesWithComputed, partenaire } = result.data!
+
+    if (user.role !== 'ADMIN' && user.role !== 'MANAGER' && documentWithComputed.cree_par !== user.id) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    const documentWithComputed = mapDocumentToComputed(document)
-    const linesWithComputed = document.lignes.map(mapLineToDocumentLine)
-
-    const invoiceData = transformToInvoiceData(documentWithComputed, linesWithComputed, document.partenaire)
+    const invoiceData = transformToInvoiceData(documentWithComputed, linesWithComputed, partenaire)
     const pdfBuffer = await generateInvoicePdfBuffer(invoiceData)
 
     const filename = `${invoiceData.documentType.replace(/\s/g, '_')}_${invoiceData.documentNumber}.pdf`
