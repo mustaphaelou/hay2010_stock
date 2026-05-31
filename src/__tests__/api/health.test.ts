@@ -28,8 +28,13 @@ vi.mock('@/lib/db/redis', async () => {
   return {
     redis: { ping: vi.fn() },
     checkRedisHealth: vi.fn(),
+    isRedisReady: vi.fn().mockReturnValue(false),
   }
 })
+
+vi.mock('@/lib/auth/session', () => ({
+  getSession: vi.fn().mockResolvedValue(null)
+}))
 
 vi.mock('@/lib/auth/jwt', () => ({
   verifyToken: vi.fn()
@@ -354,7 +359,7 @@ describe('Health Check Endpoints', () => {
       
       expect(response.status).toBe(401)
       expect(data.code).toBe('AUTHENTICATION_ERROR')
-      expect(data.error).toBe('Token verification failed')
+      expect(data.error).toBe('Authentication required')
     })
   })
 })

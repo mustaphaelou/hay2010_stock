@@ -25,7 +25,7 @@ import type {
   ArticleUpdateInput,
   AllowedArticleSortField,
 } from '@/lib/stock/validation'
-import { serviceError } from '@/lib/service-result'
+import { serviceError, validatedOrError } from '@/lib/service-result'
 
 const log = createLogger('stock-service')
 
@@ -130,9 +130,9 @@ export async function toggleArticleStatus(
   id_produit: number,
   newStatus: boolean,
 ): Promise<{ data?: { success: boolean }; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
-  const validationResult = toggleArticleStatusSchema.safeParse({ id_produit, newStatus })
-  if (!validationResult.success) {
-    return serviceError('Invalid input: ' + validationResult.error.issues.map((e: { message: string }) => e.message).join(', '), 'VALIDATION')
+  const result = validatedOrError(toggleArticleStatusSchema, { id_produit, newStatus }, { joinIssues: true })
+  if (result.error) {
+    return { error: result.error, code: result.code }
   }
 
   const lockToken = await getAdapter().acquireLock(`article:${id_produit}`, 30)
@@ -158,12 +158,12 @@ export async function toggleArticleStatus(
 }
 
 export async function getStockLevels(page: number = 1, limit: number = 50): Promise<PaginatedResult<StockLevelWithProduct> & { error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
-  const parsed = paginationSchema.safeParse({ page, limit })
-  if (!parsed.success) {
-    return { ...createEmptyResult<StockLevelWithProduct>(page, limit, 'Invalid pagination parameters'), ...serviceError('Invalid pagination parameters', 'VALIDATION') }
+  const result = validatedOrError(paginationSchema, { page, limit }, { message: 'Invalid pagination parameters' })
+  if (result.error) {
+    return { ...createEmptyResult<StockLevelWithProduct>(page, limit, result.error), error: result.error, code: result.code }
   }
-  const safePage = parsed.data?.page ?? page
-  const safeLimit = parsed.data?.limit ?? limit
+  const safePage = result.data?.page ?? page
+  const safeLimit = result.data?.limit ?? limit
   const { skip } = getPaginationParams({ page: safePage, limit: safeLimit })
 
   try {
@@ -258,12 +258,12 @@ export type MovementResult = {
 }
 
 export async function createStockMovement(input: CreateMovementInput, userId: string): Promise<{ data?: MovementResult; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
-  const validation = createMovementSchema.safeParse(input)
-  if (!validation.success) {
-    return serviceError(validation.error.issues.map(e => e.message).join(', '), 'VALIDATION')
+  const result = validatedOrError(createMovementSchema, input, { joinIssues: true })
+  if (result.error) {
+    return { error: result.error, code: result.code }
   }
 
-  const validatedInput = validation.data
+  const validatedInput = result.data
 
   const lockKey = `stock:${validatedInput.productId}:${validatedInput.warehouseId}`
   const lockToken = await getAdapter().acquireLock(lockKey, 30)
@@ -443,21 +443,23 @@ export async function createStockLevel(
   input: { productId: number; warehouseId: number; quantite_en_stock?: number; quantite_reservee?: number; quantite_commandee?: number },
   userId: string,
 ): Promise<{ data?: StockLevelResult; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
-  const validation = createStockLevelSchema.safeParse(input)
-  if (!validation.success) {
-    return serviceError(validation.error.issues.map(e => e.message).join(', '), 'VALIDATION')
+  const parsed = validatedOrError(createStockLevelSchema, input, { joinIssues: true })
+  if (parsed.error) {
+    return { error: parsed.error, code: parsed.code }
   }
+
+  const d = parsed.data
 
   try {
     const product = await prisma.produit.findUnique({
-      where: { id_produit: validation.data.productId },
+      where: { id_produit: d.productId },
     })
     if (!product) {
       return serviceError('Produit introuvable', 'NOT_FOUND')
     }
 
     const warehouse = await prisma.entrepot.findUnique({
-      where: { id_entrepot: validation.data.warehouseId },
+      where: { id_entrepot: d.warehouseId },
     })
     if (!warehouse) {
       return serviceError('Entrepôt introuvable', 'NOT_FOUND')
@@ -466,8 +468,8 @@ export async function createStockLevel(
     const existing = await prisma.niveauStock.findUnique({
       where: {
         id_produit_id_entrepot: {
-          id_produit: validation.data.productId,
-          id_entrepot: validation.data.warehouseId,
+          id_produit: d.productId,
+          id_entrepot: d.warehouseId,
         },
       },
     })
@@ -475,16 +477,16 @@ export async function createStockLevel(
       return serviceError('Un niveau de stock existe déjà pour ce couple produit-entrepôt', 'CONFLICT')
     }
 
-    const qty = validation.data.quantite_en_stock ?? 0
-    const reserved = validation.data.quantite_reservee ?? 0
-    const ordered = validation.data.quantite_commandee ?? 0
+    const qty = d.quantite_en_stock ?? 0
+    const reserved = d.quantite_reservee ?? 0
+    const ordered = d.quantite_commandee ?? 0
 
     if (qty > 0) {
-      const result = await withTransaction(async (tx) => {
+      const created = await withTransaction(async (tx) => {
         const stockLevel = await tx.niveauStock.create({
           data: {
-            id_produit: validation.data.productId,
-            id_entrepot: validation.data.warehouseId,
+            id_produit: d.productId,
+            id_entrepot: d.warehouseId,
             quantite_en_stock: qty,
             quantite_reservee: reserved,
             quantite_commandee: ordered,
@@ -493,8 +495,8 @@ export async function createStockLevel(
 
         await tx.mouvementStock.create({
           data: {
-            id_produit: validation.data.productId,
-            id_entrepot: validation.data.warehouseId,
+            id_produit: d.productId,
+            id_entrepot: d.warehouseId,
             type_mouvement: 'INVENTAIRE',
             quantite: qty,
             motif: 'Mouvement initial du niveau de stock',
@@ -507,20 +509,20 @@ export async function createStockLevel(
 
       return {
         data: {
-          id_stock: result.id_stock,
-          id_produit: result.id_produit,
-          id_entrepot: result.id_entrepot,
-          quantite_en_stock: Number(result.quantite_en_stock),
-          quantite_reservee: Number(result.quantite_reservee),
-          quantite_commandee: Number(result.quantite_commandee),
+          id_stock: created.id_stock,
+          id_produit: created.id_produit,
+          id_entrepot: created.id_entrepot,
+          quantite_en_stock: Number(created.quantite_en_stock),
+          quantite_reservee: Number(created.quantite_reservee),
+          quantite_commandee: Number(created.quantite_commandee),
         },
       }
     }
 
     const stockLevel = await prisma.niveauStock.create({
       data: {
-        id_produit: validation.data.productId,
-        id_entrepot: validation.data.warehouseId,
+        id_produit: d.productId,
+        id_entrepot: d.warehouseId,
         quantite_en_stock: qty,
         quantite_reservee: reserved,
         quantite_commandee: ordered,
@@ -538,7 +540,7 @@ export async function createStockLevel(
       },
     }
   } catch (error) {
-    log.error({ error, input: validation.data }, 'createStockLevel failed')
+    log.error({ error, input: d }, 'createStockLevel failed')
     return serviceError(error instanceof Error ? error.message : 'Échec de la création du niveau de stock', 'INTERNAL')
   }
 }
@@ -553,12 +555,12 @@ export async function adjustStockLevel(
   input: { productId: number; warehouseId: number; newQuantity: number; motif?: string },
   userId: string,
 ): Promise<{ data?: AdjustmentResult; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
-  const validation = adjustStockLevelSchema.safeParse(input)
-  if (!validation.success) {
-    return serviceError(validation.error.issues.map(e => e.message).join(', '), 'VALIDATION')
+  const result = validatedOrError(adjustStockLevelSchema, input, { joinIssues: true })
+  if (result.error) {
+    return { error: result.error, code: result.code }
   }
 
-  const validatedInput = validation.data
+  const validatedInput = result.data
 
   const lockKey = `stock:${validatedInput.productId}:${validatedInput.warehouseId}`
   const lockToken = await getAdapter().acquireLock(lockKey, 30)
@@ -651,9 +653,9 @@ export async function adjustStockLevel(
 export async function deleteStockLevel(
   id: number,
 ): Promise<{ data?: void; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
-  const validation = deleteStockLevelSchema.safeParse({ id })
-  if (!validation.success) {
-    return serviceError(validation.error.issues.map(e => e.message).join(', '), 'VALIDATION')
+  const result = validatedOrError(deleteStockLevelSchema, { id }, { joinIssues: true })
+  if (result.error) {
+    return { error: result.error, code: result.code }
   }
 
   try {
@@ -692,12 +694,12 @@ export async function listArticles(
   sort: string = 'nom_produit',
   order: 'asc' | 'desc' = 'asc',
 ): Promise<PaginatedResult<ArticleWithStock> & { error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
-  const parsed = paginationSchema.safeParse({ page, limit })
-  if (!parsed.success) {
-    return { ...createEmptyResult<ArticleWithStock>(page, limit, 'Paramètres de pagination invalides'), ...serviceError('Paramètres de pagination invalides', 'VALIDATION') }
+  const result = validatedOrError(paginationSchema, { page, limit }, { message: 'Paramètres de pagination invalides' })
+  if (result.error) {
+    return { ...createEmptyResult<ArticleWithStock>(page, limit, result.error), error: result.error, code: result.code }
   }
-  const safePage = parsed.data?.page ?? page
-  const safeLimit = parsed.data?.limit ?? limit
+  const safePage = result.data?.page ?? page
+  const safeLimit = result.data?.limit ?? limit
   const { skip } = getPaginationParams({ page: safePage, limit: safeLimit })
 
   const effectiveSort = ALLOWED_ARTICLE_SORT_FIELDS.includes(sort as AllowedArticleSortField)
@@ -746,9 +748,9 @@ export async function listArticles(
 export async function getArticleById(
   id_produit: number,
 ): Promise<{ data?: ArticleWithStock | null; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
-  const validationResult = getArticleByIdSchema.safeParse({ id_produit })
-  if (!validationResult.success) {
-    return serviceError('ID d\'article invalide', 'VALIDATION')
+  const result = validatedOrError(getArticleByIdSchema, { id_produit }, { message: 'ID d\'article invalide' })
+  if (result.error) {
+    return { error: result.error, code: result.code }
   }
 
   try {
@@ -816,12 +818,12 @@ export async function createArticle(
   input: ArticleCreateInput,
   userId: string,
 ): Promise<{ data?: ArticleWithStock; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
-  const validationResult = articleCreateSchema.safeParse(input)
-  if (!validationResult.success) {
-    return serviceError('Validation échouée: ' + validationResult.error.issues.map((e) => e.message).join(', '), 'VALIDATION')
+  const result = validatedOrError(articleCreateSchema, input)
+  if (result.error) {
+    return { error: result.error, code: result.code }
   }
 
-  const validatedInput = validationResult.data
+  const validatedInput = result.data
 
   try {
     const existing = await prisma.produit.findUnique({
@@ -851,16 +853,24 @@ export async function updateArticle(
   input: ArticleUpdateInput,
   userId: string,
 ): Promise<{ data?: ArticleWithStock; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
-  const validationResult = articleUpdateSchema.safeParse(input)
-  if (!validationResult.success) {
-    return serviceError('Validation échouée: ' + validationResult.error.issues.map((e) => e.message).join(', '), 'VALIDATION')
+  const result = validatedOrError(articleUpdateSchema, input)
+  if (result.error) {
+    return { error: result.error, code: result.code }
   }
 
-  const validatedInput = validationResult.data
+  const validatedInput = result.data
 
   try {
     const existing = await prisma.produit.findUnique({
       where: { id_produit },
+    })
+    if (!existing) {
+      return serviceError('Article introuvable', 'NOT_FOUND')
+    }
+
+    const updated = await prisma.produit.update({
+      where: { id_produit },
+      data: validatedInput,
     })
     if (!existing) {
       return serviceError('Article introuvable', 'NOT_FOUND')
@@ -895,9 +905,9 @@ export async function deleteArticle(
   id_produit: number,
   userId: string,
 ): Promise<{ data?: { success: boolean }; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
-  const validationResult = deleteArticleSchema.safeParse({ id_produit })
-  if (!validationResult.success) {
-    return serviceError('ID d\'article invalide', 'VALIDATION')
+  const result = validatedOrError(deleteArticleSchema, { id_produit }, { message: 'ID d\'article invalide' })
+  if (result.error) {
+    return { error: result.error, code: result.code }
   }
 
   try {
@@ -925,9 +935,9 @@ export async function getStockLevelsByArticle(
   page: number = 1,
   limit: number = 50,
 ): Promise<PaginatedResult<Record<string, unknown>> & { error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
-  const validationResult = getStockLevelsByArticleSchema.safeParse({ id_produit })
-  if (!validationResult.success) {
-    return { ...createEmptyResult(page, limit, 'ID d\'article invalide'), data: [] as Record<string, unknown>[], ...serviceError('ID d\'article invalide', 'VALIDATION') }
+  const result = validatedOrError(getStockLevelsByArticleSchema, { id_produit }, { message: 'ID d\'article invalide' })
+  if (result.error) {
+    return { ...createEmptyResult(page, limit, result.error), data: [] as Record<string, unknown>[], error: result.error, code: result.code }
   }
 
   try {

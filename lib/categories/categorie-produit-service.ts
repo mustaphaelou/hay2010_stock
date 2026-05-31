@@ -4,7 +4,7 @@ import { Prisma } from '@/lib/generated/prisma/client'
 import { createLogger } from '@/lib/logger'
 import { createEmptyResult, buildPaginationMeta, getPaginationParams } from '@/lib/pagination'
 import type { PaginatedResult } from '@/lib/pagination'
-import { serviceError } from '@/lib/service-result'
+import { serviceError, validatedOrError } from '@/lib/service-result'
 
 const log = createLogger('categorie-produit-service')
 
@@ -104,25 +104,27 @@ export async function getCategoryById(
 export async function createCategory(
   input: CreateInput,
 ): Promise<{ data?: unknown; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
-  const validationResult = categoryCreateSchema.safeParse(input)
-  if (!validationResult.success) {
-    return serviceError('Validation échouée: ' + validationResult.error.issues.map((e) => e.message).join(', '), 'VALIDATION')
+  const result = validatedOrError(categoryCreateSchema, input)
+  if (result.error) {
+    return { error: result.error, code: result.code }
   }
+
+  const d = result.data
 
   try {
     const existing = await prisma.categorieProduit.findUnique({
-      where: { code_categorie: validationResult.data.code_categorie },
+      where: { code_categorie: d.code_categorie },
     })
     if (existing) {
-      return serviceError(`La catégorie avec le code ${validationResult.data.code_categorie} existe déjà`, 'CONFLICT')
+      return serviceError(`La catégorie avec le code ${d.code_categorie} existe déjà`, 'CONFLICT')
     }
 
     const category = await prisma.categorieProduit.create({
-      data: validationResult.data,
+      data: d,
     })
     return { data: category }
   } catch (error) {
-    log.error({ error, input: validationResult.data }, 'Échec de la création de la catégorie')
+    log.error({ error, input: d }, 'Échec de la création de la catégorie')
     return serviceError('Échec de la création de la catégorie', 'INTERNAL')
   }
 }
@@ -131,10 +133,12 @@ export async function updateCategory(
   id: number,
   input: UpdateInput,
 ): Promise<{ data?: unknown; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
-  const validationResult = categoryUpdateSchema.safeParse(input)
-  if (!validationResult.success) {
-    return serviceError('Validation échouée: ' + validationResult.error.issues.map((e) => e.message).join(', '), 'VALIDATION')
+  const result = validatedOrError(categoryUpdateSchema, input)
+  if (result.error) {
+    return { error: result.error, code: result.code }
   }
+
+  const d = result.data
 
   try {
     const existing = await prisma.categorieProduit.findUnique({
@@ -144,26 +148,26 @@ export async function updateCategory(
       return serviceError('Catégorie introuvable', 'NOT_FOUND')
     }
 
-    if (validationResult.data.code_categorie && validationResult.data.code_categorie !== existing.code_categorie) {
+    if (d.code_categorie && d.code_categorie !== existing.code_categorie) {
       const duplicate = await prisma.categorieProduit.findUnique({
-        where: { code_categorie: validationResult.data.code_categorie },
+        where: { code_categorie: d.code_categorie },
       })
       if (duplicate) {
-        return serviceError(`La catégorie avec le code ${validationResult.data.code_categorie} existe déjà`, 'CONFLICT')
+        return serviceError(`La catégorie avec le code ${d.code_categorie} existe déjà`, 'CONFLICT')
       }
     }
 
-    if (validationResult.data.id_categorie_parent !== undefined && validationResult.data.id_categorie_parent === id) {
+    if (d.id_categorie_parent !== undefined && d.id_categorie_parent === id) {
       return serviceError('ID catégorie parent invalide: une catégorie ne peut pas être son propre parent', 'VALIDATION')
     }
 
     const category = await prisma.categorieProduit.update({
       where: { id_categorie: id },
-      data: validationResult.data,
+      data: d,
     })
     return { data: category }
   } catch (error) {
-    log.error({ error, id, input: validationResult.data }, 'Échec de la mise à jour de la catégorie')
+    log.error({ error, id, input: d }, 'Échec de la mise à jour de la catégorie')
     return serviceError('Échec de la mise à jour de la catégorie', 'INTERNAL')
   }
 }

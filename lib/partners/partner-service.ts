@@ -6,7 +6,7 @@ import { TypePartenaire } from '@/lib/generated/prisma'
 import { createLogger } from '@/lib/logger'
 import { createEmptyResult, buildPaginationMeta, getPaginationParams } from '@/lib/pagination'
 import type { PaginatedResult } from '@/lib/pagination'
-import { serviceError } from '@/lib/service-result'
+import { serviceError, validatedOrError } from '@/lib/service-result'
 
 
 const log = createLogger('partner-service')
@@ -69,10 +69,10 @@ export async function getPartners(
   sort: string = 'nom_partenaire',
   order: 'asc' | 'desc' = 'asc',
 ): Promise<PaginatedResult<PartnerWithComputed> & { error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
-  const validationResult = getPartnersSchema.safeParse({ type })
-  if (!validationResult.success) {
-    log.error({ error: validationResult.error }, 'Filtres partenaires invalides')
-    return { ...createEmptyResult<PartnerWithComputed>(page, limit, 'Paramètres de filtre invalides'), ...serviceError('Paramètres de filtre invalides', 'VALIDATION') }
+  const result = validatedOrError(getPartnersSchema, { type }, { message: 'Paramètres de filtre invalides' })
+  if (result.error) {
+    log.error({ error: result.error }, 'Filtres partenaires invalides')
+    return { ...createEmptyResult<PartnerWithComputed>(page, limit, result.error), error: result.error, code: result.code }
   }
 
   const { skip } = getPaginationParams({ page, limit })
@@ -140,12 +140,12 @@ export async function createPartner(
   input: CreatePartnerInput,
   userId: string,
 ): Promise<{ data?: PartnerWithComputed; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
-  const validationResult = createPartnerSchema.safeParse(input)
-  if (!validationResult.success) {
-    return serviceError('Validation échouée: ' + validationResult.error.issues.map((e) => e.message).join(', '), 'VALIDATION')
+  const result = validatedOrError(createPartnerSchema, input)
+  if (result.error) {
+    return { error: result.error, code: result.code }
   }
 
-  const validatedInput = validationResult.data
+  const validatedInput = result.data
 
   try {
     const existing = await prisma.partenaire.findUnique({
@@ -175,12 +175,12 @@ export async function updatePartner(
   input: UpdatePartnerInput,
   userId: string,
 ): Promise<{ data?: PartnerWithComputed; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
-  const validationResult = updatePartnerSchema.safeParse(input)
-  if (!validationResult.success) {
-    return serviceError('Validation échouée: ' + validationResult.error.issues.map((e) => e.message).join(', '), 'VALIDATION')
+  const result = validatedOrError(updatePartnerSchema, input)
+  if (result.error) {
+    return { error: result.error, code: result.code }
   }
 
-  const validatedInput = validationResult.data
+  const validatedInput = result.data
 
   try {
     const existing = await prisma.partenaire.findUnique({
@@ -219,9 +219,9 @@ export async function deletePartner(
   id_partenaire: number,
   userId?: string,
 ): Promise<{ data?: { success: boolean }; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
-  const validationResult = deletePartnerSchema.safeParse({ id_partenaire })
-  if (!validationResult.success) {
-    return serviceError('Validation échouée: ' + validationResult.error.issues.map((e) => e.message).join(', '), 'VALIDATION')
+  const result = validatedOrError(deletePartnerSchema, { id_partenaire })
+  if (result.error) {
+    return { error: result.error, code: result.code }
   }
 
   try {

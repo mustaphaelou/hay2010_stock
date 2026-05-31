@@ -18,7 +18,7 @@ import type { AffaireWithComputed, DocumentBase } from '@/lib/types'
 import { createLogger } from '@/lib/logger'
 import { createEmptyResult, buildPaginationMeta, getPaginationParams } from '@/lib/pagination'
 import type { PaginatedResult } from '@/lib/pagination'
-import { serviceError } from '@/lib/service-result'
+import { serviceError, validatedOrError } from '@/lib/service-result'
 
 
 const log = createLogger('affaire-service')
@@ -60,12 +60,12 @@ export async function getAffaires(
   sort: string = 'date_creation',
   order: 'asc' | 'desc' = 'desc',
 ): Promise<PaginatedResult<AffaireWithComputed> & { error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
-  const validationResult = getAffairesSchema.safeParse({ page, limit, ...filters })
-  if (!validationResult.success) {
-    return { ...createEmptyResult<AffaireWithComputed>(page, limit, 'Paramètres de filtre invalides'), ...serviceError('Paramètres de filtre invalides', 'VALIDATION') }
+  const result = validatedOrError(getAffairesSchema, { page, limit, ...filters }, { message: 'Paramètres de filtre invalides' })
+  if (result.error) {
+    return { ...createEmptyResult<AffaireWithComputed>(page, limit, result.error), error: result.error, code: result.code }
   }
 
-  const validated = validationResult.data
+  const validated = result.data
   const { skip } = getPaginationParams({ page: validated.page, limit: validated.limit })
 
   const effectiveSort = ALLOWED_AFFAIRE_SORT_FIELDS.includes(sort as AllowedAffaireSortField)
@@ -110,9 +110,9 @@ export async function getAffaires(
 export async function getAffaireById(
   id_affaire: number,
 ): Promise<{ data?: AffaireWithComputed | null; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
-  const validationResult = getAffaireByIdSchema.safeParse({ id_affaire })
-  if (!validationResult.success) {
-    return serviceError('ID d\'affaire invalide', 'VALIDATION')
+  const result = validatedOrError(getAffaireByIdSchema, { id_affaire }, { message: 'ID d\'affaire invalide' })
+  if (result.error) {
+    return { error: result.error, code: result.code }
   }
 
   try {
@@ -138,12 +138,12 @@ export async function createAffaire(
   input: AffaireCreateInput,
   userId: string,
 ): Promise<{ data?: AffaireWithComputed; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
-  const validationResult = affaireCreateSchema.safeParse(input)
-  if (!validationResult.success) {
-    return serviceError('Validation échouée: ' + validationResult.error.issues.map((e) => e.message).join(', '), 'VALIDATION')
+  const result = validatedOrError(affaireCreateSchema, input)
+  if (result.error) {
+    return { error: result.error, code: result.code }
   }
 
-  const validatedInput = validationResult.data
+  const validatedInput = result.data
 
   try {
     const existing = await prisma.affaire.findUnique({
@@ -172,12 +172,12 @@ export async function updateAffaire(
   input: AffaireUpdateInput,
   userId: string,
 ): Promise<{ data?: AffaireWithComputed; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
-  const validationResult = affaireUpdateSchema.safeParse(input)
-  if (!validationResult.success) {
-    return serviceError('Validation échouée: ' + validationResult.error.issues.map((e) => e.message).join(', '), 'VALIDATION')
+  const result = validatedOrError(affaireUpdateSchema, input)
+  if (result.error) {
+    return { error: result.error, code: result.code }
   }
 
-  const validatedInput = validationResult.data
+  const validatedInput = result.data
 
   try {
     const existing = await prisma.affaire.findUnique({
@@ -215,9 +215,9 @@ export async function deleteAffaire(
   id_affaire: number,
   userId: string,
 ): Promise<{ data?: { success: boolean }; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
-  const validationResult = deleteAffaireSchema.safeParse({ id_affaire })
-  if (!validationResult.success) {
-    return serviceError('ID d\'affaire invalide', 'VALIDATION')
+  const result = validatedOrError(deleteAffaireSchema, { id_affaire }, { message: 'ID d\'affaire invalide' })
+  if (result.error) {
+    return { error: result.error, code: result.code }
   }
 
   try {
@@ -279,9 +279,9 @@ export async function getAffaireDocumentsById(
 }
 
 export async function getAffaireByCode(code_affaire: string): Promise<{ data?: AffaireWithComputed | null; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
-  const validationResult = getAffaireByCodeSchema.safeParse({ code_affaire })
-  if (!validationResult.success) {
-    return serviceError('Entrée invalide: ' + validationResult.error.issues.map((e) => e.message).join(', '), 'VALIDATION')
+  const result = validatedOrError(getAffaireByCodeSchema, { code_affaire })
+  if (result.error) {
+    return { error: result.error, code: result.code }
   }
 
   try {
@@ -304,10 +304,10 @@ export async function getAffaireByCode(code_affaire: string): Promise<{ data?: A
 }
 
 export async function getDocumentsByAffaire(code_affaire: string): Promise<{ data: DocumentBase[]; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
-  const validationResult = getAffaireByCodeSchema.safeParse({ code_affaire })
-  if (!validationResult.success) {
-    log.error({ error: validationResult.error, code_affaire }, 'Code affaire invalide')
-    return { data: [], ...serviceError('Code affaire invalide', 'VALIDATION') }
+  const result = validatedOrError(getAffaireByCodeSchema, { code_affaire }, { message: 'Code affaire invalide' })
+  if (result.error) {
+    log.error({ error: result.error, code_affaire }, 'Code affaire invalide')
+    return { data: [], error: result.error, code: result.code }
   }
 
   try {

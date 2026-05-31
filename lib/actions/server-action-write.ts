@@ -6,6 +6,7 @@ import type { CurrentUser } from '@/lib/auth/user-utils'
 import { requireAuth } from '@/lib/auth/user-utils'
 import { requireCsrfToken, getCsrfCookie, generateCsrfToken, setCsrfCookie } from '@/lib/security/csrf-server'
 import { runInvalidations, type CacheInvalidation } from '@/lib/cache/invalidation'
+import { validatedOrError } from '@/lib/service-result'
 
 export type ServerActionWritePermission = Permission | 'authenticated' | 'public'
 
@@ -51,11 +52,13 @@ export async function serverActionWrite<T extends { error?: string }>(
   }
 
   if (options?.validation) {
-    const result = options.validation.schema.safeParse(options.validation.input)
-    if (!result.success) {
-      const error = options.validation.message
-        ?? result.error.issues.map((e) => e.message).join(', ')
-      return { error }
+    const result = validatedOrError(
+      options.validation.schema,
+      options.validation.input,
+      { joinIssues: true, message: options.validation.message },
+    )
+    if (result.error) {
+      return { error: result.error }
     }
   }
 

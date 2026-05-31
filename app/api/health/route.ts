@@ -140,16 +140,28 @@ export async function GET() {
         : 'Some services are degraded. Check detailed checks for more information.'
     })
   } catch (error) {
-    if (error instanceof Error && (error.message === 'Unauthorized' || error.message === 'Forbidden')) {
-      const status = error.message === 'Forbidden' ? 403 : 401
-      const code = error.message === 'Forbidden' ? 'AUTHORIZATION_ERROR' : 'AUTHENTICATION_ERROR'
+    if (error instanceof Error && (error.message.startsWith('Unauthorized') || error.message === 'Forbidden')) {
+      if (error.message === 'Forbidden') {
+        return NextResponse.json(
+          {
+            error: 'Insufficient permissions. ADMIN or MANAGER role required.',
+            code: 'AUTHORIZATION_ERROR',
+            timestamp: new Date().toISOString()
+          },
+          { status: 403 }
+        )
+      }
+      const authMessages: Record<string, string> = {
+        'Unauthorized: Authentication required': 'Authentication required',
+        'Unauthorized: Invalid token': 'Invalid or expired token',
+      }
       return NextResponse.json(
         {
-          error: error.message === 'Forbidden' ? 'Insufficient permissions' : 'Authentication required',
-          code,
+          error: authMessages[error.message] || 'Authentication required',
+          code: 'AUTHENTICATION_ERROR',
           timestamp: new Date().toISOString()
         },
-        { status }
+        { status: 401 }
       )
     }
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'

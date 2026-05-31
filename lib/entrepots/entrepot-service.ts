@@ -4,7 +4,7 @@ import { Prisma } from '@/lib/generated/prisma/client'
 import { createLogger } from '@/lib/logger'
 import { createEmptyResult, buildPaginationMeta, getPaginationParams } from '@/lib/pagination'
 import type { PaginatedResult } from '@/lib/pagination'
-import { serviceError } from '@/lib/service-result'
+import { serviceError, validatedOrError } from '@/lib/service-result'
 
 const log = createLogger('entrepot-service')
 
@@ -112,25 +112,27 @@ export async function getEntrepotById(
 export async function createEntrepot(
   input: CreateInput,
 ): Promise<{ data?: unknown; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
-  const validationResult = warehouseCreateSchema.safeParse(input)
-  if (!validationResult.success) {
-    return serviceError('Validation échouée: ' + validationResult.error.issues.map((e) => e.message).join(', '), 'VALIDATION')
+  const result = validatedOrError(warehouseCreateSchema, input)
+  if (result.error) {
+    return { error: result.error, code: result.code }
   }
+
+  const d = result.data
 
   try {
     const existing = await prisma.entrepot.findUnique({
-      where: { code_entrepot: validationResult.data.code_entrepot },
+      where: { code_entrepot: d.code_entrepot },
     })
     if (existing) {
-      return serviceError(`Le code entrepôt ${validationResult.data.code_entrepot} existe déjà`, 'CONFLICT')
+      return serviceError(`Le code entrepôt ${d.code_entrepot} existe déjà`, 'CONFLICT')
     }
 
     const warehouse = await prisma.entrepot.create({
-      data: validationResult.data,
+      data: d,
     })
     return { data: warehouse }
   } catch (error) {
-    log.error({ error, input: validationResult.data }, 'Échec de la création de l\'entrepôt')
+    log.error({ error, input: d }, 'Échec de la création de l\'entrepôt')
     return serviceError('Échec de la création de l\'entrepôt', 'INTERNAL')
   }
 }
@@ -139,10 +141,12 @@ export async function updateEntrepot(
   id: number,
   input: UpdateInput,
 ): Promise<{ data?: unknown; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
-  const validationResult = warehouseUpdateSchema.safeParse(input)
-  if (!validationResult.success) {
-    return serviceError('Validation échouée: ' + validationResult.error.issues.map((e) => e.message).join(', '), 'VALIDATION')
+  const result = validatedOrError(warehouseUpdateSchema, input)
+  if (result.error) {
+    return { error: result.error, code: result.code }
   }
+
+  const d = result.data
 
   try {
     const existing = await prisma.entrepot.findUnique({
@@ -152,22 +156,22 @@ export async function updateEntrepot(
       return serviceError('Entrepôt introuvable', 'NOT_FOUND')
     }
 
-    if (validationResult.data.code_entrepot && validationResult.data.code_entrepot !== existing.code_entrepot) {
+    if (d.code_entrepot && d.code_entrepot !== existing.code_entrepot) {
       const duplicate = await prisma.entrepot.findUnique({
-        where: { code_entrepot: validationResult.data.code_entrepot },
+        where: { code_entrepot: d.code_entrepot },
       })
       if (duplicate) {
-        return serviceError(`Le code entrepôt ${validationResult.data.code_entrepot} existe déjà`, 'CONFLICT')
+        return serviceError(`Le code entrepôt ${d.code_entrepot} existe déjà`, 'CONFLICT')
       }
     }
 
     const warehouse = await prisma.entrepot.update({
       where: { id_entrepot: id },
-      data: validationResult.data,
+      data: d,
     })
     return { data: warehouse }
   } catch (error) {
-    log.error({ error, id, input: validationResult.data }, 'Échec de la mise à jour de l\'entrepôt')
+    log.error({ error, id, input: d }, 'Échec de la mise à jour de l\'entrepôt')
     return serviceError('Échec de la mise à jour de l\'entrepôt', 'INTERNAL')
   }
 }

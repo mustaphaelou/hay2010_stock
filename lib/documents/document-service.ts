@@ -22,7 +22,7 @@ import { mapDocumentToComputed, mapLineToDocumentLine } from '@/lib/documents/ma
 import { hasRole } from '@/lib/auth/authorization'
 import type { UserRole } from '@/lib/auth/authorization'
 import { Prisma } from '@/lib/generated/prisma/client'
-import { serviceError } from '@/lib/service-result'
+import { serviceError, validatedOrError } from '@/lib/service-result'
 
 const log = createLogger('document-service')
 
@@ -35,12 +35,12 @@ export async function listDocuments(
   params: DocumentListParams,
   user: { id: string; role: string }
 ): Promise<PaginatedResult<DocumentWithComputed> & { error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
-  const parsed = paginationSchema.safeParse({ page: params.page, limit: params.limit })
-  if (!parsed.success) {
-    return { ...createEmptyResult<DocumentWithComputed>(params.page, params.limit, 'Paramètres de pagination invalides'), ...serviceError('Paramètres de pagination invalides', 'VALIDATION') }
+  const result = validatedOrError(paginationSchema, { page: params.page, limit: params.limit }, { message: 'Paramètres de pagination invalides' })
+  if (result.error) {
+    return { ...createEmptyResult<DocumentWithComputed>(params.page, params.limit, result.error), error: result.error, code: result.code }
   }
-  const safePage = parsed.data?.page ?? params.page
-  const safeLimit = parsed.data?.limit ?? params.limit
+  const safePage = result.data?.page ?? params.page
+  const safeLimit = result.data?.limit ?? params.limit
   const { skip } = getPaginationParams({ page: safePage, limit: safeLimit })
 
   const effectiveSort = ALLOWED_DOCUMENT_SORT_FIELDS.includes(params.sort as AllowedDocumentSortField)
@@ -109,9 +109,9 @@ export async function listDocuments(
 export async function getDocumentById(
   id_document: number,
 ): Promise<{ data?: Record<string, unknown> | null; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
-  const validationResult = getDocumentByIdSchema.safeParse({ id_document })
-  if (!validationResult.success) {
-    return serviceError('ID de document invalide', 'VALIDATION')
+  const result = validatedOrError(getDocumentByIdSchema, { id_document }, { message: 'ID de document invalide' })
+  if (result.error) {
+    return { error: result.error, code: result.code }
   }
 
   try {
@@ -140,12 +140,12 @@ export async function createDocument(
   input: DocumentCreateInput,
   userId: string,
 ): Promise<{ data?: DocumentWithComputed; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
-  const validationResult = documentCreateSchema.safeParse(input)
-  if (!validationResult.success) {
-    return serviceError('Validation échouée: ' + validationResult.error.issues.map((e) => e.message).join(', '), 'VALIDATION')
+  const result = validatedOrError(documentCreateSchema, input)
+  if (result.error) {
+    return { error: result.error, code: result.code }
   }
 
-  const validatedInput = validationResult.data
+  const validatedInput = result.data
 
   try {
     const existing = await prisma.docVente.findUnique({
@@ -186,12 +186,12 @@ export async function updateDocument(
   input: DocumentUpdateInput,
   userId: string,
 ): Promise<{ data?: DocumentWithComputed; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
-  const validationResult = documentUpdateSchema.safeParse(input)
-  if (!validationResult.success) {
-    return serviceError('Validation échouée: ' + validationResult.error.issues.map((e) => e.message).join(', '), 'VALIDATION')
+  const result = validatedOrError(documentUpdateSchema, input)
+  if (result.error) {
+    return { error: result.error, code: result.code }
   }
 
-  const validatedInput = validationResult.data
+  const validatedInput = result.data
 
   try {
     const existing = await prisma.docVente.findUnique({
@@ -229,9 +229,9 @@ export async function deleteDocument(
   id_document: number,
   userId: string,
 ): Promise<{ data?: { success: boolean }; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
-  const validationResult = deleteDocumentSchema.safeParse({ id_document })
-  if (!validationResult.success) {
-    return serviceError('ID de document invalide', 'VALIDATION')
+  const result = validatedOrError(deleteDocumentSchema, { id_document }, { message: 'ID de document invalide' })
+  if (result.error) {
+    return { error: result.error, code: result.code }
   }
 
   try {
@@ -290,10 +290,10 @@ export async function getDocumentLinesById(
 }
 
 export async function getDocLines(docId: number): Promise<{ data: DocumentLine[]; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
-  const validationResult = getDocLinesSchema.safeParse({ docId })
-  if (!validationResult.success) {
-    log.error({ error: validationResult.error, docId }, 'docId invalide')
-    return { data: [], ...serviceError('ID de document invalide', 'VALIDATION') }
+  const result = validatedOrError(getDocLinesSchema, { docId }, { message: 'ID de document invalide' })
+  if (result.error) {
+    log.error({ error: result.error, docId }, 'docId invalide')
+    return { data: [], error: result.error, code: result.code }
   }
 
   try {
