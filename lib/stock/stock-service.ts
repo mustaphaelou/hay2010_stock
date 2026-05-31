@@ -868,14 +868,6 @@ export async function updateArticle(
       return serviceError('Article introuvable', 'NOT_FOUND')
     }
 
-    const updated = await prisma.produit.update({
-      where: { id_produit },
-      data: validatedInput,
-    })
-    if (!existing) {
-      return serviceError('Article introuvable', 'NOT_FOUND')
-    }
-
     if (validatedInput.code_produit && validatedInput.code_produit !== existing.code_produit) {
       const duplicate = await prisma.produit.findUnique({
         where: { code_produit: validatedInput.code_produit },
