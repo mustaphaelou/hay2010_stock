@@ -6,7 +6,7 @@ import { createLogger } from '@/lib/logger'
 import type { ArticleWithStock, StockStatusVariant } from '@/lib/types'
 import { createEmptyResult, buildPaginationMeta, getPaginationParams } from '@/lib/pagination'
 import type { PaginatedResult } from '@/lib/pagination'
-import { paginationSchema } from '@/lib/validation'
+import { paginationSchema } from '@/lib/pagination'
 import {
   toggleArticleStatusSchema,
   articleCreateSchema,

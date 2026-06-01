@@ -51,7 +51,6 @@
  * }
  * ```
  *
- * @see {@link ./result.ts} — Deprecated Result monad; kept for reference, do not use.
  */
 
 import { createLogger } from './logger'

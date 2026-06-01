@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { paginationSchema } from '@/lib/validation'
+import { paginationSchema } from '@/lib/pagination'
 
 describe('paginationSchema', () => {
   describe('success cases', () => {

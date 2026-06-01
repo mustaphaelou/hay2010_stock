@@ -1,6 +1,0 @@
-﻿export { passwordSchema, loginSchema, registerSchema, type LoginInput, type RegisterInput } from '@/lib/auth/validation'
-export { paginationSchema, type PaginationInput } from '@/lib/pagination'
-export { toggleArticleStatusSchema, createMovementSchema, type ToggleArticleStatusInput, type CreateMovementInput } from '@/lib/stock/validation'
-export { getDocLinesSchema, getDocumentsByAffaireSchema, type GetDocLinesInput, type GetDocumentsByAffaireInput } from '@/lib/documents/validation'
-export { getPartnersSchema, createPartnerSchema, updatePartnerSchema, deletePartnerSchema, type GetPartnersInput, type CreatePartnerInput, type UpdatePartnerInput, type DeletePartnerInput } from '@/lib/partners/validation'
-export { getAffairesSchema, getAffaireByCodeSchema, type GetAffairesInput, type GetAffaireByCodeInput } from '@/lib/affaires/validation'

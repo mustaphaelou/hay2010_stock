@@ -5,7 +5,7 @@ import { createLogger } from '@/lib/logger'
 import type { StockLevelWithProduct, Depot } from '@/lib/types'
 import { getPaginationParams, buildPaginationMeta, createEmptyResult } from '@/lib/pagination'
 import type { PaginatedResult } from '@/lib/pagination'
-import { paginationSchema } from '@/lib/validation'
+import { paginationSchema } from '@/lib/pagination'
 import {
   createMovementSchema,
   createStockLevelSchema,
