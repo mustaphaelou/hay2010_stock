@@ -22,6 +22,9 @@ import { hasRole } from '@/lib/auth/authorization'
 import type { UserRole } from '@/lib/auth/authorization'
 import { Prisma } from '@/lib/generated/prisma/client'
 import { serviceError, validatedOrError } from '@/lib/service-result'
+import type { ServiceResult, ServiceErrorCode } from '@/lib/service-result'
+import { createCrudService } from '@/lib/crud-service'
+import type { DocVente } from '@/lib/generated/prisma/client'
 
 function mapDocumentToComputed(doc: DocumentBase): DocumentWithComputed {
   return {
@@ -66,6 +69,17 @@ function mapLineToDocumentLine(
 
 const log = createLogger('document-service')
 
+const baseCrud = createCrudService<DocVente, DocumentCreateInput, DocumentUpdateInput>({
+  delegate: prisma.docVente as any,
+  entityName: 'Document',
+  createSchema: documentCreateSchema,
+  updateSchema: documentUpdateSchema,
+  uniqueFields: ['numero_document'],
+  idField: 'id_document',
+})
+
+export const ensureDocumentExists = baseCrud.ensureExists
+
 function applyRowLevelSecurity(user: { id: string; role: string }, whereClause: Record<string, unknown> = {}): Record<string, unknown> {
   if (hasRole(user.role as UserRole, 'ADMIN')) return whereClause
   return { ...whereClause, cree_par: user.id }
@@ -74,7 +88,7 @@ function applyRowLevelSecurity(user: { id: string; role: string }, whereClause: 
 export async function listDocuments(
   params: DocumentListParams,
   user: { id: string; role: string }
-): Promise<PaginatedResult<DocumentWithComputed> & { error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
+): Promise<PaginatedResult<DocumentWithComputed> & { error?: string; code?: ServiceErrorCode }> {
   const result = validatedOrError(paginationSchema, { page: params.page, limit: params.limit }, { message: 'Paramètres de pagination invalides' })
   if (result.error) {
     return { ...createEmptyResult<DocumentWithComputed>(params.page, params.limit, result.error), error: result.error, code: result.code }
@@ -146,40 +160,26 @@ export async function listDocuments(
   }
 }
 
-export async function getDocumentById(
-  id_document: number,
-): Promise<{ data?: Record<string, unknown> | null; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
+export async function getDocumentById(id_document: number): Promise<ServiceResult<DocumentWithComputed>> {
   const result = validatedOrError(getDocumentByIdSchema, { id_document }, { message: 'ID de document invalide' })
   if (result.error) {
     return { error: result.error, code: result.code }
   }
 
-  try {
-    const document = await prisma.docVente.findUnique({
-      where: { id_document },
-      include: {
-        lignes: true,
-        partenaire: {
-          select: { id_partenaire: true, code_partenaire: true, nom_partenaire: true },
-        },
-      },
-    })
-
-    if (!document) {
-      return { data: null, ...serviceError('Document introuvable', 'NOT_FOUND') }
-    }
-
-    return { data: document as unknown as Record<string, unknown> }
-  } catch (error) {
-    log.error({ error, id_document }, 'Échec de la récupération du document')
-    return serviceError('Échec de la récupération du document', 'INTERNAL')
+  const record = await baseCrud.getById(id_document)
+  if (!record.error && record.data === null) {
+    return serviceError('Document introuvable', 'NOT_FOUND')
   }
+  if (record.data) {
+    return { data: mapDocumentToComputed(record.data as unknown as DocumentBase) }
+  }
+  return record as ServiceResult<DocumentWithComputed>
 }
 
 export async function createDocument(
   input: DocumentCreateInput,
   userId: string,
-): Promise<{ data?: DocumentWithComputed; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
+): Promise<ServiceResult<DocumentWithComputed>> {
   const result = validatedOrError(documentCreateSchema, input)
   if (result.error || !result.data) {
     return { error: result.error || 'Données invalides', code: result.code || 'VALIDATION' }
@@ -225,7 +225,7 @@ export async function updateDocument(
   id_document: number,
   input: DocumentUpdateInput,
   userId: string,
-): Promise<{ data?: DocumentWithComputed; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
+): Promise<ServiceResult<DocumentWithComputed>> {
   const result = validatedOrError(documentUpdateSchema, input)
   if (result.error || !result.data) {
     return { error: result.error || 'Données invalides', code: result.code || 'VALIDATION' }
@@ -268,7 +268,7 @@ export async function updateDocument(
 export async function deleteDocument(
   id_document: number,
   userId: string,
-): Promise<{ data?: { success: boolean }; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
+): Promise<ServiceResult<{ success: boolean }>> {
   const result = validatedOrError(deleteDocumentSchema, { id_document }, { message: 'ID de document invalide' })
   if (result.error) {
     return { error: result.error, code: result.code }
@@ -298,7 +298,7 @@ export async function getDocumentLinesById(
   id_document: number,
   page: number = 1,
   limit: number = 50,
-): Promise<PaginatedResult<Record<string, unknown>> & { error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
+): Promise<PaginatedResult<Record<string, unknown>> & { error?: string; code?: ServiceErrorCode }> {
   try {
     const document = await prisma.docVente.findUnique({
       where: { id_document },
@@ -329,7 +329,7 @@ export async function getDocumentLinesById(
   }
 }
 
-export async function getDocLines(docId: number): Promise<{ data: DocumentLine[]; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
+export async function getDocLines(docId: number): Promise<{ data: DocumentLine[]; error?: string; code?: ServiceErrorCode }> {
   const result = validatedOrError(getDocLinesSchema, { docId }, { message: 'ID de document invalide' })
   if (result.error) {
     log.error({ error: result.error, docId }, 'docId invalide')
@@ -356,7 +356,7 @@ export async function getDocLines(docId: number): Promise<{ data: DocumentLine[]
 
 export async function getDocumentWithLinesAndPartner(
   id_document: number,
-): Promise<{ data?: { document: DocumentWithComputed; lignes: DocumentLine[]; partenaire: any }; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
+): Promise<{ data?: { document: DocumentWithComputed; lignes: DocumentLine[]; partenaire: any }; error?: string; code?: ServiceErrorCode }> {
   const result = validatedOrError(getDocumentByIdSchema, { id_document }, { message: 'ID de document invalide' })
   if (result.error) {
     return { error: result.error, code: result.code }
