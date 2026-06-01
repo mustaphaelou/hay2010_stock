@@ -113,6 +113,22 @@ export function createCrudService<TRecord, TCreate, TUpdate>(
           return serviceError(`${entityName} introuvable`, 'NOT_FOUND')
         }
 
+        if (uniqueFields && uniqueFields.length > 0) {
+          for (const field of uniqueFields) {
+            const newVal = (data as Record<string, unknown>)[field]
+            if (newVal === undefined || newVal === null) continue
+            const currentVal = (existing as Record<string, unknown>)[field]
+            if (newVal === currentVal) continue
+            const conflict = await delegate.findUnique({ where: { [field]: newVal } })
+            if (conflict) {
+              return serviceError(
+                `Un ${entityName.toLowerCase()} avec ${field} '${String(newVal)}' existe déjà`,
+                'CONFLICT',
+              )
+            }
+          }
+        }
+
         const record = await delegate.update({ where: whereId(id), data })
         return { data: record }
       } catch (error) {

@@ -26,7 +26,7 @@ const createSchema = z.object({
 
 const updateSchema = z.object({
   name: z.string().min(1, 'Le nom est requis').optional(),
-  email: z.string().email('Email invalide').optional(),
+  email: z.string().email('Email invalide').nullable().optional(),
 })
 
 function createMockDelegate(): CrudDelegate<TestRecord, TestCreate, TestUpdate> {
@@ -193,6 +193,50 @@ describe('createCrudService', () => {
 
       expect(result.error).toBeDefined()
       expect(result.code).toBe('INTERNAL')
+    })
+
+    it('returns CONFLICT when update changes unique field to a value taken by another record', async () => {
+      const { service, delegate } = createService(undefined, { uniqueFields: ['email'] })
+      const otherRecord: TestRecord = { id: 2, name: 'Other', email: 'taken@example.com' }
+      vi.mocked(delegate.findUnique)
+        .mockResolvedValueOnce(sampleRecord)
+        .mockResolvedValueOnce(otherRecord)
+
+      const result = await service.update(1, { email: 'taken@example.com' })
+
+      expect(result.code).toBe('CONFLICT')
+      expect(result.error).toContain('existe déjà')
+      expect(result.data).toBeUndefined()
+      expect(delegate.update).not.toHaveBeenCalled()
+      expect(delegate.findUnique).toHaveBeenCalledTimes(2)
+      expect(delegate.findUnique).toHaveBeenNthCalledWith(1, { where: { id: 1 } })
+      expect(delegate.findUnique).toHaveBeenNthCalledWith(2, { where: { email: 'taken@example.com' } })
+    })
+
+    it('does not return CONFLICT when update keeps the same unique value', async () => {
+      const { service, delegate } = createService(undefined, { uniqueFields: ['email'] })
+      vi.mocked(delegate.findUnique).mockResolvedValueOnce(sampleRecord)
+      vi.mocked(delegate.update).mockResolvedValue(sampleRecord)
+
+      const result = await service.update(1, { email: 'test@example.com' })
+
+      expect(result.error).toBeUndefined()
+      expect(result.data).toEqual(sampleRecord)
+      expect(delegate.findUnique).toHaveBeenCalledTimes(1)
+      expect(delegate.update).toHaveBeenCalledWith({ where: { id: 1 }, data: { email: 'test@example.com' } })
+    })
+
+    it('does not check uniqueness when the new unique field value is null', async () => {
+      const { service, delegate } = createService(undefined, { uniqueFields: ['email'] })
+      vi.mocked(delegate.findUnique).mockResolvedValueOnce(sampleRecord)
+      vi.mocked(delegate.update).mockResolvedValue(sampleRecord)
+
+      const result = await service.update(1, { email: null })
+
+      expect(result.error).toBeUndefined()
+      expect(result.data).toEqual(sampleRecord)
+      expect(delegate.findUnique).toHaveBeenCalledTimes(1)
+      expect(delegate.update).toHaveBeenCalledWith({ where: { id: 1 }, data: { email: null } })
     })
   })
 
