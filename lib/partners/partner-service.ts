@@ -1,13 +1,16 @@
 import { prisma } from '@/lib/db/prisma'
-import { getPartnersSchema, createPartnerSchema, updatePartnerSchema, deletePartnerSchema } from '@/lib/partners/validation'
-import type { PartnerWithComputed } from '@/lib/types'
-import type { CreatePartnerInput, UpdatePartnerInput } from '@/lib/partners/validation'
-import { TypePartenaire } from '@/lib/generated/prisma'
+import { Prisma } from '@/lib/generated/prisma/client'
+import type { Partenaire } from '@/lib/generated/prisma/client'
 import { createLogger } from '@/lib/logger'
 import { createEmptyResult, buildPaginationMeta, getPaginationParams } from '@/lib/pagination'
 import type { PaginatedResult } from '@/lib/pagination'
 import { serviceError, validatedOrError } from '@/lib/service-result'
-
+import type { ServiceResult, ServiceErrorCode } from '@/lib/service-result'
+import { createCrudService } from '@/lib/crud-service'
+import { getPartnersSchema, createPartnerSchema, updatePartnerSchema, deletePartnerSchema } from '@/lib/partners/validation'
+import type { PartnerWithComputed } from '@/lib/types'
+import type { CreatePartnerInput, UpdatePartnerInput } from '@/lib/partners/validation'
+import { TypePartenaire } from '@/lib/generated/prisma'
 
 const log = createLogger('partner-service')
 
@@ -61,6 +64,21 @@ const ALLOWED_SORT_FIELDS = [
 
 type AllowedSortField = (typeof ALLOWED_SORT_FIELDS)[number]
 
+const baseCrud = createCrudService<Partenaire, CreatePartnerInput, UpdatePartnerInput>({
+  delegate: prisma.partenaire as any,
+  entityName: 'Partenaire',
+  createSchema: createPartnerSchema,
+  updateSchema: updatePartnerSchema,
+  uniqueFields: ['code_partenaire'],
+  idField: 'id_partenaire',
+})
+
+// --- Standard CRUD via CrudService ---
+
+export const ensurePartnerExists = baseCrud.ensureExists
+
+// --- Custom list with type filter, search, sort validation, pagination meta ---
+
 export async function getPartners(
   type?: string,
   page: number = 1,
@@ -68,7 +86,7 @@ export async function getPartners(
   search?: string,
   sort: string = 'nom_partenaire',
   order: 'asc' | 'desc' = 'asc',
-): Promise<PaginatedResult<PartnerWithComputed> & { error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
+): Promise<PaginatedResult<PartnerWithComputed> & { error?: string; code?: ServiceErrorCode }> {
   const result = validatedOrError(getPartnersSchema, { type }, { message: 'Paramètres de filtre invalides' })
   if (result.error) {
     log.error({ error: result.error }, 'Filtres partenaires invalides')
@@ -82,30 +100,31 @@ export async function getPartners(
     : 'nom_partenaire'
 
   try {
-    const whereClause: Record<string, unknown> = {}
+    const where: Prisma.PartenaireWhereInput = {}
     if (type && type !== 'all' && Object.values(TypePartenaire).includes(type as TypePartenaire)) {
-      whereClause.type_partenaire = type as TypePartenaire
+      where.type_partenaire = type as TypePartenaire
     }
     if (search) {
-      whereClause.OR = [
+      where.OR = [
         { nom_partenaire: { contains: search, mode: 'insensitive' } },
         { code_partenaire: { contains: search, mode: 'insensitive' } },
         { ville: { contains: search, mode: 'insensitive' } },
       ]
     }
+
     const [partners, total] = await Promise.all([
       prisma.partenaire.findMany({
         skip,
         take: limit,
-        where: whereClause,
-        orderBy: { [effectiveSort]: order }
+        where,
+        orderBy: { [effectiveSort]: order },
       }),
-      prisma.partenaire.count({ where: whereClause })
+      prisma.partenaire.count({ where }),
     ])
 
     return {
       data: partners.map(mapPartnerToComputed),
-      meta: buildPaginationMeta(total, page, limit)
+      meta: buildPaginationMeta(total, page, limit),
     }
   } catch (error) {
     log.error({ error, type }, 'Échec de la récupération des partenaires')
@@ -113,33 +132,25 @@ export async function getPartners(
   }
 }
 
-export async function getPartnerById(
-  id_partenaire: number,
-): Promise<{ data?: PartnerWithComputed; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
-  if (!Number.isFinite(id_partenaire) || id_partenaire <= 0) {
-    return serviceError('ID partenaire invalide', 'VALIDATION')
+// --- Wrap CrudService getById ---
+
+export async function getPartnerById(id: number): Promise<ServiceResult<PartnerWithComputed>> {
+  const result = await baseCrud.getById(id)
+  if (!result.error && result.data === null) {
+    return serviceError('Partenaire introuvable', 'NOT_FOUND')
   }
-
-  try {
-    const partner = await prisma.partenaire.findUnique({
-      where: { id_partenaire },
-    })
-
-    if (!partner) {
-      return serviceError('Partenaire introuvable', 'NOT_FOUND')
-    }
-
-    return { data: mapPartnerToComputed(partner as unknown as Record<string, unknown>) }
-  } catch (error) {
-    log.error({ error, id_partenaire }, 'Échec de la récupération du partenaire')
-    return serviceError('Échec de la récupération du partenaire', 'INTERNAL')
+  if (result.data) {
+    return { data: mapPartnerToComputed(result.data as unknown as Record<string, unknown>) }
   }
+  return result as ServiceResult<PartnerWithComputed>
 }
+
+// --- Custom create with userId tracking ---
 
 export async function createPartner(
   input: CreatePartnerInput,
   userId: string,
-): Promise<{ data?: PartnerWithComputed; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
+): Promise<ServiceResult<PartnerWithComputed>> {
   const result = validatedOrError(createPartnerSchema, input)
   if (result.error || !result.data) {
     return { error: result.error || 'Données invalides', code: result.code || 'VALIDATION' }
@@ -170,85 +181,91 @@ export async function createPartner(
   }
 }
 
+// --- Custom update with conditional unique code check and userId tracking ---
+
 export async function updatePartner(
-  id_partenaire: number,
+  id: number,
   input: UpdatePartnerInput,
   userId: string,
-): Promise<{ data?: PartnerWithComputed; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
-  const result = validatedOrError(updatePartnerSchema, input)
-  if (result.error || !result.data) {
-    return { error: result.error || 'Données invalides', code: result.code || 'VALIDATION' }
+): Promise<ServiceResult<PartnerWithComputed>> {
+  const parsed = validatedOrError(updatePartnerSchema, input)
+  if (parsed.error || !parsed.data) {
+    return { error: parsed.error || 'Données invalides', code: parsed.code || 'VALIDATION' }
   }
 
-  const validatedInput = result.data
+  const d = parsed.data
 
   try {
     const existing = await prisma.partenaire.findUnique({
-      where: { id_partenaire },
+      where: { id_partenaire: id },
     })
     if (!existing) {
       return serviceError('Partenaire introuvable', 'NOT_FOUND')
     }
 
-    if (validatedInput.code_partenaire && validatedInput.code_partenaire !== existing.code_partenaire) {
+    if (d.code_partenaire && d.code_partenaire !== existing.code_partenaire) {
       const duplicate = await prisma.partenaire.findUnique({
-        where: { code_partenaire: validatedInput.code_partenaire },
+        where: { code_partenaire: d.code_partenaire },
       })
       if (duplicate) {
-        return serviceError(`Le partenaire ${validatedInput.code_partenaire} existe déjà`, 'CONFLICT')
+        return serviceError(`Le partenaire ${d.code_partenaire} existe déjà`, 'CONFLICT')
       }
     }
 
     const partner = await prisma.partenaire.update({
-      where: { id_partenaire },
+      where: { id_partenaire: id },
       data: {
-        ...validatedInput,
+        ...d,
         modifie_par: userId,
-        limite_credit: validatedInput.limite_credit ?? undefined,
+        limite_credit: d.limite_credit ?? undefined,
       },
     })
 
     return { data: mapPartnerToComputed(partner as unknown as Record<string, unknown>) }
   } catch (error) {
-    log.error({ error, id_partenaire, input: validatedInput }, 'Échec de la mise à jour du partenaire')
+    log.error({ error, id, input: d }, 'Échec de la mise à jour du partenaire')
     return serviceError('Échec de la mise à jour du partenaire', 'INTERNAL')
   }
 }
 
+// --- Custom soft delete ---
+
 export async function deletePartner(
-  id_partenaire: number,
+  id: number,
   userId?: string,
-): Promise<{ data?: { success: boolean }; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
-  const result = validatedOrError(deletePartnerSchema, { id_partenaire })
-  if (result.error) {
-    return { error: result.error, code: result.code }
+): Promise<ServiceResult<{ success: boolean }>> {
+  const parsed = validatedOrError(deletePartnerSchema, { id_partenaire: id })
+  if (parsed.error) {
+    return { error: parsed.error, code: parsed.code }
   }
 
   try {
     const existing = await prisma.partenaire.findUnique({
-      where: { id_partenaire },
+      where: { id_partenaire: id },
     })
     if (!existing) {
       return serviceError('Partenaire introuvable', 'NOT_FOUND')
     }
 
     await prisma.partenaire.update({
-      where: { id_partenaire },
+      where: { id_partenaire: id },
       data: { est_actif: false, modifie_par: userId ?? undefined },
     })
 
     return { data: { success: true } }
   } catch (error) {
-    log.error({ error, id_partenaire }, 'Échec de la suppression du partenaire')
+    log.error({ error, id }, 'Échec de la suppression du partenaire')
     return serviceError('Échec de la suppression du partenaire', 'INTERNAL')
   }
 }
+
+// --- Domain-specific: partner documents (non-CRUD, standalone) ---
 
 export async function getPartnerDocuments(
   partnerId: number,
   page: number = 1,
   limit: number = 50,
-): Promise<PaginatedResult<Record<string, unknown>> & { error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
+): Promise<PaginatedResult<Record<string, unknown>> & { error?: string; code?: ServiceErrorCode }> {
   try {
     const partner = await prisma.partenaire.findUnique({
       where: { id_partenaire: partnerId },

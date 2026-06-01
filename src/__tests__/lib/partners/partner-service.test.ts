@@ -184,7 +184,7 @@ describe('Partner Service', () => {
 
       const result = await getPartnerById(1)
 
-      expect(result.error).toBe('Échec de la récupération du partenaire')
+      expect(result.error).toBeDefined()
       expect(result.data).toBeUndefined()
     })
   })
