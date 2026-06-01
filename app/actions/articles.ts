@@ -1,7 +1,7 @@
 'use server'
 
 import { requirePermission } from '@/lib/auth/authorization'
-import { getArticlesWithStock as getArticles, toggleArticleStatus as toggleStatus } from '@/lib/stock/stock-service'
+import { getArticlesWithStock as getArticles, toggleArticleStatus as toggleStatus } from '@/lib/produits/produit-service'
 import { serverActionWrite } from '@/lib/actions/server-action-write'
 
 export async function getArticlesWithStock(page: number = 1, limit: number = 50) {

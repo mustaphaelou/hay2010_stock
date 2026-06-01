@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { computeStockStatusVariant } from '@/lib/stock/stock-service'
+import { computeStockStatusVariant } from '@/lib/produits/produit-service'
 
 describe('computeStockStatusVariant', () => {
   it('should return "destructive" when stock is 0', () => {

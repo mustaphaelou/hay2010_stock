@@ -6,7 +6,7 @@ import {
   updateArticle,
   deleteArticle,
   getStockLevelsByArticle,
-} from '@/lib/stock/stock-service'
+} from '@/lib/produits/produit-service'
 
 export const listProductsHandler = apiHandler({
   rateLimit: 'read',
