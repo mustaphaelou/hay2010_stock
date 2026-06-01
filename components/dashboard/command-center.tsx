@@ -121,7 +121,7 @@ export function CommandCenter({
           suffix=" MAD"
           description="Ventes cumulées sur la période"
           icon={SaleTag01Icon}
-          variant="success"
+          tone="success"
           sparklineData={salesHistory}
           trend={{ value: 12.4, direction: "up", label: "+12.4% vs mois préc." }}
         />
@@ -131,7 +131,7 @@ export function CommandCenter({
           suffix=" MAD"
           description="Investissement approvisionnement"
           icon={ShoppingCart01Icon}
-          variant="info"
+          tone="info"
           sparklineData={purchasesHistory}
           trend={{ value: 4.2, direction: "down", label: "-4.2% vs mois préc." }}
         />
@@ -141,7 +141,7 @@ export function CommandCenter({
           suffix=" MAD"
           description="Marge brute estimée"
           icon={Money01Icon}
-          variant="default"
+          tone="default"
           sparklineData={marginsHistory}
           trend={{ value: 18.1, direction: "up", label: "+18.1% rentabilité" }}
         />
@@ -150,7 +150,7 @@ export function CommandCenter({
           value={`${paymentPct}%`}
           description={`${unpaidCount} factures en attente`}
           icon={Invoice01Icon}
-          variant="warning"
+          tone="warning"
           trend={{ value: 3.2, direction: "up", label: "Amélioration" }}
         />
       </div>

@@ -61,6 +61,10 @@ function DashboardClientInner(props: DashboardClientProps) {
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [handleRefresh, handleExport])
 
+  const rupturesPct = stats.totalStockProducts > 0
+    ? Math.round((stats.lowStockCount / stats.totalStockProducts) * 100)
+    : 0
+
   const kpiCards = [
     {
       id: "revenue",
@@ -68,30 +72,31 @@ function DashboardClientInner(props: DashboardClientProps) {
       value: stats.totalSalesAmount,
       suffix: " MAD",
       description: "Ventes cumulées sur la période",
-      variant: "success" as const,
+      tone: "success" as const,
     },
     {
-      id: "purchases",
-      title: "Total Achats",
-      value: stats.totalPurchasesAmount,
-      suffix: " MAD",
-      description: "Investissement approvisionnement",
-      variant: "info" as const,
+      id: "stock",
+      title: "Stock disponible",
+      value: `${stats.stockAvailability}%`,
+      description: `${stats.totalStockProducts - stats.lowStockCount} / ${stats.totalStockProducts} produits`,
+      tone: "default" as const,
+      progress: stats.stockAvailability,
+    },
+    {
+      id: "low-stock",
+      title: "Ruptures & stock bas",
+      value: stats.lowStockCount,
+      description: `dont ${stats.lowStockCount} en rupture`,
+      tone: "danger" as const,
+      progress: rupturesPct,
     },
     {
       id: "margin",
-      title: "Marge Commerciale",
+      title: "Marge brute",
       value: Math.max(0, stats.totalSalesAmount - stats.totalPurchasesAmount),
       suffix: " MAD",
-      description: "Marge brute estimée",
-      variant: "default" as const,
-    },
-    {
-      id: "payment",
-      title: "Taux de Règlement",
-      value: `${stats.paymentRate}%`,
-      description: `${stats.unpaidCount} factures en attente`,
-      variant: "warning" as const,
+      description: "Ventes moins achats sur la période",
+      tone: "info" as const,
     },
   ]
 

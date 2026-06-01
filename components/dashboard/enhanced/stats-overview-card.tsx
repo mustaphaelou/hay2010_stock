@@ -1,7 +1,6 @@
 "use client"
 
 import * as React from "react"
-import { cva, type VariantProps } from "class-variance-authority"
 import { cn, isValidIcon } from "@/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -14,47 +13,15 @@ import {
   MinusSignIcon,
 } from "@hugeicons/core-free-icons"
 
-const statsCardVariants = cva(
-  "relative overflow-hidden transition-all duration-300 group",
-  {
-    variants: {
-      variant: {
-        default: "border-border/50 hover:border-primary/30 hover:shadow-lg",
-        success: "border-emerald-500/30 bg-gradient-to-br from-emerald-50/80 to-emerald-100/50 dark:from-emerald-950/40 dark:to-emerald-900/20 hover:shadow-emerald-500/10",
-        warning: "border-amber-500/30 bg-gradient-to-br from-amber-50/80 to-amber-100/50 dark:from-amber-950/40 dark:to-amber-900/20 hover:shadow-amber-500/10",
-        danger: "border-red-500/30 bg-gradient-to-br from-red-50/80 to-red-100/50 dark:from-red-950/40 dark:to-red-900/20 hover:shadow-red-500/10",
-        info: "border-blue-500/30 bg-gradient-to-br from-blue-50/80 to-blue-100/50 dark:from-blue-950/40 dark:to-blue-900/20 hover:shadow-blue-500/10",
-      },
-      size: {
-        default: "p-4",
-        sm: "p-3",
-        lg: "p-6",
-      },
-    },
-    defaultVariants: {
-      variant: "default",
-      size: "default",
-    },
-  }
-)
+export type StatsOverviewTone = "default" | "success" | "warning" | "danger" | "info"
 
-const glowVariants = cva(
-  "absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500",
-  {
-    variants: {
-      variant: {
-        default: "bg-gradient-to-br from-primary/5 to-transparent",
-        success: "bg-gradient-to-br from-emerald-500/10 to-transparent",
-        warning: "bg-gradient-to-br from-amber-500/10 to-transparent",
-        danger: "bg-gradient-to-br from-red-500/10 to-transparent",
-        info: "bg-gradient-to-br from-blue-500/10 to-transparent",
-      },
-    },
-    defaultVariants: {
-      variant: "default",
-    },
-  }
-)
+const TONE_CLASSES: Record<StatsOverviewTone, { border: string; dot: string; fill: string }> = {
+  default: { border: "border-l-primary", dot: "bg-primary", fill: "bg-primary" },
+  success: { border: "border-l-emerald-500", dot: "bg-emerald-500", fill: "bg-emerald-500" },
+  warning: { border: "border-l-amber-500", dot: "bg-amber-500", fill: "bg-amber-500" },
+  danger: { border: "border-l-destructive", dot: "bg-destructive", fill: "bg-destructive" },
+  info: { border: "border-l-blue-500", dot: "bg-blue-500", fill: "bg-blue-500" },
+}
 
 interface TrendData {
   value: number
@@ -62,7 +29,7 @@ interface TrendData {
   label?: string
 }
 
-interface StatsOverviewCardProps extends VariantProps<typeof statsCardVariants> {
+interface StatsOverviewCardProps {
   title: string
   value: string | number
   description?: string
@@ -76,8 +43,15 @@ interface StatsOverviewCardProps extends VariantProps<typeof statsCardVariants> 
   className?: string
   prefix?: string
   suffix?: string
+  tone?: StatsOverviewTone
+  progress?: number
   onClick?: () => void
   tabIndex?: number
+}
+
+function formatNumber(value: number, prefix = "", suffix = ""): string {
+  const formatted = value.toLocaleString("fr-MA", { maximumFractionDigits: 0 })
+  return `${prefix}${formatted}${suffix}`
 }
 
 function AnimatedNumber({
@@ -126,13 +100,13 @@ function AnimatedNumber({
     }
   }, [value, duration, prefersReducedMotion])
 
-  return <>{prefix}{displayValue.toLocaleString()}{suffix}</>
+  return <>{formatNumber(displayValue, prefix, suffix)}</>
 }
 
-function MiniSparkline({ 
-  data, 
+function MiniSparkline({
+  data,
   className,
-}: { 
+}: {
   data: number[]
   className?: string
 }) {
@@ -211,28 +185,51 @@ function TrendIndicator({ trend }: { trend: TrendData }) {
   )
 }
 
+function InlineProgressBar({ value, tone }: { value: number; tone: StatsOverviewTone }) {
+  const pct = Math.max(0, Math.min(100, value))
+  const cls = TONE_CLASSES[tone]
+  return (
+    <div
+      data-slot="kpi-progress"
+      role="progressbar"
+      aria-valuenow={pct}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      className="h-0.5 w-full overflow-hidden rounded-full bg-muted"
+    >
+      <div
+        data-slot="kpi-progress-fill"
+        className={cn("h-full transition-[width] duration-500 ease-out", cls.fill)}
+        style={{ width: `${pct}%` }}
+      />
+    </div>
+  )
+}
+
 export function StatsOverviewCard({
   title,
   value,
   description,
   icon,
-  iconColor = "text-primary",
+  iconColor = "text-muted-foreground",
   trend,
   sparklineData,
-  variant,
-  size,
   loading = false,
   animated = true,
   compact = false,
   className,
   prefix,
   suffix,
+  tone = "default",
+  progress,
   onClick,
   tabIndex,
 }: StatsOverviewCardProps) {
   const numericValue = typeof value === "number"
     ? value
     : parseFloat(value.replace(/[^\d.-]/g, "")) || 0
+
+  const tones = TONE_CLASSES[tone]
 
   const handleKeyDown = React.useCallback((e: React.KeyboardEvent) => {
     if (onClick && (e.key === "Enter" || e.key === " ")) {
@@ -243,7 +240,7 @@ export function StatsOverviewCard({
 
   if (loading) {
     return (
-      <Card className={cn(statsCardVariants({ variant, size: compact ? "sm" : size }), className)}>
+      <Card className={cn("border border-l-2 bg-card p-4", tones.border, className)}>
         <CardContent className="space-y-3">
           <Skeleton className="h-4 w-24" />
           <Skeleton className="h-8 w-32" />
@@ -256,9 +253,10 @@ export function StatsOverviewCard({
   return (
     <Card
       className={cn(
-        statsCardVariants({ variant, size: compact ? "sm" : size }),
-        onClick && "cursor-pointer hover:-translate-y-0.5",
-        !onClick && "hover:-translate-y-0.5",
+        "border border-l-2 bg-card transition-colors duration-200",
+        "hover:border-foreground/30 hover:bg-muted/20",
+        tones.border,
+        onClick && "cursor-pointer focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
         className
       )}
       tabIndex={tabIndex ?? (onClick ? 0 : undefined)}
@@ -266,31 +264,30 @@ export function StatsOverviewCard({
       onClick={onClick}
       role={onClick ? "button" : undefined}
     >
-      <div className={cn(glowVariants({ variant }))} />
-
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative">
-        <CardTitle className={cn("font-medium text-muted-foreground", compact ? "text-xs" : "text-sm")}>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className={cn(
+          "flex items-center gap-2 font-medium text-muted-foreground",
+          compact ? "text-xs" : "text-sm"
+        )}>
+          <span
+            aria-hidden="true"
+            data-slot="kpi-status-dot"
+            className={cn("size-1.5 shrink-0 rounded-full", tones.dot)}
+          />
           {title}
         </CardTitle>
         {isValidIcon(icon) && !compact && (
-          <div
-            className={cn(
-              "p-2.5 rounded-xl bg-primary/10 group-hover:bg-primary/20 transition-all duration-300",
-              "group-hover:scale-110 group-hover:shadow-lg"
-            )}
-          >
-            <HugeiconsIcon
-              icon={icon}
-              strokeWidth={2}
-              className={cn("size-5", iconColor)}
-            />
-          </div>
+          <HugeiconsIcon
+            icon={icon}
+            strokeWidth={2}
+            className={cn("size-4", iconColor)}
+          />
         )}
       </CardHeader>
 
-      <CardContent className="relative" aria-live="polite">
+      <CardContent aria-live="polite" className="space-y-2">
         <div className="flex items-end justify-between gap-4">
-          <div className="space-y-1">
+          <div className="space-y-1 min-w-0 flex-1">
             <div className={cn("font-bold tracking-tight tabular-nums", compact ? "text-xl" : "text-2xl")}>
               {typeof value === "number" && animated ? (
                 <AnimatedNumber
@@ -301,7 +298,9 @@ export function StatsOverviewCard({
               ) : (
                 <span>
                   {prefix}
-                  {typeof value === "number" ? value.toLocaleString() : value}
+                  {typeof value === "number"
+                    ? value.toLocaleString("fr-MA", { maximumFractionDigits: 0 })
+                    : value}
                   {suffix}
                 </span>
               )}
@@ -320,6 +319,10 @@ export function StatsOverviewCard({
             </div>
           )}
         </div>
+
+        {progress !== undefined && !compact && (
+          <InlineProgressBar value={progress} tone={tone} />
+        )}
       </CardContent>
     </Card>
   )
