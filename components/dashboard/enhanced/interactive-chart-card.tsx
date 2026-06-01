@@ -9,8 +9,6 @@ import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
-  ChartLegend,
-  ChartLegendContent,
 } from "@/components/ui/chart"
 import {
   Select,
@@ -68,14 +66,15 @@ interface InteractiveChartCardProps {
 
 const generateChartConfig = (series: SeriesConfig[]): ChartConfig => {
   const config: ChartConfig = {}
-  series.forEach((s, index) => {
+  series.forEach((s) => {
     config[s.key] = {
-      label: s.label,
-      color: s.color || `hsl(var(--chart-${(index % 5) + 1}))`,
+      color: s.color || "hsl(var(--chart-1))",
     }
   })
   return config
 }
+
+const AREA_SERIES_OPACITIES = [1, 0.5, 0.2]
 
 function ChartSkeleton({ height = 300 }: { height?: number }) {
   return (
@@ -228,14 +227,14 @@ export const InteractiveChartCard = React.memo(function InteractiveChartCard({
     }
 
     const renderSeries = () => {
-      return series.map((s) => {
+      return series.map((s, index) => {
         switch (chartType) {
           case "bar":
             return (
               <Bar
                 key={s.key}
                 dataKey={s.key}
-                fill={`var(--color-${s.key})`}
+                fill="hsl(var(--chart-1))"
                 radius={4}
               />
             )
@@ -244,7 +243,7 @@ export const InteractiveChartCard = React.memo(function InteractiveChartCard({
               <Line
                 key={s.key}
                 dataKey={s.key}
-                stroke={`var(--color-${s.key})`}
+                stroke="hsl(var(--chart-1))"
                 strokeWidth={2}
                 dot={false}
                 isAnimationActive={!prefersReducedMotion}
@@ -257,10 +256,9 @@ export const InteractiveChartCard = React.memo(function InteractiveChartCard({
                 key={s.key}
                 dataKey={s.key}
                 type="natural"
-                fill={`var(--color-${s.key})`}
-                stroke={`var(--color-${s.key})`}
-                fillOpacity={0.4}
-                stackId="a"
+                fill="hsl(var(--chart-1))"
+                stroke="hsl(var(--chart-1))"
+                fillOpacity={AREA_SERIES_OPACITIES[index] ?? 0.1}
                 isAnimationActive={!prefersReducedMotion}
               />
             )
@@ -273,14 +271,6 @@ export const InteractiveChartCard = React.memo(function InteractiveChartCard({
     return (
       <ChartContainer config={chartConfig} className="h-[300px] w-full" style={{ height }}>
         <ChartComponent {...commonProps}>
-          <defs>
-            {series.map((s) => (
-              <linearGradient key={s.key} id={`fill-${s.key}`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={`var(--color-${s.key})`} stopOpacity={0.8} />
-                <stop offset="95%" stopColor={`var(--color-${s.key})`} stopOpacity={0.1} />
-              </linearGradient>
-            ))}
-          </defs>
           <CartesianGrid vertical={false} strokeDasharray="3 3" />
           <XAxis
             dataKey="date"
@@ -306,7 +296,6 @@ export const InteractiveChartCard = React.memo(function InteractiveChartCard({
               />
             }
           />
-          <ChartLegend content={<ChartLegendContent />} />
           {renderSeries()}
         </ChartComponent>
       </ChartContainer>

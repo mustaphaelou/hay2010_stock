@@ -114,9 +114,9 @@ function DashboardClientInner(props: DashboardClientProps) {
       description: "Comparaison des ventes, achats et marge commerciale nette.",
       data: chartData,
       series: [
-        { key: "Ventes", label: "Ventes", color: "hsl(142, 76%, 36%)" },
-        { key: "Achats", label: "Achats", color: "hsl(262, 83%, 58%)" },
-        { key: "Marge", label: "Marge Brute", color: "hsl(199, 89%, 48%)" },
+        { key: "Ventes", label: "Ventes" },
+        { key: "Achats", label: "Achats" },
+        { key: "Marge", label: "Marge Brute" },
       ],
     },
   ]
