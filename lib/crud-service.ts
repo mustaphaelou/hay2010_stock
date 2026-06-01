@@ -1,5 +1,5 @@
 import type { ZodType } from 'zod'
-import { serviceError, validatedOrError } from '@/lib/service-result'
+import { isServiceError, serviceError, validatedOrError } from '@/lib/service-result'
 import type { ServiceResult } from '@/lib/service-result'
 import { createLogger } from '@/lib/logger'
 import { isUniqueConstraintError, isForeignKeyError, isPrismaNotFoundError } from '@/lib/errors'
@@ -70,8 +70,8 @@ export function createCrudService<TRecord, TCreate, TUpdate>(
   return {
     async create(input) {
       const parsed = validatedOrError(createSchema, input)
-      if (parsed.error) {
-        return { error: parsed.error, code: parsed.code }
+      if (isServiceError(parsed)) {
+        return parsed
       }
 
       const data = parsed.data
@@ -101,8 +101,8 @@ export function createCrudService<TRecord, TCreate, TUpdate>(
 
     async update(id, input) {
       const parsed = validatedOrError(updateSchema, input)
-      if (parsed.error) {
-        return { error: parsed.error, code: parsed.code }
+      if (isServiceError(parsed)) {
+        return parsed
       }
 
       const data = parsed.data

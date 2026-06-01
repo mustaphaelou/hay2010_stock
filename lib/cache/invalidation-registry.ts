@@ -2,6 +2,18 @@ import { createLogger } from '@/lib/logger'
 
 const log = createLogger('invalidation-registry')
 
+export type CacheInvalidation =
+  | { kind: 'product'; productId?: number }
+  | { kind: 'stock'; productId?: number; warehouseId?: number }
+  | { kind: 'partner'; partnerId?: number }
+  | { kind: 'document'; documentId?: number }
+  | { kind: 'user'; userId?: string }
+  | { kind: 'affaire'; affaireId?: number }
+  | { kind: 'warehouse'; warehouseId?: number }
+  | { kind: 'category'; categoryId?: number }
+  | { kind: 'dashboard' }
+  | { kind: 'all' }
+
 export type InvalidationHandler = (inv: { kind: string }) => Promise<void>
 
 export class InvalidationRegistry {

@@ -114,20 +114,26 @@ describe('InvalidationRegistry duplicate registration guard', () => {
     const originalNodeEnv = process.env.NODE_ENV
     let registry: InvalidationRegistry
 
+    function setNodeEnv(value: string | undefined) {
+        if (value === undefined) {
+            // @ts-expect-error - NODE_ENV is typed readonly by @types/node but is mutable at runtime
+            delete process.env.NODE_ENV
+        } else {
+            // @ts-expect-error - NODE_ENV is typed readonly by @types/node but is mutable at runtime
+            process.env.NODE_ENV = value
+        }
+    }
+
     beforeEach(() => {
         registry = new InvalidationRegistry()
     })
 
     afterEach(() => {
-        if (originalNodeEnv === undefined) {
-            delete process.env.NODE_ENV
-        } else {
-            process.env.NODE_ENV = originalNodeEnv
-        }
+        setNodeEnv(originalNodeEnv)
     })
 
     it('throws on duplicate kind in non-production (test)', () => {
-        process.env.NODE_ENV = 'test'
+        setNodeEnv('test')
 
         registry.register('product', async () => {})
 
@@ -137,7 +143,7 @@ describe('InvalidationRegistry duplicate registration guard', () => {
     })
 
     it('throws on duplicate kind in non-production (development)', () => {
-        process.env.NODE_ENV = 'development'
+        setNodeEnv('development')
 
         registry.register('product', async () => {})
 
@@ -147,7 +153,7 @@ describe('InvalidationRegistry duplicate registration guard', () => {
     })
 
     it('includes the offending kind in the error message', () => {
-        process.env.NODE_ENV = 'test'
+        setNodeEnv('test')
 
         registry.register('user', async () => {})
 
@@ -157,7 +163,7 @@ describe('InvalidationRegistry duplicate registration guard', () => {
     })
 
     it('does not throw on duplicate kind in production', () => {
-        process.env.NODE_ENV = 'production'
+        setNodeEnv('production')
 
         registry.register('product', async () => {})
 

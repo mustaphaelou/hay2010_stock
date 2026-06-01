@@ -16,7 +16,7 @@ interface TestCreate {
 
 interface TestUpdate {
   name?: string
-  email?: string
+  email?: string | null
 }
 
 const createSchema = z.object({
