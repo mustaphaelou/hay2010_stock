@@ -3,7 +3,6 @@
 import * as React from "react"
 import { cn, isValidIcon, formatRelativeTime } from "@/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { SafeIcon as HugeiconsIcon } from "@/components/ui/safe-icon"
 import type { IconSvgElement } from "@hugeicons/react"
@@ -12,8 +11,11 @@ import {
   PackageIcon,
 } from "@hugeicons/core-free-icons"
 
+type ActivityType = "document" | "stock_movement" | "partner"
+
 interface ActivityItem {
   id: string
+  type?: ActivityType
   title: string
   description?: string
   timestamp: string | Date
@@ -36,12 +38,22 @@ interface RecentActivityFeedProps {
   className?: string
 }
 
-const statusVariants = {
-  success: "success" as const,
-  warning: "warning" as const,
-  error: "destructive" as const,
-  info: "info" as const,
-  default: "outline" as const,
+const TYPE_CHIP_LABEL: Record<ActivityType, string> = {
+  document: "DOC",
+  stock_movement: "STK",
+  partner: "PRT",
+}
+
+const TYPE_ROUTE_PREFIX: Record<ActivityType, string> = {
+  document: "/documents",
+  stock_movement: "/stock/movements",
+  partner: "/partners",
+}
+
+function resolveHref(item: ActivityItem): string | undefined {
+  if (item.href) return item.href
+  if (item.type) return `${TYPE_ROUTE_PREFIX[item.type]}/${item.id}`
+  return undefined
 }
 
 function ActivitySkeleton() {
@@ -56,12 +68,12 @@ function ActivitySkeleton() {
   )
 }
 
-function EmptyState({ 
-  message, 
-  icon 
-}: { 
+function EmptyState({
+  message,
+  icon,
+}: {
   message: string
-  icon?: IconSvgElement 
+  icon?: IconSvgElement
 }) {
   return (
     <div className="flex flex-col items-center justify-center py-8 text-center">
@@ -79,6 +91,54 @@ function EmptyState({
 
 function formatTimestamp(timestamp: string | Date): string {
   return formatRelativeTime(timestamp)
+}
+
+function ActivityTypeChip({ type }: { type: ActivityType }) {
+  return (
+    <span
+      data-slot="activity-type-chip"
+      className={cn(
+        "shrink-0 inline-flex items-center justify-center",
+        "text-[11px] font-medium tracking-wide uppercase tabular-nums",
+        "rounded border border-border bg-muted text-muted-foreground",
+        "px-1.5 py-0.5 leading-none",
+      )}
+    >
+      {TYPE_CHIP_LABEL[type]}
+    </span>
+  )
+}
+
+function ActivityRowContent({ item }: { item: ActivityItem }) {
+  return (
+    <>
+      {item.type && <ActivityTypeChip type={item.type} />}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium truncate">{item.title}</span>
+        </div>
+        <div className="flex items-center gap-1 mt-1">
+          <HugeiconsIcon
+            icon={Clock01Icon}
+            strokeWidth={2}
+            className="size-3 text-muted-foreground"
+          />
+          <span className="text-xs text-muted-foreground">
+            {formatTimestamp(item.timestamp)}
+          </span>
+        </div>
+      </div>
+      {isValidIcon(item.icon) && (
+        <div className="size-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+          <HugeiconsIcon
+            icon={item.icon}
+            strokeWidth={2}
+            className="size-5 text-primary"
+          />
+        </div>
+      )}
+    </>
+  )
 }
 
 export function RecentActivityFeed({
@@ -132,128 +192,58 @@ export function RecentActivityFeed({
             <a
               href={viewAllHref}
               onClick={onViewAll}
-        className="text-sm text-primary hover:underline underline-offset-4"
-        role="button"
-        aria-label="Voir toute l'activité"
-      >
-        Voir tout
+              className="text-sm text-primary hover:underline underline-offset-4"
+              role="button"
+              aria-label="Voir toute l'activité"
+            >
+              Voir tout
             </a>
           )}
         </div>
       </CardHeader>
       <CardContent className="space-y-1">
         <ul className="space-y-1" role="list" aria-label="Activity items">
-          {displayItems.map((item, index) => (
-            <li
-              key={item.id}
-              style={{ "--index": index } as React.CSSProperties}
-              className="animate-fade-in-up"
-            >
-              {item.href || item.onClick ? (
-                <a
-                  href={item.href}
-                  onClick={(e) => {
-                    if (item.onClick) {
-                      e.preventDefault()
-                      item.onClick()
-                    }
-                  }}
-                  className={cn(
-                    "flex items-start gap-3 p-3 rounded-lg transition-colors",
-                    "hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2",
-                    "focus-visible:ring-primary focus-visible:ring-offset-2"
-                  )}
-                  aria-label={`${item.title} - ${formatTimestamp(item.timestamp)}`}
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium truncate">
-                        {item.title}
-                      </span>
-                      {item.status && item.status !== "default" && (
-                        <Badge
-                          variant={statusVariants[item.status]}
-                          className="shrink-0"
-                        >
-                          {item.status}
-                        </Badge>
-                      )}
-                    </div>
-                    {item.description && (
-                      <p className="text-xs text-muted-foreground truncate mt-0.5">
-                        {item.description}
-                      </p>
+          {displayItems.map((item, index) => {
+            const href = resolveHref(item)
+            const isInteractive = !!(href || item.onClick)
+            return (
+              <li
+                key={item.id}
+                data-testid="activity-row"
+                data-type={item.type}
+                style={{ "--index": index } as React.CSSProperties}
+                className="animate-fade-in-up border-b border-border/50 last:border-b-0"
+              >
+                {isInteractive ? (
+                  <a
+                    href={href}
+                    onClick={(e) => {
+                      if (item.onClick) {
+                        e.preventDefault()
+                        item.onClick()
+                      }
+                    }}
+                    className={cn(
+                      "flex items-start gap-3 p-3 rounded-lg transition-colors",
+                      "hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2",
+                      "focus-visible:ring-primary focus-visible:ring-offset-2",
                     )}
-                    <div className="flex items-center gap-1 mt-1">
-                      <HugeiconsIcon
-                        icon={Clock01Icon}
-                        strokeWidth={2}
-                        className="size-3 text-muted-foreground"
-                      />
-                      <span className="text-xs text-muted-foreground">
-                        {formatTimestamp(item.timestamp)}
-                      </span>
-</div>
-      </div>
-      {isValidIcon(item.icon) && (
-        <div className="size-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-          <HugeiconsIcon
-            icon={item.icon}
-            strokeWidth={2}
-            className="size-5 text-primary"
-          />
-        </div>
-      )}
-    </a>
-  ) : (
-    <div className="flex items-start gap-3 p-3 rounded-lg">
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium truncate">
-            {item.title}
-          </span>
-          {item.status && item.status !== "default" && (
-            <Badge
-              variant={statusVariants[item.status]}
-              className="shrink-0"
-            >
-              {item.status}
-            </Badge>
-          )}
-        </div>
-        {item.description && (
-          <p className="text-xs text-muted-foreground truncate mt-0.5">
-            {item.description}
-          </p>
-        )}
-        <div className="flex items-center gap-1 mt-1">
-          <HugeiconsIcon
-            icon={Clock01Icon}
-            strokeWidth={2}
-            className="size-3 text-muted-foreground"
-          />
-<span className="text-xs text-muted-foreground">
-        {formatTimestamp(item.timestamp)}
-        </span>
-        </div>
-        </div>
-        {isValidIcon(item.icon) && (
-        <div className="size-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-        <HugeiconsIcon
-        icon={item.icon}
-        strokeWidth={2}
-        className="size-5 text-primary"
-        />
-        </div>
-        )}
-        </div>
-        )}
-        </li>
-        ))}
+                    aria-label={`${item.title} - ${formatTimestamp(item.timestamp)}`}
+                  >
+                    <ActivityRowContent item={item} />
+                  </a>
+                ) : (
+                  <div className="flex items-start gap-3 p-3 rounded-lg">
+                    <ActivityRowContent item={item} />
+                  </div>
+                )}
+              </li>
+            )
+          })}
         </ul>
-        </CardContent>
-        </Card>
-        )
-        }
+      </CardContent>
+    </Card>
+  )
+}
 
-        export type { RecentActivityFeedProps, ActivityItem }
+export type { RecentActivityFeedProps, ActivityItem, ActivityType }
