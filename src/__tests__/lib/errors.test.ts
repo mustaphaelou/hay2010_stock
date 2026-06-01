@@ -15,6 +15,7 @@ import {
   createValidationErrorFromZod,
   isUniqueConstraintError,
   isForeignKeyError,
+  isPrismaNotFoundError,
   getErrorMessage,
   getErrorCode,
   defaultRecoveryStrategy,
@@ -236,6 +237,32 @@ describe('Error Handling System', () => {
       expect(isForeignKeyError(error1)).toBe(true)
       expect(isForeignKeyError(error2)).toBe(true)
       expect(isForeignKeyError(error3)).toBe(false)
+    })
+
+    it('should detect Prisma P2002 by code property regardless of message', () => {
+      const err = Object.assign(new Error('opaque message'), { code: 'P2002' })
+      expect(isUniqueConstraintError(err)).toBe(true)
+    })
+
+    it('should detect Prisma P2003 by code property regardless of message', () => {
+      const err = Object.assign(new Error('opaque message'), { code: 'P2003' })
+      expect(isForeignKeyError(err)).toBe(true)
+    })
+
+    it('should detect Prisma P2025 (record not found)', () => {
+      const err = Object.assign(new Error('An operation failed because it depends on one or more records'), { code: 'P2025' })
+      expect(isPrismaNotFoundError(err)).toBe(true)
+    })
+
+    it('should detect P2025 by message text alone (no code)', () => {
+      const err = new Error('Record to update not found.')
+      expect(isPrismaNotFoundError(err)).toBe(true)
+    })
+
+    it('should not flag unrelated errors as P2025', () => {
+      expect(isPrismaNotFoundError(new Error('Some other error'))).toBe(false)
+      expect(isPrismaNotFoundError(null)).toBe(false)
+      expect(isPrismaNotFoundError('string')).toBe(false)
     })
   })
 

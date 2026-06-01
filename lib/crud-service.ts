@@ -2,6 +2,7 @@ import type { ZodType } from 'zod'
 import { serviceError, validatedOrError } from '@/lib/service-result'
 import type { ServiceResult } from '@/lib/service-result'
 import { createLogger } from '@/lib/logger'
+import { isUniqueConstraintError, isForeignKeyError, isPrismaNotFoundError } from '@/lib/errors'
 
 export interface CrudDelegate<TRecord, TCreate, TUpdate> {
   findUnique(args: { where: Record<string, unknown> }): Promise<TRecord | null>
@@ -45,6 +46,27 @@ export function createCrudService<TRecord, TCreate, TUpdate>(
     return { [idField]: id }
   }
 
+  function mapError(
+    error: unknown,
+    context: Record<string, unknown>,
+    fallbackMessage: string,
+  ): ServiceResult<never> {
+    if (isUniqueConstraintError(error)) {
+      return serviceError(`Violation de contrainte d'unicité sur ${entityName.toLowerCase()}`, 'CONFLICT')
+    }
+    if (isForeignKeyError(error)) {
+      return serviceError(`Référence invalide pour ${entityName.toLowerCase()}`, 'VALIDATION')
+    }
+    if (isPrismaNotFoundError(error)) {
+      return serviceError(`${entityName} introuvable`, 'NOT_FOUND')
+    }
+    log.error({ error, ...context }, fallbackMessage)
+    return serviceError(
+      error instanceof Error ? error.message : fallbackMessage,
+      'INTERNAL',
+    )
+  }
+
   return {
     async create(input) {
       const parsed = validatedOrError(createSchema, input)
@@ -73,11 +95,7 @@ export function createCrudService<TRecord, TCreate, TUpdate>(
         const record = await delegate.create({ data })
         return { data: record }
       } catch (error) {
-        log.error({ error, input: data }, `Échec de la création de ${entityName.toLowerCase()}`)
-        return serviceError(
-          error instanceof Error ? error.message : `Échec de la création de ${entityName.toLowerCase()}`,
-          'INTERNAL',
-        )
+        return mapError(error, { input: data }, `Échec de la création de ${entityName.toLowerCase()}`)
       }
     },
 
@@ -98,11 +116,7 @@ export function createCrudService<TRecord, TCreate, TUpdate>(
         const record = await delegate.update({ where: whereId(id), data })
         return { data: record }
       } catch (error) {
-        log.error({ error, id, input: data }, `Échec de la mise à jour de ${entityName.toLowerCase()}`)
-        return serviceError(
-          error instanceof Error ? error.message : `Échec de la mise à jour de ${entityName.toLowerCase()}`,
-          'INTERNAL',
-        )
+        return mapError(error, { id, input: data }, `Échec de la mise à jour de ${entityName.toLowerCase()}`)
       }
     },
 
@@ -116,11 +130,7 @@ export function createCrudService<TRecord, TCreate, TUpdate>(
         await delegate.delete({ where: whereId(id) })
         return { data: undefined }
       } catch (error) {
-        log.error({ error, id }, `Échec de la suppression de ${entityName.toLowerCase()}`)
-        return serviceError(
-          error instanceof Error ? error.message : `Échec de la suppression de ${entityName.toLowerCase()}`,
-          'INTERNAL',
-        )
+        return mapError(error, { id }, `Échec de la suppression de ${entityName.toLowerCase()}`)
       }
     },
 
@@ -132,11 +142,7 @@ export function createCrudService<TRecord, TCreate, TUpdate>(
         }
         return { data: record }
       } catch (error) {
-        log.error({ error, id }, `Échec de la récupération de ${entityName.toLowerCase()}`)
-        return serviceError(
-          error instanceof Error ? error.message : `Échec de la récupération de ${entityName.toLowerCase()}`,
-          'INTERNAL',
-        )
+        return mapError(error, { id }, `Échec de la récupération de ${entityName.toLowerCase()}`)
       }
     },
 
@@ -147,11 +153,7 @@ export function createCrudService<TRecord, TCreate, TUpdate>(
         const records = await delegate.findMany({ where, orderBy, skip, take: limit })
         return { data: records }
       } catch (error) {
-        log.error({ error, params }, `Échec de la liste de ${entityName.toLowerCase()}`)
-        return serviceError(
-          error instanceof Error ? error.message : `Échec de la liste de ${entityName.toLowerCase()}`,
-          'INTERNAL',
-        )
+        return mapError(error, { params }, `Échec de la liste de ${entityName.toLowerCase()}`)
       }
     },
 
@@ -163,11 +165,7 @@ export function createCrudService<TRecord, TCreate, TUpdate>(
         }
         return { data: record }
       } catch (error) {
-        log.error({ error, id }, `Échec de la vérification de ${entityName.toLowerCase()}`)
-        return serviceError(
-          error instanceof Error ? error.message : `Échec de la vérification de ${entityName.toLowerCase()}`,
-          'INTERNAL',
-        )
+        return mapError(error, { id }, `Échec de la vérification de ${entityName.toLowerCase()}`)
       }
     },
   }

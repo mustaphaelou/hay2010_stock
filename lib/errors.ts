@@ -410,6 +410,9 @@ export function createValidationErrorFromZod(zodError: ZodError): ValidationErro
  * Utility to check if error is a database unique constraint violation
  */
 export function isUniqueConstraintError(error: unknown): boolean {
+  if (isPrismaKnownError(error) && error.code === 'P2002') {
+    return true
+  }
   if (error instanceof Error) {
     return error.message.includes('Unique constraint') ||
            error.message.includes('duplicate key') ||
@@ -422,11 +425,45 @@ export function isUniqueConstraintError(error: unknown): boolean {
  * Utility to check if error is a database foreign key violation
  */
 export function isForeignKeyError(error: unknown): boolean {
+  if (isPrismaKnownError(error) && error.code === 'P2003') {
+    return true
+  }
   if (error instanceof Error) {
     return error.message.includes('Foreign key constraint') ||
            error.message.includes('23503') // PostgreSQL foreign key violation code
   }
   return false
+}
+
+/**
+ * Utility to check if error is a Prisma "record not found" error (P2025).
+ * Thrown by `update`/`delete` when the targeted row no longer exists —
+ * including races between a `findUnique` guard and the mutation.
+ */
+export function isPrismaNotFoundError(error: unknown): boolean {
+  if (isPrismaKnownError(error) && error.code === 'P2025') {
+    return true
+  }
+  if (error instanceof Error) {
+    return error.message.includes('Record to update not found') ||
+           error.message.includes('Record to delete does not exist') ||
+           error.message.includes('depends on one or more records that were required but not found')
+  }
+  return false
+}
+
+/**
+ * Narrow an unknown value to a Prisma-known-request-error shape.
+ * Avoids importing the runtime class (keeps this module free of Prisma deps)
+ * while still matching `PrismaClientKnownRequestError` thrown by the client.
+ */
+function isPrismaKnownError(error: unknown): error is Error & { code: string } {
+  return (
+    error instanceof Error &&
+    'code' in error &&
+    typeof (error as { code: unknown }).code === 'string' &&
+    (error as { code: string }).code.startsWith('P')
+  )
 }
 
 /**

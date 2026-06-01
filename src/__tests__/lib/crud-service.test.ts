@@ -65,6 +65,17 @@ function createService(
 
 const sampleRecord: TestRecord = { id: 1, name: 'Test', email: 'test@example.com' }
 
+function prismaError(code: 'P2002' | 'P2003' | 'P2025', message?: string): Error {
+  const defaultMessage =
+    code === 'P2002' ? 'Unique constraint failed on the fields: (`email`)'
+    : code === 'P2003' ? 'Foreign key constraint failed on the field'
+    : 'An operation failed because it depends on one or more records that were required but not found.'
+  const err = new Error(message ?? defaultMessage) as Error & { code: string; clientVersion: string }
+  err.code = code
+  err.clientVersion = 'test'
+  return err
+}
+
 vi.mock('@/lib/logger', () => ({
   createLogger: () => ({
     info: vi.fn(),
@@ -329,6 +340,113 @@ describe('createCrudService', () => {
       const result = await service.ensureExists(1)
 
       expect(result.error).toBeDefined()
+      expect(result.code).toBe('INTERNAL')
+    })
+  })
+
+  describe('Prisma error mapping', () => {
+    it('maps P2002 thrown by delegate.create to CONFLICT', async () => {
+      const { service, delegate } = createService()
+      vi.mocked(delegate.create).mockRejectedValue(prismaError('P2002'))
+
+      const result = await service.create({ name: 'Test', email: 'test@example.com' })
+
+      expect(result.code).toBe('CONFLICT')
+      expect(result.data).toBeUndefined()
+    })
+
+    it('maps P2002 thrown by delegate.create to CONFLICT even when uniqueFields pre-check passed', async () => {
+      const { service, delegate } = createService(undefined, { uniqueFields: ['email'] })
+      vi.mocked(delegate.findUnique).mockResolvedValue(null)
+      vi.mocked(delegate.create).mockRejectedValue(prismaError('P2002'))
+
+      const result = await service.create({ name: 'Test', email: 'test@example.com' })
+
+      expect(result.code).toBe('CONFLICT')
+    })
+
+    it('maps P2003 thrown by delegate.create to VALIDATION', async () => {
+      const { service, delegate } = createService()
+      vi.mocked(delegate.create).mockRejectedValue(prismaError('P2003'))
+
+      const result = await service.create({ name: 'Test', email: 'test@example.com' })
+
+      expect(result.code).toBe('VALIDATION')
+    })
+
+    it('maps P2002 thrown by delegate.update to CONFLICT', async () => {
+      const { service, delegate } = createService()
+      vi.mocked(delegate.findUnique).mockResolvedValue(sampleRecord)
+      vi.mocked(delegate.update).mockRejectedValue(prismaError('P2002'))
+
+      const result = await service.update(1, { email: 'dup@example.com' })
+
+      expect(result.code).toBe('CONFLICT')
+    })
+
+    it('maps P2025 thrown by delegate.update to NOT_FOUND (race after findUnique)', async () => {
+      const { service, delegate } = createService()
+      vi.mocked(delegate.findUnique).mockResolvedValue(sampleRecord)
+      vi.mocked(delegate.update).mockRejectedValue(prismaError('P2025'))
+
+      const result = await service.update(1, { name: 'Updated' })
+
+      expect(result.code).toBe('NOT_FOUND')
+    })
+
+    it('maps P2025 thrown by delegate.delete to NOT_FOUND (race after findUnique)', async () => {
+      const { service, delegate } = createService()
+      vi.mocked(delegate.findUnique).mockResolvedValue(sampleRecord)
+      vi.mocked(delegate.delete).mockRejectedValue(prismaError('P2025'))
+
+      const result = await service.delete(1)
+
+      expect(result.code).toBe('NOT_FOUND')
+    })
+
+    it('maps P2025 thrown by delegate.findUnique in getById to NOT_FOUND', async () => {
+      const { service, delegate } = createService()
+      vi.mocked(delegate.findUnique).mockRejectedValue(prismaError('P2025'))
+
+      const result = await service.getById(1)
+
+      expect(result.code).toBe('NOT_FOUND')
+    })
+
+    it('maps P2003 thrown by delegate.delete to VALIDATION (FK still referencing)', async () => {
+      const { service, delegate } = createService()
+      vi.mocked(delegate.findUnique).mockResolvedValue(sampleRecord)
+      vi.mocked(delegate.delete).mockRejectedValue(prismaError('P2003'))
+
+      const result = await service.delete(1)
+
+      expect(result.code).toBe('VALIDATION')
+    })
+
+    it('maps P2002 thrown by delegate.findMany in list to CONFLICT', async () => {
+      const { service, delegate } = createService()
+      vi.mocked(delegate.findMany).mockRejectedValue(prismaError('P2002'))
+
+      const result = await service.list()
+
+      expect(result.code).toBe('CONFLICT')
+    })
+
+    it('maps P2025 thrown by delegate.findUnique in ensureExists to NOT_FOUND', async () => {
+      const { service, delegate } = createService()
+      vi.mocked(delegate.findUnique).mockRejectedValue(prismaError('P2025'))
+
+      const result = await service.ensureExists(1)
+
+      expect(result.code).toBe('NOT_FOUND')
+    })
+
+    it('keeps INTERNAL behaviour for non-Prisma errors', async () => {
+      const { service, delegate } = createService()
+      vi.mocked(delegate.create).mockRejectedValue(new Error('Random DB failure'))
+
+      const result = await service.create({ name: 'Test', email: 'test@example.com' })
+
       expect(result.code).toBe('INTERNAL')
     })
   })
