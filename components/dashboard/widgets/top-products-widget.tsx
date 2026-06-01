@@ -1,21 +1,12 @@
 /* eslint-disable @next/next/no-img-element */
-"use client"
-
 import * as React from "react"
-import { cn } from "@/lib/utils"
+import { cn, formatQuantity } from "@/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Button } from "@/components/ui/button"
 import { SafeIcon as HugeiconsIcon } from "@/components/ui/safe-icon"
-import {
-  ArrowDown01Icon,
-  ArrowUp01Icon,
-  ShoppingBag01Icon,
-  ShoppingCart01Icon,
-  ArrowRight01Icon,
-  StarIcon,
-} from "@hugeicons/core-free-icons"
+import { ShoppingBag01Icon } from "@hugeicons/core-free-icons"
+
+type StockStatus = "rupture" | "bas" | "en-stock"
 
 interface TopProduct {
   id: string
@@ -24,10 +15,14 @@ interface TopProduct {
   category: string
   salesCount: number
   revenue: number
-  trend: number
-  trendDirection: "up" | "down" | "neutral"
   stockLevel: number
+  /**
+   * Optional legacy fields kept for backward compatibility with the old
+   * e-commerce-flavored render. The A1r1 panel no longer displays them.
+   */
   rating?: number
+  trend?: number
+  trendDirection?: "up" | "down" | "neutral"
   miniChartData?: number[]
 }
 
@@ -38,76 +33,56 @@ interface TopProductsWidgetProps {
   maxItems?: number
   loading?: boolean
   onProductClick?: (product: TopProduct) => void
-  onViewAll?: () => void
-  viewAllHref?: string
   className?: string
+  /** Stock level at or below which a product is considered "Bas" (low). */
+  lowStockThreshold?: number
 }
 
-const ProductMiniChart = React.memo(function ProductMiniChart({
-  data,
-  trendDirection,
-}: {
-  data?: number[]
-  trendDirection: "up" | "down" | "neutral"
-}) {
-  if (!data || data.length === 0) return null
+const STATUS_LABEL: Record<StockStatus, string> = {
+  rupture: "Rupture",
+  bas: "Bas",
+  "en-stock": "En stock",
+}
 
-  const width = 60
-  const height = 24
-  const max = Math.max(...data)
-  const min = Math.min(...data)
-  const range = max - min || 1
+const STATUS_DOT: Record<StockStatus, string> = {
+  rupture: "bg-destructive",
+  bas: "bg-amber-500",
+  "en-stock": "bg-emerald-500",
+}
 
-  const points = data
-    .map((value, index) => {
-      const x = (index / (data.length - 1)) * width
-      const y = height - ((value - min) / range) * height
-      return `${x},${y}`
-    })
-    .join(" ")
+const STATUS_PILL: Record<StockStatus, string> = {
+  rupture:
+    "bg-destructive/10 text-destructive border-destructive/20 dark:bg-destructive/20 dark:border-destructive/30",
+  bas: "bg-amber-500/10 text-amber-700 border-amber-500/20 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/25",
+  "en-stock":
+    "bg-emerald-500/10 text-emerald-700 border-emerald-500/20 dark:bg-emerald-500/15 dark:text-emerald-300 dark:border-emerald-500/25",
+}
 
-  const color =
-    trendDirection === "up"
-      ? "text-emerald-500"
-      : trendDirection === "down"
-      ? "text-red-500"
-      : "text-muted-foreground"
+function getStockStatus(stockLevel: number, lowThreshold: number): StockStatus {
+  if (stockLevel <= 0) return "rupture"
+  if (stockLevel <= lowThreshold) return "bas"
+  return "en-stock"
+}
 
-  return (
-    <svg width={width} height={height} className={cn("shrink-0", color)}>
-      <polyline
-        points={points}
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-})
+const madFormatter = new Intl.NumberFormat("fr-MA", { maximumFractionDigits: 0 })
+
+function formatMadRevenue(value: number): string {
+  return `${madFormatter.format(value)} MAD`
+}
 
 const ProductAvatar = React.memo(function ProductAvatar({
   image,
   name,
-  size = "md",
 }: {
   image?: string
   name: string
-  size?: "sm" | "md" | "lg"
 }) {
-  const sizeClasses = {
-    sm: "size-8",
-    md: "size-10",
-    lg: "size-12",
-  }
-
   if (image) {
     return (
       <img
         src={image}
         alt={name}
-        className={cn(sizeClasses[size], "rounded-lg object-cover")}
+        className="size-10 rounded-lg object-cover shrink-0"
       />
     )
   }
@@ -115,94 +90,147 @@ const ProductAvatar = React.memo(function ProductAvatar({
   return (
     <div
       className={cn(
-        sizeClasses[size],
-        "rounded-lg bg-primary/10 flex items-center justify-center"
+        "size-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0",
       )}
     >
       <HugeiconsIcon
         icon={ShoppingBag01Icon}
         strokeWidth={2}
-        className={cn("text-primary", size === "sm" ? "size-4" : "size-5")}
+        className="size-5 text-primary"
       />
     </div>
   )
 })
 
+function ProductRow({
+  product,
+  lowStockThreshold,
+  onClick,
+}: {
+  product: TopProduct
+  lowStockThreshold: number
+  onClick?: (product: TopProduct) => void
+}) {
+  const status = getStockStatus(product.stockLevel, lowStockThreshold)
+  const statusLabel = STATUS_LABEL[status]
+  const revenue = formatMadRevenue(product.revenue)
+  const sales = formatQuantity(product.salesCount)
+  const stock = formatQuantity(product.stockLevel)
+
+  const handleClick = () => onClick?.(product)
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault()
+      onClick?.(product)
+    }
+  }
+
+  return (
+    <div
+      data-testid="top-product-row"
+      data-stock-status={status}
+      onClick={onClick ? handleClick : undefined}
+      onKeyDown={onClick ? handleKeyDown : undefined}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      className={cn(
+        "flex items-center gap-3 px-3 py-2 border-b border-border/50 last:border-b-0",
+        onClick && "cursor-pointer hover:bg-muted/30 transition-colors",
+      )}
+    >
+      <ProductAvatar image={product.image} name={product.name} />
+      <div className="flex-1 min-w-0">
+        <div className="text-sm font-medium truncate">{product.name}</div>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+          <span className="truncate">{product.category}</span>
+          <span aria-hidden="true">·</span>
+          <span
+            data-slot="top-product-sales-count"
+            className="tabular-nums shrink-0"
+          >
+            {sales} vendus
+          </span>
+        </div>
+      </div>
+      <div className="shrink-0 text-right">
+        <div
+          data-slot="top-product-revenue"
+          className="text-sm font-medium tabular-nums"
+        >
+          {revenue}
+        </div>
+        <div
+          data-slot="top-product-stock-level"
+          className="text-xs text-muted-foreground tabular-nums"
+        >
+          {stock} en stock
+        </div>
+      </div>
+      <span
+        data-slot="top-product-status-pill"
+        data-status={status}
+        className={cn(
+          "shrink-0 inline-flex items-center gap-1.5 text-xs font-medium rounded-full border px-2 py-0.5",
+          STATUS_PILL[status],
+        )}
+      >
+        <span
+          aria-hidden="true"
+          className={cn("size-1.5 rounded-full", STATUS_DOT[status])}
+        />
+        {statusLabel}
+      </span>
+    </div>
+  )
+}
+
 function ProductSkeleton() {
   return (
-    <div className="flex items-center gap-3 p-3 rounded-lg border">
+    <div className="flex items-center gap-3 px-3 py-2 border-b border-border/50 last:border-b-0">
       <Skeleton className="size-10 rounded-lg shrink-0" />
-      <div className="flex-1 min-w-0 space-y-2">
-        <Skeleton className="h-4 w-3/4" />
+      <div className="flex-1 min-w-0 space-y-1.5">
+        <Skeleton className="h-3.5 w-3/4" />
         <Skeleton className="h-3 w-1/2" />
       </div>
-      <div className="flex flex-col items-end gap-1">
-        <Skeleton className="h-4 w-16" />
+      <div className="flex flex-col items-end gap-1.5">
+        <Skeleton className="h-3.5 w-16" />
         <Skeleton className="h-3 w-12" />
       </div>
+      <Skeleton className="h-5 w-16 rounded-full" />
     </div>
   )
 }
 
 const TopProductsWidget = React.memo(function TopProductsWidget({
   products,
-  title = "Top Products",
-  description = "Best selling products this month",
+  title = "Top produits",
+  description = "Produits les plus vendus",
   maxItems = 5,
   loading = false,
   onProductClick,
-  onViewAll,
-  viewAllHref,
   className,
+  lowStockThreshold = 5,
 }: TopProductsWidgetProps) {
-  const [isVisible, setIsVisible] = React.useState(false)
-  const ref = React.useRef<HTMLDivElement>(null)
-
-  React.useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsVisible(true)
-          observer.disconnect()
-        }
-      },
-      { threshold: 0.1 }
-    )
-
-    if (ref.current) {
-      observer.observe(ref.current)
-    }
-
-    return () => observer.disconnect()
-  }, [])
-
   const displayProducts = products.slice(0, maxItems)
 
-  if (loading) {
-    return (
-      <Card className={cn("overflow-hidden", className)}>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base font-medium">{title}</CardTitle>
-          {description && <CardDescription>{description}</CardDescription>}
-        </CardHeader>
-        <CardContent className="space-y-2">
-          {Array.from({ length: maxItems }).map((_, i) => (
-            <ProductSkeleton key={i} />
-          ))}
-        </CardContent>
-      </Card>
-    )
-  }
-
-  if (products.length === 0) {
-    return (
-      <Card className={cn("overflow-hidden", className)}>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base font-medium">{title}</CardTitle>
-          {description && <CardDescription>{description}</CardDescription>}
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col items-center justify-center py-8 text-center">
+  return (
+    <Card className={cn("overflow-hidden", className)}>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base font-medium">{title}</CardTitle>
+        {description && <CardDescription>{description}</CardDescription>}
+      </CardHeader>
+      <CardContent className="p-0">
+        {loading ? (
+          <div data-slot="top-products-skeleton">
+            {Array.from({ length: maxItems }).map((_, i) => (
+              <ProductSkeleton key={i} />
+            ))}
+          </div>
+        ) : products.length === 0 ? (
+          <div
+            data-slot="top-products-empty"
+            className="flex flex-col items-center justify-center py-8 text-center"
+          >
             <div className="rounded-full bg-muted p-4 mb-3">
               <HugeiconsIcon
                 icon={ShoppingBag01Icon}
@@ -210,145 +238,36 @@ const TopProductsWidget = React.memo(function TopProductsWidget({
                 className="size-6 text-muted-foreground"
               />
             </div>
-            <p className="text-sm text-muted-foreground">No products to display</p>
+            <p className="text-sm text-muted-foreground">Aucun produit à afficher</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Les produits les plus vendus apparaîtront ici.
+            </p>
           </div>
-        </CardContent>
-      </Card>
-    )
-  }
-
-  return (
-    <Card className={cn("overflow-hidden", className)}>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="text-base font-medium">{title}</CardTitle>
-            {description && <CardDescription>{description}</CardDescription>}
-          </div>
-          {(viewAllHref || onViewAll) && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="gap-1 text-primary"
-              onClick={onViewAll}
-              asChild={!!viewAllHref}
-            >
-              {viewAllHref ? (
-                <a href={viewAllHref}>
-                  View all
-                  <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={2} className="size-4" />
-                </a>
-              ) : (
-                <>
-                  View all
-                  <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={2} className="size-4" />
-                </>
-              )}
-            </Button>
-          )}
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-2" ref={ref}>
-        {displayProducts.map((product, index) => (
-          <div
-            key={product.id}
-            onClick={() => onProductClick?.(product)}
-            className={cn(
-              "flex items-center gap-3 p-3 rounded-lg border transition-all",
-              onProductClick && "cursor-pointer hover:bg-muted/50 hover:shadow-sm"
-            )}
-            style={{
-              opacity: isVisible ? 1 : 0,
-              transform: isVisible ? "translateY(0)" : "translateY(10px)",
-              transition: `opacity 300ms ${index * 50}ms, transform 300ms ${index * 50}ms`,
-            }}
-            role={onProductClick ? "button" : undefined}
-            tabIndex={onProductClick ? 0 : undefined}
-            onKeyDown={
-              onProductClick
-                ? (e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault()
-                      onProductClick(product)
-                    }
-                  }
-                : undefined
-            }
-          >
-            <div className="flex items-center gap-3 min-w-0 flex-1">
-              <ProductAvatar image={product.image} name={product.name} />
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium truncate">{product.name}</span>
-                  {product.rating && (
-                    <div className="flex items-center gap-0.5">
-                      <HugeiconsIcon
-                        icon={StarIcon}
-                        strokeWidth={2}
-                        className="size-3 text-yellow-500"
-                      />
-                      <span className="text-xs text-muted-foreground">{product.rating}</span>
-                    </div>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <Badge variant="outline" className="text-xs px-1.5 py-0">
-                    {product.category}
-                  </Badge>
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <HugeiconsIcon
-                      icon={ShoppingCart01Icon}
-                      strokeWidth={2}
-                      className="size-3"
-                    />
-                    {product.salesCount.toLocaleString()}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 shrink-0">
-              {product.miniChartData && (
-                <ProductMiniChart
-                  data={product.miniChartData}
-                  trendDirection={product.trendDirection}
-                />
-              )}
-              <div className="flex flex-col items-end">
-                <span className="text-sm font-medium">
-                  ${product.revenue.toLocaleString()}
-                </span>
-                <div
-                  className={cn(
-                    "flex items-center gap-0.5 text-xs",
-                    product.trendDirection === "up"
-                      ? "text-emerald-500"
-                      : product.trendDirection === "down"
-                      ? "text-red-500"
-                      : "text-muted-foreground"
-                  )}
-                >
-                  <HugeiconsIcon
-                    icon={
-                      product.trendDirection === "up"
-                        ? ArrowUp01Icon
-                        : product.trendDirection === "down"
-                        ? ArrowDown01Icon
-                        : ArrowUp01Icon
-                    }
-                    strokeWidth={2}
-                    className="size-3"
-                  />
-                  <span>{Math.abs(product.trend).toFixed(1)}%</span>
-                </div>
-              </div>
+        ) : (
+          <div data-slot="top-products-list">
+            {displayProducts.map((product) => (
+              <ProductRow
+                key={product.id}
+                product={product}
+                lowStockThreshold={lowStockThreshold}
+                onClick={onProductClick}
+              />
+            ))}
+            <div className="px-3 pt-1 pb-2">
+              <a
+                href="/sales?filter=top"
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1"
+              >
+                Voir tout
+                <span aria-hidden="true">→</span>
+              </a>
             </div>
           </div>
-        ))}
+        )}
       </CardContent>
     </Card>
   )
 })
 
-export { TopProductsWidget, ProductMiniChart, ProductAvatar }
+export { TopProductsWidget, ProductAvatar }
 export type { TopProductsWidgetProps, TopProduct }
