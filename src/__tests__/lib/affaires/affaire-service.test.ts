@@ -146,13 +146,13 @@ describe('Affaire Service', () => {
       expect(result.data).toBeUndefined()
     })
 
-    it('should return { data: null, error } when affaire not found', async () => {
+    it('should return { error } when affaire not found', async () => {
       mockAffaireFindFirst.mockResolvedValue(null)
 
       const result = await getAffaireByCode('AFF-999')
 
       expect(result.error).toBe('Affaire introuvable')
-      expect(result.data).toBeNull()
+      expect(result.data).toBeUndefined()
     })
 
     it('should return { error } on DB failure', async () => {

@@ -19,7 +19,9 @@ import { createLogger } from '@/lib/logger'
 import { createEmptyResult, buildPaginationMeta, getPaginationParams } from '@/lib/pagination'
 import type { PaginatedResult } from '@/lib/pagination'
 import { serviceError, validatedOrError } from '@/lib/service-result'
-
+import type { ServiceResult, ServiceErrorCode } from '@/lib/service-result'
+import { createCrudService } from '@/lib/crud-service'
+import type { Affaire } from '@/lib/generated/prisma/client'
 
 const log = createLogger('affaire-service')
 
@@ -53,13 +55,28 @@ function mapAffaireToComputed(affaire: Record<string, unknown>): AffaireWithComp
   }
 }
 
+const baseCrud = createCrudService<Affaire, AffaireCreateInput, AffaireUpdateInput>({
+  delegate: prisma.affaire as any,
+  entityName: 'Affaire',
+  createSchema: affaireCreateSchema,
+  updateSchema: affaireUpdateSchema,
+  uniqueFields: ['code_affaire'],
+  idField: 'id_affaire',
+})
+
+// --- Standard CRUD via CrudService ---
+
+export const ensureAffaireExists = baseCrud.ensureExists
+
+// --- Custom list with filters, search, sort, pagination ---
+
 export async function getAffaires(
   page: number = 1,
   limit: number = 50,
   filters?: Partial<GetAffairesInput>,
   sort: string = 'date_creation',
   order: 'asc' | 'desc' = 'desc',
-): Promise<PaginatedResult<AffaireWithComputed> & { error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
+): Promise<PaginatedResult<AffaireWithComputed> & { error?: string; code?: ServiceErrorCode }> {
   const result = validatedOrError(getAffairesSchema, { page, limit, ...filters }, { message: 'Paramètres de filtre invalides' })
   if (result.error || !result.data) {
     const errorMsg = result.error || 'Paramètres de filtre invalides'
@@ -108,37 +125,25 @@ export async function getAffaires(
   }
 }
 
-export async function getAffaireById(
-  id_affaire: number,
-): Promise<{ data?: AffaireWithComputed | null; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
-  const result = validatedOrError(getAffaireByIdSchema, { id_affaire }, { message: 'ID d\'affaire invalide' })
-  if (result.error) {
-    return { error: result.error, code: result.code }
+// --- Wrap CrudService getById ---
+
+export async function getAffaireById(id_affaire: number): Promise<ServiceResult<AffaireWithComputed>> {
+  const result = await baseCrud.getById(id_affaire)
+  if (!result.error && result.data === null) {
+    return serviceError('Affaire introuvable', 'NOT_FOUND')
   }
-
-  try {
-    const affaire = await prisma.affaire.findUnique({
-      where: { id_affaire },
-      include: {
-        client: { select: { id_partenaire: true, code_partenaire: true, nom_partenaire: true } },
-      },
-    })
-
-    if (!affaire) {
-      return { data: null, ...serviceError('Affaire introuvable', 'NOT_FOUND') }
-    }
-
-    return { data: mapAffaireToComputed(affaire as unknown as Record<string, unknown>) }
-  } catch (error) {
-    log.error({ error, id_affaire }, 'Échec de la récupération de l\'affaire')
-    return serviceError('Échec de la récupération de l\'affaire', 'INTERNAL')
+  if (result.data) {
+    return { data: mapAffaireToComputed(result.data as unknown as Record<string, unknown>) }
   }
+  return result as ServiceResult<AffaireWithComputed>
 }
+
+// --- Custom create with userId tracking ---
 
 export async function createAffaire(
   input: AffaireCreateInput,
   userId: string,
-): Promise<{ data?: AffaireWithComputed; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
+): Promise<ServiceResult<AffaireWithComputed>> {
   const result = validatedOrError(affaireCreateSchema, input)
   if (result.error || !result.data) {
     return { error: result.error || 'Données invalides', code: result.code || 'VALIDATION' }
@@ -168,11 +173,13 @@ export async function createAffaire(
   }
 }
 
+// --- Custom update with conditional unique code check and userId tracking ---
+
 export async function updateAffaire(
   id_affaire: number,
   input: AffaireUpdateInput,
   userId: string,
-): Promise<{ data?: AffaireWithComputed; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
+): Promise<ServiceResult<AffaireWithComputed>> {
   const result = validatedOrError(affaireUpdateSchema, input)
   if (result.error || !result.data) {
     return { error: result.error || 'Données invalides', code: result.code || 'VALIDATION' }
@@ -212,10 +219,12 @@ export async function updateAffaire(
   }
 }
 
+// --- Custom soft delete ---
+
 export async function deleteAffaire(
   id_affaire: number,
   userId: string,
-): Promise<{ data?: { success: boolean }; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
+): Promise<ServiceResult<{ success: boolean }>> {
   const result = validatedOrError(deleteAffaireSchema, { id_affaire }, { message: 'ID d\'affaire invalide' })
   if (result.error) {
     return { error: result.error, code: result.code }
@@ -241,11 +250,13 @@ export async function deleteAffaire(
   }
 }
 
+// --- Domain-specific: document queries (non-CRUD, standalone) ---
+
 export async function getAffaireDocumentsById(
   id_affaire: number,
   page: number = 1,
   limit: number = 50,
-): Promise<PaginatedResult<Record<string, unknown>> & { error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
+): Promise<PaginatedResult<Record<string, unknown>> & { error?: string; code?: ServiceErrorCode }> {
   try {
     const affaire = await prisma.affaire.findUnique({
       where: { id_affaire },
@@ -279,7 +290,7 @@ export async function getAffaireDocumentsById(
   }
 }
 
-export async function getAffaireByCode(code_affaire: string): Promise<{ data?: AffaireWithComputed | null; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
+export async function getAffaireByCode(code_affaire: string): Promise<ServiceResult<AffaireWithComputed | null>> {
   const result = validatedOrError(getAffaireByCodeSchema, { code_affaire })
   if (result.error) {
     return { error: result.error, code: result.code }
@@ -294,7 +305,7 @@ export async function getAffaireByCode(code_affaire: string): Promise<{ data?: A
     })
 
     if (!affaire) {
-      return { data: null, ...serviceError('Affaire introuvable', 'NOT_FOUND') }
+      return serviceError('Affaire introuvable', 'NOT_FOUND')
     }
 
     return { data: mapAffaireToComputed(affaire as unknown as Record<string, unknown>) }
@@ -304,7 +315,7 @@ export async function getAffaireByCode(code_affaire: string): Promise<{ data?: A
   }
 }
 
-export async function getDocumentsByAffaire(code_affaire: string): Promise<{ data: DocumentBase[]; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
+export async function getDocumentsByAffaire(code_affaire: string): Promise<{ data: DocumentBase[]; error?: string; code?: ServiceErrorCode }> {
   const result = validatedOrError(getAffaireByCodeSchema, { code_affaire }, { message: 'Code affaire invalide' })
   if (result.error) {
     log.error({ error: result.error, code_affaire }, 'Code affaire invalide')
