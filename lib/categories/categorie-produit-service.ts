@@ -1,10 +1,13 @@
 import { prisma } from '@/lib/db/prisma'
 import { z } from 'zod'
 import { Prisma } from '@/lib/generated/prisma/client'
+import type { CategorieProduit } from '@/lib/generated/prisma/client'
 import { createLogger } from '@/lib/logger'
 import { createEmptyResult, buildPaginationMeta, getPaginationParams } from '@/lib/pagination'
 import type { PaginatedResult } from '@/lib/pagination'
 import { serviceError, validatedOrError } from '@/lib/service-result'
+import type { ServiceResult, ServiceErrorCode } from '@/lib/service-result'
+import { createCrudService } from '@/lib/crud-service'
 
 const log = createLogger('categorie-produit-service')
 
@@ -20,6 +23,15 @@ export const categoryUpdateSchema = categoryCreateSchema.partial()
 
 type CreateInput = z.infer<typeof categoryCreateSchema>
 type UpdateInput = z.infer<typeof categoryUpdateSchema>
+
+const baseCrud = createCrudService<CategorieProduit, CreateInput, UpdateInput>({
+  delegate: prisma.categorieProduit as any,
+  entityName: 'Catégorie',
+  createSchema: categoryCreateSchema,
+  updateSchema: categoryUpdateSchema,
+  uniqueFields: ['code_categorie'],
+  idField: 'id_categorie',
+})
 
 const ALLOWED_SORT_FIELDS = [
   'id_categorie',
@@ -38,7 +50,7 @@ export async function listCategories(
   parent?: string,
   sort: string = 'nom_categorie',
   order: 'asc' | 'desc' = 'asc',
-): Promise<PaginatedResult<unknown> & { error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
+): Promise<PaginatedResult<unknown> & { error?: string; code?: ServiceErrorCode }> {
   try {
     const effectiveSort = ALLOWED_SORT_FIELDS.includes(sort as AllowedSortField)
       ? (sort as AllowedSortField)
@@ -78,61 +90,20 @@ export async function listCategories(
   }
 }
 
-export async function getCategoryById(
-  id: number,
-): Promise<{ data?: unknown; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
-  if (!Number.isFinite(id) || id <= 0) {
-    return serviceError('ID catégorie invalide', 'VALIDATION')
+export async function getCategoryById(id: number): Promise<ServiceResult<CategorieProduit>> {
+  const result = await baseCrud.getById(id)
+  if (!result.error && result.data === null) {
+    return serviceError('Catégorie introuvable', 'NOT_FOUND')
   }
-
-  try {
-    const category = await prisma.categorieProduit.findUnique({
-      where: { id_categorie: id },
-    })
-
-    if (!category) {
-      return serviceError('Catégorie introuvable', 'NOT_FOUND')
-    }
-
-    return { data: category }
-  } catch (error) {
-    log.error({ error, id }, 'Échec de la récupération de la catégorie')
-    return serviceError('Échec de la récupération de la catégorie', 'INTERNAL')
-  }
+  return result as ServiceResult<CategorieProduit>
 }
 
-export async function createCategory(
-  input: CreateInput,
-): Promise<{ data?: unknown; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
-  const result = validatedOrError(categoryCreateSchema, input)
-  if (result.error || !result.data) {
-    return { error: result.error || 'Données invalides', code: result.code || 'VALIDATION' }
-  }
-
-  const d = result.data
-
-  try {
-    const existing = await prisma.categorieProduit.findUnique({
-      where: { code_categorie: d.code_categorie },
-    })
-    if (existing) {
-      return serviceError(`La catégorie avec le code ${d.code_categorie} existe déjà`, 'CONFLICT')
-    }
-
-    const category = await prisma.categorieProduit.create({
-      data: d,
-    })
-    return { data: category }
-  } catch (error) {
-    log.error({ error, input: d }, 'Échec de la création de la catégorie')
-    return serviceError('Échec de la création de la catégorie', 'INTERNAL')
-  }
-}
+export const createCategory = baseCrud.create
 
 export async function updateCategory(
   id: number,
   input: UpdateInput,
-): Promise<{ data?: unknown; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
+): Promise<{ data?: unknown; error?: string; code?: ServiceErrorCode }> {
   const result = validatedOrError(categoryUpdateSchema, input)
   if (result.error || !result.data) {
     return { error: result.error || 'Données invalides', code: result.code || 'VALIDATION' }
@@ -174,7 +145,7 @@ export async function updateCategory(
 
 export async function deleteCategory(
   id: number,
-): Promise<{ data?: { success: boolean }; error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
+): Promise<{ data?: { success: boolean }; error?: string; code?: ServiceErrorCode }> {
   try {
     const existing = await prisma.categorieProduit.findUnique({
       where: { id_categorie: id },
@@ -205,7 +176,7 @@ export async function getCategoryChildren(
   id: number,
   page: number = 1,
   limit: number = 50,
-): Promise<PaginatedResult<unknown> & { error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
+): Promise<PaginatedResult<unknown> & { error?: string; code?: ServiceErrorCode }> {
   try {
     const category = await prisma.categorieProduit.findUnique({
       where: { id_categorie: id },
@@ -240,7 +211,7 @@ export async function getCategoryProducts(
   id: number,
   page: number = 1,
   limit: number = 50,
-): Promise<PaginatedResult<unknown> & { error?: string; code?: import('@/lib/service-result').ServiceErrorCode }> {
+): Promise<PaginatedResult<unknown> & { error?: string; code?: ServiceErrorCode }> {
   try {
     const category = await prisma.categorieProduit.findUnique({
       where: { id_categorie: id },
