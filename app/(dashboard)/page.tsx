@@ -25,6 +25,7 @@ export default async function Page() {
       activities={data.activities}
       topProducts={data.topProducts}
       lowStockItems={data.lowStockItems}
+      todaysMovements={data.todaysMovements}
     />
   )
 }

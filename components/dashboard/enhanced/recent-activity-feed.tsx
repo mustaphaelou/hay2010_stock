@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { cn, isValidIcon } from "@/lib/utils"
+import { cn, isValidIcon, formatRelativeTime } from "@/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -78,22 +78,7 @@ function EmptyState({
 }
 
 function formatTimestamp(timestamp: string | Date): string {
-  const date = typeof timestamp === "string" ? new Date(timestamp) : timestamp
-  const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffMins = Math.floor(diffMs / (1000 * 60))
-  const diffHours = Math.floor(diffMins / 60)
-  const diffDays = Math.floor(diffHours / 24)
-
-  if (diffMins < 1) return "À l'instant"
-  if (diffMins < 60) return `Il y a ${diffMins} min`
-  if (diffHours < 24) return `Il y a ${diffHours}h`
-  if (diffDays < 7) return `Il y a ${diffDays}j`
-
-  return date.toLocaleDateString("fr-FR", {
-    month: "short",
-    day: "numeric",
-  })
+  return formatRelativeTime(timestamp)
 }
 
 export function RecentActivityFeed({

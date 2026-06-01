@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
-import type { DocumentWithComputed, DashboardStats, SalesInvoice, MonthlyDataPoint, DashboardActivityItem, DashboardTopProduct, DashboardLowStockItem } from "@/lib/types"
+import type { DocumentWithComputed, DashboardStats, SalesInvoice, MonthlyDataPoint, DashboardActivityItem, DashboardTopProduct, DashboardLowStockItem, DashboardMovementData } from "@/lib/types"
 import { DashboardProvider, useDashboardRefresh } from "@/components/dashboard/enhanced/dashboard-context"
 import { EnhancedDashboardView } from "@/components/dashboard/enhanced/enhanced-dashboard-view"
 import { toast } from "sonner"
@@ -15,10 +15,11 @@ interface DashboardClientProps {
   activities: DashboardActivityItem[]
   topProducts: DashboardTopProduct[]
   lowStockItems: DashboardLowStockItem[]
+  todaysMovements: DashboardMovementData[]
 }
 
 function DashboardClientInner(props: DashboardClientProps) {
-  const { stats, recentDocs, salesInvoices, monthlyData, activities, topProducts, lowStockItems } = props
+  const { stats, recentDocs, salesInvoices, monthlyData, activities, topProducts, lowStockItems, todaysMovements } = props
   const router = useRouter()
   const { refresh: contextRefresh } = useDashboardRefresh()
 
@@ -147,6 +148,7 @@ function DashboardClientInner(props: DashboardClientProps) {
         activities={activities}
         topProducts={topProducts}
         lowStockItems={lowStockItems}
+        todaysMovements={todaysMovements}
         onRefresh={handleRefresh}
         onExport={handleExport}
       />
@@ -164,7 +166,7 @@ export function DashboardClient(props: DashboardClientProps) {
       activities: props.activities,
       topProducts: props.topProducts,
       lowStockItems: props.lowStockItems,
-      todaysMovements: [],
+      todaysMovements: props.todaysMovements,
     }}>
       <DashboardClientInner {...props} />
     </DashboardProvider>

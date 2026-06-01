@@ -46,3 +46,20 @@ export function formatQuantity(qty: number | null | undefined): string {
   if (qty === null || qty === undefined) return '-'
   return quantityFormatter.format(qty)
 }
+
+export function formatRelativeTime(date: string | Date | null | undefined): string {
+  if (!date) return ''
+  const d = typeof date === 'string' ? new Date(date) : date
+  const now = new Date()
+  const diffMs = now.getTime() - d.getTime()
+  const diffMins = Math.floor(diffMs / (1000 * 60))
+  const diffHours = Math.floor(diffMins / 60)
+  const diffDays = Math.floor(diffHours / 24)
+
+  if (diffMins < 1) return "À l'instant"
+  if (diffMins < 60) return `il y a ${diffMins} min`
+  if (diffHours < 24) return `il y a ${diffHours} h`
+  if (diffDays < 7) return `il y a ${diffDays} j`
+
+  return d.toLocaleDateString('fr-FR', { month: 'short', day: 'numeric' })
+}

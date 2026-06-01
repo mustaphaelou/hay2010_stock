@@ -41,6 +41,7 @@ describe('DashboardClient', () => {
         activities={[]}
         topProducts={[]}
         lowStockItems={[]}
+        todaysMovements={[]}
       />
     )
     expect(container).toBeInTheDocument()

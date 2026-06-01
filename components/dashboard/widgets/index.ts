@@ -13,3 +13,5 @@ export type {
 } from "./alerts-widget"
 
 export { LowStockList } from "./low-stock-list"
+
+export { TodaysMovements } from "./todays-movements"

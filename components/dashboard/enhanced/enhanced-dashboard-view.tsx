@@ -12,6 +12,7 @@ import { RealtimeMetricsGrid } from "./realtime-metrics-grid"
 import { DashboardHeader, type BreadcrumbItemType } from "./dashboard-header"
 import { RecentActivityFeed, type ActivityItem } from "./recent-activity-feed"
 import { LowStockList } from "@/components/dashboard/widgets/low-stock-list"
+import { TodaysMovements } from "@/components/dashboard/widgets/todays-movements"
 import { TopProductsWidget, type TopProduct } from "@/components/dashboard/widgets/top-products-widget"
 import { ThemeCustomizer } from "./theme-customizer"
 import { useReducedMotion } from "@/lib/hooks/use-reduced-motion"
@@ -21,7 +22,7 @@ import {
   LayoutGridIcon,
   LayoutIcon,
 } from "@hugeicons/core-free-icons"
-import type { DashboardLowStockItem } from "@/lib/types"
+import type { DashboardLowStockItem, DashboardMovementData } from "@/lib/types"
 
 interface KPICard extends Omit<StatsOverviewCardProps, "value"> {
   id: string
@@ -61,6 +62,7 @@ interface EnhancedDashboardViewProps {
     rows: Record<string, unknown>[]
   }
   lowStockItems?: DashboardLowStockItem[]
+  todaysMovements?: DashboardMovementData[]
   topProducts?: TopProduct[]
   loading?: boolean
   className?: string
@@ -95,6 +97,7 @@ export const EnhancedDashboardView = React.memo(function EnhancedDashboardView({
   activities = [],
   table,
   lowStockItems,
+  todaysMovements,
   topProducts,
   loading = false,
   className,
@@ -295,13 +298,20 @@ export const EnhancedDashboardView = React.memo(function EnhancedDashboardView({
         </Card>
       )}
 
-      {(lowStockItems || topProducts) && (
-        <div className="grid gap-6 lg:grid-cols-2">
+      {(lowStockItems || todaysMovements || topProducts) && (
+        <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
           {lowStockItems && (
             <LowStockList
               items={lowStockItems}
               title="Alertes stock"
               description="Produits à réapprovisionner"
+            />
+          )}
+          {todaysMovements && (
+            <TodaysMovements
+              movements={todaysMovements}
+              title="Mouvements du jour"
+              description="Mouvements de stock du jour"
             />
           )}
           {topProducts && (
