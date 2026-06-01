@@ -23,7 +23,7 @@ export { PerformanceGauge } from "./performance-gauge"
 export type { PerformanceGaugeProps, Threshold } from "./performance-gauge"
 
 export { EnhancedDashboardView } from "./enhanced-dashboard-view"
-export type { EnhancedDashboardViewProps, ChartData, ActivityData, GaugeData } from "./enhanced-dashboard-view"
+export type { EnhancedDashboardViewProps, ChartData, ActivityData } from "./enhanced-dashboard-view"
 
 export { ThemeCustomizer } from "./theme-customizer"
 export type { ThemeCustomizerProps, ThemePreset } from "./theme-customizer"

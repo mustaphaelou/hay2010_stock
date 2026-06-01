@@ -135,33 +135,6 @@ function DashboardClientInner(props: DashboardClientProps) {
     return { month: d.month, ventes: d.ventes, achats: d.achats, marge: margin, margePct: marginPctVal }
   })
 
-  const gauges = [
-    {
-      id: "stock",
-      title: "Logistique",
-      description: "Disponibilité du stock",
-      value: stats.stockAvailability,
-      max: 100,
-      thresholds: [
-        { value: 50, label: "Alerte", color: "#ef4444" },
-        { value: 80, label: "Moyen", color: "#f97316" },
-        { value: 100, label: "Optimal", color: "#22c55e" },
-      ],
-    },
-    {
-      id: "payment",
-      title: "Recouvrement",
-      description: "Factures réglées",
-      value: stats.paymentRate,
-      max: 100,
-      thresholds: [
-        { value: 40, label: "Critique", color: "#ef4444" },
-        { value: 75, label: "Standard", color: "#f97316" },
-        { value: 100, label: "Excellent", color: "#22c55e" },
-      ],
-    },
-  ]
-
   return (
     <div id="main-content" className="flex flex-1 flex-col gap-4 p-4 pt-0 pb-20 md:gap-8 md:p-8 md:pb-8">
       <EnhancedDashboardView
@@ -169,7 +142,6 @@ function DashboardClientInner(props: DashboardClientProps) {
         description="Perspectives stratégiques, rentabilité et performance des flux de trésorerie."
         kpiCards={kpiCards}
         charts={charts}
-        gauges={gauges}
         table={{ columns: tableColumns, rows: tableRows }}
         activities={activities}
         topProducts={topProducts}

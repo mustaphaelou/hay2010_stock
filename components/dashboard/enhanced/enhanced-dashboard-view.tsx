@@ -5,13 +5,12 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { ChartLoadingFallback, GaugeLoadingFallback, LazyLoad, ErrorBoundary } from "./lazy-components"
+import { ChartLoadingFallback, ErrorBoundary } from "./lazy-components"
 import { InteractiveChartCard, type ChartType, type TimeRange, type DataPoint } from "./interactive-chart-card"
 import type { StatsOverviewCardProps } from "./stats-overview-card"
 import { RealtimeMetricsGrid } from "./realtime-metrics-grid"
 import { DashboardHeader, type BreadcrumbItemType } from "./dashboard-header"
 import { RecentActivityFeed, type ActivityItem } from "./recent-activity-feed"
-import { PerformanceGauge, type Threshold } from "./performance-gauge"
 import { AlertsWidget, type AlertItem } from "@/components/dashboard/widgets/alerts-widget"
 import { TopProductsWidget, type TopProduct } from "@/components/dashboard/widgets/top-products-widget"
 import { ThemeCustomizer } from "./theme-customizer"
@@ -42,15 +41,6 @@ interface ChartData {
 
 type ActivityData = ActivityItem
 
-interface GaugeData {
-  id: string
-  title: string
-  description?: string
-  value: number
-  max?: number
-  thresholds?: Threshold[]
-}
-
 interface TableColumn {
   key: string
   label: string
@@ -65,7 +55,6 @@ interface EnhancedDashboardViewProps {
   kpiCards?: KPICard[]
   charts?: ChartData[]
   activities?: ActivityData[]
-  gauges?: GaugeData[]
   table?: {
     columns: TableColumn[]
     rows: Record<string, unknown>[]
@@ -103,7 +92,6 @@ export const EnhancedDashboardView = React.memo(function EnhancedDashboardView({
   kpiCards = [],
   charts = [],
   activities = [],
-  gauges = [],
   table,
   alerts,
   topProducts,
@@ -249,43 +237,15 @@ export const EnhancedDashboardView = React.memo(function EnhancedDashboardView({
         ))}
       </div>
 
-      <div className={cn(
-        "grid gap-6",
-        viewMode === "grid" ? "lg:grid-cols-3" : "lg:grid-cols-2"
-      )}>
-        {activities.length > 0 && (
-          <div className={cn(viewMode === "grid" ? "lg:col-span-2" : "")}>
-            <RecentActivityFeed
-              items={activities}
-              title="Activité récente"
-              maxItems={5}
-              showViewAll
-              viewAllHref="/documents"
-            />
-          </div>
-        )}
-
-        {gauges.length > 0 && (
-          <div className="grid gap-4 sm:grid-cols-2">
-            {gauges.map((gauge) => (
-              <ErrorBoundary key={gauge.id} fallback={<GaugeLoadingFallback />}>
-                <LazyLoad height={200}>
-                  <PerformanceGauge
-                    title={gauge.title}
-                    description={gauge.description}
-                    value={gauge.value}
-                    max={gauge.max}
-                    thresholds={gauge.thresholds}
-                    size="sm"
-                    showPercentage
-                    animated={!prefersReducedMotion}
-                  />
-                </LazyLoad>
-              </ErrorBoundary>
-            ))}
-          </div>
-        )}
-      </div>
+      {activities.length > 0 && (
+        <RecentActivityFeed
+          items={activities}
+          title="Activité récente"
+          maxItems={5}
+          showViewAll
+          viewAllHref="/documents"
+        />
+      )}
 
       {table && table.columns.length > 0 && (
         <Card>
@@ -359,4 +319,4 @@ export const EnhancedDashboardView = React.memo(function EnhancedDashboardView({
   )
 })
 
-export type { EnhancedDashboardViewProps, ChartData, ActivityData, GaugeData, TableColumn }
+export type { EnhancedDashboardViewProps, ChartData, ActivityData, TableColumn }
