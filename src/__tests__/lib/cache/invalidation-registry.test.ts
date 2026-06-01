@@ -46,6 +46,68 @@ describe('InvalidationRegistry', () => {
             registry.register('document', async () => {})
         }).not.toThrow()
     })
+
+    it('invokes handlers in the order invalidations are passed', async () => {
+        const order: string[] = []
+        registry.register('product', async () => {
+            order.push('product')
+        })
+        registry.register('partner', async () => {
+            order.push('partner')
+        })
+        registry.register('document', async () => {
+            order.push('document')
+        })
+
+        await registry.run([
+            { kind: 'product' },
+            { kind: 'partner' },
+            { kind: 'document' },
+        ])
+
+        expect(order).toEqual(['product', 'partner', 'document'])
+    })
+
+    it('awaits handlers sequentially — a slow handler blocks the next', async () => {
+        let productResolved = false
+
+        registry.register('product', async () => {
+            await new Promise((resolve) => setTimeout(resolve, 10))
+            productResolved = true
+        })
+        const partnerHandler = vi.fn().mockImplementation(async () => {
+            expect(productResolved).toBe(true)
+        })
+        registry.register('partner', partnerHandler)
+
+        await registry.run([{ kind: 'product' }, { kind: 'partner' }])
+
+        expect(partnerHandler).toHaveBeenCalledTimes(1)
+    })
+
+    it('propagates handler rejection to the caller of run', async () => {
+        registry.register('product', async () => {
+            throw new Error('handler boom')
+        })
+
+        await expect(
+            registry.run([{ kind: 'product' }])
+        ).rejects.toThrow('handler boom')
+    })
+
+    it('does not run subsequent handlers when a handler rejects', async () => {
+        registry.register('product', async () => {
+            throw new Error('handler boom')
+        })
+        const partnerHandler = vi.fn().mockResolvedValue(undefined)
+        registry.register('partner', partnerHandler)
+
+        await expect(
+            registry.run([{ kind: 'product' }, { kind: 'partner' }])
+        ).rejects.toThrow('handler boom')
+
+        expect(partnerHandler).not.toHaveBeenCalled()
+    })
 })
 
 describe('InvalidationRegistry duplicate registration guard', () => {
