@@ -161,6 +161,8 @@ export function DashboardClient(props: DashboardClientProps) {
       monthlyData: props.monthlyData,
       activities: props.activities,
       topProducts: props.topProducts,
+      lowStockItems: [],
+      todaysMovements: [],
     }}>
       <DashboardClientInner {...props} />
     </DashboardProvider>

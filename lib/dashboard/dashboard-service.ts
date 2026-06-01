@@ -2,7 +2,7 @@ import { getAdapter } from '@/lib/cache/adapter'
 import { CacheNamespaces, CacheTTLSeconds } from '@/lib/cache/cache'
 import { prisma } from '@/lib/db/prisma'
 import { Prisma } from '@/lib/generated/prisma/client'
-import type { DashboardData, DashboardStats, SalesInvoice, DocumentWithComputed, MonthlyDataPoint, DashboardActivityItem, DashboardTopProduct } from '@/lib/types'
+import type { DashboardData, DashboardStats, SalesInvoice, DocumentWithComputed, MonthlyDataPoint, DashboardActivityItem, DashboardTopProduct, DashboardLowStockItem, DashboardMovementData } from '@/lib/types'
 import { getRecentDocuments, getRecentDocumentLines, getSalesInvoices, getDashboardDocuments } from '@/lib/documents/document-service'
 import { createLogger } from '@/lib/logger'
 
@@ -20,6 +20,28 @@ interface CountsRow {
   total_stock_products: bigint
   total_sales_amount: number
   total_purchases_amount: number
+  ruptures: bigint
+}
+
+interface LowStockItemRow {
+  id_produit: number
+  code_produit: string
+  nom_produit: string
+  id_entrepot: number
+  nom_entrepot: string
+  quantite_en_stock: number
+  niveau_reappro_quantite: number | null
+  status: 'rupture' | 'bas'
+}
+
+interface TodaysMovementRow {
+  id_mouvement: number
+  date_mouvement: Date
+  code_produit: string | null
+  nom_produit: string | null
+  type_mouvement: string
+  numero_document: string | null
+  quantite: number
 }
 
 interface MonthlyRow {
@@ -129,15 +151,7 @@ export type DashboardDocumentData = {
   partenaire?: { nom_partenaire: string } | null
 }
 
-export type DashboardMovementData = {
-  id: number
-  date: string
-  ref: string
-  designation: string
-  type: string
-  document: string
-  quantity: number
-}
+export type { DashboardMovementData } from '@/lib/types'
 
 export type DashboardDataResult = {
   products: DashboardProductData[]
@@ -147,7 +161,8 @@ export type DashboardDataResult = {
 }
 
 async function runStatsQueries() {
-  const [countsResult, monthlyResult, recentDocsRes, salesInvoicesRes, activityFeedResult, topProductsResult] = await Promise.all([
+  const todayStart = getServerLocalTodayStart()
+  const [countsResult, monthlyResult, recentDocsRes, salesInvoicesRes, activityFeedResult, topProductsResult, lowStockItemsResult, todaysMovementsResult] = await Promise.all([
     prisma.$queryRaw<Array<CountsRow>>`
       SELECT
         (SELECT COUNT(*) FROM partenaires WHERE type_partenaire IN ('CLIENT', 'LES_DEUX')) AS clients,
@@ -160,7 +175,9 @@ async function runStatsQueries() {
           WHERE p.activer_suivi_stock = true AND ns.quantite_en_stock <= COALESCE(p.niveau_reappro_quantite, 0)) AS low_stock,
         (SELECT COUNT(*) FROM produits WHERE activer_suivi_stock = true) AS total_stock_products,
         COALESCE((SELECT SUM(montant_ttc) FROM documents WHERE domaine_document = 'VENTE'), 0)::float AS total_sales_amount,
-        COALESCE((SELECT SUM(montant_ttc) FROM documents WHERE domaine_document = 'ACHAT'), 0)::float AS total_purchases_amount
+        COALESCE((SELECT SUM(montant_ttc) FROM documents WHERE domaine_document = 'ACHAT'), 0)::float AS total_purchases_amount,
+        (SELECT COUNT(*) FROM produits p JOIN niveaux_stock ns ON ns.id_produit = p.id_produit
+          WHERE p.activer_suivi_stock = true AND ns.quantite_en_stock = 0) AS ruptures
     `,
     prisma.$queryRaw<Array<MonthlyRow>>`
       SELECT
@@ -221,6 +238,43 @@ async function runStatsQueries() {
       ORDER BY SUM(ld.quantite_facturee) DESC
       LIMIT 10
     `,
+    prisma.$queryRaw<Array<LowStockItemRow>>`
+      SELECT
+        p.id_produit,
+        p.code_produit,
+        p.nom_produit,
+        e.id_entrepot,
+        e.nom_entrepot,
+        ns.quantite_en_stock::float AS quantite_en_stock,
+        p.niveau_reappro_quantite,
+        CASE WHEN ns.quantite_en_stock = 0 THEN 'rupture' ELSE 'bas' END AS status
+      FROM niveaux_stock ns
+      JOIN produits p ON p.id_produit = ns.id_produit
+      JOIN entrepots e ON e.id_entrepot = ns.id_entrepot
+      WHERE p.activer_suivi_stock = true
+        AND ns.quantite_en_stock <= COALESCE(p.niveau_reappro_quantite, 0)
+      ORDER BY
+        CASE WHEN ns.quantite_en_stock = 0 THEN 0 ELSE 1 END ASC,
+        (ns.quantite_en_stock / NULLIF(COALESCE(p.niveau_reappro_quantite, 0), 0)) ASC NULLS FIRST,
+        p.nom_produit ASC
+      LIMIT 6
+    `,
+    prisma.$queryRaw<Array<TodaysMovementRow>>`
+      SELECT
+        ms.id_mouvement,
+        ms.date_mouvement,
+        p.code_produit,
+        p.nom_produit,
+        ms.type_mouvement,
+        d.numero_document,
+        ms.quantite::float AS quantite
+      FROM mouvements_stock ms
+      LEFT JOIN produits p ON p.id_produit = ms.id_produit
+      LEFT JOIN documents d ON d.id_document = ms.id_document
+      WHERE ms.date_mouvement >= ${todayStart}
+      ORDER BY ms.date_mouvement DESC
+      LIMIT 8
+    `,
   ])
 
   return {
@@ -229,8 +283,15 @@ async function runStatsQueries() {
     recentDocs: recentDocsRes.data,
     salesInvoices: salesInvoicesRes.data,
     activityFeedResult,
-    topProductsResult
+    topProductsResult,
+    lowStockItemsResult,
+    todaysMovementsResult
   }
+}
+
+function getServerLocalTodayStart(): Date {
+  const now = new Date()
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0)
 }
 
 function buildStats(countsResult: Array<CountsRow>) {
@@ -243,6 +304,7 @@ function buildStats(countsResult: Array<CountsRow>) {
     salesCount: Number(c?.sales ?? 0),
     purchasesCount: Number(c?.purchases ?? 0),
     lowStockCount: Number(c?.low_stock ?? 0),
+    rupturesCount: Number(c?.ruptures ?? 0),
     totalStockProducts: Number(c?.total_stock_products ?? 0),
     totalSalesAmount: c?.total_sales_amount ?? 0,
     totalPurchasesAmount: c?.total_purchases_amount ?? 0,
@@ -271,6 +333,31 @@ function buildTopProducts(topProductsResult: Array<TopProductRow>): DashboardTop
     trend: 0,
     trendDirection: 'neutral',
     stockLevel: row.stock_level,
+  }))
+}
+
+function buildLowStockItems(lowStockItemsResult: Array<LowStockItemRow>): DashboardLowStockItem[] {
+  return lowStockItemsResult.map((row): DashboardLowStockItem => ({
+    id_produit: row.id_produit,
+    code_produit: row.code_produit,
+    nom_produit: row.nom_produit,
+    id_entrepot: row.id_entrepot,
+    nom_entrepot: row.nom_entrepot,
+    quantite_en_stock: Number(row.quantite_en_stock ?? 0),
+    niveau_reappro_quantite: row.niveau_reappro_quantite,
+    status: row.status,
+  }))
+}
+
+function buildTodaysMovements(todaysMovementsResult: Array<TodaysMovementRow>): DashboardMovementData[] {
+  return todaysMovementsResult.map((row): DashboardMovementData => ({
+    id: row.id_mouvement,
+    date: row.date_mouvement ? new Date(row.date_mouvement).toLocaleDateString('fr-FR') : '',
+    ref: row.code_produit ?? '',
+    designation: row.nom_produit ?? '',
+    type: row.type_mouvement,
+    document: row.numero_document ?? '',
+    quantity: Number(row.quantite ?? 0),
   }))
 }
 
@@ -402,19 +489,21 @@ export async function getDashboardStats(): Promise<{ data: DashboardData; error?
     const cached = await getAdapter().get<DashboardData>(CacheNamespaces.DASHBOARD, cacheKey)
     if (cached) return { data: cached, error: undefined }
 
-    const { countsResult, monthlyResult, recentDocs, salesInvoices, activityFeedResult, topProductsResult } = await runStatsQueries()
+    const { countsResult, monthlyResult, recentDocs, salesInvoices, activityFeedResult, topProductsResult, lowStockItemsResult, todaysMovementsResult } = await runStatsQueries()
 
     const baseStats = buildStats(countsResult)
     const monthlyData = fillMonthlyData(monthlyResult)
     const activities = buildActivityFeed(activityFeedResult)
     const topProducts = buildTopProducts(topProductsResult)
+    const lowStockItems = buildLowStockItems(lowStockItemsResult)
+    const todaysMovements = buildTodaysMovements(todaysMovementsResult)
 
     const { paymentRate, unpaidCount, unpaidTotal } = computePaymentMetrics(salesInvoices, baseStats.salesCount)
     const stockAvailability = computeStockAvailability(baseStats.totalStockProducts, baseStats.lowStockCount)
 
     const stats: DashboardStats = { ...baseStats, paymentRate, stockAvailability, unpaidCount, unpaidTotal }
 
-    const result: DashboardData = { stats, recentDocs, salesInvoices, monthlyData, activities, topProducts }
+    const result: DashboardData = { stats, recentDocs, salesInvoices, monthlyData, activities, topProducts, lowStockItems, todaysMovements }
 
     await getAdapter().set(CacheNamespaces.DASHBOARD, cacheKey, result, CacheTTLSeconds.DASHBOARD)
 
@@ -425,7 +514,7 @@ export async function getDashboardStats(): Promise<{ data: DashboardData; error?
       data: {
         stats: {
           clients: 0, suppliers: 0, products: 0, families: 0,
-          salesCount: 0, purchasesCount: 0, lowStockCount: 0,
+          salesCount: 0, purchasesCount: 0, lowStockCount: 0, rupturesCount: 0,
           totalStockProducts: 0, totalSalesAmount: 0, totalPurchasesAmount: 0,
           paymentRate: 0, stockAvailability: 100, unpaidCount: 0, unpaidTotal: 0,
         },
@@ -434,6 +523,8 @@ export async function getDashboardStats(): Promise<{ data: DashboardData; error?
         monthlyData: [],
         activities: [],
         topProducts: [],
+        lowStockItems: [],
+        todaysMovements: [],
       },
       error: 'Failed to fetch dashboard stats',
     }

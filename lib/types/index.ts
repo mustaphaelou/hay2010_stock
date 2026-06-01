@@ -323,6 +323,7 @@ export type DashboardStats = {
   salesCount: number
   purchasesCount: number
   lowStockCount: number
+  rupturesCount: number
   totalStockProducts: number
   totalSalesAmount: number
   totalPurchasesAmount: number
@@ -354,6 +355,27 @@ export type DashboardTopProduct = {
   stockLevel: number
 }
 
+export type DashboardLowStockItem = {
+  id_produit: number
+  code_produit: string
+  nom_produit: string
+  id_entrepot: number
+  nom_entrepot: string
+  quantite_en_stock: number
+  niveau_reappro_quantite: number | null
+  status: 'rupture' | 'bas'
+}
+
+export type DashboardMovementData = {
+  id: number
+  date: string
+  ref: string
+  designation: string
+  type: string
+  document: string
+  quantity: number
+}
+
 export type DashboardData = {
   stats: DashboardStats
   recentDocs: DocumentWithComputed[]
@@ -361,6 +383,8 @@ export type DashboardData = {
   monthlyData: MonthlyDataPoint[]
   activities: DashboardActivityItem[]
   topProducts: DashboardTopProduct[]
+  lowStockItems: DashboardLowStockItem[]
+  todaysMovements: DashboardMovementData[]
 }
 
 export type DashboardDataWithComputed = DashboardData

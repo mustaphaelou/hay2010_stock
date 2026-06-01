@@ -11,6 +11,7 @@ const mockStats: DashboardStats = {
   salesCount: 20,
   purchasesCount: 15,
   lowStockCount: 2,
+  rupturesCount: 1,
   totalStockProducts: 1000,
   totalSalesAmount: 50000,
   totalPurchasesAmount: 30000,
