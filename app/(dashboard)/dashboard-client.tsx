@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
-import type { DocumentWithComputed, DashboardStats, SalesInvoice, MonthlyDataPoint, DashboardActivityItem, DashboardTopProduct } from "@/lib/types"
+import type { DocumentWithComputed, DashboardStats, SalesInvoice, MonthlyDataPoint, DashboardActivityItem, DashboardTopProduct, DashboardLowStockItem } from "@/lib/types"
 import { DashboardProvider, useDashboardRefresh } from "@/components/dashboard/enhanced/dashboard-context"
 import { EnhancedDashboardView } from "@/components/dashboard/enhanced/enhanced-dashboard-view"
 import { toast } from "sonner"
@@ -14,10 +14,11 @@ interface DashboardClientProps {
   monthlyData: MonthlyDataPoint[]
   activities: DashboardActivityItem[]
   topProducts: DashboardTopProduct[]
+  lowStockItems: DashboardLowStockItem[]
 }
 
 function DashboardClientInner(props: DashboardClientProps) {
-  const { stats, recentDocs, salesInvoices, monthlyData, activities, topProducts } = props
+  const { stats, recentDocs, salesInvoices, monthlyData, activities, topProducts, lowStockItems } = props
   const router = useRouter()
   const { refresh: contextRefresh } = useDashboardRefresh()
 
@@ -145,6 +146,7 @@ function DashboardClientInner(props: DashboardClientProps) {
         table={{ columns: tableColumns, rows: tableRows }}
         activities={activities}
         topProducts={topProducts}
+        lowStockItems={lowStockItems}
         onRefresh={handleRefresh}
         onExport={handleExport}
       />
@@ -161,7 +163,7 @@ export function DashboardClient(props: DashboardClientProps) {
       monthlyData: props.monthlyData,
       activities: props.activities,
       topProducts: props.topProducts,
-      lowStockItems: [],
+      lowStockItems: props.lowStockItems,
       todaysMovements: [],
     }}>
       <DashboardClientInner {...props} />

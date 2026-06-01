@@ -40,6 +40,7 @@ describe('DashboardClient', () => {
         monthlyData={mockMonthlyData}
         activities={[]}
         topProducts={[]}
+        lowStockItems={[]}
       />
     )
     expect(container).toBeInTheDocument()

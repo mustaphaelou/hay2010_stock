@@ -11,3 +11,5 @@ export type {
   AlertSeverity,
   AlertType,
 } from "./alerts-widget"
+
+export { LowStockList } from "./low-stock-list"

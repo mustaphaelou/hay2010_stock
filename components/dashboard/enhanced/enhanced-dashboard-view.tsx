@@ -11,7 +11,7 @@ import type { StatsOverviewCardProps } from "./stats-overview-card"
 import { RealtimeMetricsGrid } from "./realtime-metrics-grid"
 import { DashboardHeader, type BreadcrumbItemType } from "./dashboard-header"
 import { RecentActivityFeed, type ActivityItem } from "./recent-activity-feed"
-import { AlertsWidget, type AlertItem } from "@/components/dashboard/widgets/alerts-widget"
+import { LowStockList } from "@/components/dashboard/widgets/low-stock-list"
 import { TopProductsWidget, type TopProduct } from "@/components/dashboard/widgets/top-products-widget"
 import { ThemeCustomizer } from "./theme-customizer"
 import { useReducedMotion } from "@/lib/hooks/use-reduced-motion"
@@ -21,6 +21,7 @@ import {
   LayoutGridIcon,
   LayoutIcon,
 } from "@hugeicons/core-free-icons"
+import type { DashboardLowStockItem } from "@/lib/types"
 
 interface KPICard extends Omit<StatsOverviewCardProps, "value"> {
   id: string
@@ -59,7 +60,7 @@ interface EnhancedDashboardViewProps {
     columns: TableColumn[]
     rows: Record<string, unknown>[]
   }
-  alerts?: AlertItem[]
+  lowStockItems?: DashboardLowStockItem[]
   topProducts?: TopProduct[]
   loading?: boolean
   className?: string
@@ -93,7 +94,7 @@ export const EnhancedDashboardView = React.memo(function EnhancedDashboardView({
   charts = [],
   activities = [],
   table,
-  alerts,
+  lowStockItems,
   topProducts,
   loading = false,
   className,
@@ -294,15 +295,13 @@ export const EnhancedDashboardView = React.memo(function EnhancedDashboardView({
         </Card>
       )}
 
-      {(alerts || topProducts) && (
+      {(lowStockItems || topProducts) && (
         <div className="grid gap-6 lg:grid-cols-2">
-          {alerts && (
-            <AlertsWidget
-              alerts={alerts}
-              title="Alertes & Notifications"
-              description="Informations importantes"
-              maxItems={5}
-              showViewAll
+          {lowStockItems && (
+            <LowStockList
+              items={lowStockItems}
+              title="Alertes stock"
+              description="Produits à réapprovisionner"
             />
           )}
           {topProducts && (

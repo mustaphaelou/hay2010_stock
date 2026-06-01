@@ -24,6 +24,7 @@ export default async function Page() {
       monthlyData={data.monthlyData}
       activities={data.activities}
       topProducts={data.topProducts}
+      lowStockItems={data.lowStockItems}
     />
   )
 }
