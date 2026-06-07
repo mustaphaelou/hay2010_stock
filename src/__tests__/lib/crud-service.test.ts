@@ -7,6 +7,8 @@ interface TestRecord {
   id: number
   name: string
   email: string
+  cree_par?: string
+  modifie_par?: string
 }
 
 interface TestCreate {
@@ -46,6 +48,7 @@ function createService(
     entityName: string
     uniqueFields: string[]
     idField: string
+    userIdField: string
   }>,
 ): {
   service: CrudService<TestRecord, TestCreate, TestUpdate>
@@ -59,6 +62,7 @@ function createService(
     updateSchema,
     uniqueFields: overrides?.uniqueFields,
     idField: overrides?.idField,
+    userIdField: overrides?.userIdField,
   })
   return { service, delegate: mockDelegate }
 }
@@ -145,6 +149,34 @@ describe('createCrudService', () => {
       expect(result.error).toBeDefined()
       expect(result.code).toBe('INTERNAL')
       expect(result.data).toBeUndefined()
+    })
+
+    it('injects userId into delegate data when userIdField is configured', async () => {
+      const { service, delegate } = createService(undefined, { userIdField: 'cree_par' })
+      vi.mocked(delegate.create).mockResolvedValue({ ...sampleRecord, cree_par: 'user-1' })
+
+      const result = await service.create({ name: 'Test', email: 'test@example.com' }, 'user-1')
+
+      expect(result.error).toBeUndefined()
+      expect(delegate.create).toHaveBeenCalledWith({ data: { name: 'Test', email: 'test@example.com', cree_par: 'user-1' } })
+    })
+
+    it('does not inject userId when userIdField is configured but no userId passed', async () => {
+      const { service, delegate } = createService(undefined, { userIdField: 'cree_par' })
+      vi.mocked(delegate.create).mockResolvedValue(sampleRecord)
+
+      await service.create({ name: 'Test', email: 'test@example.com' })
+
+      expect(delegate.create).toHaveBeenCalledWith({ data: { name: 'Test', email: 'test@example.com' } })
+    })
+
+    it('does not inject userId when userIdField is not configured even if userId is passed', async () => {
+      const { service, delegate } = createService()
+      vi.mocked(delegate.create).mockResolvedValue(sampleRecord)
+
+      await service.create({ name: 'Test', email: 'test@example.com' }, 'user-1')
+
+      expect(delegate.create).toHaveBeenCalledWith({ data: { name: 'Test', email: 'test@example.com' } })
     })
   })
 
@@ -237,6 +269,27 @@ describe('createCrudService', () => {
       expect(result.data).toEqual(sampleRecord)
       expect(delegate.findUnique).toHaveBeenCalledTimes(1)
       expect(delegate.update).toHaveBeenCalledWith({ where: { id: 1 }, data: { email: null } })
+    })
+
+    it('injects userId into delegate data on update when userIdField is configured', async () => {
+      const { service, delegate } = createService(undefined, { userIdField: 'modifie_par' })
+      vi.mocked(delegate.findUnique).mockResolvedValue(sampleRecord)
+      vi.mocked(delegate.update).mockResolvedValue({ ...sampleRecord, modifie_par: 'user-1' })
+
+      const result = await service.update(1, { name: 'Updated' }, 'user-1')
+
+      expect(result.error).toBeUndefined()
+      expect(delegate.update).toHaveBeenCalledWith({ where: { id: 1 }, data: { name: 'Updated', modifie_par: 'user-1' } })
+    })
+
+    it('does not inject userId on update when userIdField is configured but no userId passed', async () => {
+      const { service, delegate } = createService(undefined, { userIdField: 'modifie_par' })
+      vi.mocked(delegate.findUnique).mockResolvedValue(sampleRecord)
+      vi.mocked(delegate.update).mockResolvedValue(sampleRecord)
+
+      await service.update(1, { name: 'Updated' })
+
+      expect(delegate.update).toHaveBeenCalledWith({ where: { id: 1 }, data: { name: 'Updated' } })
     })
   })
 

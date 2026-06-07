@@ -20,11 +20,12 @@ export interface CrudConfig<TRecord, TCreate, TUpdate> {
   updateSchema: ZodType<TUpdate>
   uniqueFields?: string[]
   idField?: string
+  userIdField?: string
 }
 
 export interface CrudService<TRecord, TCreate, TUpdate> {
-  create(input: TCreate): Promise<ServiceResult<TRecord>>
-  update(id: number | string, input: TUpdate): Promise<ServiceResult<TRecord>>
+  create(input: TCreate, userId?: string): Promise<ServiceResult<TRecord>>
+  update(id: number | string, input: TUpdate, userId?: string): Promise<ServiceResult<TRecord>>
   delete(id: number | string): Promise<ServiceResult<void>>
   getById(id: number | string): Promise<ServiceResult<TRecord | null>>
   list(params?: {
@@ -39,7 +40,7 @@ export interface CrudService<TRecord, TCreate, TUpdate> {
 export function createCrudService<TRecord, TCreate, TUpdate>(
   config: CrudConfig<TRecord, TCreate, TUpdate>,
 ): CrudService<TRecord, TCreate, TUpdate> {
-  const { delegate, entityName, createSchema, updateSchema, uniqueFields, idField = 'id' } = config
+  const { delegate, entityName, createSchema, updateSchema, uniqueFields, idField = 'id', userIdField } = config
   const log = createLogger(`crud-${entityName.toLowerCase().replace(/\s+/g, '-')}`)
 
   function whereId(id: number | string): Record<string, unknown> {
@@ -68,13 +69,16 @@ export function createCrudService<TRecord, TCreate, TUpdate>(
   }
 
   return {
-    async create(input) {
+    async create(input, userId?) {
       const parsed = validatedOrError(createSchema, input)
       if (isServiceError(parsed)) {
         return parsed
       }
 
       const data = parsed.data
+      if (userIdField && userId) {
+        ;(data as Record<string, unknown>)[userIdField] = userId
+      }
 
       try {
         if (uniqueFields && uniqueFields.length > 0) {
@@ -99,13 +103,16 @@ export function createCrudService<TRecord, TCreate, TUpdate>(
       }
     },
 
-    async update(id, input) {
+    async update(id, input, userId?) {
       const parsed = validatedOrError(updateSchema, input)
       if (isServiceError(parsed)) {
         return parsed
       }
 
       const data = parsed.data
+      if (userIdField && userId) {
+        ;(data as Record<string, unknown>)[userIdField] = userId
+      }
 
       try {
         const existing = await delegate.findUnique({ where: whereId(id) })
