@@ -49,6 +49,7 @@ function createService(
     uniqueFields: string[]
     idField: string
     userIdField: string
+    conflictFormatter: (field: string, value: string) => string
   }>,
 ): {
   service: CrudService<TestRecord, TestCreate, TestUpdate>
@@ -63,6 +64,7 @@ function createService(
     uniqueFields: overrides?.uniqueFields,
     idField: overrides?.idField,
     userIdField: overrides?.userIdField,
+    conflictFormatter: overrides?.conflictFormatter,
   })
   return { service, delegate: mockDelegate }
 }
@@ -126,6 +128,18 @@ describe('createCrudService', () => {
       expect(result.code).toBe('CONFLICT')
       expect(result.data).toBeUndefined()
       expect(delegate.create).not.toHaveBeenCalled()
+    })
+
+    it('uses conflictFormatter when configured', async () => {
+      const formatter = vi.fn((field: string, value: string) => `Custom conflict: ${value}`)
+      const { service, delegate } = createService(undefined, { uniqueFields: ['email'], conflictFormatter: formatter })
+      vi.mocked(delegate.findUnique).mockResolvedValue(sampleRecord)
+
+      const result = await service.create({ name: 'Test', email: 'test@example.com' })
+
+      expect(result.error).toBe('Custom conflict: test@example.com')
+      expect(result.code).toBe('CONFLICT')
+      expect(formatter).toHaveBeenCalledWith('email', 'test@example.com')
     })
 
     it('does not check uniqueness when unique field value is null', async () => {
@@ -243,6 +257,21 @@ describe('createCrudService', () => {
       expect(delegate.findUnique).toHaveBeenCalledTimes(2)
       expect(delegate.findUnique).toHaveBeenNthCalledWith(1, { where: { id: 1 } })
       expect(delegate.findUnique).toHaveBeenNthCalledWith(2, { where: { email: 'taken@example.com' } })
+    })
+
+    it('uses conflictFormatter when configured on update', async () => {
+      const formatter = vi.fn((field: string, value: string) => `Update conflict: ${field}=${value}`)
+      const { service, delegate } = createService(undefined, { uniqueFields: ['email'], conflictFormatter: formatter })
+      const otherRecord: TestRecord = { id: 2, name: 'Other', email: 'taken@example.com' }
+      vi.mocked(delegate.findUnique)
+        .mockResolvedValueOnce(sampleRecord)
+        .mockResolvedValueOnce(otherRecord)
+
+      const result = await service.update(1, { email: 'taken@example.com' })
+
+      expect(result.error).toBe('Update conflict: email=taken@example.com')
+      expect(result.code).toBe('CONFLICT')
+      expect(formatter).toHaveBeenCalledWith('email', 'taken@example.com')
     })
 
     it('does not return CONFLICT when update keeps the same unique value', async () => {

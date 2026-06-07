@@ -21,6 +21,7 @@ export interface CrudConfig<TRecord, TCreate, TUpdate> {
   uniqueFields?: string[]
   idField?: string
   userIdField?: string
+  conflictFormatter?: (field: string, value: string) => string
 }
 
 export interface CrudService<TRecord, TCreate, TUpdate> {
@@ -40,7 +41,7 @@ export interface CrudService<TRecord, TCreate, TUpdate> {
 export function createCrudService<TRecord, TCreate, TUpdate>(
   config: CrudConfig<TRecord, TCreate, TUpdate>,
 ): CrudService<TRecord, TCreate, TUpdate> {
-  const { delegate, entityName, createSchema, updateSchema, uniqueFields, idField = 'id', userIdField } = config
+  const { delegate, entityName, createSchema, updateSchema, uniqueFields, idField = 'id', userIdField, conflictFormatter } = config
   const log = createLogger(`crud-${entityName.toLowerCase().replace(/\s+/g, '-')}`)
 
   function whereId(id: number | string): Record<string, unknown> {
@@ -87,10 +88,10 @@ export function createCrudService<TRecord, TCreate, TUpdate>(
             if (val !== undefined && val !== null) {
               const existing = await delegate.findUnique({ where: { [field]: val } })
               if (existing) {
-                return serviceError(
-                  `Un ${entityName.toLowerCase()} avec ${field} '${String(val)}' existe déjà`,
-                  'CONFLICT',
-                )
+                const errMsg = conflictFormatter
+                  ? conflictFormatter(field, String(val))
+                  : `Un ${entityName.toLowerCase()} avec ${field} '${String(val)}' existe déjà`
+                return serviceError(errMsg, 'CONFLICT')
               }
             }
           }
@@ -128,10 +129,10 @@ export function createCrudService<TRecord, TCreate, TUpdate>(
             if (newVal === currentVal) continue
             const conflict = await delegate.findUnique({ where: { [field]: newVal } })
             if (conflict) {
-              return serviceError(
-                `Un ${entityName.toLowerCase()} avec ${field} '${String(newVal)}' existe déjà`,
-                'CONFLICT',
-              )
+              const errMsg = conflictFormatter
+                ? conflictFormatter(field, String(newVal))
+                : `Un ${entityName.toLowerCase()} avec ${field} '${String(newVal)}' existe déjà`
+              return serviceError(errMsg, 'CONFLICT')
             }
           }
         }
