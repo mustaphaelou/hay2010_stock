@@ -120,6 +120,9 @@ const baseCrud = createCrudService<Produit, ArticleCreateInput, ArticleUpdateInp
   updateSchema: articleUpdateSchema,
   uniqueFields: ['code_produit'],
   idField: 'id_produit',
+  createUserIdField: 'cree_par',
+  updateUserIdField: 'modifie_par',
+  conflictFormatter: (field, value) => `L'article ${value} existe déjà`,
 })
 
 // --- Standard CRUD via CrudService ---
@@ -268,87 +271,37 @@ export async function getArticleById(
   }
 }
 
-// --- Custom create with userId tracking ---
+// --- Create via CrudService with stock aggregate ---
 
 export async function createArticle(
   input: ArticleCreateInput,
   userId: string,
 ): Promise<ServiceResult<ArticleWithStock>> {
-  const result = validatedOrError(articleCreateSchema, input)
-  if (result.error || !result.data) {
-    return { error: result.error || 'Données invalides', code: result.code || 'VALIDATION' }
+  const result = await baseCrud.create(input, userId)
+  if (result.error) {
+    return result as ServiceResult<ArticleWithStock>
   }
 
-  const validatedInput = result.data
-
-  try {
-    const existing = await prisma.produit.findUnique({
-      where: { code_produit: validatedInput.code_produit },
-    })
-    if (existing) {
-      return serviceError(`L'article ${validatedInput.code_produit} existe déjà`, 'CONFLICT')
-    }
-
-    const product = await prisma.produit.create({
-      data: {
-        ...validatedInput,
-        cree_par: userId,
-      },
-    })
-
-    return { data: mapProduitToArticleWithStock(product as unknown as Record<string, unknown>, 0) }
-  } catch (error) {
-    log.error({ error, input: validatedInput }, 'Échec de la création de l\'article')
-    return serviceError('Échec de la création de l\'article', 'INTERNAL')
-  }
+  const product = result.data!
+  const stock_global = (await getStockAggregates([product.id_produit])).get(product.id_produit) || 0
+  return { data: mapProduitToArticleWithStock(product as unknown as Record<string, unknown>, stock_global) }
 }
 
-// --- Custom update with conditional unique code check and userId tracking ---
+// --- Update via CrudService with stock aggregate ---
 
 export async function updateArticle(
   id_produit: number,
   input: ArticleUpdateInput,
   userId: string,
 ): Promise<ServiceResult<ArticleWithStock>> {
-  const result = validatedOrError(articleUpdateSchema, input)
-  if (result.error || !result.data) {
-    return { error: result.error || 'Données invalides', code: result.code || 'VALIDATION' }
+  const result = await baseCrud.update(id_produit, input, userId)
+  if (result.error) {
+    return result as ServiceResult<ArticleWithStock>
   }
 
-  const validatedInput = result.data
-
-  try {
-    const existing = await prisma.produit.findUnique({
-      where: { id_produit },
-    })
-    if (!existing) {
-      return serviceError('Article introuvable', 'NOT_FOUND')
-    }
-
-    if (validatedInput.code_produit && validatedInput.code_produit !== existing.code_produit) {
-      const duplicate = await prisma.produit.findUnique({
-        where: { code_produit: validatedInput.code_produit },
-      })
-      if (duplicate) {
-        return serviceError(`L'article ${validatedInput.code_produit} existe déjà`, 'CONFLICT')
-      }
-    }
-
-    const product = await prisma.produit.update({
-      where: { id_produit },
-      data: {
-        ...validatedInput,
-        modifie_par: userId,
-      },
-    })
-
-    const stock_global = (await getStockAggregates([product.id_produit])).get(product.id_produit) || 0
-
-    return { data: mapProduitToArticleWithStock(product as unknown as Record<string, unknown>, stock_global) }
-  } catch (error) {
-    log.error({ error, id_produit, input: validatedInput }, 'Échec de la mise à jour de l\'article')
-    return serviceError('Échec de la mise à jour de l\'article', 'INTERNAL')
-  }
+  const product = result.data!
+  const stock_global = (await getStockAggregates([product.id_produit])).get(product.id_produit) || 0
+  return { data: mapProduitToArticleWithStock(product as unknown as Record<string, unknown>, stock_global) }
 }
 
 // --- Custom soft delete ---
