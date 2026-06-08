@@ -76,6 +76,9 @@ const baseCrud = createCrudService<DocVente, DocumentCreateInput, DocumentUpdate
   updateSchema: documentUpdateSchema,
   uniqueFields: ['numero_document'],
   idField: 'id_document',
+  createUserIdField: 'cree_par',
+  updateUserIdField: 'modifie_par',
+  conflictFormatter: (field, value) => `Le document ${value} existe déjà`,
 })
 
 export const ensureDocumentExists = baseCrud.ensureExists
@@ -180,45 +183,23 @@ export async function createDocument(
   input: DocumentCreateInput,
   userId: string,
 ): Promise<ServiceResult<DocumentWithComputed>> {
-  const result = validatedOrError(documentCreateSchema, input)
-  if (result.error || !result.data) {
-    return { error: result.error || 'Données invalides', code: result.code || 'VALIDATION' }
+  const parsed = validatedOrError(documentCreateSchema, input)
+  if (parsed.error || !parsed.data) {
+    return { error: parsed.error || 'Données invalides', code: parsed.code || 'VALIDATION' }
   }
 
-  const validatedInput = result.data
-
-  try {
-    const existing = await prisma.docVente.findUnique({
-      where: { numero_document: validatedInput.numero_document },
-    })
-    if (existing) {
-      return serviceError(`Le document ${validatedInput.numero_document} existe déjà`, 'CONFLICT')
-    }
-
-    const partner = await prisma.partenaire.findUnique({
-      where: { id_partenaire: validatedInput.id_partenaire },
-    })
-    if (!partner) {
-      return serviceError('Partenaire introuvable', 'NOT_FOUND')
-    }
-
-    const { id_partenaire, id_affaire, id_entrepot, ...rest } = validatedInput
-
-    const document = await prisma.docVente.create({
-      data: {
-        ...rest,
-        id_partenaire,
-        ...(id_affaire ? { id_affaire } : {}),
-        ...(id_entrepot ? { id_entrepot } : {}),
-        cree_par: userId,
-      },
-    })
-
-    return { data: mapDocumentToComputed(document as unknown as Parameters<typeof mapDocumentToComputed>[0]) }
-  } catch (error) {
-    log.error({ error, input: validatedInput }, 'Échec de la création du document')
-    return serviceError('Échec de la création du document', 'INTERNAL')
+  const partner = await prisma.partenaire.findUnique({
+    where: { id_partenaire: parsed.data.id_partenaire },
+  })
+  if (!partner) {
+    return serviceError('Partenaire introuvable', 'NOT_FOUND')
   }
+
+  const result = await baseCrud.create(input, userId)
+  if (result.error) {
+    return result as ServiceResult<DocumentWithComputed>
+  }
+  return { data: mapDocumentToComputed(result.data as unknown as Parameters<typeof mapDocumentToComputed>[0]) }
 }
 
 export async function updateDocument(
@@ -226,43 +207,11 @@ export async function updateDocument(
   input: DocumentUpdateInput,
   userId: string,
 ): Promise<ServiceResult<DocumentWithComputed>> {
-  const result = validatedOrError(documentUpdateSchema, input)
-  if (result.error || !result.data) {
-    return { error: result.error || 'Données invalides', code: result.code || 'VALIDATION' }
+  const result = await baseCrud.update(id_document, input, userId)
+  if (result.error) {
+    return result as ServiceResult<DocumentWithComputed>
   }
-
-  const validatedInput = result.data
-
-  try {
-    const existing = await prisma.docVente.findUnique({
-      where: { id_document },
-    })
-    if (!existing) {
-      return serviceError('Document introuvable', 'NOT_FOUND')
-    }
-
-    if (validatedInput.numero_document && validatedInput.numero_document !== existing.numero_document) {
-      const duplicate = await prisma.docVente.findUnique({
-        where: { numero_document: validatedInput.numero_document },
-      })
-      if (duplicate) {
-        return serviceError(`Le document ${validatedInput.numero_document} existe déjà`, 'CONFLICT')
-      }
-    }
-
-    const document = await prisma.docVente.update({
-      where: { id_document },
-      data: {
-        ...validatedInput,
-        modifie_par: userId,
-      },
-    })
-
-    return { data: mapDocumentToComputed(document as unknown as Parameters<typeof mapDocumentToComputed>[0]) }
-  } catch (error) {
-    log.error({ error, id_document, input: validatedInput }, 'Échec de la mise à jour du document')
-    return serviceError('Échec de la mise à jour du document', 'INTERNAL')
-  }
+  return { data: mapDocumentToComputed(result.data as unknown as Parameters<typeof mapDocumentToComputed>[0]) }
 }
 
 export async function deleteDocument(
