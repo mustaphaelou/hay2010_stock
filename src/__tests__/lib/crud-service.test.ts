@@ -49,6 +49,8 @@ function createService(
     uniqueFields: string[]
     idField: string
     userIdField: string
+    createUserIdField: string
+    updateUserIdField: string
     conflictFormatter: (field: string, value: string) => string
   }>,
 ): {
@@ -64,6 +66,8 @@ function createService(
     uniqueFields: overrides?.uniqueFields,
     idField: overrides?.idField,
     userIdField: overrides?.userIdField,
+    createUserIdField: overrides?.createUserIdField,
+    updateUserIdField: overrides?.updateUserIdField,
     conflictFormatter: overrides?.conflictFormatter,
   })
   return { service, delegate: mockDelegate }
@@ -191,6 +195,25 @@ describe('createCrudService', () => {
       await service.create({ name: 'Test', email: 'test@example.com' }, 'user-1')
 
       expect(delegate.create).toHaveBeenCalledWith({ data: { name: 'Test', email: 'test@example.com' } })
+    })
+
+    it('uses createUserIdField when configured (separate from userIdField)', async () => {
+      const { service, delegate } = createService(undefined, { createUserIdField: 'cree_par' })
+      vi.mocked(delegate.create).mockResolvedValue({ ...sampleRecord, cree_par: 'user-1' })
+
+      const result = await service.create({ name: 'Test', email: 'test@example.com' }, 'user-1')
+
+      expect(result.error).toBeUndefined()
+      expect(delegate.create).toHaveBeenCalledWith({ data: { name: 'Test', email: 'test@example.com', cree_par: 'user-1' } })
+    })
+
+    it('prefers createUserIdField over userIdField on create', async () => {
+      const { service, delegate } = createService(undefined, { userIdField: 'modifie_par', createUserIdField: 'cree_par' })
+      vi.mocked(delegate.create).mockResolvedValue({ ...sampleRecord, cree_par: 'user-1' })
+
+      await service.create({ name: 'Test', email: 'test@example.com' }, 'user-1')
+
+      expect(delegate.create).toHaveBeenCalledWith({ data: { name: 'Test', email: 'test@example.com', cree_par: 'user-1' } })
     })
   })
 

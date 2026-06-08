@@ -227,7 +227,7 @@ describe('Partner Service', () => {
       const input = { code_partenaire: 'CLI-003', nom_partenaire: 'Fail Partner', type_partenaire: 'CLIENT' as const }
       const result = await createPartner(input, 'user-1')
 
-      expect(result.error).toBe('Échec de la création du partenaire')
+      expect(result.error).toBe('DB error')
       expect(result.data).toBeUndefined()
     })
 
@@ -276,7 +276,7 @@ describe('Partner Service', () => {
 
       const result = await updatePartner(1, { nom_partenaire: 'Fail' }, 'user-1')
 
-      expect(result.error).toBe('Échec de la mise à jour du partenaire')
+      expect(result.error).toBe('DB error')
       expect(result.data).toBeUndefined()
     })
 

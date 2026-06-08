@@ -71,6 +71,9 @@ const baseCrud = createCrudService<Partenaire, CreatePartnerInput, UpdatePartner
   updateSchema: updatePartnerSchema,
   uniqueFields: ['code_partenaire'],
   idField: 'id_partenaire',
+  createUserIdField: 'cree_par',
+  updateUserIdField: 'modifie_par',
+  conflictFormatter: (field, value) => `Le partenaire ${value} existe déjà`,
 })
 
 // --- Standard CRUD via CrudService ---
@@ -151,34 +154,11 @@ export async function createPartner(
   input: CreatePartnerInput,
   userId: string,
 ): Promise<ServiceResult<PartnerWithComputed>> {
-  const result = validatedOrError(createPartnerSchema, input)
-  if (result.error || !result.data) {
-    return { error: result.error || 'Données invalides', code: result.code || 'VALIDATION' }
+  const result = await baseCrud.create(input, userId)
+  if (result.error) {
+    return result as ServiceResult<PartnerWithComputed>
   }
-
-  const validatedInput = result.data
-
-  try {
-    const existing = await prisma.partenaire.findUnique({
-      where: { code_partenaire: validatedInput.code_partenaire },
-    })
-    if (existing) {
-      return serviceError(`Le partenaire ${validatedInput.code_partenaire} existe déjà`, 'CONFLICT')
-    }
-
-    const partner = await prisma.partenaire.create({
-      data: {
-        ...validatedInput,
-        cree_par: userId,
-        limite_credit: validatedInput.limite_credit ?? undefined,
-      },
-    })
-
-    return { data: mapPartnerToComputed(partner as unknown as Record<string, unknown>) }
-  } catch (error) {
-    log.error({ error, input: validatedInput }, 'Échec de la création du partenaire')
-    return serviceError('Échec de la création du partenaire', 'INTERNAL')
-  }
+  return { data: mapPartnerToComputed(result.data as unknown as Record<string, unknown>) }
 }
 
 // --- Custom update with conditional unique code check and userId tracking ---
@@ -188,44 +168,11 @@ export async function updatePartner(
   input: UpdatePartnerInput,
   userId: string,
 ): Promise<ServiceResult<PartnerWithComputed>> {
-  const parsed = validatedOrError(updatePartnerSchema, input)
-  if (parsed.error || !parsed.data) {
-    return { error: parsed.error || 'Données invalides', code: parsed.code || 'VALIDATION' }
+  const result = await baseCrud.update(id, input, userId)
+  if (result.error) {
+    return result as ServiceResult<PartnerWithComputed>
   }
-
-  const d = parsed.data
-
-  try {
-    const existing = await prisma.partenaire.findUnique({
-      where: { id_partenaire: id },
-    })
-    if (!existing) {
-      return serviceError('Partenaire introuvable', 'NOT_FOUND')
-    }
-
-    if (d.code_partenaire && d.code_partenaire !== existing.code_partenaire) {
-      const duplicate = await prisma.partenaire.findUnique({
-        where: { code_partenaire: d.code_partenaire },
-      })
-      if (duplicate) {
-        return serviceError(`Le partenaire ${d.code_partenaire} existe déjà`, 'CONFLICT')
-      }
-    }
-
-    const partner = await prisma.partenaire.update({
-      where: { id_partenaire: id },
-      data: {
-        ...d,
-        modifie_par: userId,
-        limite_credit: d.limite_credit ?? undefined,
-      },
-    })
-
-    return { data: mapPartnerToComputed(partner as unknown as Record<string, unknown>) }
-  } catch (error) {
-    log.error({ error, id, input: d }, 'Échec de la mise à jour du partenaire')
-    return serviceError('Échec de la mise à jour du partenaire', 'INTERNAL')
-  }
+  return { data: mapPartnerToComputed(result.data as unknown as Record<string, unknown>) }
 }
 
 // --- Custom soft delete ---

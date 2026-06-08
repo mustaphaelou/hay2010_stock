@@ -21,6 +21,8 @@ export interface CrudConfig<TRecord, TCreate, TUpdate> {
   uniqueFields?: string[]
   idField?: string
   userIdField?: string
+  createUserIdField?: string
+  updateUserIdField?: string
   conflictFormatter?: (field: string, value: string) => string
 }
 
@@ -41,7 +43,7 @@ export interface CrudService<TRecord, TCreate, TUpdate> {
 export function createCrudService<TRecord, TCreate, TUpdate>(
   config: CrudConfig<TRecord, TCreate, TUpdate>,
 ): CrudService<TRecord, TCreate, TUpdate> {
-  const { delegate, entityName, createSchema, updateSchema, uniqueFields, idField = 'id', userIdField, conflictFormatter } = config
+  const { delegate, entityName, createSchema, updateSchema, uniqueFields, idField = 'id', userIdField, createUserIdField, updateUserIdField, conflictFormatter } = config
   const log = createLogger(`crud-${entityName.toLowerCase().replace(/\s+/g, '-')}`)
 
   function whereId(id: number | string): Record<string, unknown> {
@@ -77,8 +79,9 @@ export function createCrudService<TRecord, TCreate, TUpdate>(
       }
 
       const data = parsed.data
-      if (userIdField && userId) {
-        ;(data as Record<string, unknown>)[userIdField] = userId
+      const effectiveCreateUserIdField = createUserIdField ?? userIdField
+      if (effectiveCreateUserIdField && userId) {
+        ;(data as Record<string, unknown>)[effectiveCreateUserIdField] = userId
       }
 
       try {
@@ -111,8 +114,9 @@ export function createCrudService<TRecord, TCreate, TUpdate>(
       }
 
       const data = parsed.data
-      if (userIdField && userId) {
-        ;(data as Record<string, unknown>)[userIdField] = userId
+      const effectiveUpdateUserIdField = updateUserIdField ?? userIdField
+      if (effectiveUpdateUserIdField && userId) {
+        ;(data as Record<string, unknown>)[effectiveUpdateUserIdField] = userId
       }
 
       try {
