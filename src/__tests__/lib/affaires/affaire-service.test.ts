@@ -1,9 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-const { mockAffaireFindMany, mockAffaireCount, mockAffaireFindFirst, mockDocVenteFindMany } = vi.hoisted(() => ({
+const { mockAffaireFindMany, mockAffaireCount, mockAffaireFindFirst, mockAffaireFindUnique, mockAffaireCreate, mockAffaireUpdate, mockDocVenteFindMany } = vi.hoisted(() => ({
   mockAffaireFindMany: vi.fn(),
   mockAffaireCount: vi.fn(),
   mockAffaireFindFirst: vi.fn(),
+  mockAffaireFindUnique: vi.fn(),
+  mockAffaireCreate: vi.fn(),
+  mockAffaireUpdate: vi.fn(),
   mockDocVenteFindMany: vi.fn(),
 }))
 
@@ -13,6 +16,9 @@ vi.mock('@/lib/db/prisma', () => ({
       findMany: mockAffaireFindMany,
       count: mockAffaireCount,
       findFirst: mockAffaireFindFirst,
+      findUnique: mockAffaireFindUnique,
+      create: mockAffaireCreate,
+      update: mockAffaireUpdate,
     },
     docVente: { findMany: mockDocVenteFindMany },
   },
@@ -27,7 +33,7 @@ vi.mock('@/lib/logger', () => ({
   }),
 }))
 
-import { getAffaires, getAffaireByCode, getDocumentsByAffaire } from '@/lib/affaires/affaire-service'
+import { getAffaires, getAffaireByCode, getDocumentsByAffaire, createAffaire, updateAffaire, getAffaireById } from '@/lib/affaires/affaire-service'
 
 function mockDbAffaire(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
@@ -55,6 +61,13 @@ function mockDbAffaire(overrides: Record<string, unknown> = {}): Record<string, 
     client: null,
     ...overrides,
   }
+}
+
+const validCreateInput = {
+  code_affaire: 'AFF-002',
+  intitule_affaire: 'New Affaire',
+  type_affaire: 'Proposition',
+  statut_affaire: 'En cours',
 }
 
 describe('Affaire Service', () => {
@@ -115,6 +128,104 @@ describe('Affaire Service', () => {
           where: expect.objectContaining({ type_affaire: 'Proposition' }),
         })
       )
+    })
+  })
+
+  describe('getAffaireById', () => {
+    it('should return affaire with computed fields when found', async () => {
+      const mockAffaire = mockDbAffaire({
+        client: { nom_partenaire: 'Client A', code_partenaire: 'CLI-001', type_partenaire: 'CLIENT' },
+        budget_prevu: 50000,
+      })
+      mockAffaireFindUnique.mockResolvedValue(mockAffaire)
+
+      const result = await getAffaireById(1)
+
+      expect(result.error).toBeUndefined()
+      expect(result.data).toBeDefined()
+      expect(result.data!.code_affaire).toBe('AFF-001')
+      expect(result.data!.budget_prevu_num).toBe(50000)
+    })
+
+    it('should return NOT_FOUND when affaire does not exist', async () => {
+      mockAffaireFindUnique.mockResolvedValue(null)
+
+      const result = await getAffaireById(999)
+
+      expect(result.error).toBe('Affaire introuvable')
+      expect(result.data).toBeUndefined()
+    })
+
+    it('should return error on DB failure', async () => {
+      mockAffaireFindUnique.mockRejectedValue(new Error('DB error'))
+
+      const result = await getAffaireById(1)
+
+      expect(result.error).toBeDefined()
+      expect(result.data).toBeUndefined()
+    })
+  })
+
+  describe('createAffaire', () => {
+    it('should create an affaire with computed fields', async () => {
+      mockAffaireFindUnique.mockResolvedValue(null)
+      mockAffaireCreate.mockResolvedValue(
+        mockDbAffaire({ code_affaire: 'AFF-002', cree_par: 'user-1' })
+      )
+
+      const result = await createAffaire(validCreateInput, 'user-1')
+
+      expect(result.error).toBeUndefined()
+      expect(result.data).toBeDefined()
+      expect(result.data!.code_affaire).toBe('AFF-002')
+      expect(result.data!.cree_par).toBe('user-1')
+    })
+
+    it('should return CONFLICT when code_affaire already exists', async () => {
+      mockAffaireFindUnique.mockResolvedValue(mockDbAffaire())
+
+      const result = await createAffaire(validCreateInput, 'user-1')
+
+      expect(result.error).toContain('existe déjà')
+      expect(result.code).toBe('CONFLICT')
+      expect(result.data).toBeUndefined()
+    })
+  })
+
+  describe('updateAffaire', () => {
+    it('should update an affaire and return computed fields', async () => {
+      const existing = mockDbAffaire()
+      mockAffaireFindUnique.mockResolvedValue(existing)
+      mockAffaireUpdate.mockResolvedValue(
+        mockDbAffaire({ intitule_affaire: 'Updated' })
+      )
+
+      const result = await updateAffaire(1, { intitule_affaire: 'Updated' }, 'user-1')
+
+      expect(result.error).toBeUndefined()
+      expect(result.data).toBeDefined()
+      expect(result.data!.intitule_affaire).toBe('Updated')
+    })
+
+    it('should return CONFLICT when changing to an existing code_affaire', async () => {
+      const existing = mockDbAffaire()
+      mockAffaireFindUnique
+        .mockResolvedValueOnce(existing)
+        .mockResolvedValueOnce(mockDbAffaire({ code_affaire: 'AFF-999' }))
+
+      const result = await updateAffaire(1, { code_affaire: 'AFF-999' }, 'user-1')
+
+      expect(result.error).toContain('existe déjà')
+      expect(result.code).toBe('CONFLICT')
+    })
+
+    it('should return NOT_FOUND when affaire does not exist', async () => {
+      mockAffaireFindUnique.mockResolvedValue(null)
+
+      const result = await updateAffaire(999, { intitule_affaire: 'Updated' }, 'user-1')
+
+      expect(result.error).toBe('Affaire introuvable')
+      expect(result.data).toBeUndefined()
     })
   })
 

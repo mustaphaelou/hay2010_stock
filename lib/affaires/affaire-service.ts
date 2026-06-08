@@ -4,7 +4,6 @@ import {
   getAffaireByCodeSchema,
   affaireCreateSchema,
   affaireUpdateSchema,
-  getAffaireByIdSchema,
   deleteAffaireSchema,
   ALLOWED_AFFAIRE_SORT_FIELDS,
 } from '@/lib/affaires/validation'
@@ -62,6 +61,9 @@ const baseCrud = createCrudService<Affaire, AffaireCreateInput, AffaireUpdateInp
   updateSchema: affaireUpdateSchema,
   uniqueFields: ['code_affaire'],
   idField: 'id_affaire',
+  createUserIdField: 'cree_par',
+  updateUserIdField: 'modifie_par',
+  conflictFormatter: (field, value) => `L'affaire ${value} existe déjà`,
 })
 
 // --- Standard CRUD via CrudService ---
@@ -138,85 +140,31 @@ export async function getAffaireById(id_affaire: number): Promise<ServiceResult<
   return result as ServiceResult<AffaireWithComputed>
 }
 
-// --- Custom create with userId tracking ---
+// --- Create via CrudService (validation, unique check, userId injection handled) ---
 
 export async function createAffaire(
   input: AffaireCreateInput,
   userId: string,
 ): Promise<ServiceResult<AffaireWithComputed>> {
-  const result = validatedOrError(affaireCreateSchema, input)
-  if (result.error || !result.data) {
-    return { error: result.error || 'Données invalides', code: result.code || 'VALIDATION' }
+  const result = await baseCrud.create(input, userId)
+  if (result.error) {
+    return result as ServiceResult<AffaireWithComputed>
   }
-
-  const validatedInput = result.data
-
-  try {
-    const existing = await prisma.affaire.findUnique({
-      where: { code_affaire: validatedInput.code_affaire },
-    })
-    if (existing) {
-      return serviceError(`L'affaire ${validatedInput.code_affaire} existe déjà`, 'CONFLICT')
-    }
-
-    const affaire = await prisma.affaire.create({
-      data: {
-        ...validatedInput,
-        cree_par: userId,
-      },
-    })
-
-    return { data: mapAffaireToComputed(affaire as unknown as Record<string, unknown>) }
-  } catch (error) {
-    log.error({ error, input: validatedInput }, 'Échec de la création de l\'affaire')
-    return serviceError('Échec de la création de l\'affaire', 'INTERNAL')
-  }
+  return { data: mapAffaireToComputed(result.data as unknown as Record<string, unknown>) }
 }
 
-// --- Custom update with conditional unique code check and userId tracking ---
+// --- Update via CrudService (validation, existence check, unique check, userId injection handled) ---
 
 export async function updateAffaire(
   id_affaire: number,
   input: AffaireUpdateInput,
   userId: string,
 ): Promise<ServiceResult<AffaireWithComputed>> {
-  const result = validatedOrError(affaireUpdateSchema, input)
-  if (result.error || !result.data) {
-    return { error: result.error || 'Données invalides', code: result.code || 'VALIDATION' }
+  const result = await baseCrud.update(id_affaire, input, userId)
+  if (result.error) {
+    return result as ServiceResult<AffaireWithComputed>
   }
-
-  const validatedInput = result.data
-
-  try {
-    const existing = await prisma.affaire.findUnique({
-      where: { id_affaire },
-    })
-    if (!existing) {
-      return serviceError('Affaire introuvable', 'NOT_FOUND')
-    }
-
-    if (validatedInput.code_affaire && validatedInput.code_affaire !== existing.code_affaire) {
-      const duplicate = await prisma.affaire.findUnique({
-        where: { code_affaire: validatedInput.code_affaire },
-      })
-      if (duplicate) {
-        return serviceError(`L'affaire ${validatedInput.code_affaire} existe déjà`, 'CONFLICT')
-      }
-    }
-
-    const affaire = await prisma.affaire.update({
-      where: { id_affaire },
-      data: {
-        ...validatedInput,
-        modifie_par: userId,
-      },
-    })
-
-    return { data: mapAffaireToComputed(affaire as unknown as Record<string, unknown>) }
-  } catch (error) {
-    log.error({ error, id_affaire, input: validatedInput }, 'Échec de la mise à jour de l\'affaire')
-    return serviceError('Échec de la mise à jour de l\'affaire', 'INTERNAL')
-  }
+  return { data: mapAffaireToComputed(result.data as unknown as Record<string, unknown>) }
 }
 
 // --- Custom soft delete ---
