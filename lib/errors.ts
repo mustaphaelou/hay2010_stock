@@ -84,34 +84,6 @@ export class AppError extends Error {
     Error.captureStackTrace(this, this.constructor)
   }
 
-  static badRequest(message: string, details?: Record<string, unknown>): AppError {
-    return new AppError('BAD_REQUEST', message, 400, details)
-  }
-
-  static unauthorized(message: string = 'Unauthorized'): AppError {
-    return new AppError('UNAUTHORIZED', message, 401)
-  }
-
-  static forbidden(message: string = 'Forbidden'): AppError {
-    return new AppError('FORBIDDEN', message, 403)
-  }
-
-  static notFound(message: string = 'Not found'): AppError {
-    return new AppError('NOT_FOUND', message, 404)
-  }
-
-  static conflict(message: string, details?: Record<string, unknown>): AppError {
-    return new AppError('CONFLICT', message, 409, details)
-  }
-
-  static rateLimited(retryAfter?: number): AppError {
-    return new AppError('RATE_LIMITED', 'Too many requests', 429, { retryAfter })
-  }
-
-  static csrf(): AppError {
-    return new AppError('CSRF_ERROR', 'Jeton de sécurité invalide', 403)
-  }
-
   /**
    * Convert error to JSON response format
    */
@@ -278,53 +250,6 @@ export class BusinessError extends AppError {
 }
 
 /**
- * Error handler for API routes
- * Catches and formats errors in a consistent way
- */
-export async function handleApiError(
-  error: unknown,
-  context?: Record<string, unknown>
-): Promise<Response> {
-  let appError: AppError
-
-  // Convert unknown error to AppError
-  if (error instanceof AppError) {
-    appError = error
-  } else if (error instanceof Error) {
-    // Convert generic Error to AppError
-    appError = new AppError(
-      'INTERNAL_ERROR',
-      error.message,
-      500,
-      { originalError: error.name, ...context }
-    )
-  } else {
-    // Convert unknown error type
-    appError = new AppError(
-      'UNKNOWN_ERROR',
-      'An unknown error occurred',
-      500,
-      { originalError: String(error), ...context }
-    )
-  }
-
-  // Log the error
-  appError.log()
-
-  // Return formatted response
-  return new Response(
-    JSON.stringify(appError.toJSON()),
-    {
-      status: appError.statusCode,
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Error-Code': appError.code
-      }
-    }
-  )
-}
-
-/**
  * Error handler for Next.js API routes
  * Returns NextResponse instead of Response
  */
@@ -370,19 +295,6 @@ export async function handleNextApiError(
       }
     }
   )
-}
-
-/**
- * Error boundary for React components
- */
-export class ErrorBoundaryError extends AppError {
-  constructor(
-    message: string = 'Component error',
-    details?: Record<string, unknown>
-  ) {
-    super('COMPONENT_ERROR', message, 500, details)
-    this.name = 'ErrorBoundaryError'
-  }
 }
 
 /**

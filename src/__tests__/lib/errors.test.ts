@@ -10,7 +10,6 @@ import {
   DatabaseError,
   ExternalServiceError,
   BusinessError,
-  handleApiError,
   handleNextApiError,
   createValidationErrorFromZod,
   isUniqueConstraintError,
@@ -135,51 +134,6 @@ describe('Error Handling System', () => {
       expect(error).toBeInstanceOf(BusinessError)
       expect(error.statusCode).toBe(422)
       expect(error.code).toBe('BUSINESS_ERROR')
-    })
-  })
-
-  describe('handleApiError', () => {
-    it('should handle AppError instance', async () => {
-      const error = new ValidationError('Invalid input')
-      const response = await handleApiError(error)
-      
-      expect(response.status).toBe(400)
-      expect(response.headers.get('Content-Type')).toBe('application/json')
-      expect(response.headers.get('X-Error-Code')).toBe('VALIDATION_ERROR')
-      
-      const body = await response.json()
-      expect(body.code).toBe('VALIDATION_ERROR')
-      expect(body.error).toBe('Invalid input')
-    })
-
-    it('should handle generic Error', async () => {
-      const error = new Error('Generic error')
-      const response = await handleApiError(error)
-      
-      expect(response.status).toBe(500)
-      
-      const body = await response.json()
-      expect(body.code).toBe('INTERNAL_ERROR')
-      expect(body.error).toBe('Generic error')
-    })
-
-    it('should handle unknown error type', async () => {
-      const response = await handleApiError('string error')
-      
-      expect(response.status).toBe(500)
-      
-      const body = await response.json()
-      expect(body.code).toBe('UNKNOWN_ERROR')
-      expect(body.error).toBe('An unknown error occurred')
-    })
-
-    it('should include context in details', async () => {
-      const error = new Error('Test error')
-      const context = { userId: '123', action: 'login' }
-      const response = await handleApiError(error, context)
-      
-      const body = await response.json()
-      expect(body.details).toMatchObject(context)
     })
   })
 
