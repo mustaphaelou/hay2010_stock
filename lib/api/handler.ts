@@ -9,6 +9,13 @@ import type { Role } from '@/lib/generated/prisma/client'
 import type { ZodSchema } from 'zod'
 import type { CacheInvalidation } from '@/lib/cache/invalidation'
 
+export interface PaginationParams {
+  page: number
+  limit: number
+  sort?: string
+  order: 'asc' | 'desc'
+}
+
 export interface ApiHandlerConfig<T, Q = any, B = any> {
   auth?: 'required' | 'optional' | Role[]
   rateLimit?: RateLimitTier
@@ -19,12 +26,17 @@ export interface ApiHandlerConfig<T, Q = any, B = any> {
   type?: 'read' | 'write'
   invalidations?: ((id: number | undefined, query: Q, body: B) => CacheInvalidation[]) | CacheInvalidation[]
   responseType?: 'success' | 'created' | 'noContent' | 'paginated'
+  pagination?: {
+    defaultSort?: string
+    defaultOrder?: 'asc' | 'desc'
+  }
   execute: (ctx: {
     request: NextRequest
     user: ApiKeyResult | null
     id?: number
     query: Q
     body: B
+    pagination: PaginationParams
   }) => Promise<{ data?: T; meta?: any; error?: string; code?: any }>
 }
 
@@ -102,7 +114,19 @@ export function apiHandler<T, Q = any, B = any>(config: ApiHandlerConfig<T, Q, B
         }
       }
 
-      // 5. Execute Action (Optionally wrapped in apiWrite for mutations)
+      // 5. Pagination Extraction
+      const rawPage = params['page']
+      const rawLimit = params['limit']
+      const rawSort = params['sort']
+      const rawOrder = params['order']
+
+      const page = Math.max(1, parseInt(rawPage || '1', 10) || 1)
+      const limit = Math.min(100, Math.max(1, parseInt(rawLimit || '50', 10) || 50))
+      const sort = rawSort || config.pagination?.defaultSort || undefined
+      const defaultOrder = config.pagination?.defaultOrder || 'asc'
+      const order: 'asc' | 'desc' = rawOrder?.toLowerCase() === 'desc' ? 'desc' : defaultOrder
+
+      // 6. Execute Action (Optionally wrapped in apiWrite for mutations)
       let result: any
       if (config.type === 'write') {
         if (!user) {
@@ -115,11 +139,11 @@ export function apiHandler<T, Q = any, B = any>(config: ApiHandlerConfig<T, Q, B
 
         result = await apiWrite(
           apiUser,
-          () => config.execute({ request, user, id, query, body }),
+          () => config.execute({ request, user, id, query, body, pagination: { page, limit, sort, order } }),
           resolvedInvalidations
         )
       } else {
-        result = await config.execute({ request, user, id, query, body })
+        result = await config.execute({ request, user, id, query, body, pagination: { page, limit, sort, order } })
       }
 
       // 6. Handle Service Error (Will throw if error is present)

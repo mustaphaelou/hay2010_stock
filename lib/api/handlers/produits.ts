@@ -10,15 +10,12 @@ import {
 
 export const listProductsHandler = apiHandler({
   rateLimit: 'read',
-  execute: ({ query }) => {
-    const page = parseInt(query.page || '1', 10)
-    const limit = parseInt(query.limit || '50', 10)
+  execute: ({ query, pagination }) => {
+    const { page, limit, sort, order } = pagination
     const search = query.search || undefined
     const categorie = query.categorie
     const famille = query.famille || undefined
     const actif = query.actif
-    const sort = query.sort || undefined
-    const order = (query.order || 'asc').toLowerCase() === 'desc' ? 'desc' as const : 'asc' as const
 
     const filters: { search?: string; categorie?: number; famille?: string; actif?: boolean } = {}
     if (search) filters.search = search
@@ -70,10 +67,8 @@ export const getProductStockLevelsHandler = apiHandler({
   rateLimit: 'read',
   idParam: true,
   idErrorMessage: 'ID d\'article invalide',
-  execute: ({ id, query }) => {
-    const page = parseInt(query.page || '1', 10)
-    const limit = parseInt(query.limit || '50', 10)
-    return getStockLevelsByArticle(id!, page, limit)
+  execute: ({ id, pagination }) => {
+    return getStockLevelsByArticle(id!, pagination.page, pagination.limit)
   },
   responseType: 'paginated'
 })

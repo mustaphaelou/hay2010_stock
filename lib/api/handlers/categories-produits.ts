@@ -11,13 +11,10 @@ import {
 
 export const listCategoriesHandler = apiHandler({
   rateLimit: 'read',
-  execute: ({ query }) => {
-    const page = parseInt(query.page || '1', 10)
-    const limit = parseInt(query.limit || '50', 10)
+  execute: ({ query, pagination }) => {
+    const { page, limit, sort, order } = pagination
     const search = query.search || undefined
     const parent = query.parent || undefined
-    const sort = query.sort || undefined
-    const order = (query.order || 'asc').toLowerCase() === 'desc' ? 'desc' as const : 'asc' as const
     return listCategories(page, limit, search, parent, sort, order)
   },
   responseType: 'paginated'
@@ -61,10 +58,8 @@ export const getCategoryChildrenHandler = apiHandler({
   rateLimit: 'read',
   idParam: true,
   idErrorMessage: 'ID catégorie invalide',
-  execute: ({ id, query }) => {
-    const page = parseInt(query.page || '1', 10)
-    const limit = parseInt(query.limit || '50', 10)
-    return getCategoryChildren(id!, page, limit)
+  execute: ({ id, pagination }) => {
+    return getCategoryChildren(id!, pagination.page, pagination.limit)
   },
   responseType: 'paginated'
 })
@@ -73,10 +68,8 @@ export const getCategoryProductsHandler = apiHandler({
   rateLimit: 'read',
   idParam: true,
   idErrorMessage: 'ID catégorie invalide',
-  execute: ({ id, query }) => {
-    const page = parseInt(query.page || '1', 10)
-    const limit = parseInt(query.limit || '50', 10)
-    return getCategoryProducts(id!, page, limit)
+  execute: ({ id, pagination }) => {
+    return getCategoryProducts(id!, pagination.page, pagination.limit)
   },
   responseType: 'paginated'
 })

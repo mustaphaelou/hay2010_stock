@@ -10,13 +10,10 @@ import {
 
 export const listPartnersHandler = apiHandler({
   rateLimit: 'read',
-  execute: ({ query }) => {
-    const page = parseInt(query.page || '1', 10)
-    const limit = parseInt(query.limit || '50', 10)
+  execute: ({ query, pagination }) => {
+    const { page, limit, sort, order } = pagination
     const type = query.type || undefined
     const search = query.search || undefined
-    const sort = query.sort || undefined
-    const order = (query.order || 'asc').toLowerCase() === 'desc' ? 'desc' as const : 'asc' as const
     return getPartners(type, page, limit, search, sort, order)
   },
   responseType: 'paginated'
@@ -60,10 +57,8 @@ export const getPartnerDocumentsHandler = apiHandler({
   rateLimit: 'read',
   idParam: true,
   idErrorMessage: 'ID partenaire invalide',
-  execute: ({ id, query }) => {
-    const page = parseInt(query.page || '1', 10)
-    const limit = parseInt(query.limit || '50', 10)
-    return getPartnerDocuments(id!, page, limit)
+  execute: ({ id, pagination }) => {
+    return getPartnerDocuments(id!, pagination.page, pagination.limit)
   },
   responseType: 'paginated'
 })

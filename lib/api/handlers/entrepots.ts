@@ -10,13 +10,10 @@ import {
 
 export const listWarehousesHandler = apiHandler({
   rateLimit: 'read',
-  execute: ({ query }) => {
-    const page = parseInt(query.page || '1', 10)
-    const limit = parseInt(query.limit || '50', 10)
+  execute: ({ query, pagination }) => {
+    const { page, limit, sort, order } = pagination
     const search = query.search || undefined
     const principal = query.principal || undefined
-    const sort = query.sort || undefined
-    const order = (query.order || 'asc').toLowerCase() === 'desc' ? 'desc' as const : 'asc' as const
     return listEntrepots(page, limit, search, principal, sort, order)
   },
   responseType: 'paginated'
@@ -60,10 +57,8 @@ export const getWarehouseStockLevelsHandler = apiHandler({
   rateLimit: 'read',
   idParam: true,
   idErrorMessage: 'ID entrepôt invalide',
-  execute: ({ id, query }) => {
-    const page = parseInt(query.page || '1', 10)
-    const limit = parseInt(query.limit || '50', 10)
-    return getEntrepotStockLevels(id!, page, limit)
+  execute: ({ id, pagination }) => {
+    return getEntrepotStockLevels(id!, pagination.page, pagination.limit)
   },
   responseType: 'paginated'
 })

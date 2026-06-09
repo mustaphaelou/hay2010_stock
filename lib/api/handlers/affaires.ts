@@ -11,9 +11,9 @@ import type { GetAffairesInput } from '@/lib/affaires/validation'
 
 export const listAffairesHandler = apiHandler({
   rateLimit: 'read',
-  execute: ({ query }) => {
-    const page = parseInt(query.page || '1', 10)
-    const limit = parseInt(query.limit || '50', 10)
+  pagination: { defaultOrder: 'desc' },
+  execute: ({ query, pagination }) => {
+    const { page, limit, sort, order } = pagination
 
     const filters: Partial<GetAffairesInput> = {}
     const type = query.type || undefined
@@ -25,9 +25,6 @@ export const listAffairesHandler = apiHandler({
     if (statut) filters.statut_affaire = statut
     if (search) filters.search = search
     if (client) (filters as Record<string, unknown>).id_client = parseInt(client, 10) || undefined
-
-    const sort = query.sort || undefined
-    const order = (query.order || 'desc').toLowerCase() === 'asc' ? 'asc' as const : 'desc' as const
 
     return getAffaires(page, limit, filters, sort, order)
   },
@@ -72,10 +69,8 @@ export const getAffaireDocumentsHandler = apiHandler({
   rateLimit: 'read',
   idParam: true,
   idErrorMessage: 'ID d\'affaire invalide',
-  execute: ({ id, query }) => {
-    const page = parseInt(query.page || '1', 10)
-    const limit = parseInt(query.limit || '50', 10)
-    return getAffaireDocumentsById(id!, page, limit)
+  execute: ({ id, pagination }) => {
+    return getAffaireDocumentsById(id!, pagination.page, pagination.limit)
   },
   responseType: 'paginated'
 })

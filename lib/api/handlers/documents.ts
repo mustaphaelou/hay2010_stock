@@ -10,9 +10,8 @@ import {
 
 export const listDocumentsHandler = apiHandler({
   rateLimit: 'read',
-  execute: ({ query, user }) => {
-    const page = parseInt(query.page || '1', 10)
-    const limit = parseInt(query.limit || '50', 10)
+  execute: ({ query, user, pagination }) => {
+    const { page, limit, sort, order } = pagination
 
     const params = {
       page,
@@ -23,8 +22,8 @@ export const listDocumentsHandler = apiHandler({
       statut_document: query.statut_document || undefined,
       id_partenaire: query.id_partenaire ? parseInt(query.id_partenaire, 10) : undefined,
       id_affaire: query.id_affaire ? parseInt(query.id_affaire, 10) : undefined,
-      sort: query.sort || undefined,
-      order: query.order === 'asc' ? ('asc' as const) : undefined,
+      sort,
+      order,
     }
 
     const userParam = { id: user!.userId, role: user!.role }
@@ -71,10 +70,8 @@ export const getDocumentLinesHandler = apiHandler({
   rateLimit: 'read',
   idParam: true,
   idErrorMessage: 'ID de document invalide',
-  execute: ({ id, query }) => {
-    const page = parseInt(query.page || '1', 10)
-    const limit = parseInt(query.limit || '50', 10)
-    return getDocumentLinesById(id!, page, limit)
+  execute: ({ id, pagination }) => {
+    return getDocumentLinesById(id!, pagination.page, pagination.limit)
   },
   responseType: 'paginated'
 })

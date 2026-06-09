@@ -23,18 +23,16 @@ type AllowedSortField = (typeof ALLOWED_SORT_FIELDS)[number]
 
 export const listStockLevelsHandler = apiHandler({
   rateLimit: 'read',
-  execute: async ({ query }) => {
-    const page = parseInt(query.page || '1', 10)
-    const limit = parseInt(query.limit || '50', 10)
+  pagination: { defaultSort: 'date_creation', defaultOrder: 'desc' },
+  execute: async ({ query, pagination }) => {
+    const { page, limit } = pagination
     const produit = query.produit || undefined
     const entrepot = query.entrepot || undefined
-    const sortParam = query.sort || 'date_creation'
-    const orderParam = (query.order || 'desc').toLowerCase()
 
-    const sort = ALLOWED_SORT_FIELDS.includes(sortParam as AllowedSortField)
-      ? (sortParam as AllowedSortField)
+    const sort = ALLOWED_SORT_FIELDS.includes(pagination.sort as AllowedSortField)
+      ? (pagination.sort as AllowedSortField)
       : 'date_creation'
-    const order = orderParam === 'desc' ? ('desc' as const) : ('asc' as const)
+    const order = pagination.order
 
     const skip = (page - 1) * limit
 
