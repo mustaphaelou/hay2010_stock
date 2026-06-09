@@ -3,7 +3,7 @@ import { CacheNamespaces, CacheTTLSeconds } from '@/lib/cache/cache'
 import { prisma } from '@/lib/db/prisma'
 import { Prisma } from '@/lib/generated/prisma/client'
 import type { DashboardData, DashboardStats, SalesInvoice, DocumentWithComputed, MonthlyDataPoint, DashboardActivityItem, DashboardTopProduct, DashboardLowStockItem, DashboardMovementData } from '@/lib/types'
-import { getRecentDocuments, getRecentDocumentLines, getSalesInvoices, getDashboardDocuments } from '@/lib/documents/document-service'
+import { getRecentDocuments, getSalesInvoices } from '@/lib/documents/document-service'
 import { createLogger } from '@/lib/logger'
 
 const log = createLogger('dashboard-service')
@@ -118,47 +118,6 @@ interface TopProductRow {
   stock_level: number
 }
 
-export type DashboardProductData = {
-  id_produit: number
-  code_produit: string
-  nom_produit: string
-  prix_vente: number | null
-  prix_achat: number | null
-  stock_maximum: number | null
-  niveau_reappro_quantite: number | null
-  categories_produits?: { nom_categorie: string } | null
-}
-
-export type DashboardPartnerData = {
-  id_partenaire: number
-  code_partenaire: string
-  nom_partenaire: string
-  type_partenaire: string
-  ville: string | null
-  est_actif: boolean
-}
-
-export type DashboardDocumentData = {
-  id_document: number
-  numero_document: string
-  date_document: Date
-  type_document: string
-  domaine_document: string
-  montant_ttc: number
-  montant_ht: number
-  statut_document: string
-  nom_partenaire_snapshot: string | null
-  partenaire?: { nom_partenaire: string } | null
-}
-
-export type { DashboardMovementData } from '@/lib/types'
-
-export type DashboardDataResult = {
-  products: DashboardProductData[]
-  partners: DashboardPartnerData[]
-  documents: DashboardDocumentData[]
-  movements: DashboardMovementData[]
-}
 
 async function runStatsQueries() {
   const todayStart = getServerLocalTodayStart()
@@ -383,85 +342,6 @@ function fillMonthlyData(monthlyResult: Array<MonthlyRow>): MonthlyDataPoint[] {
   }))
 }
 
-async function runDashboardDataQueries(): Promise<DashboardDataResult> {
-  const [productsRaw, partnersRaw, documentsResult, linesResult] = await Promise.all([
-    prisma.produit.findMany({
-      where: { est_actif: true },
-      include: { categorie: { select: { nom_categorie: true } } },
-      orderBy: { nom_produit: 'asc' },
-      take: 100
-    }),
-    prisma.partenaire.findMany({
-      orderBy: { nom_partenaire: 'asc' },
-      take: 100
-    }),
-    getDashboardDocuments(100),
-    getRecentDocumentLines(20)
-  ])
-
-  const documentsRaw = documentsResult.data || []
-  const lignesRaw = linesResult.data || []
-
-  const products: DashboardProductData[] = productsRaw.map(p => ({
-    id_produit: p.id_produit,
-    code_produit: p.code_produit,
-    nom_produit: p.nom_produit,
-    prix_vente: p.prix_vente ? Number(p.prix_vente) : null,
-    prix_achat: p.prix_achat ? Number(p.prix_achat) : null,
-    stock_maximum: p.stock_maximum,
-    niveau_reappro_quantite: p.niveau_reappro_quantite,
-    categories_produits: p.categorie ? { nom_categorie: p.categorie.nom_categorie } : null
-  }))
-
-  const partners: DashboardPartnerData[] = partnersRaw.map(p => ({
-    id_partenaire: p.id_partenaire,
-    code_partenaire: p.code_partenaire,
-    nom_partenaire: p.nom_partenaire,
-    type_partenaire: p.type_partenaire,
-    ville: p.ville,
-    est_actif: p.est_actif
-  }))
-
-  const documents: DashboardDocumentData[] = documentsRaw.map(d => ({
-    id_document: d.id_document,
-    numero_document: d.numero_document,
-    date_document: d.date_document,
-    type_document: d.type_document,
-    domaine_document: d.domaine_document,
-    montant_ttc: Number(d.montant_ttc),
-    montant_ht: Number(d.montant_ht),
-    statut_document: d.statut_document,
-    nom_partenaire_snapshot: d.nom_partenaire_snapshot,
-    partenaire: d.partenaire ? { nom_partenaire: d.partenaire.nom_partenaire } : null
-  }))
-
-  const movements: DashboardMovementData[] = lignesRaw.map(m => {
-    const doc = m.document
-    const produit = m.produit
-    const typeDoc = doc?.type_document || ''
-    const qty = Number(m.quantite_livree)
-
-    let movementType = 'Ajustement'
-    if (typeDoc === 'LIVRAISON') {
-      movementType = qty > 0 ? 'Entrée' : 'Sortie'
-    } else if (typeDoc === 'FACTURE') {
-      movementType = 'Sortie'
-    }
-
-    return {
-      id: m.id_ligne,
-      date: doc?.date_document ? new Date(doc.date_document).toLocaleDateString('fr-FR') : '',
-      ref: produit?.code_produit || '',
-      designation: produit?.nom_produit || '',
-      type: movementType,
-      document: doc?.numero_document || '',
-      quantity: qty
-    }
-  })
-
-  return { products, partners, documents, movements }
-}
-
 function computePaymentMetrics(salesInvoices: SalesInvoice[], salesCount: number) {
   let regle = 0
   let unpaidTotal = 0
@@ -531,20 +411,4 @@ export async function getDashboardStats(): Promise<{ data: DashboardData; error?
   }
 }
 
-export async function getDashboardData(): Promise<{ data: DashboardDataResult; error?: string }> {
-  const cacheKey = 'data'
 
-  try {
-    const cached = await getAdapter().get<DashboardDataResult>(CacheNamespaces.DASHBOARD, cacheKey)
-    if (cached) return { data: cached }
-
-    const result = await runDashboardDataQueries()
-
-    await getAdapter().set(CacheNamespaces.DASHBOARD, cacheKey, result, CacheTTLSeconds.DASHBOARD)
-
-    return { data: result }
-  } catch (error) {
-    log.error({ error }, 'Failed to fetch dashboard data')
-    return { data: { products: [], partners: [], documents: [], movements: [] }, error: 'Failed to fetch dashboard data' }
-  }
-}
