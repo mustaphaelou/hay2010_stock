@@ -15,12 +15,12 @@ import {
   deleteArticleSchema,
   getStockLevelsByArticleSchema,
   ALLOWED_ARTICLE_SORT_FIELDS,
-} from '@/lib/stock/validation'
+} from '@/lib/produits/validation'
 import type {
   ArticleCreateInput,
   ArticleUpdateInput,
   AllowedArticleSortField,
-} from '@/lib/stock/validation'
+} from '@/lib/produits/validation'
 import { serviceError, validatedOrError } from '@/lib/service-result'
 import type { ServiceResult, ServiceErrorCode } from '@/lib/service-result'
 import { createCrudService } from '@/lib/crud-service'
