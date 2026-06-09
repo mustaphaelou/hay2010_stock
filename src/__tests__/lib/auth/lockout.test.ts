@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { recordFailedAttempt, clearFailedAttempts, isAccountLocked, getLockoutTimeRemaining, getRemainingAttempts } from '@/lib/auth/lockout'
+import { recordFailedAttempt, clearFailedAttempts, isAccountLocked } from '@/lib/auth/lockout'
 import { redis, isRedisReady } from '@/lib/db/redis'
 
 vi.mock('@/lib/db/redis', () => ({
@@ -99,39 +99,4 @@ describe('Account Lockout', () => {
     })
   })
 
-  describe('getLockoutTimeRemaining', () => {
-    it('should return TTL when locked', async () => {
-      vi.mocked(redis.ttl).mockResolvedValue(450)
-
-      const result = await getLockoutTimeRemaining(testEmail)
-
-      expect(result).toBe(450)
-    })
-
-    it('should return 0 when not locked', async () => {
-      vi.mocked(redis.ttl).mockResolvedValue(-2)
-
-      const result = await getLockoutTimeRemaining(testEmail)
-
-      expect(result).toBe(0)
-    })
-  })
-
-  describe('getRemainingAttempts', () => {
-    it('should return max attempts when no attempts recorded', async () => {
-      vi.mocked(redis.get).mockResolvedValue(null)
-
-      const result = await getRemainingAttempts(testEmail)
-
-      expect(result).toBe(5)
-    })
-
-    it('should return correct remaining after some attempts', async () => {
-      vi.mocked(redis.get).mockResolvedValue('3')
-
-      const result = await getRemainingAttempts(testEmail)
-
-      expect(result).toBe(2)
-    })
-  })
 })

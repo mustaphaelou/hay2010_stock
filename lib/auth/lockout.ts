@@ -45,11 +45,12 @@ return {0, maxAttempts - attempts, 0}
 
 let lockoutScriptSha: string | null = null
 
-async function executeLockoutScript(email: string): Promise<{ locked: boolean; remaining: number; unlockIn: number }> {
-  const { maxAttempts, duration } = getAuthConfig().lockout
-  const lockoutKey = `${LOCKOUT_PREFIX}${email}`
-  const attemptsKey = `${ATTEMPTS_PREFIX}${email}`
-
+async function executeLockoutScript(
+  lockoutKey: string,
+  attemptsKey: string,
+  maxAttempts: number,
+  duration: number
+): Promise<{ locked: boolean; remaining: number; unlockIn: number }> {
   if (!lockoutScriptSha) {
     lockoutScriptSha = await redis.script('LOAD', LOCKOUT_SCRIPT) as string
   }
@@ -94,10 +95,12 @@ async function safeRedisOp<T>(
 
 export async function recordFailedAttempt(email: string): Promise<LockoutResult> {
   const failClosed = true
-  const { maxAttempts } = getAuthConfig().lockout
+  const { maxAttempts, duration } = getAuthConfig().lockout
+  const lockoutKey = `${LOCKOUT_PREFIX}${email}`
+  const attemptsKey = `${ATTEMPTS_PREFIX}${email}`
 
   return safeRedisOp(async () => {
-    const result = await executeLockoutScript(email)
+    const result = await executeLockoutScript(lockoutKey, attemptsKey, maxAttempts, duration)
     
     if (result.locked) {
       if (result.unlockIn > 0) {
@@ -129,54 +132,9 @@ export async function isAccountLocked(email: string): Promise<boolean> {
   )
 }
 
-export async function getLockoutTimeRemaining(email: string): Promise<number> {
-  return safeRedisOp(
-    () => redis.ttl(`${LOCKOUT_PREFIX}${email}`).then(ttl => Math.max(0, ttl)),
-    0,
-    'getLockoutTimeRemaining'
-  )
-}
-
-export async function getRemainingAttempts(email: string): Promise<number> {
-  return safeRedisOp(async () => {
-    const { maxAttempts } = getAuthConfig().lockout
-    const attempts = await redis.get(`${ATTEMPTS_PREFIX}${email}`)
-    if (!attempts) return maxAttempts
-    return Math.max(0, maxAttempts - parseInt(attempts, 10))
-  }, getAuthConfig().lockout.maxAttempts, 'getRemainingAttempts')
-}
-
 function hashIp(ip: string): string {
   return createHash('sha256').update(ip).digest('hex').slice(0, 16)
 }
-
-const IP_LOCKOUT_SCRIPT = `
-local lockoutKey = KEYS[1]
-local attemptsKey = KEYS[2]
-local lockoutDuration = tonumber(ARGV[1])
-local maxAttempts = tonumber(ARGV[2])
-
-local locked = redis.call('EXISTS', lockoutKey)
-if locked == 1 then
-  local ttl = redis.call('TTL', lockoutKey)
-  return {1, 0, ttl}
-end
-
-local attempts = redis.call('INCR', attemptsKey)
-if attempts == 1 then
-  redis.call('EXPIRE', attemptsKey, lockoutDuration)
-end
-
-if attempts >= maxAttempts then
-  redis.call('SETEX', lockoutKey, lockoutDuration, '1')
-  redis.call('DEL', attemptsKey)
-  return {1, 0, 0}
-end
-
-return {0, maxAttempts - attempts, 0}
-`
-
-let ipLockoutScriptSha: string | null = null
 
 export async function recordFailedAttemptByIp(ip: string): Promise<LockoutResult> {
   const { ipMaxAttempts, duration } = getAuthConfig().lockout
@@ -185,20 +143,16 @@ export async function recordFailedAttemptByIp(ip: string): Promise<LockoutResult
   const attemptsKey = `${IP_ATTEMPTS_PREFIX}${ipHash}`
 
   return safeRedisOp(async () => {
-    if (!ipLockoutScriptSha) {
-      ipLockoutScriptSha = await redis.script('LOAD', IP_LOCKOUT_SCRIPT) as string
-    }
+    const result = await executeLockoutScript(lockoutKey, attemptsKey, ipMaxAttempts, duration)
 
-    const result = await redis.evalsha(ipLockoutScriptSha, 2, lockoutKey, attemptsKey, String(duration), String(ipMaxAttempts)) as [number, number, number]
-
-    if (result[0] === 1) {
+    if (result.locked) {
       log.warn({ ipHash }, 'IP locked due to too many attempts')
     } else {
-      log.info({ ipHash, remaining: result[1] }, 'Failed login attempt recorded for IP')
+      log.info({ ipHash, remaining: result.remaining }, 'Failed login attempt recorded for IP')
     }
 
-    return { locked: result[0] === 1, remaining: result[1], unlockIn: result[2] || undefined }
-  }, { locked: false, remaining: getAuthConfig().lockout.ipMaxAttempts, unlockIn: undefined }, 'recordFailedAttemptByIp')
+    return { locked: result.locked, remaining: result.remaining, unlockIn: result.unlockIn || undefined }
+  }, { locked: false, remaining: ipMaxAttempts, unlockIn: undefined }, 'recordFailedAttemptByIp')
 }
 
 export async function isLockedByIp(ip: string): Promise<boolean> {
