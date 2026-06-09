@@ -14,7 +14,7 @@ export type CacheInvalidation =
   | { kind: 'dashboard' }
   | { kind: 'all' }
 
-export type InvalidationHandler = (inv: { kind: string }) => Promise<void>
+export type InvalidationHandler = (inv: CacheInvalidation) => Promise<void>
 
 export class InvalidationRegistry {
   private handlers = new Map<string, InvalidationHandler>()
