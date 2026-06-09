@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { formatSoldeCourant, formatPlafondCredit } from '@/lib/partners/compute-partner-balance'
+import { formatSoldeCourant, formatPlafondCredit } from '@/lib/partners/partner-display'
 
 describe('formatSoldeCourant', () => {
   it('should return "0.00 Dhs" for null', () => {

@@ -37,7 +37,7 @@ import {
 } from "@/components/ui/sheet"
 import { Separator } from "@/components/ui/separator"
 import { formatDate } from "@/lib/utils"
-import { formatSoldeCourant, formatPlafondCredit } from "@/lib/partners/compute-partner-balance"
+import { formatSoldeCourant, formatPlafondCredit } from "@/lib/partners/partner-display"
 import {
   Card,
   CardHeader,
