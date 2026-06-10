@@ -12,6 +12,7 @@ import {
   adjustStockLevelSchema,
   deleteStockLevelSchema,
 } from '@/lib/stock/validation'
+import { niveauStockService } from '@/lib/stock/niveau-stock-service'
 import { serviceError, validatedOrError } from '@/lib/service-result'
 
 const log = createLogger('stock-service')
@@ -324,78 +325,44 @@ export async function createStockLevel(
       return serviceError('Entrepôt introuvable', 'NOT_FOUND')
     }
 
-    const existing = await prisma.niveauStock.findUnique({
-      where: {
-        id_produit_id_entrepot: {
-          id_produit: d.productId,
-          id_entrepot: d.warehouseId,
-        },
-      },
-    })
-    if (existing) {
-      return serviceError('Un niveau de stock existe déjà pour ce couple produit-entrepôt', 'CONFLICT')
-    }
-
     const qty = d.quantite_en_stock ?? 0
     const reserved = d.quantite_reservee ?? 0
     const ordered = d.quantite_commandee ?? 0
 
-    if (qty > 0) {
-      const created = await withTransaction(async (tx) => {
-        const stockLevel = await tx.niveauStock.create({
-          data: {
-            id_produit: d.productId,
-            id_entrepot: d.warehouseId,
-            quantite_en_stock: qty,
-            quantite_reservee: reserved,
-            quantite_commandee: ordered,
-          },
-        })
-
-        await tx.mouvementStock.create({
-          data: {
-            id_produit: d.productId,
-            id_entrepot: d.warehouseId,
-            type_mouvement: 'INVENTAIRE',
-            quantite: qty,
-            motif: 'Mouvement initial du niveau de stock',
-            cree_par: userId,
-          },
-        })
-
-        return stockLevel
-      })
-
-      return {
-        data: {
-          id_stock: created.id_stock,
-          id_produit: created.id_produit,
-          id_entrepot: created.id_entrepot,
-          quantite_en_stock: Number(created.quantite_en_stock),
-          quantite_reservee: Number(created.quantite_reservee),
-          quantite_commandee: Number(created.quantite_commandee),
-        },
-      }
+    const serviceResult = await niveauStockService.create({
+      id_produit: d.productId,
+      id_entrepot: d.warehouseId,
+      quantite_en_stock: qty,
+      quantite_reservee: reserved,
+      quantite_commandee: ordered,
+    })
+    if (serviceResult.error) {
+      return { error: serviceResult.error, code: serviceResult.code }
     }
 
-    const stockLevel = await prisma.niveauStock.create({
-      data: {
-        id_produit: d.productId,
-        id_entrepot: d.warehouseId,
-        quantite_en_stock: qty,
-        quantite_reservee: reserved,
-        quantite_commandee: ordered,
-      },
-    })
+    const created = serviceResult.data
+
+    if (qty > 0) {
+      await prisma.mouvementStock.create({
+        data: {
+          id_produit: d.productId,
+          id_entrepot: d.warehouseId,
+          type_mouvement: 'INVENTAIRE',
+          quantite: qty,
+          motif: 'Mouvement initial du niveau de stock',
+          cree_par: userId,
+        },
+      })
+    }
 
     return {
       data: {
-        id_stock: stockLevel.id_stock,
-        id_produit: stockLevel.id_produit,
-        id_entrepot: stockLevel.id_entrepot,
-        quantite_en_stock: Number(stockLevel.quantite_en_stock),
-        quantite_reservee: Number(stockLevel.quantite_reservee),
-        quantite_commandee: Number(stockLevel.quantite_commandee),
+        id_stock: created.id_stock,
+        id_produit: created.id_produit,
+        id_entrepot: created.id_entrepot,
+        quantite_en_stock: Number(created.quantite_en_stock),
+        quantite_reservee: Number(created.quantite_reservee),
+        quantite_commandee: Number(created.quantite_commandee),
       },
     }
   } catch (error) {

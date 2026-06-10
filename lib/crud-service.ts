@@ -24,7 +24,7 @@ export interface CrudConfig<TRecord, TCreate, TUpdate> {
   entityName: string
   createSchema: ZodType<TCreate>
   updateSchema: ZodType<TUpdate>
-  uniqueFields?: string[]
+  uniqueFields?: (string | string[])[]
   idField?: string
   userIdField?: string
   createUserIdField?: string
@@ -93,15 +93,39 @@ export function createCrudService<TRecord, TCreate, TUpdate>(
 
       try {
         if (uniqueFields && uniqueFields.length > 0) {
-          for (const field of uniqueFields) {
-            const val = (data as Record<string, unknown>)[field]
-            if (val !== undefined && val !== null) {
-              const existing = await delegate.findUnique({ where: { [field]: val } })
-              if (existing) {
-                const errMsg = conflictFormatter
-                  ? conflictFormatter(field, String(val))
-                  : `Un ${entityName.toLowerCase()} avec ${field} '${String(val)}' existe déjà`
-                return serviceError(errMsg, 'CONFLICT')
+          for (const fieldOrFields of uniqueFields) {
+            if (Array.isArray(fieldOrFields)) {
+              const where: Record<string, unknown> = {}
+              let allPresent = true
+              for (const f of fieldOrFields) {
+                const val = (data as Record<string, unknown>)[f]
+                if (val === undefined || val === null) {
+                  allPresent = false
+                  break
+                }
+                where[f] = val
+              }
+              if (allPresent) {
+                const compoundKey = fieldOrFields.join('_')
+                const existing = await delegate.findUnique({ where: { [compoundKey]: where } })
+                if (existing) {
+                  const valuesStr = fieldOrFields.map(f => String((data as Record<string, unknown>)[f])).join(', ')
+                  const errMsg = conflictFormatter
+                    ? conflictFormatter(compoundKey, valuesStr)
+                    : `Un ${entityName.toLowerCase()} avec la combinaison ${fieldOrFields.join(' + ')} '${valuesStr}' existe déjà`
+                  return serviceError(errMsg, 'CONFLICT')
+                }
+              }
+            } else {
+              const val = (data as Record<string, unknown>)[fieldOrFields]
+              if (val !== undefined && val !== null) {
+                const existing = await delegate.findUnique({ where: { [fieldOrFields]: val } })
+                if (existing) {
+                  const errMsg = conflictFormatter
+                    ? conflictFormatter(fieldOrFields, String(val))
+                    : `Un ${entityName.toLowerCase()} avec ${fieldOrFields} '${String(val)}' existe déjà`
+                  return serviceError(errMsg, 'CONFLICT')
+                }
               }
             }
           }
@@ -133,17 +157,48 @@ export function createCrudService<TRecord, TCreate, TUpdate>(
         }
 
         if (uniqueFields && uniqueFields.length > 0) {
-          for (const field of uniqueFields) {
-            const newVal = (data as Record<string, unknown>)[field]
-            if (newVal === undefined || newVal === null) continue
-            const currentVal = (existing as Record<string, unknown>)[field]
-            if (newVal === currentVal) continue
-            const conflict = await delegate.findUnique({ where: { [field]: newVal } })
-            if (conflict) {
-              const errMsg = conflictFormatter
-                ? conflictFormatter(field, String(newVal))
-                : `Un ${entityName.toLowerCase()} avec ${field} '${String(newVal)}' existe déjà`
-              return serviceError(errMsg, 'CONFLICT')
+          for (const fieldOrFields of uniqueFields) {
+            if (Array.isArray(fieldOrFields)) {
+              const newWhere: Record<string, unknown> = {}
+              let allPresent = true
+              for (const f of fieldOrFields) {
+                const newVal = (data as Record<string, unknown>)[f]
+                if (newVal === undefined || newVal === null) {
+                  allPresent = false
+                  break
+                }
+                newWhere[f] = newVal
+              }
+              if (allPresent) {
+                const unchanged = fieldOrFields.every(f => {
+                  const newVal = (data as Record<string, unknown>)[f]
+                  const currentVal = (existing as Record<string, unknown>)[f]
+                  return newVal === currentVal
+                })
+                if (!unchanged) {
+                  const compoundKey = fieldOrFields.join('_')
+                  const conflict = await delegate.findUnique({ where: { [compoundKey]: newWhere } })
+                  if (conflict) {
+                    const valuesStr = fieldOrFields.map(f => String((data as Record<string, unknown>)[f])).join(', ')
+                    const errMsg = conflictFormatter
+                      ? conflictFormatter(compoundKey, valuesStr)
+                      : `Un ${entityName.toLowerCase()} avec la combinaison ${fieldOrFields.join(' + ')} '${valuesStr}' existe déjà`
+                    return serviceError(errMsg, 'CONFLICT')
+                  }
+                }
+              }
+            } else {
+              const newVal = (data as Record<string, unknown>)[fieldOrFields]
+              if (newVal === undefined || newVal === null) continue
+              const currentVal = (existing as Record<string, unknown>)[fieldOrFields]
+              if (newVal === currentVal) continue
+              const conflict = await delegate.findUnique({ where: { [fieldOrFields]: newVal } })
+              if (conflict) {
+                const errMsg = conflictFormatter
+                  ? conflictFormatter(fieldOrFields, String(newVal))
+                  : `Un ${entityName.toLowerCase()} avec ${fieldOrFields} '${String(newVal)}' existe déjà`
+                return serviceError(errMsg, 'CONFLICT')
+              }
             }
           }
         }

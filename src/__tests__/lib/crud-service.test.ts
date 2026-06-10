@@ -670,4 +670,243 @@ describe('createCrudService', () => {
       expect(result.error).toContain('Partenaire introuvable')
     })
   })
+
+  describe('compound unique fields', () => {
+    interface CompoundRecord {
+      id: number
+      productId: number
+      warehouseId: number
+      name: string
+    }
+
+    interface CompoundCreate {
+      productId: number
+      warehouseId: number
+      name: string
+    }
+
+    interface CompoundUpdate {
+      productId?: number
+      warehouseId?: number
+      name?: string
+    }
+
+    const compoundCreateSchema = z.object({
+      productId: z.number(),
+      warehouseId: z.number(),
+      name: z.string().min(1),
+    })
+
+    const compoundUpdateSchema = z.object({
+      productId: z.number().optional(),
+      warehouseId: z.number().optional(),
+      name: z.string().min(1).optional(),
+    })
+
+    function createCompoundDelegate(): CrudDelegate<CompoundRecord, CompoundCreate, CompoundUpdate> {
+      return {
+        findUnique: vi.fn(),
+        findMany: vi.fn(),
+        create: vi.fn(),
+        update: vi.fn(),
+        delete: vi.fn(),
+        count: vi.fn(),
+      }
+    }
+
+    function createCompoundService(
+      delegate?: CrudDelegate<CompoundRecord, CompoundCreate, CompoundUpdate>,
+      overrides?: Partial<{
+        entityName: string
+        uniqueFields: (string | string[])[]
+        idField: string
+        conflictFormatter: (field: string, value: string) => string
+      }>,
+    ) {
+      const mockDelegate = delegate ?? createCompoundDelegate()
+      const service = createCrudService<CompoundRecord, CompoundCreate, CompoundUpdate>({
+        delegate: mockDelegate,
+        entityName: overrides?.entityName ?? 'NiveauStock',
+        createSchema: compoundCreateSchema,
+        updateSchema: compoundUpdateSchema,
+        uniqueFields: overrides?.uniqueFields,
+        idField: overrides?.idField,
+        conflictFormatter: overrides?.conflictFormatter,
+      })
+      return { service, delegate: mockDelegate }
+    }
+
+    it('returns CONFLICT on create when compound unique fields are taken', async () => {
+      const { service, delegate } = createCompoundService(undefined, {
+        uniqueFields: [['productId', 'warehouseId']],
+      })
+      const existingRecord: CompoundRecord = { id: 5, productId: 1, warehouseId: 2, name: 'Existing' }
+      vi.mocked(delegate.findUnique).mockResolvedValue(existingRecord)
+
+      const result = await service.create({ productId: 1, warehouseId: 2, name: 'Test' })
+
+      expect(result.code).toBe('CONFLICT')
+      expect(result.error).toContain('existe déjà')
+      expect(result.error).toContain('combinaison')
+      expect(result.error).toContain('productId + warehouseId')
+      expect(delegate.findUnique).toHaveBeenCalledWith({
+        where: { productId_warehouseId: { productId: 1, warehouseId: 2 } },
+      })
+      expect(delegate.create).not.toHaveBeenCalled()
+    })
+
+    it('creates a record when compound unique check passes', async () => {
+      const { service, delegate } = createCompoundService(undefined, {
+        uniqueFields: [['productId', 'warehouseId']],
+      })
+      vi.mocked(delegate.findUnique).mockResolvedValue(null)
+      const createdRecord: CompoundRecord = { id: 1, productId: 1, warehouseId: 2, name: 'Test' }
+      vi.mocked(delegate.create).mockResolvedValue(createdRecord)
+
+      const result = await service.create({ productId: 1, warehouseId: 2, name: 'Test' })
+
+      expect(result.error).toBeUndefined()
+      expect(result.data).toEqual(createdRecord)
+      expect(delegate.findUnique).toHaveBeenCalledWith({
+        where: { productId_warehouseId: { productId: 1, warehouseId: 2 } },
+      })
+      expect(delegate.create).toHaveBeenCalled()
+    })
+
+    it('skips compound unique check on create when any component is null', async () => {
+      const nullableSchema = z.object({
+        productId: z.number(),
+        warehouseId: z.number().nullable(),
+        name: z.string().min(1),
+      })
+
+      const nullableDelegate = createCompoundDelegate()
+      const service = createCrudService<CompoundRecord, CompoundCreate, CompoundUpdate>({
+        delegate: nullableDelegate,
+        entityName: 'NiveauStock',
+        createSchema: nullableSchema,
+        updateSchema: compoundUpdateSchema,
+        uniqueFields: [['productId', 'warehouseId']],
+      })
+      vi.mocked(nullableDelegate.create).mockResolvedValue({ id: 1, productId: 1, warehouseId: 0, name: 'Test' })
+
+      const result = await service.create(
+        { productId: 1, warehouseId: null, name: 'Test' } as unknown as CompoundCreate,
+      )
+
+      expect(result.error).toBeUndefined()
+      expect(nullableDelegate.findUnique).not.toHaveBeenCalled()
+      expect(nullableDelegate.create).toHaveBeenCalled()
+    })
+
+    it('skips compound unique check on create when any component is undefined', async () => {
+      const partialSchema = z.object({
+        productId: z.number(),
+        warehouseId: z.number().optional(),
+        name: z.string().min(1),
+      })
+
+      const partialDelegate = createCompoundDelegate()
+      const service = createCrudService<CompoundRecord, CompoundCreate, CompoundUpdate>({
+        delegate: partialDelegate,
+        entityName: 'NiveauStock',
+        createSchema: partialSchema,
+        updateSchema: compoundUpdateSchema,
+        uniqueFields: [['productId', 'warehouseId']],
+      })
+      const recordWithoutComponent: CompoundRecord = { id: 2, productId: 1, warehouseId: 0, name: 'Test' }
+      vi.mocked(partialDelegate.create).mockResolvedValue(recordWithoutComponent)
+
+      const result = await service.create(
+        { productId: 1, name: 'Test' } as unknown as CompoundCreate,
+      )
+
+      expect(result.error).toBeUndefined()
+      expect(partialDelegate.findUnique).not.toHaveBeenCalled()
+      expect(partialDelegate.create).toHaveBeenCalled()
+    })
+
+    it('returns CONFLICT on update when compound unique fields conflict with another record', async () => {
+      const { service, delegate } = createCompoundService(undefined, {
+        uniqueFields: [['productId', 'warehouseId']],
+      })
+      const currentRecord: CompoundRecord = { id: 1, productId: 1, warehouseId: 2, name: 'Original' }
+      const conflictingRecord: CompoundRecord = { id: 5, productId: 1, warehouseId: 5, name: 'Other' }
+      vi.mocked(delegate.findUnique)
+        .mockResolvedValueOnce(currentRecord)  // getById fetch
+        .mockResolvedValueOnce(conflictingRecord)  // compound conflict query
+
+      const result = await service.update(1, { warehouseId: 5, productId: 1 })
+
+      expect(result.code).toBe('CONFLICT')
+      expect(result.error).toContain('existe déjà')
+      expect(delegate.findUnique).toHaveBeenNthCalledWith(1, { where: { id: 1 } })
+      expect(delegate.findUnique).toHaveBeenNthCalledWith(2, {
+        where: { productId_warehouseId: { productId: 1, warehouseId: 5 } },
+      })
+      expect(delegate.update).not.toHaveBeenCalled()
+    })
+
+    it('skips compound unique check on update when values are unchanged', async () => {
+      const { service, delegate } = createCompoundService(undefined, {
+        uniqueFields: [['productId', 'warehouseId']],
+      })
+      const currentRecord: CompoundRecord = { id: 1, productId: 1, warehouseId: 2, name: 'Original' }
+      vi.mocked(delegate.findUnique).mockResolvedValueOnce(currentRecord)
+      vi.mocked(delegate.update).mockResolvedValue({ ...currentRecord, name: 'Updated' })
+
+      const result = await service.update(1, { name: 'Updated' })
+
+      expect(result.error).toBeUndefined()
+      expect(result.data).toEqual({ ...currentRecord, name: 'Updated' })
+      expect(delegate.findUnique).toHaveBeenCalledTimes(1)
+      expect(delegate.update).toHaveBeenCalled()
+    })
+
+    it('skips compound unique check on update when any component value is null', async () => {
+      const nullableUpdateSchema = z.object({
+        productId: z.number().optional(),
+        warehouseId: z.number().nullable().optional(),
+        name: z.string().min(1).optional(),
+      })
+
+      const nullableDelegate = createCompoundDelegate()
+      const service = createCrudService<CompoundRecord, CompoundCreate, CompoundUpdate>({
+        delegate: nullableDelegate,
+        entityName: 'NiveauStock',
+        createSchema: compoundCreateSchema,
+        updateSchema: nullableUpdateSchema,
+        uniqueFields: [['productId', 'warehouseId']],
+      })
+      const currentRecord: CompoundRecord = { id: 1, productId: 1, warehouseId: 2, name: 'Original' }
+      vi.mocked(nullableDelegate.findUnique).mockResolvedValueOnce(currentRecord)
+      vi.mocked(nullableDelegate.update).mockResolvedValue({ ...currentRecord, warehouseId: 0 })
+
+      const result = await service.update(1, { warehouseId: null } as unknown as CompoundUpdate)
+
+      expect(result.error).toBeUndefined()
+      expect(nullableDelegate.findUnique).toHaveBeenCalledTimes(1)
+      expect(nullableDelegate.update).toHaveBeenCalled()
+    })
+
+    it('handles mixed single and compound unique fields', async () => {
+      const { service, delegate } = createCompoundService(undefined, {
+        uniqueFields: ['name', ['productId', 'warehouseId']],
+      })
+      vi.mocked(delegate.findUnique).mockResolvedValue(null)
+      const createdRecord: CompoundRecord = { id: 1, productId: 1, warehouseId: 2, name: 'Unique' }
+      vi.mocked(delegate.create).mockResolvedValue(createdRecord)
+
+      const result = await service.create({ productId: 1, warehouseId: 2, name: 'Unique' })
+
+      expect(result.error).toBeUndefined()
+      expect(result.data).toEqual(createdRecord)
+      // name single-field check
+      expect(delegate.findUnique).toHaveBeenCalledWith({ where: { name: 'Unique' } })
+      // compound check
+      expect(delegate.findUnique).toHaveBeenCalledWith({
+        where: { productId_warehouseId: { productId: 1, warehouseId: 2 } },
+      })
+    })
+  })
 })
