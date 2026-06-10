@@ -747,7 +747,6 @@ describe('createCrudService', () => {
 
       expect(result.code).toBe('CONFLICT')
       expect(result.error).toContain('existe déjà')
-      expect(result.error).toContain('combinaison')
       expect(result.error).toContain('productId + warehouseId')
       expect(delegate.findUnique).toHaveBeenCalledWith({
         where: { productId_warehouseId: { productId: 1, warehouseId: 2 } },
