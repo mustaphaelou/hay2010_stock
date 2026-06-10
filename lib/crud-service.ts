@@ -112,7 +112,7 @@ export function createCrudService<TRecord, TCreate, TUpdate>(
                   const valuesStr = fieldOrFields.map(f => String((data as Record<string, unknown>)[f])).join(', ')
                   const errMsg = conflictFormatter
                     ? conflictFormatter(compoundKey, valuesStr)
-                    : `${entityName} (${fieldOrFields.join(' + ')}) '${valuesStr}' existe déjà`
+                    : `${entityName.toLowerCase()} (${fieldOrFields.join(' + ')}) '${valuesStr}' existe déjà`
                   return serviceError(errMsg, 'CONFLICT')
                 }
               }
@@ -123,7 +123,7 @@ export function createCrudService<TRecord, TCreate, TUpdate>(
                 if (existing) {
                   const errMsg = conflictFormatter
                     ? conflictFormatter(fieldOrFields, String(val))
-                    : `${entityName} '${String(val)}' existe déjà`
+                    : `${entityName.toLowerCase()} '${String(val)}' existe déjà`
                   return serviceError(errMsg, 'CONFLICT')
                 }
               }
@@ -182,7 +182,7 @@ export function createCrudService<TRecord, TCreate, TUpdate>(
                     const valuesStr = fieldOrFields.map(f => String((data as Record<string, unknown>)[f])).join(', ')
                     const errMsg = conflictFormatter
                       ? conflictFormatter(compoundKey, valuesStr)
-                      : `${entityName} (${fieldOrFields.join(' + ')}) '${valuesStr}' existe déjà`
+                      : `${entityName.toLowerCase()} (${fieldOrFields.join(' + ')}) '${valuesStr}' existe déjà`
                     return serviceError(errMsg, 'CONFLICT')
                   }
                 }
@@ -196,7 +196,7 @@ export function createCrudService<TRecord, TCreate, TUpdate>(
               if (conflict) {
                 const errMsg = conflictFormatter
                   ? conflictFormatter(fieldOrFields, String(newVal))
-                  : `${entityName} '${String(newVal)}' existe déjà`
+                  : `${entityName.toLowerCase()} '${String(newVal)}' existe déjà`
                 return serviceError(errMsg, 'CONFLICT')
               }
             }
