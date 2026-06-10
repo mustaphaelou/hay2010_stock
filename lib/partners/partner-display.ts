@@ -1,15 +1,5 @@
 import { prisma } from '@/lib/db/prisma'
 
-export function formatSoldeCourant(solde: number | null | undefined): string {
-  if (solde === null || solde === undefined) return "0.00 Dhs"
-  return `${solde} Dhs`
-}
-
-export function formatPlafondCredit(plafond: number | null | undefined): string {
-  if (plafond === null || plafond === undefined) return "Non défini"
-  return `${plafond} Dhs`
-}
-
 /**
  * Computes the current balance (solde courant) for a partner based on open sales documents.
  * 

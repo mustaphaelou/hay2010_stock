@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { formatSoldeCourant, formatPlafondCredit, computePartnerBalance } from '@/lib/partners/partner-display'
+import { formatSoldeCourant, formatPlafondCredit } from '@/lib/partners/partner-formatters'
+import { computePartnerBalance } from '@/lib/partners/partner-display'
 
 const { mockDocVenteGroupBy } = vi.hoisted(() => ({
   mockDocVenteGroupBy: vi.fn(),
