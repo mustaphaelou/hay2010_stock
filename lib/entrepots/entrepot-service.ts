@@ -50,6 +50,7 @@ const baseCrud = createCrudService<Entrepot, CreateInput, UpdateInput>({
   uniqueFields: ['code_entrepot'],
   idField: 'id_entrepot',
   conflictFormatter: (field, value) => `Le code entrepôt ${value} existe déjà`,
+  softDelete: { field: 'est_actif', value: false },
 })
 
 // --- Standard CRUD via CrudService ---
@@ -126,24 +127,11 @@ export async function updateEntrepot(
 // --- Custom soft delete ---
 
 export async function deleteEntrepot(id: number): Promise<ServiceResult<{ success: boolean }>> {
-  try {
-    const existing = await prisma.entrepot.findUnique({
-      where: { id_entrepot: id },
-    })
-    if (!existing) {
-      return serviceError('Entrepôt introuvable', 'NOT_FOUND')
-    }
-
-    await prisma.entrepot.update({
-      where: { id_entrepot: id },
-      data: { est_actif: false },
-    })
-
-    return { data: { success: true } }
-  } catch (error) {
-    log.error({ error, id }, 'Échec de la suppression de l\'entrepôt')
-    return serviceError('Échec de la suppression de l\'entrepôt', 'INTERNAL')
+  const result = await baseCrud.delete(id)
+  if (result.error) {
+    return result as ServiceResult<{ success: boolean }>
   }
+  return { data: { success: true } }
 }
 
 // --- Stock levels (non-CRUD, standalone) ---

@@ -12,7 +12,6 @@ import {
   articleCreateSchema,
   articleUpdateSchema,
   getArticleByIdSchema,
-  deleteArticleSchema,
   getStockLevelsByArticleSchema,
   ALLOWED_ARTICLE_SORT_FIELDS,
 } from '@/lib/produits/validation'
@@ -123,6 +122,7 @@ const baseCrud = createCrudService<Produit, ArticleCreateInput, ArticleUpdateInp
   createUserIdField: 'cree_par',
   updateUserIdField: 'modifie_par',
   conflictFormatter: (field, value) => `L'article ${value} existe déjà`,
+  softDelete: { field: 'est_actif', value: false, userIdField: 'modifie_par' },
 })
 
 // --- Standard CRUD via CrudService ---
@@ -310,29 +310,11 @@ export async function deleteArticle(
   id_produit: number,
   userId: string,
 ): Promise<ServiceResult<{ success: boolean }>> {
-  const result = validatedOrError(deleteArticleSchema, { id_produit }, { message: 'ID d\'article invalide' })
+  const result = await baseCrud.delete(id_produit, userId)
   if (result.error) {
-    return { error: result.error, code: result.code }
+    return result as ServiceResult<{ success: boolean }>
   }
-
-  try {
-    const existing = await prisma.produit.findUnique({
-      where: { id_produit },
-    })
-    if (!existing) {
-      return serviceError('Article introuvable', 'NOT_FOUND')
-    }
-
-    await prisma.produit.update({
-      where: { id_produit },
-      data: { est_actif: false, modifie_par: userId },
-    })
-
-    return { data: { success: true } }
-  } catch (error) {
-    log.error({ error, id_produit }, 'Échec de la suppression de l\'article')
-    return serviceError('Échec de la suppression de l\'article', 'INTERNAL')
-  }
+  return { data: { success: true } }
 }
 
 // --- Domain-specific: toggle article status with lock contention ---

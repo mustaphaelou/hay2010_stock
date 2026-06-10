@@ -52,6 +52,7 @@ function createService(
     createUserIdField: string
     updateUserIdField: string
     conflictFormatter: (field: string, value: string) => string
+    softDelete: { field: string; value: unknown; userIdField?: string }
   }>,
 ): {
   service: CrudService<TestRecord, TestCreate, TestUpdate>
@@ -69,6 +70,7 @@ function createService(
     createUserIdField: overrides?.createUserIdField,
     updateUserIdField: overrides?.updateUserIdField,
     conflictFormatter: overrides?.conflictFormatter,
+    softDelete: overrides?.softDelete,
   })
   return { service, delegate: mockDelegate }
 }
@@ -378,6 +380,53 @@ describe('createCrudService', () => {
 
       expect(result.error).toBeDefined()
       expect(result.code).toBe('INTERNAL')
+    })
+
+    it('soft-deletes a record via delegate.update when softDelete config is set', async () => {
+      const { service, delegate } = createService(undefined, { softDelete: { field: 'est_actif', value: false } })
+      vi.mocked(delegate.findUnique).mockResolvedValue(sampleRecord)
+      vi.mocked(delegate.update).mockResolvedValue(sampleRecord)
+
+      const result = await service.delete(1)
+
+      expect(result.error).toBeUndefined()
+      expect(result.data).toBeUndefined()
+      expect(delegate.update).toHaveBeenCalledWith({ where: { id: 1 }, data: { est_actif: false } })
+      expect(delegate.delete).not.toHaveBeenCalled()
+    })
+
+    it('injects userId into soft-delete data when softDelete.userIdField is configured', async () => {
+      const { service, delegate } = createService(undefined, { softDelete: { field: 'est_actif', value: false, userIdField: 'modifie_par' } })
+      vi.mocked(delegate.findUnique).mockResolvedValue(sampleRecord)
+      vi.mocked(delegate.update).mockResolvedValue(sampleRecord)
+
+      const result = await service.delete(1, 'user-1')
+
+      expect(result.error).toBeUndefined()
+      expect(delegate.update).toHaveBeenCalledWith({ where: { id: 1 }, data: { est_actif: false, modifie_par: 'user-1' } })
+    })
+
+    it('does not inject userId when softDelete.userIdField is not configured', async () => {
+      const { service, delegate } = createService(undefined, { softDelete: { field: 'est_actif', value: false } })
+      vi.mocked(delegate.findUnique).mockResolvedValue(sampleRecord)
+      vi.mocked(delegate.update).mockResolvedValue(sampleRecord)
+
+      const result = await service.delete(1, 'user-1')
+
+      expect(result.error).toBeUndefined()
+      expect(delegate.update).toHaveBeenCalledWith({ where: { id: 1 }, data: { est_actif: false } })
+    })
+
+    it('returns NOT_FOUND when record does not exist with softDelete configured', async () => {
+      const { service, delegate } = createService(undefined, { softDelete: { field: 'est_actif', value: false } })
+      vi.mocked(delegate.findUnique).mockResolvedValue(null)
+
+      const result = await service.delete(999)
+
+      expect(result.error).toContain('introuvable')
+      expect(result.code).toBe('NOT_FOUND')
+      expect(delegate.update).not.toHaveBeenCalled()
+      expect(delegate.delete).not.toHaveBeenCalled()
     })
   })
 

@@ -13,6 +13,12 @@ export interface CrudDelegate<TRecord, TCreate, TUpdate> {
   count(args?: { where?: Record<string, unknown> }): Promise<number>
 }
 
+export interface SoftDeleteConfig {
+  field: string
+  value: unknown
+  userIdField?: string
+}
+
 export interface CrudConfig<TRecord, TCreate, TUpdate> {
   delegate: CrudDelegate<TRecord, TCreate, TUpdate>
   entityName: string
@@ -24,12 +30,13 @@ export interface CrudConfig<TRecord, TCreate, TUpdate> {
   createUserIdField?: string
   updateUserIdField?: string
   conflictFormatter?: (field: string, value: string) => string
+  softDelete?: SoftDeleteConfig
 }
 
 export interface CrudService<TRecord, TCreate, TUpdate> {
   create(input: TCreate, userId?: string): Promise<ServiceResult<TRecord>>
   update(id: number | string, input: TUpdate, userId?: string): Promise<ServiceResult<TRecord>>
-  delete(id: number | string): Promise<ServiceResult<void>>
+  delete(id: number | string, userId?: string): Promise<ServiceResult<void>>
   getById(id: number | string): Promise<ServiceResult<TRecord | null>>
   list(params?: {
     page?: number
@@ -148,14 +155,23 @@ export function createCrudService<TRecord, TCreate, TUpdate>(
       }
     },
 
-    async delete(id) {
+    async delete(id, userId?) {
       try {
         const existing = await delegate.findUnique({ where: whereId(id) })
         if (!existing) {
           return serviceError(`${entityName} introuvable`, 'NOT_FOUND')
         }
 
-        await delegate.delete({ where: whereId(id) })
+        const softDelete = config.softDelete
+        if (softDelete) {
+          const data: Record<string, unknown> = { [softDelete.field]: softDelete.value }
+          if (softDelete.userIdField && userId) {
+            data[softDelete.userIdField] = userId
+          }
+          await delegate.update({ where: whereId(id), data: data as any })
+        } else {
+          await delegate.delete({ where: whereId(id) })
+        }
         return { data: undefined }
       } catch (error) {
         return mapError(error, { id }, `Échec de la suppression de ${entityName.toLowerCase()}`)

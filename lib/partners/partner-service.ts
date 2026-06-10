@@ -75,6 +75,7 @@ const baseCrud = createCrudService<Partenaire, CreatePartnerInput, UpdatePartner
   createUserIdField: 'cree_par',
   updateUserIdField: 'modifie_par',
   conflictFormatter: (field, value) => `Le partenaire ${value} existe déjà`,
+  softDelete: { field: 'est_actif', value: false, userIdField: 'modifie_par' },
 })
 
 // --- Standard CRUD via CrudService ---
@@ -219,29 +220,11 @@ export async function deletePartner(
   id: number,
   userId?: string,
 ): Promise<ServiceResult<{ success: boolean }>> {
-  const parsed = validatedOrError(deletePartnerSchema, { id_partenaire: id })
-  if (parsed.error) {
-    return { error: parsed.error, code: parsed.code }
+  const result = await baseCrud.delete(id, userId)
+  if (result.error) {
+    return result as ServiceResult<{ success: boolean }>
   }
-
-  try {
-    const existing = await prisma.partenaire.findUnique({
-      where: { id_partenaire: id },
-    })
-    if (!existing) {
-      return serviceError('Partenaire introuvable', 'NOT_FOUND')
-    }
-
-    await prisma.partenaire.update({
-      where: { id_partenaire: id },
-      data: { est_actif: false, modifie_par: userId ?? undefined },
-    })
-
-    return { data: { success: true } }
-  } catch (error) {
-    log.error({ error, id }, 'Échec de la suppression du partenaire')
-    return serviceError('Échec de la suppression du partenaire', 'INTERNAL')
-  }
+  return { data: { success: true } }
 }
 
 // --- Domain-specific: partner documents (non-CRUD, standalone) ---

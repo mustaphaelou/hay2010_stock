@@ -373,7 +373,7 @@ describe('Partner Service', () => {
 
       const result = await deletePartner(1, 'user-1')
 
-      expect(result.error).toBe('Échec de la suppression du partenaire')
+      expect(result.error).toBe('DB error')
       expect(result.data?.success).toBeUndefined()
     })
   })

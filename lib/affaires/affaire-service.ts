@@ -4,7 +4,6 @@ import {
   getAffaireByCodeSchema,
   affaireCreateSchema,
   affaireUpdateSchema,
-  deleteAffaireSchema,
   ALLOWED_AFFAIRE_SORT_FIELDS,
 } from '@/lib/affaires/validation'
 import type {
@@ -64,6 +63,7 @@ const baseCrud = createCrudService<Affaire, AffaireCreateInput, AffaireUpdateInp
   createUserIdField: 'cree_par',
   updateUserIdField: 'modifie_par',
   conflictFormatter: (field, value) => `L'affaire ${value} existe déjà`,
+  softDelete: { field: 'est_actif', value: false, userIdField: 'modifie_par' },
 })
 
 // --- Standard CRUD via CrudService ---
@@ -173,29 +173,11 @@ export async function deleteAffaire(
   id_affaire: number,
   userId: string,
 ): Promise<ServiceResult<{ success: boolean }>> {
-  const result = validatedOrError(deleteAffaireSchema, { id_affaire }, { message: 'ID d\'affaire invalide' })
+  const result = await baseCrud.delete(id_affaire, userId)
   if (result.error) {
-    return { error: result.error, code: result.code }
+    return result as ServiceResult<{ success: boolean }>
   }
-
-  try {
-    const existing = await prisma.affaire.findUnique({
-      where: { id_affaire },
-    })
-    if (!existing) {
-      return serviceError('Affaire introuvable', 'NOT_FOUND')
-    }
-
-    await prisma.affaire.update({
-      where: { id_affaire },
-      data: { est_actif: false, modifie_par: userId },
-    })
-
-    return { data: { success: true } }
-  } catch (error) {
-    log.error({ error, id_affaire }, 'Échec de la suppression de l\'affaire')
-    return serviceError('Échec de la suppression de l\'affaire', 'INTERNAL')
-  }
+  return { data: { success: true } }
 }
 
 // --- Domain-specific: document queries (non-CRUD, standalone) ---

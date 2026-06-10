@@ -5,7 +5,6 @@ import {
   documentCreateSchema,
   documentUpdateSchema,
   getDocumentByIdSchema,
-  deleteDocumentSchema,
   ALLOWED_DOCUMENT_SORT_FIELDS,
 } from '@/lib/documents/validation'
 import type {
@@ -79,6 +78,7 @@ const baseCrud = createCrudService<DocVente, DocumentCreateInput, DocumentUpdate
   createUserIdField: 'cree_par',
   updateUserIdField: 'modifie_par',
   conflictFormatter: (field, value) => `Le document ${value} existe déjà`,
+  softDelete: { field: 'statut_document', value: 'ANNULE', userIdField: 'modifie_par' },
 })
 
 export const ensureDocumentExists = baseCrud.ensureExists
@@ -218,29 +218,11 @@ export async function deleteDocument(
   id_document: number,
   userId: string,
 ): Promise<ServiceResult<{ success: boolean }>> {
-  const result = validatedOrError(deleteDocumentSchema, { id_document }, { message: 'ID de document invalide' })
+  const result = await baseCrud.delete(id_document, userId)
   if (result.error) {
-    return { error: result.error, code: result.code }
+    return result as ServiceResult<{ success: boolean }>
   }
-
-  try {
-    const existing = await prisma.docVente.findUnique({
-      where: { id_document },
-    })
-    if (!existing) {
-      return serviceError('Document introuvable', 'NOT_FOUND')
-    }
-
-    await prisma.docVente.update({
-      where: { id_document },
-      data: { statut_document: 'ANNULE', modifie_par: userId },
-    })
-
-    return { data: { success: true } }
-  } catch (error) {
-    log.error({ error, id_document }, 'Échec de la suppression du document')
-    return serviceError('Échec de la suppression du document', 'INTERNAL')
-  }
+  return { data: { success: true } }
 }
 
 export async function getDocumentLinesById(
