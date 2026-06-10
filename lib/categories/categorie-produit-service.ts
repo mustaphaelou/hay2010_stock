@@ -31,6 +31,7 @@ const baseCrud = createCrudService<CategorieProduit, CreateInput, UpdateInput>({
   updateSchema: categoryUpdateSchema,
   uniqueFields: ['code_categorie'],
   idField: 'id_categorie',
+  conflictFormatter: (field, value) => `La catégorie avec le code ${value} existe déjà`,
 })
 
 const ALLOWED_SORT_FIELDS = [
@@ -103,44 +104,12 @@ export const createCategory = baseCrud.create
 export async function updateCategory(
   id: number,
   input: UpdateInput,
-): Promise<{ data?: unknown; error?: string; code?: ServiceErrorCode }> {
-  const result = validatedOrError(categoryUpdateSchema, input)
-  if (result.error || !result.data) {
-    return { error: result.error || 'Données invalides', code: result.code || 'VALIDATION' }
+): Promise<ServiceResult<CategorieProduit>> {
+  if (input.id_categorie_parent !== undefined && input.id_categorie_parent === id) {
+    return serviceError('ID catégorie parent invalide: une catégorie ne peut pas être son propre parent', 'VALIDATION')
   }
 
-  const d = result.data
-
-  try {
-    const existing = await prisma.categorieProduit.findUnique({
-      where: { id_categorie: id },
-    })
-    if (!existing) {
-      return serviceError('Catégorie introuvable', 'NOT_FOUND')
-    }
-
-    if (d.code_categorie && d.code_categorie !== existing.code_categorie) {
-      const duplicate = await prisma.categorieProduit.findUnique({
-        where: { code_categorie: d.code_categorie },
-      })
-      if (duplicate) {
-        return serviceError(`La catégorie avec le code ${d.code_categorie} existe déjà`, 'CONFLICT')
-      }
-    }
-
-    if (d.id_categorie_parent !== undefined && d.id_categorie_parent === id) {
-      return serviceError('ID catégorie parent invalide: une catégorie ne peut pas être son propre parent', 'VALIDATION')
-    }
-
-    const category = await prisma.categorieProduit.update({
-      where: { id_categorie: id },
-      data: d,
-    })
-    return { data: category }
-  } catch (error) {
-    log.error({ error, id, input: d }, 'Échec de la mise à jour de la catégorie')
-    return serviceError('Échec de la mise à jour de la catégorie', 'INTERNAL')
-  }
+  return baseCrud.update(id, input)
 }
 
 export async function deleteCategory(

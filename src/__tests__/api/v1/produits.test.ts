@@ -22,7 +22,7 @@ const {
   mockRedisIncr: vi.fn(),
 }))
 
-vi.mock('@/lib/stock/stock-service', () => ({
+vi.mock('@/lib/produits/produit-service', () => ({
   listArticles: mockListArticles,
   getArticleById: mockGetArticleById,
   createArticle: mockCreateArticle,

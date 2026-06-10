@@ -49,6 +49,7 @@ const baseCrud = createCrudService<Entrepot, CreateInput, UpdateInput>({
   updateSchema: warehouseUpdateSchema,
   uniqueFields: ['code_entrepot'],
   idField: 'id_entrepot',
+  conflictFormatter: (field, value) => `Le code entrepôt ${value} existe déjà`,
 })
 
 // --- Standard CRUD via CrudService ---
@@ -119,39 +120,7 @@ export async function updateEntrepot(
   id: number,
   input: UpdateInput,
 ): Promise<ServiceResult<Entrepot>> {
-  const parsed = validatedOrError(warehouseUpdateSchema, input)
-  if (parsed.error || !parsed.data) {
-    return { error: parsed.error || 'Données invalides', code: parsed.code || 'VALIDATION' }
-  }
-
-  const d = parsed.data
-
-  try {
-    const existing = await prisma.entrepot.findUnique({
-      where: { id_entrepot: id },
-    })
-    if (!existing) {
-      return serviceError('Entrepôt introuvable', 'NOT_FOUND')
-    }
-
-    if (d.code_entrepot && d.code_entrepot !== existing.code_entrepot) {
-      const duplicate = await prisma.entrepot.findUnique({
-        where: { code_entrepot: d.code_entrepot },
-      })
-      if (duplicate) {
-        return serviceError(`Le code entrepôt ${d.code_entrepot} existe déjà`, 'CONFLICT')
-      }
-    }
-
-    const warehouse = await prisma.entrepot.update({
-      where: { id_entrepot: id },
-      data: d,
-    })
-    return { data: warehouse }
-  } catch (error) {
-    log.error({ error, id, input: d }, 'Échec de la mise à jour de l\'entrepôt')
-    return serviceError('Échec de la mise à jour de l\'entrepôt', 'INTERNAL')
-  }
+  return baseCrud.update(id, input)
 }
 
 // --- Custom soft delete ---
