@@ -4,6 +4,8 @@
 
 French-language ERP for stock, sales, purchases, partners, and affairs (affaires).
 Business terms use French: `Partenaire`, `TypePartenaire`, `DocVente`, `Entrepot`, `MouvementStock`, `Affaire`.
+- **`solde_courant` (current balance)**: Represents the partner's total outstanding balance. It is computed as the sum of all open (`solde_du > 0`) `DocVente` sales invoices (`Facture`, adding to the balance) minus credit notes (`Avoir`, subtracting from the balance), excluding draft (`BROUILLON`) and cancelled (`ANNULE`) documents.
+
 
 ## Error Handling Idioms
 

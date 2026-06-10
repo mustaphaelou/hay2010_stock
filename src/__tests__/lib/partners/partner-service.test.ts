@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { fromAny } from '@total-typescript/shoehorn'
 
-const { mockPartenaireFindMany, mockPartenaireCount, mockPartenaireCreate, mockPartenaireUpdate, mockPartenaireDelete, mockPartenaireFindUnique, mockDocVenteFindMany, mockDocVenteCount } = vi.hoisted(() => ({
+const { mockPartenaireFindMany, mockPartenaireCount, mockPartenaireCreate, mockPartenaireUpdate, mockPartenaireDelete, mockPartenaireFindUnique, mockDocVenteFindMany, mockDocVenteCount, mockDocVenteGroupBy } = vi.hoisted(() => ({
   mockPartenaireFindMany: vi.fn(),
   mockPartenaireCount: vi.fn(),
   mockPartenaireCreate: vi.fn(),
@@ -10,6 +10,7 @@ const { mockPartenaireFindMany, mockPartenaireCount, mockPartenaireCreate, mockP
   mockPartenaireFindUnique: vi.fn(),
   mockDocVenteFindMany: vi.fn(),
   mockDocVenteCount: vi.fn(),
+  mockDocVenteGroupBy: vi.fn(),
 }))
 
 vi.mock('@/lib/db/prisma', () => ({
@@ -25,6 +26,7 @@ vi.mock('@/lib/db/prisma', () => ({
     docVente: {
       findMany: mockDocVenteFindMany,
       count: mockDocVenteCount,
+      groupBy: mockDocVenteGroupBy,
     },
   },
 }))
@@ -79,6 +81,7 @@ function mockDbPartner(overrides: Record<string, unknown> = {}): Record<string, 
 describe('Partner Service', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockDocVenteGroupBy.mockResolvedValue([])
   })
 
   describe('getPartners', () => {
@@ -93,6 +96,38 @@ describe('Partner Service', () => {
       expect(result.data[0].code_partenaire).toBe('CLI-001')
       expect(result.meta.total).toBe(1)
       expect(result.error).toBeUndefined()
+    })
+
+    it('should query and map computed partner balances', async () => {
+      const mockPartner1 = mockDbPartner({ id_partenaire: 1 })
+      const mockPartner2 = mockDbPartner({ id_partenaire: 2 })
+      mockPartenaireFindMany.mockResolvedValue([mockPartner1, mockPartner2])
+      mockPartenaireCount.mockResolvedValue(2)
+      
+      mockDocVenteGroupBy.mockResolvedValue([
+        { id_partenaire: 1, type_document: 'Facture', _sum: { solde_du: 1000 } },
+        { id_partenaire: 1, type_document: 'Avoir', _sum: { solde_du: 200 } },
+        { id_partenaire: 2, type_document: 'Facture', _sum: { solde_du: 500 } },
+      ])
+
+      const result = await getPartners(undefined, 1, 50)
+
+      expect(result.data).toHaveLength(2)
+      expect(result.data[0].solde_courant).toBe(800)
+      expect(result.data[1].solde_courant).toBe(500)
+      expect(mockDocVenteGroupBy).toHaveBeenCalledWith({
+        by: ['id_partenaire', 'type_document'],
+        where: {
+          id_partenaire: { in: [1, 2] },
+          domaine_document: 'VENTE',
+          type_document: { in: ['Facture', 'Avoir', 'FACTURE', 'AVOIR'] },
+          statut_document: { notIn: ['ANNULE', 'BROUILLON'] },
+          solde_du: { gt: 0 }
+        },
+        _sum: {
+          solde_du: true
+        }
+      })
     })
 
     it('should return { data: [], error } on DB error', async () => {

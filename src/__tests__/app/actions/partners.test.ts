@@ -4,9 +4,10 @@ const { mockRequirePermission } = vi.hoisted(() => ({
   mockRequirePermission: vi.fn().mockResolvedValue({ id: 'user-1', email: 'admin@test.com', name: 'Admin', role: 'ADMIN' }),
 }))
 
-const { mockPartenaireFindMany, mockPartenaireCount } = vi.hoisted(() => ({
+const { mockPartenaireFindMany, mockPartenaireCount, mockDocVenteGroupBy } = vi.hoisted(() => ({
   mockPartenaireFindMany: vi.fn(),
   mockPartenaireCount: vi.fn(),
+  mockDocVenteGroupBy: vi.fn(),
 }))
 
 vi.mock('@/lib/db/prisma', () => ({
@@ -14,6 +15,9 @@ vi.mock('@/lib/db/prisma', () => ({
     partenaire: {
       findMany: mockPartenaireFindMany,
       count: mockPartenaireCount,
+    },
+    docVente: {
+      groupBy: mockDocVenteGroupBy,
     },
   },
 }))
@@ -41,6 +45,7 @@ describe('Partners Actions', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockRequirePermission.mockResolvedValue({ id: 'user-1', email: 'admin@test.com', name: 'Admin', role: 'ADMIN' })
+    mockDocVenteGroupBy.mockResolvedValue([])
   })
 
   describe('getPartners', () => {

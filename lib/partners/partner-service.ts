@@ -11,10 +11,11 @@ import { getPartnersSchema, createPartnerSchema, updatePartnerSchema, deletePart
 import type { PartnerWithComputed } from '@/lib/types'
 import type { CreatePartnerInput, UpdatePartnerInput } from '@/lib/partners/validation'
 import { TypePartenaire } from '@/lib/generated/prisma'
+import { computePartnerBalance } from '@/lib/partners/partner-display'
 
 const log = createLogger('partner-service')
 
-function mapPartnerToComputed(partner: Record<string, unknown>): PartnerWithComputed {
+function mapPartnerToComputed(partner: Record<string, unknown>, soldeCourant: number = 0): PartnerWithComputed {
   return {
     id_partenaire: partner.id_partenaire as number,
     code_partenaire: partner.code_partenaire as string,
@@ -47,7 +48,7 @@ function mapPartnerToComputed(partner: Record<string, unknown>): PartnerWithComp
     compte_collectif: partner.compte_collectif as string | null,
     compte_auxiliaire: partner.compte_auxiliaire as string | null,
     plafond_credit: Number(partner.limite_credit ?? 0),
-    solde_courant: 0,
+    solde_courant: soldeCourant,
   }
 }
 
@@ -125,8 +126,40 @@ export async function getPartners(
       prisma.partenaire.count({ where }),
     ])
 
+    const partnerIds = partners.map(p => p.id_partenaire)
+    const balances = partnerIds.length > 0 ? await prisma.docVente.groupBy({
+      by: ['id_partenaire', 'type_document'],
+      where: {
+        id_partenaire: { in: partnerIds },
+        domaine_document: 'VENTE',
+        type_document: { in: ['Facture', 'Avoir', 'FACTURE', 'AVOIR'] },
+        statut_document: { notIn: ['ANNULE', 'BROUILLON'] },
+        solde_du: { gt: 0 }
+      },
+      _sum: {
+        solde_du: true
+      }
+    }) : []
+
+    const balanceMap: Record<number, number> = {}
+    for (const agg of balances) {
+      const pid = agg.id_partenaire
+      const sum = Number(agg._sum.solde_du || 0)
+      const type = agg.type_document.toUpperCase()
+      
+      if (!balanceMap[pid]) {
+        balanceMap[pid] = 0
+      }
+      
+      if (type === 'FACTURE') {
+        balanceMap[pid] += sum
+      } else if (type === 'AVOIR') {
+        balanceMap[pid] -= sum
+      }
+    }
+
     return {
-      data: partners.map(mapPartnerToComputed),
+      data: partners.map(p => mapPartnerToComputed(p, balanceMap[p.id_partenaire] || 0)),
       meta: buildPaginationMeta(total, page, limit),
     }
   } catch (error) {
@@ -143,7 +176,8 @@ export async function getPartnerById(id: number): Promise<ServiceResult<PartnerW
     return serviceError('Partenaire introuvable', 'NOT_FOUND')
   }
   if (result.data) {
-    return { data: mapPartnerToComputed(result.data as unknown as Record<string, unknown>) }
+    const solde = await computePartnerBalance(id)
+    return { data: mapPartnerToComputed(result.data as unknown as Record<string, unknown>, solde) }
   }
   return result as ServiceResult<PartnerWithComputed>
 }
@@ -158,7 +192,9 @@ export async function createPartner(
   if (result.error) {
     return result as ServiceResult<PartnerWithComputed>
   }
-  return { data: mapPartnerToComputed(result.data as unknown as Record<string, unknown>) }
+  const id = (result.data as any).id_partenaire
+  const solde = await computePartnerBalance(id)
+  return { data: mapPartnerToComputed(result.data as unknown as Record<string, unknown>, solde) }
 }
 
 // --- Custom update with conditional unique code check and userId tracking ---
@@ -172,7 +208,9 @@ export async function updatePartner(
   if (result.error) {
     return result as ServiceResult<PartnerWithComputed>
   }
-  return { data: mapPartnerToComputed(result.data as unknown as Record<string, unknown>) }
+  const idToUse = (result.data as any).id_partenaire || id
+  const solde = await computePartnerBalance(idToUse)
+  return { data: mapPartnerToComputed(result.data as unknown as Record<string, unknown>, solde) }
 }
 
 // --- Custom soft delete ---
