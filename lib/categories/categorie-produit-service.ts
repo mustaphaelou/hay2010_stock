@@ -5,7 +5,7 @@ import type { CategorieProduit } from '@/lib/generated/prisma/client'
 import { createLogger } from '@/lib/logger'
 import { createEmptyResult, buildPaginationMeta, getPaginationParams } from '@/lib/pagination'
 import type { PaginatedResult } from '@/lib/pagination'
-import { serviceError, validatedOrError } from '@/lib/service-result'
+import { serviceError } from '@/lib/service-result'
 import type { ServiceResult, ServiceErrorCode } from '@/lib/service-result'
 import { createCrudService } from '@/lib/crud-service'
 
@@ -101,16 +101,7 @@ export async function getCategoryById(id: number): Promise<ServiceResult<Categor
 
 export const createCategory = baseCrud.create
 
-export async function updateCategory(
-  id: number,
-  input: UpdateInput,
-): Promise<ServiceResult<CategorieProduit>> {
-  if (input.id_categorie_parent !== undefined && input.id_categorie_parent === id) {
-    return serviceError('ID catégorie parent invalide: une catégorie ne peut pas être son propre parent', 'VALIDATION')
-  }
-
-  return baseCrud.update(id, input)
-}
+export const updateCategory = baseCrud.update
 
 export async function deleteCategory(
   id: number,

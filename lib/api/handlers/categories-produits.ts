@@ -8,6 +8,7 @@ import {
   getCategoryChildren,
   getCategoryProducts,
 } from '@/lib/categories/categorie-produit-service'
+import { serviceError } from '@/lib/service-result'
 
 export const listCategoriesHandler = apiHandler({
   rateLimit: 'read',
@@ -41,7 +42,12 @@ export const updateCategoryHandler = apiHandler({
   idErrorMessage: 'ID catégorie invalide',
   type: 'write',
   invalidations: (id) => [{ kind: 'category', categoryId: id }],
-  execute: ({ id, body }) => updateCategory(id!, body)
+  execute: ({ id, body }) => {
+    if (body.id_categorie_parent !== undefined && body.id_categorie_parent === id) {
+      return serviceError('ID catégorie parent invalide: une catégorie ne peut pas être son propre parent', 'VALIDATION')
+    }
+    return updateCategory(id!, body)
+  }
 })
 
 export const deleteCategoryHandler = apiHandler({

@@ -5,7 +5,7 @@ import type { Entrepot } from '@/lib/generated/prisma/client'
 import { createLogger } from '@/lib/logger'
 import { createEmptyResult, buildPaginationMeta, getPaginationParams } from '@/lib/pagination'
 import type { PaginatedResult } from '@/lib/pagination'
-import { serviceError, validatedOrError } from '@/lib/service-result'
+import { serviceError } from '@/lib/service-result'
 import type { ServiceResult, ServiceErrorCode } from '@/lib/service-result'
 import { createCrudService } from '@/lib/crud-service'
 
@@ -115,14 +115,7 @@ export async function listEntrepots(
   }
 }
 
-// --- Custom update with conditional unique code check ---
-
-export async function updateEntrepot(
-  id: number,
-  input: UpdateInput,
-): Promise<ServiceResult<Entrepot>> {
-  return baseCrud.update(id, input)
-}
+export const updateEntrepot = baseCrud.update
 
 // --- Custom soft delete ---
 
