@@ -12,7 +12,6 @@ import {
   adjustStockLevelSchema,
   deleteStockLevelSchema,
 } from '@/lib/stock/validation'
-import { niveauStockService } from '@/lib/stock/niveau-stock-service'
 import { serviceError, validatedOrError } from '@/lib/service-result'
 
 const log = createLogger('stock-service')
@@ -329,18 +328,27 @@ export async function createStockLevel(
     const reserved = d.quantite_reservee ?? 0
     const ordered = d.quantite_commandee ?? 0
 
-    const serviceResult = await niveauStockService.create({
-      id_produit: d.productId,
-      id_entrepot: d.warehouseId,
-      quantite_en_stock: qty,
-      quantite_reservee: reserved,
-      quantite_commandee: ordered,
+    const existing = await prisma.niveauStock.findUnique({
+      where: {
+        id_produit_id_entrepot: {
+          id_produit: d.productId,
+          id_entrepot: d.warehouseId,
+        },
+      },
     })
-    if (serviceResult.error) {
-      return { error: serviceResult.error, code: serviceResult.code }
+    if (existing) {
+      return { error: 'Un niveau de stock existe déjà pour ce couple produit-entrepôt', code: 'CONFLICT' as const }
     }
 
-    const created = serviceResult.data
+    const created = await prisma.niveauStock.create({
+      data: {
+        id_produit: d.productId,
+        id_entrepot: d.warehouseId,
+        quantite_en_stock: qty,
+        quantite_reservee: reserved,
+        quantite_commandee: ordered,
+      },
+    })
 
     if (qty > 0) {
       await prisma.mouvementStock.create({
